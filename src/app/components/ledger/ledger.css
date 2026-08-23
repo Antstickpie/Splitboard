@@ -101,6 +101,8 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
+  min-width: 165px;
   gap: 0.5rem;
   transition: all 0.15s ease;
 }

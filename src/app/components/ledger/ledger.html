@@ -126,6 +126,19 @@
           <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
           <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
         </div>
+
+        <!-- Today Button -->
+        <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.selectedMonth() !== service.getCurrentMonthString()">
+          Today
+        </button>
+
+        <!-- Past / Future Badge (Directly Beside Navigation) -->
+        <span class="past-month-badge" *ngIf="isPastMonth()">
+          ⏱ Past month
+        </span>
+        <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25);" *ngIf="isFutureMonth()">
+          🔮 Future
+        </span>
       </div>
 
       <div class="toolbar-actions">

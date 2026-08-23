@@ -1,4 +1,4 @@
-import { Component, inject, signal, HostListener, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -14,6 +14,16 @@ import { Transaction, SplitType, SplitMode } from '../../models';
 export class LedgerComponent {
   public service = inject(TransactionService);
   private elementRef = inject(ElementRef);
+
+  public isPastMonth = computed(() => {
+    const sm = this.service.selectedMonth();
+    return sm !== 'ALL' && sm < this.service.getCurrentMonthString();
+  });
+
+  public isFutureMonth = computed(() => {
+    const sm = this.service.selectedMonth();
+    return sm !== 'ALL' && sm > this.service.getCurrentMonthString();
+  });
 
   @HostListener('document:click', ['$event'])
   public onDocumentClick(event: MouseEvent): void {

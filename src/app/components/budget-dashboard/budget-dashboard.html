@@ -2,50 +2,60 @@
   <!-- Top Bar: Month & Key Metrics -->
   <div class="everydollar-top-bar glass-card">
     <div class="top-bar-left">
-      <!-- Month Trigger Popover -->
-      <div class="everydollar-month-container" style="position: relative;">
-        <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
-          <span class="month-title-text">{{ service.formatMonth(selectedMonth()) }}</span>
-          <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
-        </button>
+      <!-- Month Navigation & Controls Group -->
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Month Trigger Popover -->
+        <div class="everydollar-month-container" style="position: relative;">
+          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
+            <span class="month-title-text">{{ service.formatMonth(selectedMonth()) }}</span>
+            <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
+          </button>
 
-        <!-- Month Picker Popover Grid -->
-        <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
-          <div class="popover-year-bar">
-            <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
-            <span class="popover-year-text">{{ pickerYear() }}</span>
-            <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
-          </div>
+          <!-- Month Picker Popover Grid -->
+          <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
+            <div class="popover-year-bar">
+              <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+              <span class="popover-year-text">{{ pickerYear() }}</span>
+              <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+            </div>
 
-          <div class="popover-months-grid">
-            <button
-              *ngFor="let m of monthsList; let idx = index"
-              class="month-cell-btn"
-              [class.selected]="isMonthSelected(idx)"
-              [class.has-data]="hasMonthData(idx)"
-              (click)="selectMonth(idx)">
-              {{ m }}
-            </button>
-          </div>
+            <div class="popover-months-grid">
+              <button
+                *ngFor="let m of monthsList; let idx = index"
+                class="month-cell-btn"
+                [class.selected]="isMonthSelected(idx)"
+                [class.has-data]="hasMonthData(idx)"
+                (click)="selectMonth(idx)">
+                {{ m }}
+              </button>
+            </div>
 
-          <div class="popover-footer">
-            <button class="btn-today" (click)="goToToday()">
-              Go to today
-            </button>
+            <div class="popover-footer">
+              <button class="btn-today" (click)="goToToday()">
+                Go to today
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Month Navigation Arrows & Today Button (Grouped with selector) -->
-      <div style="display: flex; align-items: center; gap: 0.35rem;">
+        <!-- Stable Navigation Arrows -->
         <div class="month-arrows-group">
           <button class="btn-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
           <button class="btn-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
         </div>
 
+        <!-- Today Button -->
         <button class="btn btn-secondary btn-xs" (click)="goToToday()" *ngIf="selectedMonth() !== service.getCurrentMonthString()">
           Today
         </button>
+
+        <!-- Past / Future Badge (Directly Beside Navigation) -->
+        <span class="past-month-badge" *ngIf="isPastMonth()">
+          ⏱ Past month
+        </span>
+        <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25);" *ngIf="isFutureMonth()">
+          🔮 Future
+        </span>
       </div>
 
       <!-- Quick Metrics Badges -->
@@ -69,13 +79,6 @@
           </span>
         </div>
       </div>
-    </div>
-
-    <!-- Top Bar Right Status -->
-    <div class="top-bar-right">
-      <span class="past-month-badge" *ngIf="isPastMonth()">
-        ⏱ Past month
-      </span>
     </div>
   </div>
 
