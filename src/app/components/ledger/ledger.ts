@@ -353,8 +353,7 @@ export class LedgerComponent {
     const p2 = this.service.personTwo().name;
 
     if (value === 'SPLIT_5050') {
-      this.service.updateTransaction({
-        ...tx,
+      this.service.updateTransaction(tx.id, {
         splitType: 'SPLIT',
         splitMode: 'PERCENTAGE',
         splitPercentage: 50,
@@ -363,8 +362,7 @@ export class LedgerComponent {
       this.service.showToast('Split updated to 50/50', 'success');
     } else if (value === '100_P1') {
       const splitType: SplitType = tx.paidBy === p1 ? 'SELF' : 'OTHER';
-      this.service.updateTransaction({
-        ...tx,
+      this.service.updateTransaction(tx.id, {
         splitType,
         splitMode: 'PERCENTAGE',
         splitPercentage: tx.paidBy === p1 ? 100 : 0,
@@ -373,8 +371,7 @@ export class LedgerComponent {
       this.service.showToast(`Allocated 100% to ${p1}`, 'success');
     } else if (value === '100_P2') {
       const splitType: SplitType = tx.paidBy === p2 ? 'SELF' : 'OTHER';
-      this.service.updateTransaction({
-        ...tx,
+      this.service.updateTransaction(tx.id, {
         splitType,
         splitMode: 'PERCENTAGE',
         splitPercentage: tx.paidBy === p2 ? 100 : 0,
@@ -388,8 +385,7 @@ export class LedgerComponent {
 
   public onInlineCategoryChange(tx: Transaction, itemCategoryName: string): void {
     if (!itemCategoryName) {
-      this.service.updateTransaction({
-        ...tx,
+      this.service.updateTransaction(tx.id, {
         categoryGroup: undefined,
         categoryItem: undefined
       });
@@ -404,8 +400,7 @@ export class LedgerComponent {
       }
     }
 
-    this.service.updateTransaction({
-      ...tx,
+    this.service.updateTransaction(tx.id, {
       categoryGroup: parentGroupName || tx.categoryGroup,
       categoryItem: itemCategoryName
     });
