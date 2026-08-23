@@ -124,25 +124,10 @@
             </div>
           </div>
 
-          <!-- Quick Inline Add Item -->
-          <div class="add-item-row" *ngIf="activeAddingGroupId() === grp.id">
-            <input
-              type="text"
-              [(ngModel)]="newCategoryItemName"
-              placeholder="Item name..."
-              class="person-input"
-              style="flex: 1;"
-              (keydown.enter)="saveNewItem(grp.id)">
-            <button class="btn btn-primary btn-xs" (click)="saveNewItem(grp.id)">Save</button>
-            <button class="btn btn-secondary btn-xs" (click)="cancelAddingItem()">Cancel</button>
-          </div>
-
           <!-- Group Subtotal Row -->
           <div class="group-subtotal-row font-mono">
             <div class="subtotal-label">
-              <button class="btn-add-item-link" *ngIf="activeAddingGroupId() !== grp.id" (click)="startAddingItem(grp.id)">
-                + Add Item
-              </button>
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Total</span>
             </div>
             <div class="subtotal-values">
               <span class="subtotal-planned">{{ service.formatCurrency(grp.plannedTotal) }}</span>
