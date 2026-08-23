@@ -151,12 +151,12 @@
           <div class="item-numbers">
             <div class="actual-val font-mono">{{ service.formatCurrency(item.actual) }}</div>
             <div class="planned-input-wrap">
-              <span class="currency-symbol">€</span>
+              <span class="currency-symbol">{{ service.currency() === 'EUR' ? '€' : service.currency() === 'USD' ? '$' : service.currency() === 'INR' ? '₹' : service.currency() === 'GBP' ? '£' : '' }}</span>
               <input
-                type="number"
-                step="0.01"
-                [ngModel]="item.planned"
+                type="text"
+                [value]="service.formatNumber(item.planned)"
                 (blur)="updateItemPlanned(item.id, $any($event.target).value)"
+                (keydown.enter)="$any($event.target).blur()"
                 class="inline-planned-input"
                 title="Edit monthly planned budget">
             </div>

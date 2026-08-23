@@ -235,8 +235,22 @@ export class BudgetDashboardComponent {
     return trends;
   });
 
-  public updateItemPlanned(itemId: string, val: number | string): void {
-    const num = Number(val) || 0;
-    this.service.updateMonthlyBudgetPlanned(this.selectedMonth(), itemId, num);
+  public updateItemPlanned(itemId: string, val: string | number): void {
+    if (typeof val === 'string') {
+      let cleaned = val.trim();
+      if (cleaned.includes('.') && cleaned.includes(',')) {
+        if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else {
+          cleaned = cleaned.replace(/,/g, '');
+        }
+      } else if (cleaned.includes(',')) {
+        cleaned = cleaned.replace(',', '.');
+      }
+      const num = parseFloat(cleaned) || 0;
+      this.service.updateMonthlyBudgetPlanned(this.selectedMonth(), itemId, num);
+    } else {
+      this.service.updateMonthlyBudgetPlanned(this.selectedMonth(), itemId, Number(val) || 0);
+    }
   }
 }
