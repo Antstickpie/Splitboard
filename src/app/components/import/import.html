@@ -56,6 +56,42 @@
     </div>
   </div>
 
+  <!-- Imported Statement Batches (1-Click Multi-Month Undo) -->
+  <div class="glass-card" *ngIf="service.importedBatches().length > 0" style="padding: 1rem 1.2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+      <div style="display: flex; align-items: center; gap: 0.4rem;">
+        <span style="font-size: 1.1rem;">📜</span>
+        <strong style="font-size: 0.92rem; color: var(--text-main);">Recent Statement Imports (1-Click Batch Undo)</strong>
+      </div>
+      <span style="font-size: 0.75rem; color: var(--text-muted);">
+        {{ service.importedBatches().length }} active statement batch{{ service.importedBatches().length > 1 ? 'es' : '' }}
+      </span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+      <div
+        *ngFor="let b of service.importedBatches()"
+        style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.8rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+          <span style="font-size: 0.95rem;">📄</span>
+          <div>
+            <strong style="font-size: 0.84rem; color: var(--primary);">{{ b.fileName }}</strong>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
+              {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: {{ service.formatCurrency(b.totalAmount) }}
+            </div>
+          </div>
+        </div>
+
+        <button
+          class="btn btn-secondary btn-xs"
+          (click)="service.undoImportBatch(b.fileName)"
+          style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); font-size: 0.74rem;">
+          ↩ Undo Import (Delete {{ b.count }} Rows)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Preview Card -->
   <div class="glass-card preview-card animate-fade-in" *ngIf="previewResult() as res">
     <div class="preview-header">

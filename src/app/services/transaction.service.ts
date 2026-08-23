@@ -312,6 +312,34 @@ export class TransactionService {
     };
   });
 
+  // Track Imported Statement Batches for 1-click Undo across all months
+  public importedBatches = computed(() => {
+    const txs = this.transactions();
+    const map = new Map<string, { fileName: string; count: number; minDate: string; maxDate: string; totalAmount: number }>();
+
+    for (const tx of txs) {
+      if (tx.sourceFile && tx.sourceFile !== 'Manual Entry' && tx.sourceFile !== 'Manual Cash Entry') {
+        const src = tx.sourceFile;
+        if (!map.has(src)) {
+          map.set(src, {
+            fileName: src,
+            count: 0,
+            minDate: tx.date || '',
+            maxDate: tx.date || '',
+            totalAmount: 0
+          });
+        }
+        const b = map.get(src)!;
+        b.count++;
+        b.totalAmount += Number(tx.amount) || 0;
+        if (tx.date && (!b.minDate || tx.date < b.minDate)) b.minDate = tx.date;
+        if (tx.date && (!b.maxDate || tx.date > b.maxDate)) b.maxDate = tx.date;
+      }
+    }
+
+    return Array.from(map.values());
+  });
+
   constructor() {
     this.loadFromStorage();
     this.applyTheme();
@@ -483,6 +511,21 @@ export class TransactionService {
     const b = this.bankConfigs().find((x) => x.id === id);
     this.bankConfigs.update((curr) => curr.filter((x) => x.id !== id));
     this.showToast(`Removed bank "${b?.name || ''}"`, 'info');
+  }
+
+  public async undoImportBatch(fileName: string): Promise<void> {
+    const batch = this.importedBatches().find((b) => b.fileName === fileName);
+    const count = batch ? batch.count : 'all';
+    const ok = await this.showConfirm(
+      'Undo Statement Import',
+      `Delete all ${count} transactions imported from "${fileName}" across all months?`
+    );
+    if (ok) {
+      const before = this.transactions().length;
+      this.transactions.update((curr) => curr.filter((t) => t.sourceFile !== fileName));
+      const deleted = before - this.transactions().length;
+      this.showToast(`Undid import: removed ${deleted} transactions`, 'info');
+    }
   }
 
   public isTransactionExcluded(desc: string, bank: string): boolean {
