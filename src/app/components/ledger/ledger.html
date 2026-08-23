@@ -355,10 +355,68 @@
 
         <div style="margin-top: 0.8rem;">
           <label class="input-label">Split Allocation</label>
-          <div class="toggle-group" style="width: 100%; height: 34px;">
-            <button class="toggle-btn" [class.active]="cashSplitType === 'SELF'" (click)="cashSplitType = 'SELF'" style="flex: 1;">Self (100%)</button>
-            <button class="toggle-btn" [class.active]="cashSplitType === 'OTHER'" (click)="cashSplitType = 'OTHER'" style="flex: 1;">Other (100%)</button>
-            <button class="toggle-btn" [class.active]="cashSplitType === 'SPLIT'" (click)="cashSplitType = 'SPLIT'" style="flex: 1;">Split 50/50</button>
+          <div class="toggle-group" style="width: 100%; height: 34px; margin-bottom: 0.6rem;">
+            <button class="toggle-btn" [class.active]="cashSplitOption === 'PAYER_ONLY'" (click)="setCashSplitOption('PAYER_ONLY')" style="flex: 1;">
+              100% {{ cashPaidBy }}
+            </button>
+            <button class="toggle-btn" [class.active]="cashSplitOption === 'OTHER_ONLY'" (click)="setCashSplitOption('OTHER_ONLY')" style="flex: 1;">
+              100% {{ getOtherPersonName() }}
+            </button>
+            <button class="toggle-btn" [class.active]="cashSplitOption === 'SPLIT_5050'" (click)="setCashSplitOption('SPLIT_5050')" style="flex: 1;">
+              Split 50/50
+            </button>
+            <button class="toggle-btn" [class.active]="cashSplitOption === 'CUSTOM'" (click)="setCashSplitOption('CUSTOM')" style="flex: 1;">
+              Custom
+            </button>
+          </div>
+
+          <!-- Custom Split Section (Exact Money Amounts or Percentages) -->
+          <div *ngIf="cashSplitOption === 'CUSTOM'" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Custom Split Mode:</span>
+              <div class="toggle-group" style="height: 26px; width: 160px;">
+                <button class="toggle-btn" [class.active]="cashSplitMode === 'EXACT'" (click)="cashSplitMode = 'EXACT'" style="flex: 1; font-size: 0.72rem;">$ Exact Money</button>
+                <button class="toggle-btn" [class.active]="cashSplitMode === 'PERCENTAGE'" (click)="cashSplitMode = 'PERCENTAGE'" style="flex: 1; font-size: 0.72rem;">% Percent</button>
+              </div>
+            </div>
+
+            <!-- Mode 1: Exact Money Amounts -->
+            <div *ngIf="cashSplitMode === 'EXACT'" style="display: flex; gap: 0.6rem;">
+              <div style="flex: 1;">
+                <label class="input-label">{{ service.personOne().name }}'s Share ({{ service.getCurrencySymbol(cashCurrency) }})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  [ngModel]="cashCustomP1Amount"
+                  (ngModelChange)="onCashP1AmountChange($event)"
+                  placeholder="0.00"
+                  style="width: 100%;">
+              </div>
+              <div style="flex: 1;">
+                <label class="input-label">{{ service.personTwo().name }}'s Share ({{ service.getCurrencySymbol(cashCurrency) }})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  [ngModel]="cashCustomP2Amount"
+                  (ngModelChange)="onCashP2AmountChange($event)"
+                  placeholder="0.00"
+                  style="width: 100%;">
+              </div>
+            </div>
+
+            <!-- Mode 2: Percentage Presets & Share Info -->
+            <div *ngIf="cashSplitMode === 'PERCENTAGE'">
+              <div style="display: flex; gap: 0.35rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-secondary btn-xs" (click)="setCashCustomPercentage(50)" [class.btn-primary]="cashCustomPercentage === 50">50% / 50%</button>
+                <button class="btn btn-secondary btn-xs" (click)="setCashCustomPercentage(60)" [class.btn-primary]="cashCustomPercentage === 60">60% / 40%</button>
+                <button class="btn btn-secondary btn-xs" (click)="setCashCustomPercentage(70)" [class.btn-primary]="cashCustomPercentage === 70">70% / 30%</button>
+                <button class="btn btn-secondary btn-xs" (click)="setCashCustomPercentage(80)" [class.btn-primary]="cashCustomPercentage === 80">80% / 20%</button>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.76rem; font-weight: 600;">
+                <span style="color: var(--primary);">{{ service.personOne().name }}: {{ cashCustomPercentage }}% ({{ service.getCurrencySymbol(cashCurrency) }}{{ ((cashAmount * cashCustomPercentage) / 100).toFixed(2) }})</span>
+                <span style="color: var(--secondary);">{{ service.personTwo().name }}: {{ 100 - cashCustomPercentage }}% ({{ service.getCurrencySymbol(cashCurrency) }}{{ ((cashAmount * (100 - cashCustomPercentage)) / 100).toFixed(2) }})</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

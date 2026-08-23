@@ -28,8 +28,11 @@ export class LedgerComponent {
   public cashCategoryGroup = 'Housing';
   public cashCategoryItem = '';
   public cashCurrency = 'EUR';
-  public cashSplitType: SplitType = 'SPLIT';
-  public cashSplitPercentage = 50;
+  public cashSplitOption: 'PAYER_ONLY' | 'OTHER_ONLY' | 'SPLIT_5050' | 'CUSTOM' = 'SPLIT_5050';
+  public cashSplitMode: SplitMode = 'PERCENTAGE';
+  public cashCustomP1Amount = 0;
+  public cashCustomP2Amount = 0;
+  public cashCustomPercentage = 50;
 
   // Split customization modal
   public activeCustomSplitTx = signal<Transaction | null>(null);
@@ -49,6 +52,146 @@ export class LedgerComponent {
     this.cashPaidBy = this.service.personOne().name;
     this.cashTransferTo = this.service.personTwo().name;
     this.cashCurrency = this.service.currency();
+  }
+
+  public getOtherPersonName(paidBy?: string): string {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    const current = paidBy || this.cashPaidBy;
+    return current === p1 ? p2 : p1;
+  }
+
+  public onCashAmountChange() {
+    if (this.cashSplitMode === 'PERCENTAGE') {
+      this.cashCustomP1Amount = parseFloat(((this.cashAmount * this.cashCustomPercentage) / 100).toFixed(2));
+      this.cashCustomP2Amount = parseFloat((this.cashAmount - this.cashCustomP1Amount).toFixed(2));
+    } else {
+      const half = parseFloat((this.cashAmount / 2).toFixed(2));
+      this.cashCustomP1Amount = half;
+      this.cashCustomP2Amount = parseFloat((this.cashAmount - half).toFixed(2));
+    }
+  }
+
+  public setCashSplitOption(opt: 'PAYER_ONLY' | 'OTHER_ONLY' | 'SPLIT_5050' | 'CUSTOM') {
+    this.cashSplitOption = opt;
+    if (opt === 'CUSTOM') {
+      this.onCashAmountChange();
+    }
+  }
+
+  public setCashCustomPercentage(pct: number) {
+    this.cashCustomPercentage = pct;
+    this.cashCustomP1Amount = parseFloat(((this.cashAmount * pct) / 100).toFixed(2));
+    this.cashCustomP2Amount = parseFloat((this.cashAmount - this.cashCustomP1Amount).toFixed(2));
+  }
+
+  public onCashP1AmountChange(val: number) {
+    this.cashCustomP1Amount = val;
+    this.cashCustomP2Amount = Math.max(0, parseFloat((this.cashAmount - val).toFixed(2)));
+  }
+
+  public onCashP2AmountChange(val: number) {
+    this.cashCustomP2Amount = val;
+    this.cashCustomP1Amount = Math.max(0, parseFloat((this.cashAmount - val).toFixed(2)));
+  }
+
+  public openCashModal() {
+    this.cashDate = new Date().toISOString().slice(0, 10);
+    this.cashAmount = 0;
+    this.cashCurrency = this.service.currency();
+    this.cashDescription = '';
+    this.cashPaidBy = this.service.personOne().name;
+    this.cashTransferTo = this.service.personTwo().name;
+    this.cashIsTransfer = false;
+    this.cashCategoryGroup = 'Food';
+    this.cashCategoryItem = 'Dining Out and Food Chill';
+    this.cashSplitOption = 'SPLIT_5050';
+    this.cashSplitMode = 'PERCENTAGE';
+    this.cashCustomPercentage = 50;
+    this.cashCustomP1Amount = 0;
+    this.cashCustomP2Amount = 0;
+    this.isCashModalOpen.set(true);
+  }
+
+  public saveCashSpend() {
+    if (this.cashAmount <= 0) {
+      this.service.showToast('Please enter a valid amount', 'error');
+      return;
+    }
+
+    const baseCurrency = this.service.currency();
+    let finalAmount = this.cashAmount;
+    let originalAmount: number | undefined = undefined;
+    let originalCurrency: string | undefined = undefined;
+    let rate: number | undefined = undefined;
+
+    if (this.cashCurrency !== baseCurrency) {
+      finalAmount = this.service.convertAmount(this.cashAmount, this.cashCurrency, baseCurrency);
+      originalAmount = this.cashAmount;
+      originalCurrency = this.cashCurrency;
+      rate = this.service.getExchangeRate(this.cashCurrency, baseCurrency);
+    }
+
+    let splitType: SplitType = 'SPLIT';
+    let splitMode: SplitMode = 'PERCENTAGE';
+    let splitPercentage = 50;
+    let customSplitAmounts: Record<string, number> | undefined = undefined;
+
+    if (this.cashIsTransfer) {
+      splitType = 'OTHER';
+    } else if (this.cashSplitOption === 'PAYER_ONLY') {
+      splitType = 'SELF';
+    } else if (this.cashSplitOption === 'OTHER_ONLY') {
+      splitType = 'OTHER';
+    } else if (this.cashSplitOption === 'SPLIT_5050') {
+      splitType = 'SPLIT';
+      splitPercentage = 50;
+      splitMode = 'PERCENTAGE';
+    } else if (this.cashSplitOption === 'CUSTOM') {
+      splitType = 'SPLIT';
+      splitMode = this.cashSplitMode;
+      if (this.cashSplitMode === 'EXACT') {
+        const p1 = this.service.personOne().name;
+        const p2 = this.service.personTwo().name;
+        const finalP1 = this.cashCurrency !== baseCurrency 
+          ? this.service.convertAmount(this.cashCustomP1Amount, this.cashCurrency, baseCurrency) 
+          : this.cashCustomP1Amount;
+        const finalP2 = this.cashCurrency !== baseCurrency 
+          ? this.service.convertAmount(this.cashCustomP2Amount, this.cashCurrency, baseCurrency) 
+          : this.cashCustomP2Amount;
+        customSplitAmounts = { [p1]: finalP1, [p2]: finalP2 };
+      } else {
+        splitPercentage = this.cashCustomPercentage;
+      }
+    }
+
+    const tx: Transaction = {
+      id: 'tx-cash-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
+      date: this.cashDate,
+      amount: finalAmount,
+      type: this.cashIsTransfer ? 'TRANSFER' : 'EXPENSE',
+      description: this.cashDescription || (this.cashIsTransfer ? `Cash Transfer to ${this.cashTransferTo}` : 'Cash Expense'),
+      bank: 'Cash',
+      account: 'Cash Wallet',
+      paidBy: this.cashPaidBy,
+      isCash: true,
+      isCashTransfer: this.cashIsTransfer,
+      transferTo: this.cashIsTransfer ? this.cashTransferTo : undefined,
+      categoryGroup: this.cashIsTransfer ? undefined : this.cashCategoryGroup,
+      categoryItem: this.cashIsTransfer ? undefined : this.cashCategoryItem,
+      splitType,
+      splitMode,
+      splitPercentage,
+      customSplitAmounts,
+      currency: this.cashCurrency,
+      originalAmount,
+      originalCurrency,
+      exchangeRate: rate,
+      createdAt: new Date().toISOString()
+    };
+
+    this.service.addTransaction(tx);
+    this.isCashModalOpen.set(false);
   }
 
   public toggleMonthPicker(): void {
@@ -116,66 +259,7 @@ export class LedgerComponent {
     this.service.selectedMonth.set(`${newY}-${newM}`);
   }
 
-  public openCashModal() {
-    this.cashDate = new Date().toISOString().slice(0, 10);
-    this.cashAmount = 0;
-    this.cashCurrency = this.service.currency();
-    this.cashDescription = '';
-    this.cashPaidBy = this.service.personOne().name;
-    this.cashTransferTo = this.service.personTwo().name;
-    this.cashIsTransfer = false;
-    this.cashCategoryGroup = 'Food';
-    this.cashCategoryItem = 'Dining Out and Food Chill';
-    this.cashSplitType = 'SPLIT';
-    this.cashSplitPercentage = 50;
-    this.isCashModalOpen.set(true);
-  }
 
-  public saveCashSpend() {
-    if (this.cashAmount <= 0) {
-      this.service.showToast('Please enter a valid amount', 'error');
-      return;
-    }
-
-    const baseCurrency = this.service.currency();
-    let finalAmount = this.cashAmount;
-    let originalAmount: number | undefined = undefined;
-    let originalCurrency: string | undefined = undefined;
-    let rate: number | undefined = undefined;
-
-    if (this.cashCurrency !== baseCurrency) {
-      finalAmount = this.service.convertAmount(this.cashAmount, this.cashCurrency, baseCurrency);
-      originalAmount = this.cashAmount;
-      originalCurrency = this.cashCurrency;
-      rate = this.service.getExchangeRate(this.cashCurrency, baseCurrency);
-    }
-
-    const tx: Transaction = {
-      id: 'tx-cash-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
-      date: this.cashDate,
-      amount: finalAmount,
-      type: this.cashIsTransfer ? 'TRANSFER' : 'EXPENSE',
-      description: this.cashDescription || (this.cashIsTransfer ? `Cash Transfer to ${this.cashTransferTo}` : 'Cash Expense'),
-      bank: 'Cash',
-      account: 'Cash Wallet',
-      paidBy: this.cashPaidBy,
-      isCash: true,
-      isCashTransfer: this.cashIsTransfer,
-      transferTo: this.cashIsTransfer ? this.cashTransferTo : undefined,
-      categoryGroup: this.cashIsTransfer ? undefined : this.cashCategoryGroup,
-      categoryItem: this.cashIsTransfer ? undefined : this.cashCategoryItem,
-      splitType: this.cashIsTransfer ? 'OTHER' : this.cashSplitType,
-      splitPercentage: this.cashSplitPercentage,
-      currency: this.cashCurrency,
-      originalAmount,
-      originalCurrency,
-      exchangeRate: rate,
-      createdAt: new Date().toISOString()
-    };
-
-    this.service.addTransaction(tx);
-    this.isCashModalOpen.set(false);
-  }
 
   public updateSplitType(tx: Transaction, type: SplitType) {
     this.service.updateTransaction(tx.id, {
