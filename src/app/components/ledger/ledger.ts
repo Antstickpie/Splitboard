@@ -386,6 +386,32 @@ export class LedgerComponent {
     }
   }
 
+  public onInlineCategoryChange(tx: Transaction, itemCategoryName: string): void {
+    if (!itemCategoryName) {
+      this.service.updateTransaction({
+        ...tx,
+        categoryGroup: undefined,
+        categoryItem: undefined
+      });
+      return;
+    }
+
+    let parentGroupName: string | undefined;
+    for (const grp of this.service.categoryGroups()) {
+      if (grp.items.some((i) => i.name === itemCategoryName)) {
+        parentGroupName = grp.name;
+        break;
+      }
+    }
+
+    this.service.updateTransaction({
+      ...tx,
+      categoryGroup: parentGroupName || tx.categoryGroup,
+      categoryItem: itemCategoryName
+    });
+    this.service.showToast(`Category updated to "${itemCategoryName}"`, 'success');
+  }
+
   public openEditTxModal(tx: Transaction) {
     this.editingTx.set(tx);
     this.editDate = tx.date;
