@@ -83,39 +83,49 @@
   <div class="glass-card ledger-toolbar">
     <!-- Row 1: Month Selector & Quick Action Buttons -->
     <div class="toolbar-top-row">
-      <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-        <label class="toolbar-label">Month:</label>
-        
-        <!-- Month-Year Native Picker -->
-        <input
-          type="month"
-          [ngModel]="service.selectedMonth() === 'ALL' ? '' : service.selectedMonth()"
-          (ngModelChange)="onMonthPick($event)"
-          class="month-picker-input">
+      <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+        <!-- EveryDollar Custom Month Trigger & Popover -->
+        <div style="position: relative;">
+          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
+            <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
+            <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
+          </button>
+
+          <!-- Month Picker Popover Grid -->
+          <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
+            <div class="popover-year-bar">
+              <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+              <span class="popover-year-text">{{ pickerYear() }}</span>
+              <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+            </div>
+
+            <div class="popover-months-grid">
+              <button
+                *ngFor="let m of monthsList; let idx = index"
+                class="month-cell-btn"
+                [class.selected]="service.selectedMonth() !== 'ALL' && isMonthSelected(idx)"
+                [class.has-data]="hasMonthData(idx)"
+                (click)="selectMonth(idx)">
+                {{ m }}
+              </button>
+            </div>
+
+            <div class="popover-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08);">
+              <button class="btn btn-secondary btn-xs" (click)="showAllMonths()" [class.active]="service.selectedMonth() === 'ALL'">
+                All Months
+              </button>
+              <button class="btn-today" (click)="goToCurrentMonth()">
+                This month
+              </button>
+            </div>
+          </div>
+        </div>
 
         <!-- Month Navigation Arrows -->
         <div class="month-nav-btns" style="display: flex; gap: 0.25rem;">
           <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
           <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
         </div>
-
-        <!-- All Months Pill Toggle -->
-        <button
-          class="pill-btn"
-          [class.active]="service.selectedMonth() === 'ALL'"
-          (click)="showAllMonths()"
-          style="font-size: 0.76rem; padding: 0.25rem 0.6rem; border-radius: 12px;">
-          All Months
-        </button>
-
-        <!-- Current Month Shortcut -->
-        <button
-          *ngIf="service.selectedMonth() !== service.getCurrentMonthString()"
-          class="btn btn-secondary btn-xs"
-          (click)="goToCurrentMonth()"
-          style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">
-          Today
-        </button>
       </div>
 
       <div class="toolbar-actions">

@@ -37,27 +37,68 @@ export class LedgerComponent {
   public customSplitP2Amount = 0;
   public customSplitPercentage = 50;
 
+  // EveryDollar Month Picker Popover State
+  public isMonthPickerOpen = signal<boolean>(false);
+  public pickerYear = signal<number>(new Date().getFullYear());
+  public monthsList = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
   constructor() {
     this.cashPaidBy = this.service.personOne().name;
     this.cashTransferTo = this.service.personTwo().name;
     this.cashCurrency = this.service.currency();
   }
 
-  public onMonthPick(val: string) {
-    if (val) {
-      this.service.selectedMonth.set(val);
+  public toggleMonthPicker(): void {
+    const curr = this.service.selectedMonth();
+    if (curr !== 'ALL') {
+      const [y] = curr.split('-').map(Number);
+      if (!isNaN(y)) this.pickerYear.set(y);
+    } else {
+      this.pickerYear.set(new Date().getFullYear());
     }
+    this.isMonthPickerOpen.update((v) => !v);
   }
 
-  public showAllMonths() {
+  public prevYear(): void {
+    this.pickerYear.update((y) => y - 1);
+  }
+
+  public nextYear(): void {
+    this.pickerYear.update((y) => y + 1);
+  }
+
+  public selectMonth(monthIdx: number): void {
+    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    this.service.selectedMonth.set(mStr);
+    this.isMonthPickerOpen.set(false);
+  }
+
+  public showAllMonths(): void {
     this.service.selectedMonth.set('ALL');
+    this.isMonthPickerOpen.set(false);
   }
 
-  public goToCurrentMonth() {
-    this.service.selectedMonth.set(this.service.getCurrentMonthString());
+  public goToCurrentMonth(): void {
+    const today = this.service.getCurrentMonthString();
+    this.service.selectedMonth.set(today);
+    this.pickerYear.set(new Date().getFullYear());
+    this.isMonthPickerOpen.set(false);
   }
 
-  public prevMonth() {
+  public isMonthSelected(monthIdx: number): boolean {
+    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    return this.service.selectedMonth() === mStr;
+  }
+
+  public hasMonthData(monthIdx: number): boolean {
+    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    return this.service.transactions().some((t) => t.date && t.date.startsWith(mStr));
+  }
+
+  public prevMonth(): void {
     const curr = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
     const [y, m] = curr.split('-').map(Number);
     const d = new Date(y, m - 2, 1);
@@ -66,7 +107,7 @@ export class LedgerComponent {
     this.service.selectedMonth.set(`${newY}-${newM}`);
   }
 
-  public nextMonth() {
+  public nextMonth(): void {
     const curr = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
     const [y, m] = curr.split('-').map(Number);
     const d = new Date(y, m, 1);
