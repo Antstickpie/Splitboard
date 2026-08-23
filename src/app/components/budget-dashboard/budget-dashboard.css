@@ -446,6 +446,7 @@
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+  min-height: 450px;
 }
 
 .sidebar-top-tabs {
@@ -465,6 +466,8 @@
   cursor: pointer;
   transition: var(--transition-smooth);
   border-bottom: 2px solid transparent;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .sidebar-tab-btn:hover {
@@ -478,11 +481,19 @@
   background: rgba(0, 229, 255, 0.04);
 }
 
+.sidebar-tab-btn:focus,
+.sidebar-tab-btn:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .sidebar-body {
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+  flex: 1;
+  min-height: 380px;
 }
 
 .tx-subfilters-bar {
