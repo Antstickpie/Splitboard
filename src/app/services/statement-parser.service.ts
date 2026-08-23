@@ -153,7 +153,7 @@ export class StatementParserService {
       const amount = this.parseAmount(rawAmt);
       if (amount === 0) continue;
 
-      const cleanDesc = desc.replace(/\s+/g, ' ').trim();
+      const cleanDesc = this.service.fixMojibake(desc.replace(/\s+/g, ' ').trim());
       const { group, item, defaultSplit } = this.matchCategory(cleanDesc);
 
       // Extract statement Currency and convert if different from Base Currency
@@ -272,7 +272,7 @@ export class StatementParserService {
       const amount = this.parseAmount(rawAmt);
       if (amount === 0) continue;
 
-      const cleanDesc = rawDesc.replace(/\s+/g, ' ').trim();
+      const cleanDesc = this.service.fixMojibake(rawDesc.replace(/\s+/g, ' ').trim());
       const { group, item, defaultSplit } = this.matchCategory(cleanDesc);
 
       const tx: Transaction = {

@@ -241,20 +241,40 @@
               <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.55rem;">
                 💸 Cash Transfer
               </span>
-              <select
-                *ngIf="!tx.isCashTransfer"
-                [ngModel]="getInlineSplitValue(tx)"
-                (ngModelChange)="onInlineSplitChange(tx, $event)"
-                class="inline-split-select"
-                [class.split-5050]="getInlineSplitValue(tx) === 'SPLIT_5050'"
-                [class.split-p1]="getInlineSplitValue(tx) === '100_P1'"
-                [class.split-p2]="getInlineSplitValue(tx) === '100_P2'"
-                [class.split-custom]="getInlineSplitValue(tx) === 'CUSTOM'">
-                <option value="SPLIT_5050">⚖️ Split 50/50</option>
-                <option value="100_P1">👤 100% {{ service.personOne().name }}</option>
-                <option value="100_P2">👤 100% {{ service.personTwo().name }}</option>
-                <option value="CUSTOM">⚙️ Custom Split...</option>
-              </select>
+              <div *ngIf="!tx.isCashTransfer" class="split-button-group">
+                <button
+                  type="button"
+                  class="split-btn split-btn-5050"
+                  [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
+                  (click)="onInlineSplitChange(tx, 'SPLIT_5050')"
+                  title="Split 50/50">
+                  50/50
+                </button>
+                <button
+                  type="button"
+                  class="split-btn split-btn-p1"
+                  [class.active]="getInlineSplitValue(tx) === '100_P1'"
+                  (click)="onInlineSplitChange(tx, '100_P1')"
+                  [title]="'100% ' + service.personOne().name">
+                  {{ service.personOne().name }}
+                </button>
+                <button
+                  type="button"
+                  class="split-btn split-btn-p2"
+                  [class.active]="getInlineSplitValue(tx) === '100_P2'"
+                  (click)="onInlineSplitChange(tx, '100_P2')"
+                  [title]="'100% ' + service.personTwo().name">
+                  {{ service.personTwo().name }}
+                </button>
+                <button
+                  type="button"
+                  class="split-btn split-btn-custom"
+                  [class.active]="getInlineSplitValue(tx) === 'CUSTOM'"
+                  (click)="openEditTxModal(tx)"
+                  title="Custom Split...">
+                  ⚙
+                </button>
+              </div>
             </td>
             <td style="font-size: 0.78rem; color: var(--text-muted); max-width: 150px; text-overflow: ellipsis; overflow: hidden;">
               {{ tx.note || '—' }}

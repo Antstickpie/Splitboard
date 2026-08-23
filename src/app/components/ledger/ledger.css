@@ -408,59 +408,61 @@
   color: var(--success) !important;
 }
 
-/* Inline Split Dropdown Pill in Table */
-.inline-split-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  padding: 0.22rem 1.4rem 0.22rem 0.65rem;
-  font-size: 0.74rem;
+/* Segmented 1-Click Split Button Group in Table */
+.split-button-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.split-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.2rem 0.48rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-muted);
   cursor: pointer;
-  outline: none;
-  transition: all 0.2s ease;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 0.4rem center;
-  background-size: 0.75rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.inline-split-select:hover, .inline-split-select:focus {
-  border-color: var(--primary);
-  background-color: rgba(0, 229, 255, 0.08);
+.split-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.inline-split-select.split-5050 {
+.split-btn.split-btn-5050.active {
+  background: rgba(52, 211, 153, 0.2);
   color: #34d399;
-  background-color: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.3);
+  border-color: rgba(52, 211, 153, 0.4);
+  font-weight: 700;
 }
 
-.inline-split-select.split-p1 {
+.split-btn.split-btn-p1.active {
+  background: rgba(56, 189, 248, 0.2);
   color: #38bdf8;
-  background-color: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(56, 189, 248, 0.4);
+  font-weight: 700;
 }
 
-.inline-split-select.split-p2 {
+.split-btn.split-btn-p2.active {
+  background: rgba(167, 139, 250, 0.2);
   color: #a78bfa;
-  background-color: rgba(167, 139, 250, 0.1);
-  border-color: rgba(167, 139, 250, 0.3);
+  border-color: rgba(167, 139, 250, 0.4);
+  font-weight: 700;
 }
 
-.inline-split-select.split-custom {
+.split-btn.split-btn-custom.active {
+  background: rgba(251, 191, 36, 0.2);
   color: #fbbf24;
-  background-color: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.3);
-}
-
-.inline-split-select option {
-  background: #111827;
-  color: #f3f4f6;
-  font-size: 0.8rem;
+  border-color: rgba(251, 191, 36, 0.4);
+  font-weight: 700;
 }
 
 /* Inline Category Dropdown in Table */

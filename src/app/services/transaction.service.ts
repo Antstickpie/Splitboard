@@ -380,6 +380,26 @@ export class TransactionService {
     return `${y}-${m}`;
   }
 
+  public fixMojibake(str: string): string {
+    if (!str) return '';
+    return str
+      .replace(/Ã¤/g, 'ä')
+      .replace(/Ã¶/g, 'ö')
+      .replace(/Ã¼/g, 'ü')
+      .replace(/Ã„/g, 'Ä')
+      .replace(/Ã–/g, 'Ö')
+      .replace(/Ãœ/g, 'Ü')
+      .replace(/ÃŸ/g, 'ß')
+      .replace(/â‚¬/g, '€')
+      .replace(/Ã©/g, 'é')
+      .replace(/Ã¨/g, 'è')
+      .replace(/Ã¡/g, 'á')
+      .replace(/Ã /g, 'à')
+      .replace(/Ã³/g, 'ó')
+      .replace(/Ã±/g, 'ñ')
+      .replace(/Â/g, '');
+  }
+
   public loadFromStorage(): void {
     try {
       const raw = localStorage.getItem(this.STORAGE_KEY);
@@ -402,12 +422,16 @@ export class TransactionService {
       }
       if (data.transactions) {
         const cleanedTxs = data.transactions.map((tx) => {
-          if (tx.categoryItem === 'Car Charging') return { ...tx, categoryItem: 'Charging' };
-          if (tx.categoryItem === 'Car Maintenance') return { ...tx, categoryItem: 'Maintenance' };
-          if (tx.categoryItem === 'Salary / Income') return { ...tx, categoryItem: 'Salary' };
-          if (tx.categoryItem === 'Dining Out and Food Chill') return { ...tx, categoryItem: 'Food and Chill' };
-          if (tx.categoryItem === 'Medical and Pharmacy') return { ...tx, categoryItem: 'Medical' };
-          return tx;
+          const updated: Transaction = {
+            ...tx,
+            description: this.fixMojibake(tx.description || '')
+          };
+          if (updated.categoryItem === 'Car Charging') updated.categoryItem = 'Charging';
+          if (updated.categoryItem === 'Car Maintenance') updated.categoryItem = 'Maintenance';
+          if (updated.categoryItem === 'Salary / Income') updated.categoryItem = 'Salary';
+          if (updated.categoryItem === 'Dining Out and Food Chill') updated.categoryItem = 'Food and Chill';
+          if (updated.categoryItem === 'Medical and Pharmacy') updated.categoryItem = 'Medical';
+          return updated;
         });
         this.transactions.set(cleanedTxs);
       }
