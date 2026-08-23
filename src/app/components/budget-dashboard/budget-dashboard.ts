@@ -39,7 +39,7 @@ export class BudgetDashboardComponent {
   public monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   // EveryDollar Sidebar State
-  public sidebarTab = signal<'summary' | 'transactions'>('transactions');
+  public sidebarTab = signal<'summary' | 'transactions'>('summary');
   public transactionFilter = signal<'new' | 'tracked' | 'deleted'>('tracked');
   public sidebarSearch = signal<string>('');
   public viewMode = signal<'remaining' | 'spent'>('remaining');
