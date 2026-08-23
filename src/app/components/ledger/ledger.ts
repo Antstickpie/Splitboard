@@ -49,7 +49,7 @@ export class LedgerComponent {
     this.cashTransferTo = this.service.personTwo().name;
     this.cashIsTransfer = false;
     this.cashCategoryGroup = 'Food';
-    this.cashCategoryItem = '[W][C-Mac]Food and Chill';
+    this.cashCategoryItem = 'Dining Out and Food Chill';
     this.cashSplitType = 'SPLIT';
     this.cashSplitPercentage = 50;
     this.isCashModalOpen.set(true);

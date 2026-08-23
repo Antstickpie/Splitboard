@@ -457,12 +457,39 @@ export class TransactionService {
     });
 
     if (oldName && oldName !== trimmed) {
-      // Update existing transactions with old person name
+      // 1. Update existing transactions
       this.transactions.update((curr) =>
         curr.map((tx) => ({
           ...tx,
           paidBy: tx.paidBy === oldName ? trimmed : tx.paidBy,
           transferTo: tx.transferTo === oldName ? trimmed : tx.transferTo
+        }))
+      );
+
+      // 2. Update auto-categorization rules
+      this.rules.update((curr) =>
+        curr.map((r) => ({
+          ...r,
+          paidBy: r.paidBy === oldName ? trimmed : r.paidBy
+        }))
+      );
+
+      // 3. Update bank default owners
+      this.bankConfigs.update((curr) =>
+        curr.map((b) => ({
+          ...b,
+          defaultOwner: b.defaultOwner === oldName ? trimmed : b.defaultOwner
+        }))
+      );
+
+      // 4. Update category items default owner
+      this.categoryGroups.update((curr) =>
+        curr.map((g) => ({
+          ...g,
+          items: g.items.map((itm) => ({
+            ...itm,
+            defaultOwner: itm.defaultOwner === oldName ? trimmed : itm.defaultOwner
+          }))
         }))
       );
     }

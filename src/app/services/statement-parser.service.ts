@@ -459,16 +459,16 @@ export class StatementParserService {
 
     // 3. Common German banking heuristics
     if (d.includes('rewe') || d.includes('edeka') || d.includes('aldi') || d.includes('lidl') || d.includes('kaufland') || d.includes('penny') || d.includes('supermarkt')) {
-      return { group: 'Housing', item: '[N][C-Mac] Groceries', defaultSplit: 'SPLIT' };
+      return { group: 'Housing', item: 'Groceries', defaultSplit: 'SPLIT' };
     }
     if (d.includes('miete') || d.includes('rent') || d.includes('stadtwerke') || d.includes('vattenfall') || d.includes('eon') || d.includes('telekom') || d.includes('vodafone')) {
-      return { group: 'Housing', item: '[N][C-Mac] Rent and utilities', defaultSplit: 'SPLIT' };
+      return { group: 'Housing', item: 'Rent and Utilities', defaultSplit: 'SPLIT' };
     }
     if (d.includes('enpal') || d.includes('gehalt') || d.includes('salary') || d.includes('lohn')) {
-      return { group: 'Income', item: 'Mac Enpal Salary', defaultSplit: 'SELF', defaultOwner: 'Mac' };
+      return { group: 'Income', item: 'Salary / Income', defaultSplit: 'SELF', defaultOwner: this.service.personOne().name };
     }
     if (d.includes('bosch')) {
-      return { group: 'Income', item: 'Cheese Bosch Salary', defaultSplit: 'SELF', defaultOwner: 'Cheese' };
+      return { group: 'Income', item: 'Salary / Income', defaultSplit: 'SELF', defaultOwner: this.service.personTwo().name };
     }
 
     return {};
