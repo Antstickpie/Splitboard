@@ -232,14 +232,23 @@
               </div>
             </td>
             <td style="text-align: center;">
-              <span class="badge" 
-                    [class.badge-warning]="tx.isCashTransfer" 
-                    [class.badge-success]="!tx.isCashTransfer && tx.splitType === 'SPLIT'" 
-                    [class.badge-info]="!tx.isCashTransfer && tx.splitType === 'SELF'" 
-                    [class.badge-danger]="!tx.isCashTransfer && tx.splitType === 'OTHER'"
-                    style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.55rem;">
-                {{ getSplitBadgeText(tx) }}
+              <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.55rem;">
+                💸 Cash Transfer
               </span>
+              <select
+                *ngIf="!tx.isCashTransfer"
+                [ngModel]="getInlineSplitValue(tx)"
+                (ngModelChange)="onInlineSplitChange(tx, $event)"
+                class="inline-split-select"
+                [class.split-5050]="getInlineSplitValue(tx) === 'SPLIT_5050'"
+                [class.split-p1]="getInlineSplitValue(tx) === '100_P1'"
+                [class.split-p2]="getInlineSplitValue(tx) === '100_P2'"
+                [class.split-custom]="getInlineSplitValue(tx) === 'CUSTOM'">
+                <option value="SPLIT_5050">⚖️ Split 50/50</option>
+                <option value="100_P1">👤 100% {{ service.personOne().name }}</option>
+                <option value="100_P2">👤 100% {{ service.personTwo().name }}</option>
+                <option value="CUSTOM">⚙️ Custom Split...</option>
+              </select>
             </td>
             <td style="font-size: 0.78rem; color: var(--text-muted); max-width: 150px; text-overflow: ellipsis; overflow: hidden;">
               {{ tx.note || '—' }}

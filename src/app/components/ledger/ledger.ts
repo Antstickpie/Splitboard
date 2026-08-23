@@ -329,6 +329,63 @@ export class LedgerComponent {
     return '100% ' + tx.paidBy;
   }
 
+  public getInlineSplitValue(tx: Transaction): string {
+    if (tx.isCashTransfer) return 'TRANSFER';
+    if (tx.splitType === 'SPLIT') {
+      if (tx.splitMode === 'EXACT' || (tx.splitPercentage !== undefined && tx.splitPercentage !== 50)) {
+        return 'CUSTOM';
+      }
+      return 'SPLIT_5050';
+    }
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    if (tx.splitType === 'SELF') {
+      return tx.paidBy === p1 ? '100_P1' : '100_P2';
+    }
+    if (tx.splitType === 'OTHER') {
+      return tx.paidBy === p1 ? '100_P2' : '100_P1';
+    }
+    return 'SPLIT_5050';
+  }
+
+  public onInlineSplitChange(tx: Transaction, value: string): void {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+
+    if (value === 'SPLIT_5050') {
+      this.service.updateTransaction({
+        ...tx,
+        splitType: 'SPLIT',
+        splitMode: 'PERCENTAGE',
+        splitPercentage: 50,
+        customSplitAmounts: undefined
+      });
+      this.service.showToast('Split updated to 50/50', 'success');
+    } else if (value === '100_P1') {
+      const splitType: SplitType = tx.paidBy === p1 ? 'SELF' : 'OTHER';
+      this.service.updateTransaction({
+        ...tx,
+        splitType,
+        splitMode: 'PERCENTAGE',
+        splitPercentage: tx.paidBy === p1 ? 100 : 0,
+        customSplitAmounts: undefined
+      });
+      this.service.showToast(`Allocated 100% to ${p1}`, 'success');
+    } else if (value === '100_P2') {
+      const splitType: SplitType = tx.paidBy === p2 ? 'SELF' : 'OTHER';
+      this.service.updateTransaction({
+        ...tx,
+        splitType,
+        splitMode: 'PERCENTAGE',
+        splitPercentage: tx.paidBy === p2 ? 100 : 0,
+        customSplitAmounts: undefined
+      });
+      this.service.showToast(`Allocated 100% to ${p2}`, 'success');
+    } else if (value === 'CUSTOM') {
+      this.openEditTxModal(tx);
+    }
+  }
+
   public openEditTxModal(tx: Transaction) {
     this.editingTx.set(tx);
     this.editDate = tx.date;
