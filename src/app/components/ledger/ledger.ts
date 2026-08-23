@@ -201,20 +201,24 @@ export class LedgerComponent {
       }
     }
 
+    let categoryGroup = this.cashCategoryGroup;
+    if (this.cashCategoryItem) {
+      const found = this.service.categoryGroups().find((g) => g.items.some((it) => it.name === this.cashCategoryItem));
+      if (found) categoryGroup = found.name;
+    }
+
     const tx: Transaction = {
-      id: 'tx-cash-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
+      id: 'cash-' + Date.now(),
       date: this.cashDate,
-      amount: finalAmount,
-      type: this.cashIsTransfer ? 'TRANSFER' : 'EXPENSE',
-      description: this.cashDescription || (this.cashIsTransfer ? `Cash Transfer to ${this.cashTransferTo}` : 'Cash Expense'),
       bank: 'Cash',
-      account: 'Cash Wallet',
+      description: this.cashDescription.trim() || (this.cashIsTransfer ? `Transfer to ${this.cashTransferTo}` : 'Cash Expense'),
+      amount: finalAmount,
+      type: 'EXPENSE',
       paidBy: this.cashPaidBy,
-      isCash: true,
       isCashTransfer: this.cashIsTransfer,
       transferTo: this.cashIsTransfer ? this.cashTransferTo : undefined,
-      categoryGroup: this.cashIsTransfer ? undefined : this.cashCategoryGroup,
-      categoryItem: this.cashIsTransfer ? undefined : this.cashCategoryItem,
+      categoryGroup: categoryGroup || undefined,
+      categoryItem: this.cashCategoryItem || undefined,
       splitType,
       splitMode,
       splitPercentage,
@@ -228,6 +232,7 @@ export class LedgerComponent {
 
     this.service.addTransaction(tx);
     this.isCashModalOpen.set(false);
+    this.service.showToast('Entry logged successfully', 'success');
   }
 
   public toggleMonthPicker(): void {

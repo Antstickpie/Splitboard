@@ -326,16 +326,18 @@
         </select>
       </div>
 
-      <div *ngIf="!cashIsTransfer">
+      <div>
         <label class="input-label">Category</label>
         <select [(ngModel)]="cashCategoryItem" style="width: 100%;">
+          <option value="">Uncategorized</option>
           <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
             <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
           </optgroup>
         </select>
+      </div>
 
-        <div style="margin-top: 0.8rem;">
-          <label class="input-label">Split Allocation</label>
+      <div *ngIf="!cashIsTransfer" style="margin-top: 0.4rem;">
+        <label class="input-label">Split Allocation</label>
           <div class="toggle-group" style="width: 100%; height: 34px; margin-bottom: 0.6rem;">
             <button class="toggle-btn" [class.active]="cashSplitOption === 'PAYER_ONLY'" (click)="setCashSplitOption('PAYER_ONLY')" style="flex: 1;">
               100% {{ cashPaidBy }}
