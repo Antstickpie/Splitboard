@@ -232,19 +232,38 @@
         <p class="subtitle" style="margin: 0;">Add, reorganize, or rename category groups and items (EveryDollar structure).</p>
       </div>
 
-      <div class="cat-quick-add">
-        <select [(ngModel)]="selectedGroupIdForNewCat" class="settings-select" style="width: 160px;">
-          <option *ngFor="let g of service.categoryGroups()" [value]="g.id">{{ g.name }}</option>
-        </select>
-        <input
-          type="text"
-          [(ngModel)]="newCategoryName"
-          placeholder="New category item..."
-          class="person-input"
-          (keydown.enter)="addCategory()">
-        <button class="btn btn-primary btn-xs" (click)="addCategory()" [disabled]="!newCategoryName.trim()">
-          + Add Category
-        </button>
+      <!-- Add Group + Add Item Bars -->
+      <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center;">
+        <!-- Add New Group -->
+        <div class="cat-quick-add" style="background: rgba(255,255,255,0.02); padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+          <input
+            type="text"
+            [(ngModel)]="newGroupName"
+            placeholder="New Group (e.g. Vacation)..."
+            class="person-input"
+            style="width: 170px;"
+            (keydown.enter)="addGroup()">
+          <button class="btn btn-secondary btn-xs" (click)="addGroup()" [disabled]="!newGroupName.trim()">
+            + Add Group
+          </button>
+        </div>
+
+        <!-- Add Item under Group -->
+        <div class="cat-quick-add" style="background: rgba(255,255,255,0.02); padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+          <select [(ngModel)]="selectedGroupIdForNewCat" class="settings-select" style="width: 140px;">
+            <option *ngFor="let g of service.categoryGroups()" [value]="g.id">{{ g.name }}</option>
+          </select>
+          <input
+            type="text"
+            [(ngModel)]="newCategoryName"
+            placeholder="Item (e.g. Flights)..."
+            class="person-input"
+            style="width: 160px;"
+            (keydown.enter)="addCategory()">
+          <button class="btn btn-primary btn-xs" (click)="addCategory()" [disabled]="!newCategoryName.trim()">
+            + Add Item
+          </button>
+        </div>
       </div>
     </div>
 
@@ -260,6 +279,9 @@
             <span class="cat-chip-name">{{ item.name }}</span>
             <button class="cat-chip-del" (click)="deleteCategoryItem(grp.id, item.id, item.name)">✕</button>
           </div>
+          <span *ngIf="grp.items.length === 0" style="font-size: 0.72rem; color: var(--text-muted);">
+            No items yet. Select "{{ grp.name }}" above to add items.
+          </span>
         </div>
       </div>
     </div>
