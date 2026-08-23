@@ -31,11 +31,54 @@ interface CategoryGroupSummary {
 })
 export class BudgetDashboardComponent {
   public service = inject(TransactionService);
+  public Math = Math;
 
   public selectedMonth = signal<string>(this.service.getCurrentMonthString());
   public isMonthPickerOpen = signal<boolean>(false);
   public pickerYear = signal<number>(new Date().getFullYear());
   public monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // EveryDollar Sidebar State
+  public sidebarTab = signal<'summary' | 'transactions'>('transactions');
+  public transactionFilter = signal<'new' | 'tracked' | 'deleted'>('tracked');
+  public sidebarSearch = signal<string>('');
+  public viewMode = signal<'remaining' | 'spent'>('remaining');
+
+  // Quick Add Item inline
+  public activeAddingGroupId = signal<string | null>(null);
+  public newCategoryItemName = signal<string>('');
+
+  public isPastMonth = computed(() => {
+    return this.selectedMonth() < this.service.getCurrentMonthString();
+  });
+
+  public isFutureMonth = computed(() => {
+    return this.selectedMonth() > this.service.getCurrentMonthString();
+  });
+
+  public isBalanced = computed(() => {
+    return Math.abs(this.budgetTotals().plannedRemaining) < 0.01;
+  });
+
+  public toggleViewMode(): void {
+    this.viewMode.update((v) => (v === 'remaining' ? 'spent' : 'remaining'));
+  }
+
+  public prevMonth(): void {
+    const [y, m] = this.selectedMonth().split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    this.selectedMonth.set(mStr);
+    this.service.selectedMonth.set(mStr);
+  }
+
+  public nextMonth(): void {
+    const [y, m] = this.selectedMonth().split('-').map(Number);
+    const d = new Date(y, m, 1);
+    const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    this.selectedMonth.set(mStr);
+    this.service.selectedMonth.set(mStr);
+  }
 
   public toggleMonthPicker(): void {
     const [y] = this.selectedMonth().split('-').map(Number);
@@ -74,6 +117,50 @@ export class BudgetDashboardComponent {
   public hasMonthData(monthIdx: number): boolean {
     const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
     return this.service.transactions().some((t) => t.date && t.date.startsWith(mStr));
+  }
+
+  // Sidebar Transactions
+  public sidebarTransactions = computed(() => {
+    const month = this.selectedMonth();
+    const q = this.sidebarSearch().toLowerCase().trim();
+    const filter = this.transactionFilter();
+
+    let list = this.service.transactions().filter((t) => t.date && t.date.startsWith(month));
+
+    if (filter === 'new') {
+      list = list.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized');
+    } else if (filter === 'tracked') {
+      list = list.filter((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
+    }
+
+    if (q) {
+      list = list.filter((t) =>
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.bank || '').toLowerCase().includes(q) ||
+        (t.categoryItem || '').toLowerCase().includes(q) ||
+        (t.paidBy || '').toLowerCase().includes(q)
+      );
+    }
+
+    return list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  });
+
+  public startAddingItem(groupId: string): void {
+    this.activeAddingGroupId.set(groupId);
+    this.newCategoryItemName.set('');
+  }
+
+  public cancelAddingItem(): void {
+    this.activeAddingGroupId.set(null);
+    this.newCategoryItemName.set('');
+  }
+
+  public saveNewItem(groupId: string): void {
+    const name = this.newCategoryItemName().trim();
+    if (!name) return;
+    this.service.addCategoryItem(groupId, name);
+    this.activeAddingGroupId.set(null);
+    this.newCategoryItemName.set('');
   }
 
   // Planned vs Actual Budget Computation

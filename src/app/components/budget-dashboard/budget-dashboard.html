@@ -1,167 +1,303 @@
-<div class="animate-fade-in dashboard-container">
-  <!-- Top Bar: Month & Status -->
-  <div class="glass-card dashboard-header">
-    <div class="header-left">
-      <h2>📊 Monthly Budget & Analytics</h2>
-      <p class="subtitle">EveryDollar-style zero-based budget planning, category tracking, and spending analytics.</p>
+<div class="everydollar-app-container">
+  <!-- EveryDollar Top Bar -->
+  <div class="everydollar-top-bar glass-card">
+    <div class="top-bar-left">
+      <!-- Month Trigger Popover -->
+      <div style="position: relative;">
+        <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
+          <span class="month-title-text">{{ service.formatMonth(selectedMonth()) }}</span>
+          <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
+        </button>
+
+        <!-- EveryDollar Month Picker Popover Grid -->
+        <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
+          <div class="popover-year-bar">
+            <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+            <span class="popover-year-text">{{ pickerYear() }}</span>
+            <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+          </div>
+
+          <div class="popover-months-grid">
+            <button
+              *ngFor="let m of monthsList; let idx = index"
+              class="month-cell-btn"
+              [class.selected]="isMonthSelected(idx)"
+              [class.has-data]="hasMonthData(idx)"
+              (click)="selectMonth(idx)">
+              {{ m }}
+            </button>
+          </div>
+
+          <div class="popover-footer">
+            <button class="btn-today" (click)="goToToday()">
+              Go to today
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zero-Based Budget Status Banner -->
+      <div class="budget-status-banner" [class.balanced]="isBalanced()" [class.over]="budgetTotals().plannedRemaining < 0">
+        <span *ngIf="isBalanced()" class="banner-text">
+          <span class="status-icon">✓</span> It's an EveryDollar budget!
+        </span>
+        <span *ngIf="!isBalanced() && budgetTotals().plannedRemaining > 0" class="banner-text">
+          {{ service.formatCurrency(budgetTotals().plannedRemaining) }} left to budget
+        </span>
+        <span *ngIf="!isBalanced() && budgetTotals().plannedRemaining < 0" class="banner-text">
+          {{ service.formatCurrency(Math.abs(budgetTotals().plannedRemaining)) }} over budget
+        </span>
+      </div>
     </div>
 
-    <div class="header-right" style="position: relative;">
-      <!-- EveryDollar Month Button Trigger -->
-      <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
-        <span class="month-title-text">{{ service.formatMonth(selectedMonth()) }}</span>
-        <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
+    <!-- Top Bar Right Controls -->
+    <div class="top-bar-right">
+      <span class="past-month-badge" *ngIf="isPastMonth()">
+        ⏱ You are viewing a <strong>past month</strong>.
+      </span>
+      <span class="past-month-badge future" *ngIf="isFutureMonth()">
+        🔮 You are planning a <strong>future month</strong>.
+      </span>
+
+      <button class="btn btn-secondary btn-xs" (click)="goToToday()">
+        Today
       </button>
 
-      <!-- EveryDollar Month Picker Popover Grid -->
-      <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
-        <!-- Year Header with Arrows -->
-        <div class="popover-year-bar">
-          <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
-          <span class="popover-year-text">{{ pickerYear() }}</span>
-          <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
-        </div>
-
-        <!-- 12-Month Grid -->
-        <div class="popover-months-grid">
-          <button
-            *ngFor="let m of monthsList; let idx = index"
-            class="month-cell-btn"
-            [class.selected]="isMonthSelected(idx)"
-            [class.has-data]="hasMonthData(idx)"
-            (click)="selectMonth(idx)">
-            {{ m }}
-          </button>
-        </div>
-
-        <!-- Go to Today Footer -->
-        <div class="popover-footer">
-          <button class="btn-today" (click)="goToToday()">
-            Go to today
-          </button>
-        </div>
+      <div class="month-arrows-group">
+        <button class="btn-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
+        <button class="btn-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
       </div>
     </div>
   </div>
 
-  <!-- Key Budget KPI Metrics Cards -->
-  <div class="metrics-grid">
-    <div class="metric-card">
-      <div class="label">Total Income</div>
-      <div class="value font-mono" style="color: var(--success);">
-        {{ service.formatCurrency(budgetTotals().totalIncomeActual || budgetTotals().totalIncomePlanned) }}
-      </div>
-      <div class="sub-value">Planned: {{ service.formatCurrency(budgetTotals().totalIncomePlanned) }}</div>
-    </div>
+  <!-- EveryDollar Main 2-Column Workspace -->
+  <div class="everydollar-workspace">
+    <!-- LEFT COLUMN: EveryDollar Budget Cards -->
+    <div class="everydollar-budget-col">
+      <div class="everydollar-group-card glass-card" *ngFor="let grp of groupSummaries()">
+        <!-- Group Header -->
+        <div class="group-card-top">
+          <div class="group-title-wrap">
+            <span class="group-icon">{{ grp.icon }}</span>
+            <span class="group-name">{{ grp.name }}</span>
+          </div>
 
-    <div class="metric-card">
-      <div class="label">Total Expenses Planned</div>
-      <div class="value font-mono" style="color: var(--primary);">
-        {{ service.formatCurrency(budgetTotals().totalExpensePlanned) }}
-      </div>
-      <div class="sub-value">Actual Spent: {{ service.formatCurrency(budgetTotals().totalExpenseActual) }}</div>
-    </div>
-
-    <div class="metric-card">
-      <div class="label">Remaining Budget</div>
-      <div class="value font-mono" [style.color]="budgetTotals().plannedRemaining >= 0 ? 'var(--success)' : 'var(--danger)'">
-        {{ service.formatCurrency(budgetTotals().plannedRemaining) }}
-      </div>
-      <div class="sub-value">Net left from income</div>
-    </div>
-
-    <div class="metric-card">
-      <div class="label">Spending Balance</div>
-      <div class="value font-mono" style="font-size: 1.05rem;">
-        {{ spendByPerson().p1Name }}: {{ spendByPerson().p1Pct }}% | {{ spendByPerson().p2Name }}: {{ spendByPerson().p2Pct }}%
-      </div>
-      <div class="sub-value">Total Spent: {{ service.formatCurrency(spendByPerson().total) }}</div>
-    </div>
-  </div>
-
-  <!-- Analytics Section: Spending Distribution & Person Shares -->
-  <div class="glass-card analytics-card" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-      <div>
-        <h3 style="margin: 0; font-size: 1.1rem;">📈 Spending Analytics & Distribution</h3>
-        <p class="subtitle" style="margin: 0;">Breakdown by category group and person spending shares for {{ service.formatMonth(selectedMonth()) }}.</p>
-      </div>
-    </div>
-
-    <!-- Person Split Visual Bar -->
-    <div style="margin-bottom: 1.2rem; background: rgba(255,255,255,0.02); padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-      <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.4rem;">
-        <span><strong>{{ spendByPerson().p1Name }}</strong>: {{ service.formatCurrency(spendByPerson().p1Spend) }} ({{ spendByPerson().p1Pct }}%)</span>
-        <span><strong>{{ spendByPerson().p2Name }}</strong>: {{ service.formatCurrency(spendByPerson().p2Spend) }} ({{ spendByPerson().p2Pct }}%)</span>
-      </div>
-      <div style="height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden; display: flex;">
-        <div [style.width.%]="spendByPerson().p1Pct" style="background: var(--primary); transition: width 0.4s ease;" title="{{ spendByPerson().p1Name }}"></div>
-        <div [style.width.%]="spendByPerson().p2Pct" style="background: var(--secondary); transition: width 0.4s ease;" title="{{ spendByPerson().p2Name }}"></div>
-      </div>
-    </div>
-
-    <!-- Category Distribution Bars -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.8rem;">
-      <div *ngFor="let cat of categoryBreakdown()" style="background: rgba(255,255,255,0.02); padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
-        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.3rem;">
-          <span>{{ cat.icon }} <strong>{{ cat.name }}</strong></span>
-          <span class="font-mono" style="font-weight: 600;">{{ service.formatCurrency(cat.actual) }} <small style="color: var(--text-muted);">({{ cat.pct }}%)</small></span>
+          <div class="group-col-labels">
+            <span class="col-lbl col-planned">Planned</span>
+            <button class="col-lbl col-remaining-btn" (click)="toggleViewMode()">
+              {{ viewMode() === 'remaining' ? 'Remaining ▾' : 'Spent ▾' }}
+            </button>
+          </div>
         </div>
-        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
-          <div [style.width.%]="cat.pct" [style.background]="cat.color" style="height: 100%; transition: width 0.4s ease;"></div>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Category Groups Budget Tables -->
-  <div class="category-groups-grid">
-    <div class="glass-card group-card" *ngFor="let grp of groupSummaries()">
-      <div class="group-card-header">
-        <div class="group-title">
-          <span class="group-icon">{{ grp.icon }}</span>
-          <h3>{{ grp.name }}</h3>
-        </div>
-        <div class="group-totals">
-          <span class="font-mono actual">{{ service.formatCurrency(grp.actualTotal) }}</span>
-          <span class="divider">/</span>
-          <span class="font-mono planned">{{ service.formatCurrency(grp.plannedTotal) }}</span>
-        </div>
-      </div>
-
-      <!-- Item Rows -->
-      <div class="group-items-list">
-        <div class="item-row" *ngFor="let item of grp.items">
-          <div class="item-info">
-            <div class="item-name-line">
-              <span class="item-name">{{ item.name }}</span>
+        <!-- Items Table -->
+        <div class="group-items-body">
+          <div class="item-line" *ngFor="let item of grp.items">
+            <div class="item-name-col">
+              <span class="item-name-text">{{ item.name }}</span>
               <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
                 {{ item.defaultOwner }}
               </span>
             </div>
-            <!-- Progress Bar -->
-            <div class="progress-track">
-              <div
-                class="progress-fill"
-                [style.width.%]="item.percentage"
-                [class.progress-over]="item.actual > item.planned && item.planned > 0"></div>
+
+            <div class="item-values-col">
+              <!-- Planned (Cyan Editable Text) -->
+              <div class="planned-val-wrap">
+                <input
+                  type="text"
+                  [value]="service.formatCurrency(item.planned)"
+                  (blur)="updateItemPlanned(item.id, $any($event.target).value)"
+                  (keydown.enter)="$any($event.target).blur()"
+                  class="ed-planned-input font-mono"
+                  title="Click to edit planned amount">
+              </div>
+
+              <!-- Remaining or Spent Value -->
+              <div class="remaining-val-col font-mono" [class.negative]="item.remaining < 0">
+                <span *ngIf="viewMode() === 'remaining'">
+                  {{ service.formatCurrency(item.remaining) }}
+                </span>
+                <span *ngIf="viewMode() === 'spent'" style="color: var(--text-main);">
+                  {{ service.formatCurrency(item.actual) }}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div class="item-numbers">
-            <div class="actual-val font-mono">{{ service.formatCurrency(item.actual) }}</div>
-            <div class="planned-input-wrap">
-              <span class="currency-symbol">{{ service.currency() === 'EUR' ? '€' : service.currency() === 'USD' ? '$' : service.currency() === 'INR' ? '₹' : service.currency() === 'GBP' ? '£' : '' }}</span>
-              <input
-                type="text"
-                [value]="service.formatNumber(item.planned)"
-                (blur)="updateItemPlanned(item.id, $any($event.target).value)"
-                (keydown.enter)="$any($event.target).blur()"
-                class="inline-planned-input"
-                title="Edit monthly planned budget">
+          <!-- Quick Inline Add Item -->
+          <div class="add-item-row" *ngIf="activeAddingGroupId() === grp.id">
+            <input
+              type="text"
+              [(ngModel)]="newCategoryItemName"
+              placeholder="Item name..."
+              class="person-input"
+              style="flex: 1;"
+              (keydown.enter)="saveNewItem(grp.id)">
+            <button class="btn btn-primary btn-xs" (click)="saveNewItem(grp.id)">Save</button>
+            <button class="btn btn-secondary btn-xs" (click)="cancelAddingItem()">Cancel</button>
+          </div>
+
+          <!-- Group Subtotal Row -->
+          <div class="group-subtotal-row font-mono">
+            <div class="subtotal-label">
+              <button class="btn-add-item-link" *ngIf="activeAddingGroupId() !== grp.id" (click)="startAddingItem(grp.id)">
+                + Add Item
+              </button>
             </div>
-            <div class="remaining-val font-mono" [class.negative]="item.remaining < 0">
-              {{ item.remaining >= 0 ? '+' : '' }}{{ service.formatCurrency(item.remaining) }}
+            <div class="subtotal-values">
+              <span class="subtotal-planned">{{ service.formatCurrency(grp.plannedTotal) }}</span>
+              <span class="subtotal-remaining" [class.negative]="grp.remainingTotal < 0">
+                {{ viewMode() === 'remaining' ? service.formatCurrency(grp.remainingTotal) : service.formatCurrency(grp.actualTotal) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: EveryDollar Sidebar Panel (Summary & Transactions) -->
+    <div class="everydollar-sidebar-col glass-card">
+      <!-- Top Pill Tabs: Summary vs Transactions -->
+      <div class="sidebar-top-tabs">
+        <button
+          class="sidebar-tab-btn"
+          [class.active]="sidebarTab() === 'summary'"
+          (click)="sidebarTab.set('summary')">
+          ⟳ Summary
+        </button>
+        <button
+          class="sidebar-tab-btn"
+          [class.active]="sidebarTab() === 'transactions'"
+          (click)="sidebarTab.set('transactions')">
+          $ Transactions ({{ sidebarTransactions().length }})
+        </button>
+      </div>
+
+      <!-- TAB 1: Transactions Feed -->
+      <div class="sidebar-body" *ngIf="sidebarTab() === 'transactions'">
+        <!-- Sub-filters: New, Tracked, Deleted -->
+        <div class="tx-subfilters-bar">
+          <button
+            class="subfilter-btn"
+            [class.active]="transactionFilter() === 'tracked'"
+            (click)="transactionFilter.set('tracked')">
+            Tracked
+          </button>
+          <button
+            class="subfilter-btn"
+            [class.active]="transactionFilter() === 'new'"
+            (click)="transactionFilter.set('new')">
+            Unassigned
+          </button>
+        </div>
+
+        <!-- Search Box -->
+        <div class="sidebar-search-wrap">
+          <input
+            type="text"
+            placeholder="🔍 Search transactions..."
+            [ngModel]="sidebarSearch()"
+            (ngModelChange)="sidebarSearch.set($event)"
+            class="sidebar-search-input">
+        </div>
+
+        <!-- Transactions List -->
+        <div class="sidebar-tx-list">
+          <div class="sidebar-tx-card" *ngFor="let tx of sidebarTransactions()">
+            <div class="tx-card-main">
+              <div class="tx-card-left">
+                <div class="tx-desc" title="{{ tx.description }}">{{ tx.description }}</div>
+                <div class="tx-meta">
+                  <span>{{ service.formatDate(tx.date) }}</span>
+                  <span>•</span>
+                  <span class="badge badge-neutral" style="font-size: 0.68rem;">{{ tx.bank }}</span>
+                  <span class="badge badge-info" style="font-size: 0.68rem;">{{ tx.paidBy }}</span>
+                </div>
+              </div>
+              <div class="tx-card-right font-mono">
+                <span class="tx-amount">{{ service.formatCurrency(tx.amount) }}</span>
+              </div>
+            </div>
+
+            <!-- Category & Split Selector Dropdown inside Sidebar Card -->
+            <div class="tx-card-bottom">
+              <select
+                [ngModel]="tx.categoryItem"
+                (ngModelChange)="service.updateTransaction(tx.id, { categoryItem: $event })"
+                class="tx-inline-select">
+                <option value="">Uncategorized</option>
+                <optgroup *ngFor="let g of service.categoryGroups()" [label]="g.name">
+                  <option *ngFor="let itm of g.items" [value]="itm.name">{{ itm.name }}</option>
+                </optgroup>
+              </select>
+
+              <select
+                [ngModel]="tx.splitType"
+                (ngModelChange)="service.updateTransaction(tx.id, { splitType: $event })"
+                class="tx-inline-select"
+                style="width: 80px;">
+                <option value="SPLIT">Split</option>
+                <option value="SELF">Self</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div *ngIf="sidebarTransactions().length === 0" class="no-tx-msg">
+            No transactions found for this month.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Summary / Analytics -->
+      <div class="sidebar-body" *ngIf="sidebarTab() === 'summary'">
+        <!-- Key Metrics Cards -->
+        <div class="sidebar-summary-box">
+          <div class="summary-kpi-row">
+            <span class="kpi-lbl">Total Income</span>
+            <span class="kpi-val font-mono" style="color: var(--success);">
+              {{ service.formatCurrency(budgetTotals().totalIncomePlanned) }}
+            </span>
+          </div>
+          <div class="summary-kpi-row">
+            <span class="kpi-lbl">Total Spent</span>
+            <span class="kpi-val font-mono" style="color: var(--primary);">
+              {{ service.formatCurrency(budgetTotals().totalExpenseActual) }}
+            </span>
+          </div>
+          <div class="summary-kpi-row">
+            <span class="kpi-lbl">Planned Left</span>
+            <span class="kpi-val font-mono" [style.color]="budgetTotals().plannedRemaining >= 0 ? 'var(--success)' : 'var(--danger)'">
+              {{ service.formatCurrency(budgetTotals().plannedRemaining) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Person Split Share Bar -->
+        <div class="sidebar-summary-box" style="margin-top: 1rem;">
+          <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem;">Spending Split</h4>
+          <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.3rem;">
+            <span><strong>{{ spendByPerson().p1Name }}</strong>: {{ service.formatCurrency(spendByPerson().p1Spend) }}</span>
+            <span><strong>{{ spendByPerson().p2Name }}</strong>: {{ service.formatCurrency(spendByPerson().p2Spend) }}</span>
+          </div>
+          <div style="height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; display: flex;">
+            <div [style.width.%]="spendByPerson().p1Pct" style="background: var(--primary);"></div>
+            <div [style.width.%]="spendByPerson().p2Pct" style="background: var(--secondary);"></div>
+          </div>
+        </div>
+
+        <!-- Category Distribution -->
+        <div class="sidebar-summary-box" style="margin-top: 1rem;">
+          <h4 style="margin: 0 0 0.6rem 0; font-size: 0.85rem;">Category Spending</h4>
+          <div class="cat-dist-list">
+            <div class="cat-dist-item" *ngFor="let c of categoryBreakdown()">
+              <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.2rem;">
+                <span>{{ c.icon }} {{ c.name }}</span>
+                <span class="font-mono"><strong>{{ service.formatCurrency(c.actual) }}</strong> ({{ c.pct }}%)</span>
+              </div>
+              <div style="height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+                <div [style.width.%]="c.pct" [style.background]="c.color" style="height: 100%;"></div>
+              </div>
             </div>
           </div>
         </div>
