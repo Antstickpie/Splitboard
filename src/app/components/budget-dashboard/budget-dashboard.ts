@@ -248,9 +248,9 @@ export class BudgetDashboardComponent {
         cleaned = cleaned.replace(',', '.');
       }
       const num = parseFloat(cleaned) || 0;
-      this.service.updateMonthlyBudgetPlanned(this.selectedMonth(), itemId, num);
+      this.service.updateBudgetPlanned(this.selectedMonth(), itemId, num);
     } else {
-      this.service.updateMonthlyBudgetPlanned(this.selectedMonth(), itemId, Number(val) || 0);
+      this.service.updateBudgetPlanned(this.selectedMonth(), itemId, Number(val) || 0);
     }
   }
 }
