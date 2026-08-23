@@ -98,24 +98,24 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
           <div>
-            <label class="input-label">Date</label>
+            <label class="input-label">Date Format</label>
             <select [ngModel]="service.dateFormat()" (ngModelChange)="service.dateFormat.set($event)" class="settings-select">
-              <option value="yyyy-MM-dd">ISO</option>
-              <option value="dd/MM/yyyy">EU</option>
-              <option value="MM/dd/yyyy">US</option>
-              <option value="MMMM d, yyyy">Full</option>
+              <option value="yyyy-MM-dd">2026-08-23 (ISO)</option>
+              <option value="dd/MM/yyyy">23/08/2026 (EU)</option>
+              <option value="MM/dd/yyyy">08/23/2026 (US)</option>
+              <option value="MMMM d, yyyy">August 23, 2026</option>
             </select>
           </div>
 
           <div>
-            <label class="input-label">Number</label>
+            <label class="input-label">Number Format</label>
             <select [ngModel]="service.numberFormat()" (ngModelChange)="service.numberFormat.set($event)" class="settings-select">
-              <option value="1,234.56">1,234.56</option>
-              <option value="1.234,56">1.234,56</option>
-              <option value="1 234.56">1 234.56</option>
-              <option value="1234.56">Plain</option>
+              <option value="1,234.56">1,234.56 (Dot)</option>
+              <option value="1.234,56">1.234,56 (Comma)</option>
+              <option value="1 234.56">1 234.56 (Space)</option>
+              <option value="1234.56">1234.56 (Plain)</option>
             </select>
           </div>
         </div>
