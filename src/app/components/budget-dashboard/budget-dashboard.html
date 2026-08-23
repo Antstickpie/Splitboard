@@ -86,7 +86,7 @@
   <div class="everydollar-workspace">
     <!-- LEFT COLUMN: Spending Categories Breakdown -->
     <div class="everydollar-budget-col">
-      <!-- Category Group Cards (Always rendered for planning & fund tracking) -->
+      <!-- Category Group Cards (Pure Actual Spending per category) -->
       <div class="everydollar-group-card glass-card" *ngFor="let grp of groupSummaries()">
         <!-- Group Header -->
         <div class="group-card-top">
@@ -96,8 +96,7 @@
           </div>
 
           <div class="group-col-labels font-mono">
-            <span class="grp-total-badge" *ngIf="grp.actualTotal > 0">{{ service.formatCurrency(grp.actualTotal) }} spent</span>
-            <span class="grp-total-badge" *ngIf="grp.actualTotal === 0" style="color: var(--text-muted);">{{ service.formatCurrency(grp.plannedTotal) }} planned</span>
+            <span class="grp-total-badge">{{ service.formatCurrency(grp.actualTotal) }}</span>
           </div>
         </div>
 
@@ -110,13 +109,9 @@
                 <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
                   {{ item.defaultOwner }}
                 </span>
-                <!-- Fund Rollover Badge -->
-                <span *ngIf="item.isFund && item.startingBalance && item.startingBalance > 0" class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;">
-                  🏦 Rollover: {{ service.formatCurrency(item.startingBalance) }}
-                </span>
               </div>
 
-              <!-- Spending Share Bar -->
+              <!-- Spending Share Bar within Group -->
               <div class="item-progress-track" *ngIf="grp.actualTotal > 0">
                 <div
                   class="item-progress-fill"
@@ -125,27 +120,12 @@
             </div>
 
             <div class="item-values-col font-mono">
-              <!-- If Fund: Show Available Fund Balance -->
-              <ng-container *ngIf="item.isFund">
-                <div style="text-align: right;">
-                  <span class="item-actual-val" style="color: var(--success); font-weight: 700;">
-                    {{ service.formatCurrency(item.totalAvailable || item.planned) }}
-                  </span>
-                  <div *ngIf="item.actual > 0" style="font-size: 0.68rem; color: var(--danger);">
-                    Spent: {{ service.formatCurrency(item.actual) }}
-                  </div>
-                </div>
-              </ng-container>
-
-              <!-- If Standard Expense / Income -->
-              <ng-container *ngIf="!item.isFund">
-                <span class="item-actual-val" [class.has-spend]="item.actual > 0">
-                  {{ service.formatCurrency(item.actual) }}
-                </span>
-                <span class="item-pct-label" *ngIf="grp.actualTotal > 0 && item.actual > 0">
-                  {{ Math.round((item.actual / grp.actualTotal) * 100) }}%
-                </span>
-              </ng-container>
+              <span class="item-actual-val" [class.has-spend]="item.actual > 0">
+                {{ service.formatCurrency(item.actual) }}
+              </span>
+              <span class="item-pct-label" *ngIf="grp.actualTotal > 0 && item.actual > 0">
+                {{ Math.round((item.actual / grp.actualTotal) * 100) }}%
+              </span>
             </div>
           </div>
 
@@ -153,7 +133,7 @@
           <div class="group-subtotal-row font-mono" *ngIf="grp.items.length > 1">
             <div class="subtotal-label">Group Total</div>
             <div class="subtotal-values">
-              <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal > 0 ? grp.actualTotal : grp.plannedTotal) }}</span>
+              <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal) }}</span>
             </div>
           </div>
         </div>
@@ -200,42 +180,32 @@
         <div class="sidebar-search-wrap">
           <input
             type="text"
-            placeholder="🔍 Search transactions..."
+            placeholder="Search transactions..."
             [ngModel]="sidebarSearch()"
             (ngModelChange)="sidebarSearch.set($event)"
             class="sidebar-search-input">
         </div>
 
         <!-- Transactions List -->
-        <div class="sidebar-tx-list">
+        <div class="sidebar-tx-feed">
           <div class="sidebar-tx-card" *ngFor="let tx of sidebarTransactions()">
-            <div class="tx-card-main">
-              <div class="tx-card-left">
-                <div class="tx-desc" title="{{ tx.description }}">{{ tx.description }}</div>
-                <div class="tx-meta">
-                  <span>{{ service.formatDate(tx.date) }}</span>
-                  <span>•</span>
-                  <span class="badge badge-neutral" style="font-size: 0.68rem;">{{ tx.bank }}</span>
-                  <span class="badge badge-info" style="font-size: 0.68rem;">{{ tx.paidBy }}</span>
-                </div>
-              </div>
-              <div class="tx-card-right font-mono">
-                <span class="tx-amount">{{ service.formatCurrency(tx.amount) }}</span>
+            <div class="tx-card-left">
+              <div class="tx-card-desc font-medium">{{ tx.description }}</div>
+              <div class="tx-card-meta">
+                <span class="tx-date">{{ service.formatDate(tx.date) }}</span>
+                <span class="tx-bank-dot">•</span>
+                <span class="tx-bank">{{ tx.bank }}</span>
+                <span class="tx-bank-dot" *ngIf="tx.categoryItem">•</span>
+                <span class="badge badge-neutral" *ngIf="tx.categoryItem" style="font-size: 0.65rem;">
+                  {{ tx.categoryItem }}
+                </span>
               </div>
             </div>
 
-            <!-- Category & Split Selector Dropdown inside Sidebar Card -->
-            <div class="tx-card-bottom">
-              <select
-                [ngModel]="tx.categoryItem"
-                (ngModelChange)="service.updateTransaction(tx.id, { categoryItem: $event })"
-                class="tx-inline-select">
-                <option value="">Uncategorized</option>
-                <optgroup *ngFor="let g of service.categoryGroups()" [label]="g.name">
-                  <option *ngFor="let itm of g.items" [value]="itm.name">{{ itm.name }}</option>
-                </optgroup>
-              </select>
-
+            <div class="tx-card-right font-mono">
+              <span class="tx-amount" [class.text-success]="tx.type === 'INCOME'">
+                {{ service.formatCurrency(tx.amount) }}
+              </span>
               <select
                 [ngModel]="tx.splitType"
                 (ngModelChange)="service.updateTransaction(tx.id, { splitType: $event })"
@@ -256,37 +226,6 @@
 
       <!-- TAB 2: Summary / Analytics -->
       <div class="sidebar-body" *ngIf="sidebarTab() === 'summary'">
-        <!-- Monthly Split Settlement Card (Who Owes Who) -->
-        <div class="sidebar-summary-box" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
-            <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600;">⚖️ Split Settlement</span>
-            <span class="badge" [class.badge-success]="service.monthSettlement().isSettled" [class.badge-warning]="!service.monthSettlement().isSettled" style="font-size: 0.68rem;">
-              {{ service.monthSettlement().isSettled ? 'All Settled' : 'Active Balance' }}
-            </span>
-          </div>
-
-          <!-- When debt exists -->
-          <div *ngIf="!service.monthSettlement().isSettled" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.4rem; padding: 0.6rem 0.8rem; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px;">
-            <div>
-              <div style="font-size: 0.92rem; font-weight: 700; color: #f59e0b;">
-                <strong>{{ service.monthSettlement().debtorName }}</strong> owes <strong>{{ service.monthSettlement().creditorName }}</strong>
-              </div>
-              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem;">
-                Net split settlement for {{ service.formatMonth(selectedMonth()) }}
-              </div>
-            </div>
-            <div class="font-mono" style="font-size: 1.2rem; font-weight: 800; color: #f59e0b;">
-              {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
-            </div>
-          </div>
-
-          <!-- When settled -->
-          <div *ngIf="service.monthSettlement().isSettled" style="padding: 0.5rem 0.8rem; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; text-align: center; margin-top: 0.4rem;">
-            <span style="color: var(--success); font-weight: 700; font-size: 0.84rem;">✓ All Settled Up</span>
-            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem;">No outstanding split balances for this month</div>
-          </div>
-        </div>
-
         <!-- Key Metrics Cards -->
         <div class="sidebar-summary-box">
           <div class="summary-kpi-row">
@@ -309,12 +248,12 @@
           </div>
         </div>
 
-        <!-- Person-Level Savings & Remaining Unused Budget Card (when transactions exist) -->
-        <div class="sidebar-summary-box" style="margin-top: 0.8rem; background: rgba(0, 229, 255, 0.03); border-color: rgba(0, 229, 255, 0.15);" *ngIf="sidebarTransactions().length > 0">
+        <!-- Person-Level Savings & Cumulative Balance Card -->
+        <div class="sidebar-summary-box" style="margin-top: 0.8rem; background: rgba(0, 229, 255, 0.03); border-color: rgba(0, 229, 255, 0.15);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <h4 style="margin: 0; font-size: 0.88rem; color: var(--primary);">💰 Savings & Cash Balance</h4>
             <span class="badge badge-success font-mono" style="font-size: 0.75rem;">
-              {{ service.formatCurrency(personSavingsBreakdown().totalSavingsCombined) }} total
+              {{ service.formatCurrency(personSavingsBreakdown().totalSavingsCumulative) }} total
             </span>
           </div>
 
@@ -323,22 +262,31 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
               <span style="font-weight: 700; font-size: 0.82rem; color: var(--primary);">{{ personSavingsBreakdown().p1.name }}</span>
               <span class="font-mono" style="font-weight: 700; color: var(--success); font-size: 0.9rem;">
-                {{ service.formatCurrency(personSavingsBreakdown().p1.totalSavings) }}
+                {{ service.formatCurrency(personSavingsBreakdown().p1.totalCumulative) }}
               </span>
             </div>
-            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.15rem;">
-              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p1.plannedSavings > 0">
-                <span>Planned Savings:</span>
-                <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p1.plannedSavings) }}</span>
+            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.2rem;">
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p1.income > 0">
+                <span>Income this month:</span>
+                <span class="font-mono" style="color: var(--success);">+{{ service.formatCurrency(personSavingsBreakdown().p1.income) }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #38bdf8;" *ngIf="personSavingsBreakdown().p1.unusedBudget > 0">
-                <span>+ Leftover Budget:</span>
-                <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p1.unusedBudget) }}</span>
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p1.spentShare > 0">
+                <span>Expense share this month:</span>
+                <span class="font-mono" style="color: var(--danger);">-{{ service.formatCurrency(personSavingsBreakdown().p1.spentShare) }}</span>
               </div>
-              <!-- Split Reimbursement Adjustment -->
-              <div *ngIf="personSavingsBreakdown().p1.settlementAdj !== 0" style="display: flex; justify-content: space-between;" [style.color]="personSavingsBreakdown().p1.settlementAdj > 0 ? '#10b981' : '#ef4444'">
-                <span>{{ personSavingsBreakdown().p1.settlementAdj > 0 ? '+ Owed by ' + personSavingsBreakdown().p2.name + ' (Split)' : '- Owes ' + personSavingsBreakdown().p2.name + ' (Split)' }}:</span>
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p1.settlementAdj !== 0" [style.color]="personSavingsBreakdown().p1.settlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>{{ personSavingsBreakdown().p1.settlementAdj > 0 ? '+ Reimbursement (Split)' : '- Owed to ' + personSavingsBreakdown().p2.name }}:</span>
                 <span class="font-mono">{{ personSavingsBreakdown().p1.settlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p1.settlementAdj) }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-top: 0.2rem; border-top: 1px dashed rgba(255,255,255,0.06); font-weight: 600;">
+                <span>Saved this month:</span>
+                <span class="font-mono" [style.color]="personSavingsBreakdown().p1.monthSaved >= 0 ? 'var(--success)' : 'var(--danger)'">
+                  {{ personSavingsBreakdown().p1.monthSaved >= 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p1.monthSaved) }}
+                </span>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: var(--text-muted);" *ngIf="personSavingsBreakdown().p1.priorSavings > 0">
+                <span>Prior savings balance:</span>
+                <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p1.priorSavings) }}</span>
               </div>
             </div>
           </div>
@@ -348,22 +296,31 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
               <span style="font-weight: 700; font-size: 0.82rem; color: var(--secondary);">{{ personSavingsBreakdown().p2.name }}</span>
               <span class="font-mono" style="font-weight: 700; color: var(--success); font-size: 0.9rem;">
-                {{ service.formatCurrency(personSavingsBreakdown().p2.totalSavings) }}
+                {{ service.formatCurrency(personSavingsBreakdown().p2.totalCumulative) }}
               </span>
             </div>
-            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.15rem;">
-              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p2.plannedSavings > 0">
-                <span>Planned Savings:</span>
-                <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p2.plannedSavings) }}</span>
+            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.2rem;">
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p2.income > 0">
+                <span>Income this month:</span>
+                <span class="font-mono" style="color: var(--success);">+{{ service.formatCurrency(personSavingsBreakdown().p2.income) }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #38bdf8;" *ngIf="personSavingsBreakdown().p2.unusedBudget > 0">
-                <span>+ Leftover Budget:</span>
-                <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p2.unusedBudget) }}</span>
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p2.spentShare > 0">
+                <span>Expense share this month:</span>
+                <span class="font-mono" style="color: var(--danger);">-{{ service.formatCurrency(personSavingsBreakdown().p2.spentShare) }}</span>
               </div>
-              <!-- Split Reimbursement Adjustment -->
-              <div *ngIf="personSavingsBreakdown().p2.settlementAdj !== 0" style="display: flex; justify-content: space-between;" [style.color]="personSavingsBreakdown().p2.settlementAdj > 0 ? '#10b981' : '#ef4444'">
-                <span>{{ personSavingsBreakdown().p2.settlementAdj > 0 ? '+ Owed by ' + personSavingsBreakdown().p1.name + ' (Split)' : '- Owes ' + personSavingsBreakdown().p1.name + ' (Split)' }}:</span>
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p2.settlementAdj !== 0" [style.color]="personSavingsBreakdown().p2.settlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>{{ personSavingsBreakdown().p2.settlementAdj > 0 ? '+ Reimbursement (Split)' : '- Owed to ' + personSavingsBreakdown().p1.name }}:</span>
                 <span class="font-mono">{{ personSavingsBreakdown().p2.settlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p2.settlementAdj) }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-top: 0.2rem; border-top: 1px dashed rgba(255,255,255,0.06); font-weight: 600;">
+                <span>Saved this month:</span>
+                <span class="font-mono" [style.color]="personSavingsBreakdown().p2.monthSaved >= 0 ? 'var(--success)' : 'var(--danger)'">
+                  {{ personSavingsBreakdown().p2.monthSaved >= 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p2.monthSaved) }}
+                </span>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: var(--text-muted);" *ngIf="personSavingsBreakdown().p2.priorSavings > 0">
+                <span>Prior savings balance:</span>
+                <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p2.priorSavings) }}</span>
               </div>
             </div>
           </div>

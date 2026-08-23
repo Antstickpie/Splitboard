@@ -178,12 +178,11 @@ export class BudgetDashboardComponent {
     this.newCategoryItemName.set('');
   }
 
-  // Planned vs Actual Budget Computation
+  // Pure Actuals Budget Computation
   public groupSummaries = computed<CategoryGroupSummary[]>(() => {
     const month = this.selectedMonth();
-    const plannedBudget = this.service.getBudgetForMonth(month);
     const txsInMonth = this.service.transactions().filter(
-      (tx) => tx.date.startsWith(month)
+      (tx) => tx.date && tx.date.startsWith(month)
     );
 
     // Compute actuals per category
@@ -195,54 +194,20 @@ export class BudgetDashboardComponent {
     });
 
     return this.service.categoryGroups().map((grp) => {
-      let groupPlanned = 0;
       let groupActual = 0;
-      const isSavingsGroup = grp.id === 'grp-savings' || grp.name.toLowerCase().includes('saving');
 
       const items = grp.items.map((item) => {
-        const plannedThisMonth = plannedBudget[item.id] !== undefined ? plannedBudget[item.id] : (item.plannedDefault || 0);
-        const actualThisMonth = actualsMap[item.name] || 0;
-
-        let startingBalance = 0;
-        let isFund = isSavingsGroup;
-
-        if (isSavingsGroup) {
-          // Calculate starting balance rolled over from all prior months
-          const priorTxs = this.service.transactions().filter(
-            (tx) => tx.date && tx.date.slice(0, 7) < month && (
-              tx.categoryItem === item.name || 
-              (tx.categoryGroup === grp.name && (!tx.categoryItem || tx.categoryItem === item.name))
-            )
-          );
-
-          priorTxs.forEach((tx) => {
-            const amt = Number(tx.amount) || 0;
-            if (tx.type === 'INCOME' || tx.isCashTransfer) {
-              startingBalance += amt;
-            } else {
-              startingBalance -= amt;
-            }
-          });
-        }
-
-        const totalAvailable = startingBalance + plannedThisMonth;
-        const remaining = totalAvailable - actualThisMonth;
-        const percentage = totalAvailable > 0 ? Math.min(100, Math.round((actualThisMonth / totalAvailable) * 100)) : (actualThisMonth > 0 ? 100 : 0);
-
-        groupPlanned += plannedThisMonth;
-        groupActual += actualThisMonth;
+        const actual = actualsMap[item.name] || 0;
+        groupActual += actual;
 
         return {
           id: item.id,
           name: item.name,
-          planned: plannedThisMonth,
-          actual: actualThisMonth,
-          remaining,
-          percentage,
-          defaultOwner: item.defaultOwner,
-          isFund,
-          startingBalance,
-          totalAvailable
+          planned: 0,
+          actual,
+          remaining: 0,
+          percentage: 0,
+          defaultOwner: item.defaultOwner
         };
       });
 
@@ -250,41 +215,38 @@ export class BudgetDashboardComponent {
         id: grp.id,
         name: grp.name,
         icon: grp.icon || '📁',
-        plannedTotal: groupPlanned,
+        plannedTotal: 0,
         actualTotal: groupActual,
-        remainingTotal: groupPlanned - groupActual,
+        remainingTotal: 0,
         items
       };
     });
   });
 
   public budgetTotals = computed(() => {
-    const summaries = this.groupSummaries();
-    let totalIncomePlanned = 0;
+    const month = this.selectedMonth();
     let totalIncomeActual = 0;
-    let totalExpensePlanned = 0;
     let totalExpenseActual = 0;
 
-    summaries.forEach((grp) => {
-      if (grp.id === 'grp-income' || grp.name.toLowerCase().includes('income')) {
-        totalIncomePlanned += grp.plannedTotal;
-        totalIncomeActual += grp.actualTotal;
-      } else {
-        totalExpensePlanned += grp.plannedTotal;
-        totalExpenseActual += grp.actualTotal;
+    this.service.transactions().filter((tx) => tx.date && tx.date.startsWith(month)).forEach((tx) => {
+      const amt = Number(tx.amount) || 0;
+      if (amt <= 0) return;
+      if (tx.type === 'INCOME') {
+        totalIncomeActual += amt;
+      } else if (tx.type === 'EXPENSE' && !tx.isCashTransfer) {
+        totalExpenseActual += amt;
       }
     });
 
     const netRemaining = totalIncomeActual - totalExpenseActual;
-    const plannedRemaining = totalIncomePlanned - totalExpensePlanned;
 
     return {
-      totalIncomePlanned,
+      totalIncomePlanned: 0,
       totalIncomeActual,
-      totalExpensePlanned,
+      totalExpensePlanned: 0,
       totalExpenseActual,
       netRemaining,
-      plannedRemaining
+      plannedRemaining: 0
     };
   });
 
@@ -295,7 +257,7 @@ export class BudgetDashboardComponent {
     let p1Spend = 0;
     let p2Spend = 0;
 
-    this.service.transactions().filter((tx) => tx.date.startsWith(month)).forEach((tx) => {
+    this.service.transactions().filter((tx) => tx.date && tx.date.startsWith(month) && !tx.isCashTransfer && tx.type === 'EXPENSE').forEach((tx) => {
       if (tx.paidBy === p1) p1Spend += Number(tx.amount) || 0;
       else if (tx.paidBy === p2) p2Spend += Number(tx.amount) || 0;
     });
@@ -312,67 +274,60 @@ export class BudgetDashboardComponent {
     };
   });
 
-  // Person-Level Savings & Remaining Unused Budget Breakdown (Including Split Settlements)
+  // Person-Level Savings & Cumulative Fund Balance (Pure Actuals)
   public personSavingsBreakdown = computed(() => {
     const p1 = this.service.personOne().name;
     const p2 = this.service.personTwo().name;
-    const summaries = this.groupSummaries();
-    const settlement = this.service.monthSettlement();
+    const currentMonth = this.selectedMonth();
+    const allTxs = this.service.transactions();
 
-    let p1Income = 0;
-    let p2Income = 0;
-    let p1PlannedSavings = 0;
-    let p2PlannedSavings = 0;
-    let p1UnusedBudget = 0;
-    let p2UnusedBudget = 0;
-    let p1ActualSpent = 0;
-    let p2ActualSpent = 0;
+    // 1. Current Month Actuals
+    const monthTxs = allTxs.filter((tx) => tx.date && tx.date.startsWith(currentMonth));
+    let p1IncomeMonth = 0;
+    let p2IncomeMonth = 0;
+    let p1SpentShareMonth = 0;
+    let p2SpentShareMonth = 0;
 
-    summaries.forEach((grp) => {
-      const isIncome = grp.id === 'grp-income' || grp.name.toLowerCase().includes('income');
-      const isSavings = grp.id === 'grp-savings' || grp.name.toLowerCase().includes('saving');
+    monthTxs.forEach((tx) => {
+      const amt = Number(tx.amount) || 0;
+      if (amt <= 0) return;
 
-      grp.items.forEach((item) => {
-        if (isIncome) {
-          if (item.defaultOwner === p1) {
-            p1Income += item.planned;
-          } else if (item.defaultOwner === p2) {
-            p2Income += item.planned;
-          } else {
-            p1Income += item.planned / 2;
-            p2Income += item.planned / 2;
-          }
-        } else if (isSavings) {
-          if (item.defaultOwner === p1) {
-            p1PlannedSavings += item.planned;
-          } else if (item.defaultOwner === p2) {
-            p2PlannedSavings += item.planned;
-          } else {
-            p1PlannedSavings += item.planned / 2;
-            p2PlannedSavings += item.planned / 2;
-          }
+      if (tx.type === 'INCOME') {
+        if (tx.paidBy === p1) p1IncomeMonth += amt;
+        else if (tx.paidBy === p2) p2IncomeMonth += amt;
+        else {
+          p1IncomeMonth += amt / 2;
+          p2IncomeMonth += amt / 2;
+        }
+      } else if (tx.type === 'EXPENSE' && !tx.isCashTransfer) {
+        if (tx.splitType === 'SELF') {
+          if (tx.paidBy === p1) p1SpentShareMonth += amt;
+          else p2SpentShareMonth += amt;
+        } else if (tx.splitType === 'OTHER') {
+          if (tx.paidBy === p1) p2SpentShareMonth += amt;
+          else p1SpentShareMonth += amt;
         } else {
-          const unused = Math.max(0, item.remaining);
-          if (item.defaultOwner === p1) {
-            p1UnusedBudget += unused;
-            p1ActualSpent += item.actual;
-          } else if (item.defaultOwner === p2) {
-            p2UnusedBudget += unused;
-            p2ActualSpent += item.actual;
+          // SPLIT
+          if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+            p1SpentShareMonth += Number(tx.customSplitAmounts[p1]) || 0;
+            p2SpentShareMonth += Number(tx.customSplitAmounts[p2]) || 0;
           } else {
-            p1UnusedBudget += unused / 2;
-            p2UnusedBudget += unused / 2;
-            p1ActualSpent += item.actual / 2;
-            p2ActualSpent += item.actual / 2;
+            const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
+            if (tx.paidBy === p1) {
+              const p1s = parseFloat(((amt * pct) / 100).toFixed(2));
+              p1SpentShareMonth += p1s;
+              p2SpentShareMonth += parseFloat((amt - p1s).toFixed(2));
+            } else {
+              const p2s = parseFloat(((amt * pct) / 100).toFixed(2));
+              p2SpentShareMonth += p2s;
+              p1SpentShareMonth += parseFloat((amt - p2s).toFixed(2));
+            }
           }
         }
-      });
+      }
     });
 
-    const p1BaseSavings = p1PlannedSavings + p1UnusedBudget;
-    const p2BaseSavings = p2PlannedSavings + p2UnusedBudget;
-
-    // Split settlement adjustments
+    const settlement = this.service.monthSettlement();
     let p1SettlementAdj = 0;
     let p2SettlementAdj = 0;
 
@@ -386,32 +341,81 @@ export class BudgetDashboardComponent {
       }
     }
 
-    const p1TotalSavings = p1BaseSavings + p1SettlementAdj;
-    const p2TotalSavings = p2BaseSavings + p2SettlementAdj;
+    const p1MonthSaved = p1IncomeMonth - p1SpentShareMonth + p1SettlementAdj;
+    const p2MonthSaved = p2IncomeMonth - p2SpentShareMonth + p2SettlementAdj;
+
+    // 2. Cumulative Prior Savings (from all months prior to currentMonth)
+    let p1PriorSavings = 0;
+    let p2PriorSavings = 0;
+
+    const priorTxs = allTxs.filter((tx) => tx.date && tx.date.slice(0, 7) < currentMonth);
+    priorTxs.forEach((tx) => {
+      const amt = Number(tx.amount) || 0;
+      if (amt <= 0) return;
+
+      if (tx.type === 'INCOME') {
+        if (tx.paidBy === p1) p1PriorSavings += amt;
+        else if (tx.paidBy === p2) p2PriorSavings += amt;
+        else {
+          p1PriorSavings += amt / 2;
+          p2PriorSavings += amt / 2;
+        }
+      } else if (tx.isCashTransfer) {
+        // Cash transfer between persons
+        if (tx.paidBy === p1 && tx.transferTo === p2) {
+          p1PriorSavings -= amt;
+          p2PriorSavings += amt;
+        } else if (tx.paidBy === p2 && tx.transferTo === p1) {
+          p2PriorSavings -= amt;
+          p1PriorSavings += amt;
+        }
+      } else if (tx.type === 'EXPENSE') {
+        if (tx.splitType === 'SELF') {
+          if (tx.paidBy === p1) p1PriorSavings -= amt;
+          else p2PriorSavings -= amt;
+        } else if (tx.splitType === 'OTHER') {
+          if (tx.paidBy === p1) p2PriorSavings -= amt;
+          else p1PriorSavings -= amt;
+        } else {
+          // SPLIT
+          const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
+          if (tx.paidBy === p1) {
+            const p1s = parseFloat(((amt * pct) / 100).toFixed(2));
+            p1PriorSavings -= p1s;
+            p2PriorSavings -= parseFloat((amt - p1s).toFixed(2));
+          } else {
+            const p2s = parseFloat(((amt * pct) / 100).toFixed(2));
+            p2PriorSavings -= p2s;
+            p1PriorSavings -= parseFloat((amt - p2s).toFixed(2));
+          }
+        }
+      }
+    });
+
+    const p1TotalCumulative = p1PriorSavings + p1MonthSaved;
+    const p2TotalCumulative = p2PriorSavings + p2MonthSaved;
 
     return {
       p1: {
         name: p1,
-        income: p1Income,
-        plannedSavings: p1PlannedSavings,
-        unusedBudget: p1UnusedBudget,
-        actualSpent: p1ActualSpent,
-        baseSavings: p1BaseSavings,
-        settlementAdj: p1SettlementAdj,
-        totalSavings: p1TotalSavings
+        income: p1IncomeMonth,
+        spentShare: p1SpentShareMonth,
+        monthSaved: p1MonthSaved,
+        priorSavings: p1PriorSavings,
+        totalCumulative: p1TotalCumulative,
+        settlementAdj: p1SettlementAdj
       },
       p2: {
         name: p2,
-        income: p2Income,
-        plannedSavings: p2PlannedSavings,
-        unusedBudget: p2UnusedBudget,
-        actualSpent: p2ActualSpent,
-        baseSavings: p2BaseSavings,
-        settlementAdj: p2SettlementAdj,
-        totalSavings: p2TotalSavings
+        income: p2IncomeMonth,
+        spentShare: p2SpentShareMonth,
+        monthSaved: p2MonthSaved,
+        priorSavings: p2PriorSavings,
+        totalCumulative: p2TotalCumulative,
+        settlementAdj: p2SettlementAdj
       },
-      settlement,
-      totalSavingsCombined: p1TotalSavings + p2TotalSavings
+      totalSavingsMonth: p1MonthSaved + p2MonthSaved,
+      totalSavingsCumulative: p1TotalCumulative + p2TotalCumulative
     };
   });
 
