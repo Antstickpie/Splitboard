@@ -12,7 +12,7 @@
       <div class="settlement-main-amount">
         {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
       </div>
-      <button class="btn btn-secondary btn-sm" (click)="isSettlementExpanded.set(!isSettlementExpanded())">
+      <button class="btn btn-secondary btn-sm settlement-breakdown-btn" (click)="isSettlementExpanded.set(!isSettlementExpanded())">
         {{ isSettlementExpanded() ? 'Hide Breakdown ▲' : 'View Split Breakdown ▼' }}
       </button>
     </div>
