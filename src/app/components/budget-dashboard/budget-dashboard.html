@@ -80,57 +80,69 @@
   <div class="everydollar-workspace">
     <!-- LEFT COLUMN: Spending Categories Breakdown -->
     <div class="everydollar-budget-col">
-      <div class="everydollar-group-card glass-card" *ngFor="let grp of groupSummaries()">
-        <!-- Group Header -->
-        <div class="group-card-top">
-          <div class="group-title-wrap">
-            <span class="group-icon">{{ grp.icon }}</span>
-            <span class="group-name">{{ grp.name }}</span>
+      <!-- Big Empty State when no transactions in this month -->
+      <div *ngIf="sidebarTransactions().length === 0" class="glass-card" style="text-align: center; padding: 4rem 2rem;">
+        <div style="font-size: 3rem; margin-bottom: 0.8rem;">📊</div>
+        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem;">No spending recorded for {{ service.formatMonth(selectedMonth()) }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto; line-height: 1.5;">
+          No bank transactions or cash expenses have been logged for this month yet. Import statements in <strong>Import Statements</strong> or log cash in <strong>Transactions & Splitter</strong> to view live spending analytics.
+        </p>
+      </div>
+
+      <!-- Category Group Cards (rendered when month has transactions) -->
+      <ng-container *ngIf="sidebarTransactions().length > 0">
+        <div class="everydollar-group-card glass-card" *ngFor="let grp of groupSummaries()">
+          <!-- Group Header -->
+          <div class="group-card-top">
+            <div class="group-title-wrap">
+              <span class="group-icon">{{ grp.icon }}</span>
+              <span class="group-name">{{ grp.name }}</span>
+            </div>
+
+            <div class="group-col-labels font-mono">
+              <span class="grp-total-badge">{{ service.formatCurrency(grp.actualTotal) }}</span>
+            </div>
           </div>
 
-          <div class="group-col-labels font-mono">
-            <span class="grp-total-badge">{{ service.formatCurrency(grp.actualTotal) }}</span>
-          </div>
-        </div>
+          <!-- Items List -->
+          <div class="group-items-body">
+            <div class="item-line" *ngFor="let item of grp.items">
+              <div class="item-info-wrap">
+                <div class="item-name-col">
+                  <span class="item-name-text">{{ item.name }}</span>
+                  <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
+                    {{ item.defaultOwner }}
+                  </span>
+                </div>
 
-        <!-- Items List -->
-        <div class="group-items-body">
-          <div class="item-line" *ngFor="let item of grp.items">
-            <div class="item-info-wrap">
-              <div class="item-name-col">
-                <span class="item-name-text">{{ item.name }}</span>
-                <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
-                  {{ item.defaultOwner }}
+                <!-- Spending Share Bar -->
+                <div class="item-progress-track" *ngIf="grp.actualTotal > 0">
+                  <div
+                    class="item-progress-fill"
+                    [style.width.%]="(item.actual / grp.actualTotal) * 100"></div>
+                </div>
+              </div>
+
+              <div class="item-values-col font-mono">
+                <span class="item-actual-val" [class.has-spend]="item.actual > 0">
+                  {{ service.formatCurrency(item.actual) }}
+                </span>
+                <span class="item-pct-label" *ngIf="grp.actualTotal > 0 && item.actual > 0">
+                  {{ Math.round((item.actual / grp.actualTotal) * 100) }}%
                 </span>
               </div>
+            </div>
 
-              <!-- Spending Share Bar -->
-              <div class="item-progress-track" *ngIf="grp.actualTotal > 0">
-                <div
-                  class="item-progress-fill"
-                  [style.width.%]="(item.actual / grp.actualTotal) * 100"></div>
+            <!-- Group Subtotal Row -->
+            <div class="group-subtotal-row font-mono" *ngIf="grp.items.length > 1">
+              <div class="subtotal-label">Group Total</div>
+              <div class="subtotal-values">
+                <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal) }}</span>
               </div>
-            </div>
-
-            <div class="item-values-col font-mono">
-              <span class="item-actual-val" [class.has-spend]="item.actual > 0">
-                {{ service.formatCurrency(item.actual) }}
-              </span>
-              <span class="item-pct-label" *ngIf="grp.actualTotal > 0 && item.actual > 0">
-                {{ Math.round((item.actual / grp.actualTotal) * 100) }}%
-              </span>
-            </div>
-          </div>
-
-          <!-- Group Subtotal Row -->
-          <div class="group-subtotal-row font-mono" *ngIf="grp.items.length > 1">
-            <div class="subtotal-label">Group Total</div>
-            <div class="subtotal-values">
-              <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal) }}</span>
             </div>
           </div>
         </div>
-      </div>
+      </ng-container>
     </div>
 
     <!-- RIGHT COLUMN: EveryDollar Sidebar Panel (Summary & Transactions) -->
@@ -234,7 +246,7 @@
           <div class="summary-kpi-row">
             <span class="kpi-lbl">Total Income</span>
             <span class="kpi-val font-mono" style="color: var(--success);">
-              {{ service.formatCurrency(budgetTotals().totalIncomePlanned) }}
+              {{ service.formatCurrency(budgetTotals().totalIncomeActual) }}
             </span>
           </div>
           <div class="summary-kpi-row">
@@ -244,17 +256,17 @@
             </span>
           </div>
           <div class="summary-kpi-row">
-            <span class="kpi-lbl">Planned Left</span>
-            <span class="kpi-val font-mono" [style.color]="budgetTotals().plannedRemaining >= 0 ? 'var(--success)' : 'var(--danger)'">
-              {{ service.formatCurrency(budgetTotals().plannedRemaining) }}
+            <span class="kpi-lbl">Net Cash Flow</span>
+            <span class="kpi-val font-mono" [style.color]="budgetTotals().netRemaining >= 0 ? 'var(--success)' : 'var(--danger)'">
+              {{ budgetTotals().netRemaining >= 0 ? '+' : '' }}{{ service.formatCurrency(budgetTotals().netRemaining) }}
             </span>
           </div>
         </div>
 
-        <!-- Person-Level Savings & Remaining Unused Budget Card -->
-        <div class="sidebar-summary-box" style="margin-top: 0.8rem; background: rgba(0, 229, 255, 0.03); border-color: rgba(0, 229, 255, 0.15);">
+        <!-- Person-Level Savings & Remaining Unused Budget Card (when transactions exist) -->
+        <div class="sidebar-summary-box" style="margin-top: 0.8rem; background: rgba(0, 229, 255, 0.03); border-color: rgba(0, 229, 255, 0.15);" *ngIf="sidebarTransactions().length > 0">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; font-size: 0.88rem; color: var(--primary);">💰 Savings & Unused Budget</h4>
+            <h4 style="margin: 0; font-size: 0.88rem; color: var(--primary);">💰 Savings & Cash Balance</h4>
             <span class="badge badge-success font-mono" style="font-size: 0.75rem;">
               {{ service.formatCurrency(personSavingsBreakdown().totalSavingsCombined) }} total
             </span>
@@ -269,12 +281,12 @@
               </span>
             </div>
             <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.15rem;">
-              <div style="display: flex; justify-content: space-between;">
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p1.plannedSavings > 0">
                 <span>Planned Savings:</span>
                 <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p1.plannedSavings) }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #38bdf8;">
-                <span>+ Leftover Unused Budget:</span>
+              <div style="display: flex; justify-content: space-between; color: #38bdf8;" *ngIf="personSavingsBreakdown().p1.unusedBudget > 0">
+                <span>+ Leftover Budget:</span>
                 <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p1.unusedBudget) }}</span>
               </div>
               <!-- Split Reimbursement Adjustment -->
@@ -294,12 +306,12 @@
               </span>
             </div>
             <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.15rem;">
-              <div style="display: flex; justify-content: space-between;">
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p2.plannedSavings > 0">
                 <span>Planned Savings:</span>
                 <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p2.plannedSavings) }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #38bdf8;">
-                <span>+ Leftover Unused Budget:</span>
+              <div style="display: flex; justify-content: space-between; color: #38bdf8;" *ngIf="personSavingsBreakdown().p2.unusedBudget > 0">
+                <span>+ Leftover Budget:</span>
                 <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p2.unusedBudget) }}</span>
               </div>
               <!-- Split Reimbursement Adjustment -->
@@ -309,15 +321,6 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Empty State Helper when no spending recorded in month -->
-        <div *ngIf="budgetTotals().totalExpenseActual === 0" class="sidebar-summary-box" style="margin-top: 0.8rem; text-align: center; padding: 1.4rem 1rem; background: rgba(255,255,255,0.015); border-style: dashed;">
-          <div style="font-size: 1.6rem; margin-bottom: 0.3rem;">📊</div>
-          <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.3rem;">No spending in {{ service.formatMonth(selectedMonth()) }}</div>
-          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0; line-height: 1.4;">
-            Import bank statements (PDF, CSV) in <strong>Import Statements</strong> or log cash in <strong>Transactions & Splitter</strong> to view live spending analytics.
-          </p>
         </div>
 
         <!-- Person Split Share Bar (when spending exists) -->
