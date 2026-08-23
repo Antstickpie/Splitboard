@@ -43,7 +43,7 @@ export class BudgetDashboardComponent {
 
   // EveryDollar Sidebar State
   public sidebarTab = signal<'summary' | 'transactions'>('summary');
-  public transactionFilter = signal<'new' | 'tracked' | 'deleted'>('tracked');
+  public transactionFilter = signal<'all' | 'categorized' | 'uncategorized'>('all');
   public sidebarSearch = signal<string>('');
   public viewMode = signal<'remaining' | 'spent'>('remaining');
 
@@ -95,10 +95,20 @@ export class BudgetDashboardComponent {
     }
   }
 
+  public goToToday(): void {
+    const current = this.service.getCurrentMonthString();
+    this.selectedMonth.set(current);
+    this.service.selectedMonth.set(current);
+    this.pickerYear.set(new Date().getFullYear());
+    this.isMonthPickerOpen.set(false);
+  }
+
   public toggleMonthPicker(): void {
-    const [y] = this.selectedMonth().split('-').map(Number);
-    if (!isNaN(y)) this.pickerYear.set(y);
     this.isMonthPickerOpen.update((v) => !v);
+    if (this.isMonthPickerOpen()) {
+      const [y] = this.selectedMonth().split('-').map(Number);
+      this.pickerYear.set(y);
+    }
   }
 
   public prevYear(): void {
@@ -109,29 +119,32 @@ export class BudgetDashboardComponent {
     this.pickerYear.update((y) => y + 1);
   }
 
-  public selectMonth(monthIdx: number): void {
-    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+  public selectMonth(monthIndex: number): void {
+    const mStr = `${this.pickerYear()}-${String(monthIndex + 1).padStart(2, '0')}`;
     this.selectedMonth.set(mStr);
     this.service.selectedMonth.set(mStr);
     this.isMonthPickerOpen.set(false);
   }
 
-  public goToToday(): void {
-    const today = this.service.getCurrentMonthString();
-    this.selectedMonth.set(today);
-    this.service.selectedMonth.set(today);
-    this.pickerYear.set(new Date().getFullYear());
-    this.isMonthPickerOpen.set(false);
-  }
-
-  public isMonthSelected(monthIdx: number): boolean {
-    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+  public isMonthSelected(monthIndex: number): boolean {
+    const mStr = `${this.pickerYear()}-${String(monthIndex + 1).padStart(2, '0')}`;
     return this.selectedMonth() === mStr;
   }
 
-  public hasMonthData(monthIdx: number): boolean {
-    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
-    return this.service.transactions().some((t) => t.date && t.date.startsWith(mStr));
+  public hasMonthData(monthIndex: number): boolean {
+    const mStr = `${this.pickerYear()}-${String(monthIndex + 1).padStart(2, '0')}`;
+    return this.service.transactions().some((tx) => tx.date && tx.date.startsWith(mStr));
+  }
+
+  // Active Category Details Drawer
+  public activeCategoryItem = signal<CategoryItem | null>(null);
+
+  public openCategoryDrawer(item: CategoryItem): void {
+    this.activeCategoryItem.set(item);
+  }
+
+  public closeCategoryDrawer(): void {
+    this.activeCategoryItem.set(null);
   }
 
   // Sidebar Transactions
@@ -142,9 +155,9 @@ export class BudgetDashboardComponent {
 
     let list = this.service.transactions().filter((t) => t.date && t.date.startsWith(month));
 
-    if (filter === 'new') {
+    if (filter === 'uncategorized') {
       list = list.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized');
-    } else if (filter === 'tracked') {
+    } else if (filter === 'categorized') {
       list = list.filter((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
     }
 

@@ -173,19 +173,25 @@
 
       <!-- TAB 1: Transactions Feed -->
       <div class="sidebar-body" *ngIf="sidebarTab() === 'transactions'">
-        <!-- Sub-filters: New, Tracked, Deleted -->
+        <!-- Sub-filters: All, Categorized, Uncategorized -->
         <div class="tx-subfilters-bar">
           <button
             class="subfilter-btn"
-            [class.active]="transactionFilter() === 'tracked'"
-            (click)="transactionFilter.set('tracked')">
-            Tracked
+            [class.active]="transactionFilter() === 'all'"
+            (click)="transactionFilter.set('all')">
+            All
           </button>
           <button
             class="subfilter-btn"
-            [class.active]="transactionFilter() === 'new'"
-            (click)="transactionFilter.set('new')">
-            Unassigned
+            [class.active]="transactionFilter() === 'categorized'"
+            (click)="transactionFilter.set('categorized')">
+            Categorized
+          </button>
+          <button
+            class="subfilter-btn"
+            [class.active]="transactionFilter() === 'uncategorized'"
+            (click)="transactionFilter.set('uncategorized')">
+            Uncategorized
           </button>
         </div>
 
