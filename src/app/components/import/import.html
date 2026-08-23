@@ -8,11 +8,30 @@
   <div class="glass-card import-config-card">
     <div class="config-grid">
       <div>
-        <label class="input-label">Select Bank / Source</label>
-        <select [ngModel]="selectedBank()" (ngModelChange)="onBankChange($event)" class="styled-select">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+          <label class="input-label" style="margin: 0;">Select Bank / Source</label>
+          <button class="btn btn-secondary btn-xs" (click)="isAddingBankInline = !isAddingBankInline" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">
+            {{ isAddingBankInline ? '✕ Close' : '+ Add Bank' }}
+          </button>
+        </div>
+        <select [ngModel]="selectedBank()" (ngModelChange)="onBankChange($event)" class="styled-select" *ngIf="!isAddingBankInline">
           <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
           <option value="Generic Bank">Generic Bank (CSV/PDF Auto-Detect)</option>
         </select>
+
+        <!-- Inline Quick Add Form -->
+        <div *ngIf="isAddingBankInline" class="animate-fade-in" style="display: flex; gap: 0.4rem; margin-top: 0.25rem;">
+          <input
+            type="text"
+            [(ngModel)]="newInlineBankName"
+            placeholder="Bank Name (e.g. Wise, Barclays)..."
+            class="person-input"
+            style="flex: 1;"
+            (keydown.enter)="saveInlineBank()">
+          <button class="btn btn-primary btn-xs" (click)="saveInlineBank()" [disabled]="!newInlineBankName.trim()">
+            Save
+          </button>
+        </div>
       </div>
 
       <div>

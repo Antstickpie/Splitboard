@@ -43,6 +43,25 @@ export class ImportComponent {
     }
   }
 
+  // Quick Add Bank Directly from Import Page
+  public isAddingBankInline = false;
+  public newInlineBankName = '';
+  public newInlineBankOwner = '';
+
+  public saveInlineBank(): void {
+    if (!this.newInlineBankName.trim()) return;
+    const name = this.newInlineBankName.trim();
+    const owner = this.newInlineBankOwner || this.service.personOne().name;
+    this.service.addBankConfig({
+      name,
+      defaultOwner: owner
+    });
+    this.selectedBank.set(name);
+    this.selectedOwner.set(owner);
+    this.newInlineBankName = '';
+    this.isAddingBankInline = false;
+  }
+
   public async onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
