@@ -308,8 +308,17 @@
           </div>
         </div>
 
-        <!-- Person Split Share Bar -->
-        <div class="sidebar-summary-box" style="margin-top: 0.8rem;">
+        <!-- Empty State Helper when no spending recorded in month -->
+        <div *ngIf="budgetTotals().totalExpenseActual === 0" class="sidebar-summary-box" style="margin-top: 0.8rem; text-align: center; padding: 1.4rem 1rem; background: rgba(255,255,255,0.015); border-style: dashed;">
+          <div style="font-size: 1.6rem; margin-bottom: 0.3rem;">📊</div>
+          <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.3rem;">No spending in {{ service.formatMonth(selectedMonth()) }}</div>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0; line-height: 1.4;">
+            Import bank statements (PDF, CSV) in <strong>Import Statements</strong> or log cash in <strong>Transactions & Splitter</strong> to view live spending analytics.
+          </p>
+        </div>
+
+        <!-- Person Split Share Bar (when spending exists) -->
+        <div class="sidebar-summary-box" style="margin-top: 0.8rem;" *ngIf="budgetTotals().totalExpenseActual > 0">
           <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem;">Spending Split</h4>
           <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.3rem;">
             <span><strong>{{ spendByPerson().p1Name }}</strong>: {{ service.formatCurrency(spendByPerson().p1Spend) }}</span>
@@ -321,8 +330,8 @@
           </div>
         </div>
 
-        <!-- Category Distribution -->
-        <div class="sidebar-summary-box" style="margin-top: 1rem;">
+        <!-- Category Distribution (when spending exists) -->
+        <div class="sidebar-summary-box" style="margin-top: 0.8rem;" *ngIf="budgetTotals().totalExpenseActual > 0">
           <h4 style="margin: 0 0 0.6rem 0; font-size: 0.85rem;">Category Spending</h4>
           <div class="cat-dist-list">
             <div class="cat-dist-item" *ngFor="let c of categoryBreakdown()">
