@@ -30,7 +30,7 @@ export interface Transaction {
   description: string;
   merchant?: string;
   bank: string;
-  account: string;
+  account?: string;
   paidBy: string; // Person name
   categoryGroup?: string;
   categoryItem?: string;
