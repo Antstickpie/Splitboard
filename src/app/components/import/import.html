@@ -195,12 +195,12 @@
       </div>
     </div>
 
-    <!-- TAB 2: Duplicate Transactions Separate Table -->
+    <!-- TAB 2: Duplicate Transactions (Grouped View) -->
     <div *ngIf="previewTab() === 'duplicates'">
       <div class="preview-info-banner warning" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <div style="display: flex; align-items: center; gap: 0.4rem;">
           <span>⚠️</span>
-          <span>These {{ res.duplicates.length }} transactions already match records existing in your database ledger.</span>
+          <span>These {{ res.duplicates.length }} transactions match records existing in your database ledger. Grouped below by merchant / payee.</span>
         </div>
         <button
           *ngIf="res.duplicates.length > 0"
@@ -211,82 +211,123 @@
         </button>
       </div>
 
-      <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Bank</th>
-              <th>Owner</th>
-              <th style="text-align: right;">Amount</th>
-              <th>Status</th>
-              <th style="text-align: center;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let tx of res.duplicates">
-              <td>{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500;">{{ tx.description }}</td>
-              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
-              <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
-              <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
-              <td><span class="badge badge-warning">Already in Ledger</span></td>
-              <td style="text-align: center;">
-                <button class="btn btn-secondary btn-xs" (click)="includeDuplicate(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
-                  + Include Anyway
-                </button>
-              </td>
-            </tr>
-            <tr *ngIf="res.duplicates.length === 0">
-              <td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
-                No duplicate transactions detected in this statement.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Grouped Accordion List -->
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem;">
+        <div
+          *ngFor="let g of groupedDuplicates()"
+          style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+          
+          <!-- Group Header Bar -->
+          <div
+            (click)="toggleGroup(g.id)"
+            style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255, 255, 255, 0.04); cursor: pointer; user-select: none;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 0.75rem; color: var(--text-muted);">{{ isGroupExpanded(g.id) ? '▼' : '▶' }}</span>
+              <strong style="font-size: 0.84rem; color: var(--text-main);">{{ g.title }}</strong>
+              <span class="badge badge-warning" style="font-size: 0.68rem;">{{ g.count }} {{ g.count > 1 ? 'items' : 'item' }}</span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.6rem;" (click)="$event.stopPropagation()">
+              <span class="font-mono" style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
+                {{ service.formatCurrency(g.totalAmount) }}
+              </span>
+              <button class="btn btn-secondary btn-xs" (click)="includeDuplicateGroup(g)" style="padding: 0.15rem 0.45rem; font-size: 0.7rem;">
+                + Include Group ({{ g.count }})
+              </button>
+            </div>
+          </div>
+
+          <!-- Expanded Rows Table -->
+          <div *ngIf="isGroupExpanded(g.id)" class="animate-fade-in" style="max-height: 250px; overflow-y: auto; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+            <table>
+              <tbody>
+                <tr *ngFor="let tx of g.items">
+                  <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
+                  <td style="font-size: 0.78rem;">{{ tx.description }}</td>
+                  <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+                  <td class="font-mono" style="width: 90px; text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td style="width: 70px; text-align: center;">
+                    <button class="btn btn-secondary btn-xs" (click)="includeDuplicate(tx)" style="padding: 0.15rem 0.35rem; font-size: 0.68rem;">
+                      + Include
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div *ngIf="groupedDuplicates().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+          No duplicate transactions detected in this statement.
+        </div>
       </div>
     </div>
 
-    <!-- TAB 3: Excluded Transactions Separate Table -->
+    <!-- TAB 3: Excluded Transactions (Grouped View) -->
     <div *ngIf="previewTab() === 'excluded'">
-      <div class="preview-info-banner danger">
-        <span>🚫</span>
-        <span>These {{ res.excluded.length }} transactions matched your Bank Exclusion Rules (e.g. daily interest, internal transfers) and are ignored from splitting.</span>
+      <div class="preview-info-banner danger" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <span>🚫</span>
+          <span>These {{ res.excluded.length }} transactions matched your Bank Exclusion Rules (e.g. daily interest, internal transfers) grouped into {{ groupedExcluded().length }} categories.</span>
+        </div>
+        <button
+          *ngIf="res.excluded.length > 0"
+          class="btn btn-primary btn-xs"
+          (click)="includeAllExcluded()"
+          style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
+          + Include All {{ res.excluded.length }} Rows Anyway
+        </button>
       </div>
 
-      <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Bank</th>
-              <th style="text-align: right;">Amount</th>
-              <th>Status</th>
-              <th style="text-align: center;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let tx of res.excluded">
-              <td>{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500;">{{ tx.description }}</td>
-              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
-              <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
-              <td><span class="badge badge-danger">Excluded by Bank Rule</span></td>
-              <td style="text-align: center;">
-                <button class="btn btn-secondary btn-xs" (click)="includeExcluded(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
-                  + Include Anyway
-                </button>
-              </td>
-            </tr>
-            <tr *ngIf="res.excluded.length === 0">
-              <td colspan="6" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
-                No transactions matched your exclusion rules in this statement.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Grouped Accordion List for Excluded Rows -->
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem;">
+        <div
+          *ngFor="let g of groupedExcluded()"
+          style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+          
+          <!-- Group Header Bar -->
+          <div
+            (click)="toggleGroup(g.id)"
+            style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255, 255, 255, 0.04); cursor: pointer; user-select: none;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 0.75rem; color: var(--text-muted);">{{ isGroupExpanded(g.id) ? '▼' : '▶' }}</span>
+              <strong style="font-size: 0.84rem; color: #f87171;">"{{ g.title }}"</strong>
+              <span class="badge badge-danger" style="font-size: 0.68rem;">{{ g.count }} {{ g.count > 1 ? 'items' : 'item' }}</span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.6rem;" (click)="$event.stopPropagation()">
+              <span class="font-mono" style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
+                {{ service.formatCurrency(g.totalAmount) }}
+              </span>
+              <button class="btn btn-secondary btn-xs" (click)="includeExcludedGroup(g)" style="padding: 0.15rem 0.45rem; font-size: 0.7rem;">
+                + Include Group ({{ g.count }})
+              </button>
+            </div>
+          </div>
+
+          <!-- Expanded Rows Table -->
+          <div *ngIf="isGroupExpanded(g.id)" class="animate-fade-in" style="max-height: 250px; overflow-y: auto; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+            <table>
+              <tbody>
+                <tr *ngFor="let tx of g.items">
+                  <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
+                  <td style="font-size: 0.78rem;">{{ tx.description }}</td>
+                  <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+                  <td class="font-mono" style="width: 90px; text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td style="width: 70px; text-align: center;">
+                    <button class="btn btn-secondary btn-xs" (click)="includeExcluded(tx)" style="padding: 0.15rem 0.35rem; font-size: 0.68rem;">
+                      + Include
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div *ngIf="groupedExcluded().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+          No transactions matched your exclusion rules in this statement.
+        </div>
       </div>
     </div>
   </div>
