@@ -169,8 +169,9 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
-      // 1. Check Bank Exclusion Rules (e.g. Daily Interest)
-      if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
+      // 1. Check Bank Exclusion Rules (e.g. Daily Interest, Internal Transfers)
+      const fullRowText = (cleanDesc + ' ' + (row[0] || '') + ' ' + (row[1] || '')).trim();
+      if (this.service.isTransactionExcluded(fullRowText, detectedBank)) {
         excluded.push(tx);
         continue;
       }

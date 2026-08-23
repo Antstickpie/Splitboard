@@ -383,8 +383,19 @@ export class TransactionService {
         });
         this.transactions.set(cleanedTxs);
       }
-      if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
-      if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
+      if (data.bankConfigs && data.bankConfigs.length > 0) {
+        const existingBankNames = new Set(data.bankConfigs.map((b) => b.name.toLowerCase()));
+        const mergedBanks = [...data.bankConfigs];
+        for (const def of DEFAULT_BANKS) {
+          if (!existingBankNames.has(def.name.toLowerCase())) {
+            mergedBanks.push(def);
+            existingBankNames.add(def.name.toLowerCase());
+          }
+        }
+        this.bankConfigs.set(mergedBanks);
+      } else {
+        this.bankConfigs.set(DEFAULT_BANKS);
+      }
       if (data.rules && data.rules.length > 0) {
         const cleanedRules = data.rules.map((r) => {
           if (r.categoryItem === 'Car Charging') return { ...r, categoryItem: 'Charging' };
@@ -397,7 +408,18 @@ export class TransactionService {
         this.rules.set(cleanedRules);
       }
       if (data.excludeRules && data.excludeRules.length > 0) {
-        this.excludeRules.set(data.excludeRules);
+        const existingKeywords = new Set(data.excludeRules.map((r) => `${r.bank.toLowerCase()}_${r.keyword.toLowerCase()}`));
+        const merged = [...data.excludeRules];
+        for (const def of DEFAULT_EXCLUDE_RULES) {
+          const key = `${def.bank.toLowerCase()}_${def.keyword.toLowerCase()}`;
+          if (!existingKeywords.has(key)) {
+            merged.push(def);
+            existingKeywords.add(key);
+          }
+        }
+        this.excludeRules.set(merged);
+      } else {
+        this.excludeRules.set(DEFAULT_EXCLUDE_RULES);
       }
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
