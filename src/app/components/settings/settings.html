@@ -397,12 +397,6 @@
         <select [(ngModel)]="newExcludeBank" class="settings-select" style="width: 160px;">
           <option value="All">All Banks</option>
           <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-          <option value="Revolut">Revolut</option>
-          <option value="Bunq">Bunq</option>
-          <option value="N26">N26</option>
-          <option value="Sparkasse">Sparkasse</option>
-          <option value="DKB">DKB</option>
-          <option value="ING">ING</option>
         </select>
 
         <input
@@ -438,6 +432,87 @@
           </div>
           <div *ngIf="service.excludeRules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
             No exclusion rules configured.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIDE SECTION 4: Supported Banks & Statement Parsers -->
+  <div class="settings-section wide-section">
+    <div class="section-title">
+      <span class="section-icon">🏛</span>
+      <span>Configured Banks & Custom Statement Parsers</span>
+    </div>
+
+    <div class="glass-card rules-editor-card">
+      <p class="subtitle" style="margin: 0 0 0.8rem 0;">
+        These banks appear in the Import Statements dropdown. You can add new banks or configure custom CSV column headers if your bank format requires specific columns.
+      </p>
+
+      <!-- Add New Bank Form -->
+      <div class="rule-add-form" style="flex-wrap: wrap;">
+        <input
+          type="text"
+          [(ngModel)]="newBankName"
+          placeholder="New Bank Name (e.g. Barclays, Trade Republic)..."
+          class="person-input"
+          style="min-width: 180px; flex: 1;"
+          (keydown.enter)="addBank()">
+
+        <select [(ngModel)]="newBankOwner" class="settings-select" style="width: 140px;">
+          <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }} (Default)</option>
+        </select>
+
+        <button class="btn btn-secondary btn-xs" (click)="showAdvancedBankMapping = !showAdvancedBankMapping">
+          {{ showAdvancedBankMapping ? 'Hide Column Mapping ▲' : 'Custom Columns ▼' }}
+        </button>
+
+        <button class="btn btn-primary btn-xs" (click)="addBank()" [disabled]="!newBankName.trim()">
+          + Add Bank
+        </button>
+      </div>
+
+      <!-- Advanced Column Mapping Fields -->
+      <div *ngIf="showAdvancedBankMapping" class="animate-fade-in" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; padding: 0.6rem; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+        <div>
+          <label class="input-label">Date Column Header</label>
+          <input type="text" [(ngModel)]="newBankDateCol" placeholder="e.g. Buchungstag, Date" class="person-input" style="width: 100%;">
+        </div>
+        <div>
+          <label class="input-label">Description Header</label>
+          <input type="text" [(ngModel)]="newBankDescCol" placeholder="e.g. Verwendungszweck, Text" class="person-input" style="width: 100%;">
+        </div>
+        <div>
+          <label class="input-label">Amount Header</label>
+          <input type="text" [(ngModel)]="newBankAmountCol" placeholder="e.g. Betrag, Amount" class="person-input" style="width: 100%;">
+        </div>
+      </div>
+
+      <!-- Active Banks Table -->
+      <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+        <!-- Fixed Header Row -->
+        <div style="display: grid; grid-template-columns: 180px 140px 1fr 60px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+          <span>Bank Name</span>
+          <span>Default Payer</span>
+          <span>Parser Configuration</span>
+          <span style="text-align: center;">Action</span>
+        </div>
+
+        <!-- Scrollable Rows Body -->
+        <div style="max-height: 200px; overflow-y: auto;">
+          <div *ngFor="let b of service.bankConfigs()" style="display: grid; grid-template-columns: 180px 140px 1fr 60px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+            <div><strong style="font-size: 0.82rem; color: var(--text-main);">{{ b.name }}</strong></div>
+            <div><span class="badge badge-info">{{ b.defaultOwner }}</span></div>
+            <div>
+              <span *ngIf="!b.dateColName && !b.descColName && !b.amountColName" class="badge badge-neutral">Auto-Detect Preset</span>
+              <span *ngIf="b.dateColName || b.descColName || b.amountColName" class="badge badge-success">
+                Custom ({{ b.dateColName || 'Date' }} | {{ b.descColName || 'Desc' }} | {{ b.amountColName || 'Amt' }})
+              </span>
+            </div>
+            <div style="text-align: center;">
+              <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteBank(b.id, b.name)" title="Remove bank">✕</button>
+            </div>
           </div>
         </div>
       </div>

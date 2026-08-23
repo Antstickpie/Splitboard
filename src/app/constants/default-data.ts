@@ -10,7 +10,12 @@ export const DEFAULT_BANKS: BankConfig[] = [
   { id: 'b2', name: 'Amazon Visa (Zinia)', defaultOwner: 'Mac' },
   { id: 'b3', name: 'Amex', defaultOwner: 'Mac' },
   { id: 'b4', name: 'Revolut', defaultOwner: 'Cheese' },
-  { id: 'b5', name: 'Commerzbank', defaultOwner: 'Cheese' }
+  { id: 'b5', name: 'Commerzbank', defaultOwner: 'Cheese' },
+  { id: 'b6', name: 'Sparkasse', defaultOwner: 'Mac' },
+  { id: 'b7', name: 'DKB', defaultOwner: 'Mac' },
+  { id: 'b8', name: 'ING', defaultOwner: 'Mac' },
+  { id: 'b9', name: 'N26', defaultOwner: 'Cheese' },
+  { id: 'b10', name: 'Bunq', defaultOwner: 'Cheese' }
 ];
 
 export const DEFAULT_RULES: CategoryRule[] = [

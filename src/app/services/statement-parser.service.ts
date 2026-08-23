@@ -312,6 +312,32 @@ export class StatementParserService {
 
     const header = rows[headerRowIdx].map((h) => h.toLowerCase().trim());
 
+    // 0. Check user-configured BankConfig custom column mapping
+    const customConfig = this.service.bankConfigs().find(
+      (b) => b.name.toLowerCase() === bank.toLowerCase()
+    );
+    if (customConfig && (customConfig.dateColName || customConfig.descColName || customConfig.amountColName)) {
+      const dateIdx = customConfig.dateColName
+        ? header.findIndex((h) => h.includes(customConfig.dateColName!.toLowerCase()))
+        : -1;
+      const descIdx = customConfig.descColName
+        ? header.findIndex((h) => h.includes(customConfig.descColName!.toLowerCase()))
+        : -1;
+      const amountIdx = customConfig.amountColName
+        ? header.findIndex((h) => h.includes(customConfig.amountColName!.toLowerCase()))
+        : -1;
+
+      if (dateIdx >= 0 || descIdx >= 0 || amountIdx >= 0) {
+        return {
+          dateIdx: dateIdx >= 0 ? dateIdx : 0,
+          descIdx: descIdx >= 0 ? descIdx : 1,
+          amountIdx: amountIdx >= 0 ? amountIdx : header.length - 1,
+          hasHeader: true,
+          headerRowIndex: headerRowIdx
+        };
+      }
+    }
+
     // 1. Deutsche Bank
     if (bank === 'Deutsche Bank') {
       const dateIdx = header.findIndex((h) => h.includes('buchungstag') || h.includes('wertstellung') || h.includes('datum'));

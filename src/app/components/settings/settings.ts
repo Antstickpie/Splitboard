@@ -75,10 +75,42 @@ export class SettingsComponent {
   public newExcludeBank = 'All';
   public newExcludeKeyword = '';
 
+  // Bank Config Form
+  public newBankName = '';
+  public newBankOwner = '';
+  public newBankDateCol = '';
+  public newBankDescCol = '';
+  public newBankAmountCol = '';
+  public showAdvancedBankMapping = false;
+
   constructor() {
     const firstGroup = this.service.categoryGroups()[0];
     if (firstGroup) this.selectedGroupIdForNewCat = firstGroup.id;
     if (firstGroup && firstGroup.items[0]) this.newRuleCategory = firstGroup.items[0].name;
+    this.newBankOwner = this.service.personOne().name;
+  }
+
+  public addBank() {
+    if (!this.newBankName.trim()) return;
+    this.service.addBankConfig({
+      name: this.newBankName.trim(),
+      defaultOwner: this.newBankOwner || this.service.personOne().name,
+      dateColName: this.newBankDateCol.trim() || undefined,
+      descColName: this.newBankDescCol.trim() || undefined,
+      amountColName: this.newBankAmountCol.trim() || undefined
+    });
+    this.newBankName = '';
+    this.newBankDateCol = '';
+    this.newBankDescCol = '';
+    this.newBankAmountCol = '';
+    this.showAdvancedBankMapping = false;
+  }
+
+  public async deleteBank(id: string, name: string) {
+    const ok = await this.service.showConfirm('Remove Bank', `Remove "${name}" statement configuration?`);
+    if (ok) {
+      this.service.deleteBankConfig(id);
+    }
   }
 
   public addRule() {

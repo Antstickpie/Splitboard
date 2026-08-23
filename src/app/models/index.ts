@@ -66,6 +66,9 @@ export interface BankConfig {
   name: string;
   defaultOwner: string;
   accountNumber?: string;
+  dateColName?: string;
+  descColName?: string;
+  amountColName?: string;
 }
 
 export interface CategoryRule {

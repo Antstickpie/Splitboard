@@ -447,6 +447,22 @@ export class TransactionService {
     this.showToast('Exclude rule removed', 'info');
   }
 
+  // Bank Statement Config Operations
+  public addBankConfig(bank: Omit<BankConfig, 'id'>): void {
+    const trimmedName = bank.name.trim();
+    if (!trimmedName) return;
+    const id = 'bank-' + Date.now();
+    const newBank: BankConfig = { id, ...bank, name: trimmedName };
+    this.bankConfigs.update((curr) => [...curr, newBank]);
+    this.showToast(`Configured statement reader for "${trimmedName}"`, 'success');
+  }
+
+  public deleteBankConfig(id: string): void {
+    const b = this.bankConfigs().find((x) => x.id === id);
+    this.bankConfigs.update((curr) => curr.filter((x) => x.id !== id));
+    this.showToast(`Removed bank "${b?.name || ''}"`, 'info');
+  }
+
   public isTransactionExcluded(desc: string, bank: string): boolean {
     if (!desc) return false;
     const lowerDesc = desc.toLowerCase();

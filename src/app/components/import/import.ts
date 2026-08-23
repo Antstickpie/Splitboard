@@ -16,7 +16,7 @@ export class ImportComponent {
   public service = inject(TransactionService);
   private parser = inject(StatementParserService);
 
-  public selectedBank = signal<string>('Sparkasse');
+  public selectedBank = signal<string>('Deutsche Bank');
   public selectedOwner = signal<string>('');
   public uploadedFileName = signal<string>('');
   public isParsing = signal<boolean>(false);
@@ -26,7 +26,21 @@ export class ImportComponent {
   public previewTab = signal<'valid' | 'duplicates' | 'excluded'>('valid');
 
   constructor() {
-    this.selectedOwner.set(this.service.personOne().name);
+    const firstBank = this.service.bankConfigs()[0];
+    if (firstBank) {
+      this.selectedBank.set(firstBank.name);
+      this.selectedOwner.set(firstBank.defaultOwner || this.service.personOne().name);
+    } else {
+      this.selectedOwner.set(this.service.personOne().name);
+    }
+  }
+
+  public onBankChange(bankName: string): void {
+    this.selectedBank.set(bankName);
+    const bank = this.service.bankConfigs().find((b) => b.name === bankName);
+    if (bank && bank.defaultOwner) {
+      this.selectedOwner.set(bank.defaultOwner);
+    }
   }
 
   public async onFileSelected(event: Event) {

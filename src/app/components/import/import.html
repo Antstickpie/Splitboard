@@ -9,9 +9,9 @@
     <div class="config-grid">
       <div>
         <label class="input-label">Select Bank / Source</label>
-        <select [ngModel]="selectedBank()" (ngModelChange)="selectedBank.set($event)" class="styled-select">
+        <select [ngModel]="selectedBank()" (ngModelChange)="onBankChange($event)" class="styled-select">
           <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-          <option value="Generic Bank">Generic Bank (CSV/PDF)</option>
+          <option value="Generic Bank">Generic Bank (CSV/PDF Auto-Detect)</option>
         </select>
       </div>
 
