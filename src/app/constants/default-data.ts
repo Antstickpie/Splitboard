@@ -18,8 +18,8 @@ export const DEFAULT_RULES: CategoryRule[] = [
   { id: 'r2', keyword: 'edeka', categoryItem: 'Groceries', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
   { id: 'r3', keyword: 'lidl', categoryItem: 'Groceries', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
   { id: 'r4', keyword: 'aldi', categoryItem: 'Groceries', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
-  { id: 'r5', keyword: 'enpal', categoryItem: 'Salary / Income', categoryGroup: 'Income', splitType: 'SELF', paidBy: 'Mac' },
-  { id: 'r6', keyword: 'bosch', categoryItem: 'Salary / Income', categoryGroup: 'Income', splitType: 'SELF', paidBy: 'Cheese' },
+  { id: 'r5', keyword: 'enpal', categoryItem: 'Salary', categoryGroup: 'Income', splitType: 'SELF', paidBy: 'Mac' },
+  { id: 'r6', keyword: 'bosch', categoryItem: 'Salary', categoryGroup: 'Income', splitType: 'SELF', paidBy: 'Cheese' },
   { id: 'r7', keyword: 'miete', categoryItem: 'Rent and Utilities', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
   { id: 'r8', keyword: 'gym', categoryItem: 'Gym', categoryGroup: 'Lifestyle', splitType: 'SELF' }
 ];
@@ -30,7 +30,7 @@ export const DEFAULT_CATEGORY_GROUPS: CategoryGroup[] = [
     name: 'Income',
     icon: '💰',
     items: [
-      { id: 'inc-1', groupId: 'grp-income', name: 'Salary / Income', plannedDefault: 8117.17 },
+      { id: 'inc-1', groupId: 'grp-income', name: 'Salary', plannedDefault: 8117.17 },
       { id: 'inc-2', groupId: 'grp-income', name: 'Other Income', plannedDefault: 75.10 }
     ]
   },
@@ -69,7 +69,7 @@ export const DEFAULT_CATEGORY_GROUPS: CategoryGroup[] = [
     name: 'Food',
     icon: '🍽️',
     items: [
-      { id: 'foo-1', groupId: 'grp-food', name: 'Dining Out and Food Chill', plannedDefault: 111.39 }
+      { id: 'foo-1', groupId: 'grp-food', name: 'Food and Chill', plannedDefault: 111.39 }
     ]
   },
   {
@@ -99,7 +99,7 @@ export const DEFAULT_CATEGORY_GROUPS: CategoryGroup[] = [
     name: 'Medical',
     icon: '💊',
     items: [
-      { id: 'med-1', groupId: 'grp-medical', name: 'Medical and Pharmacy', plannedDefault: 7.25 }
+      { id: 'med-1', groupId: 'grp-medical', name: 'Medical', plannedDefault: 7.25 }
     ]
   }
 ];

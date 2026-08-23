@@ -338,12 +338,14 @@ export class TransactionService {
       const data: AppDataBackup = JSON.parse(raw);
       if (data.persons && data.persons.length > 0) this.persons.set(data.persons);
       if (data.categoryGroups && data.categoryGroups.length > 0) {
-        // Auto-migrate "Car Charging" and "Car Maintenance" to remove "Car"
         const cleanedGroups = data.categoryGroups.map((g) => ({
           ...g,
           items: g.items.map((it) => {
             if (it.name === 'Car Charging') return { ...it, name: 'Charging' };
             if (it.name === 'Car Maintenance') return { ...it, name: 'Maintenance' };
+            if (it.name === 'Salary / Income') return { ...it, name: 'Salary' };
+            if (it.name === 'Dining Out and Food Chill') return { ...it, name: 'Food and Chill' };
+            if (it.name === 'Medical and Pharmacy') return { ...it, name: 'Medical' };
             return it;
           })
         }));
@@ -353,6 +355,9 @@ export class TransactionService {
         const cleanedTxs = data.transactions.map((tx) => {
           if (tx.categoryItem === 'Car Charging') return { ...tx, categoryItem: 'Charging' };
           if (tx.categoryItem === 'Car Maintenance') return { ...tx, categoryItem: 'Maintenance' };
+          if (tx.categoryItem === 'Salary / Income') return { ...tx, categoryItem: 'Salary' };
+          if (tx.categoryItem === 'Dining Out and Food Chill') return { ...tx, categoryItem: 'Food and Chill' };
+          if (tx.categoryItem === 'Medical and Pharmacy') return { ...tx, categoryItem: 'Medical' };
           return tx;
         });
         this.transactions.set(cleanedTxs);
@@ -363,6 +368,9 @@ export class TransactionService {
         const cleanedRules = data.rules.map((r) => {
           if (r.categoryItem === 'Car Charging') return { ...r, categoryItem: 'Charging' };
           if (r.categoryItem === 'Car Maintenance') return { ...r, categoryItem: 'Maintenance' };
+          if (r.categoryItem === 'Salary / Income') return { ...r, categoryItem: 'Salary' };
+          if (r.categoryItem === 'Dining Out and Food Chill') return { ...r, categoryItem: 'Food and Chill' };
+          if (r.categoryItem === 'Medical and Pharmacy') return { ...r, categoryItem: 'Medical' };
           return r;
         });
         this.rules.set(cleanedRules);
