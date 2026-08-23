@@ -1,5 +1,5 @@
 <div class="everydollar-app-container">
-  <!-- EveryDollar Top Bar -->
+  <!-- Top Bar: Month & Key Metrics -->
   <div class="everydollar-top-bar glass-card">
     <div class="top-bar-left">
       <!-- Month Trigger Popover -->
@@ -9,7 +9,7 @@
           <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
         </button>
 
-        <!-- EveryDollar Month Picker Popover Grid -->
+        <!-- Month Picker Popover Grid -->
         <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
           <div class="popover-year-bar">
             <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
@@ -36,27 +36,33 @@
         </div>
       </div>
 
-      <!-- Zero-Based Budget Status Banner -->
-      <div class="budget-status-banner" [class.balanced]="isBalanced()" [class.over]="budgetTotals().plannedRemaining < 0">
-        <span *ngIf="isBalanced()" class="banner-text">
-          <span class="status-icon">✓</span> It's an EveryDollar budget!
-        </span>
-        <span *ngIf="!isBalanced() && budgetTotals().plannedRemaining > 0" class="banner-text">
-          {{ service.formatCurrency(budgetTotals().plannedRemaining) }} left to budget
-        </span>
-        <span *ngIf="!isBalanced() && budgetTotals().plannedRemaining < 0" class="banner-text">
-          {{ service.formatCurrency(Math.abs(budgetTotals().plannedRemaining)) }} over budget
-        </span>
+      <!-- Quick Metrics Badges -->
+      <div class="quick-metrics-row">
+        <div class="metric-pill">
+          <span class="pill-label">Total Spent:</span>
+          <span class="pill-val font-mono" style="color: var(--primary);">
+            {{ service.formatCurrency(budgetTotals().totalExpenseActual) }}
+          </span>
+        </div>
+        <div class="metric-pill" *ngIf="budgetTotals().totalIncomeActual > 0">
+          <span class="pill-label">Income:</span>
+          <span class="pill-val font-mono" style="color: var(--success);">
+            {{ service.formatCurrency(budgetTotals().totalIncomeActual) }}
+          </span>
+        </div>
+        <div class="metric-pill" *ngIf="budgetTotals().totalIncomeActual > 0">
+          <span class="pill-label">Net Saved:</span>
+          <span class="pill-val font-mono" [style.color]="budgetTotals().netRemaining >= 0 ? 'var(--success)' : 'var(--danger)'">
+            {{ budgetTotals().netRemaining >= 0 ? '+' : '' }}{{ service.formatCurrency(budgetTotals().netRemaining) }}
+          </span>
+        </div>
       </div>
     </div>
 
     <!-- Top Bar Right Controls -->
     <div class="top-bar-right">
       <span class="past-month-badge" *ngIf="isPastMonth()">
-        ⏱ You are viewing a <strong>past month</strong>.
-      </span>
-      <span class="past-month-badge future" *ngIf="isFutureMonth()">
-        🔮 You are planning a <strong>future month</strong>.
+        ⏱ Past month
       </span>
 
       <button class="btn btn-secondary btn-xs" (click)="goToToday()">
@@ -70,9 +76,9 @@
     </div>
   </div>
 
-  <!-- EveryDollar Main 2-Column Workspace -->
+  <!-- Main 2-Column Analytics Workspace -->
   <div class="everydollar-workspace">
-    <!-- LEFT COLUMN: EveryDollar Budget Cards -->
+    <!-- LEFT COLUMN: Spending Categories Breakdown -->
     <div class="everydollar-budget-col">
       <div class="everydollar-group-card glass-card" *ngFor="let grp of groupSummaries()">
         <!-- Group Header -->
@@ -82,58 +88,45 @@
             <span class="group-name">{{ grp.name }}</span>
           </div>
 
-          <div class="group-col-labels">
-            <span class="col-lbl col-planned">Planned</span>
-            <button class="col-lbl col-remaining-btn" (click)="toggleViewMode()">
-              {{ viewMode() === 'remaining' ? 'Remaining ▾' : 'Spent ▾' }}
-            </button>
+          <div class="group-col-labels font-mono">
+            <span class="grp-total-badge">{{ service.formatCurrency(grp.actualTotal) }}</span>
           </div>
         </div>
 
-        <!-- Items Table -->
+        <!-- Items List -->
         <div class="group-items-body">
           <div class="item-line" *ngFor="let item of grp.items">
-            <div class="item-name-col">
-              <span class="item-name-text">{{ item.name }}</span>
-              <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
-                {{ item.defaultOwner }}
-              </span>
+            <div class="item-info-wrap">
+              <div class="item-name-col">
+                <span class="item-name-text">{{ item.name }}</span>
+                <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
+                  {{ item.defaultOwner }}
+                </span>
+              </div>
+
+              <!-- Spending Share Bar -->
+              <div class="item-progress-track" *ngIf="grp.actualTotal > 0">
+                <div
+                  class="item-progress-fill"
+                  [style.width.%]="(item.actual / grp.actualTotal) * 100"></div>
+              </div>
             </div>
 
-            <div class="item-values-col">
-              <!-- Planned (Cyan Editable Text) -->
-              <div class="planned-val-wrap">
-                <input
-                  type="text"
-                  [value]="service.formatCurrency(item.planned)"
-                  (blur)="updateItemPlanned(item.id, $any($event.target).value)"
-                  (keydown.enter)="$any($event.target).blur()"
-                  class="ed-planned-input font-mono"
-                  title="Click to edit planned amount">
-              </div>
-
-              <!-- Remaining or Spent Value -->
-              <div class="remaining-val-col font-mono" [class.negative]="item.remaining < 0">
-                <span *ngIf="viewMode() === 'remaining'">
-                  {{ service.formatCurrency(item.remaining) }}
-                </span>
-                <span *ngIf="viewMode() === 'spent'" style="color: var(--text-main);">
-                  {{ service.formatCurrency(item.actual) }}
-                </span>
-              </div>
+            <div class="item-values-col font-mono">
+              <span class="item-actual-val" [class.has-spend]="item.actual > 0">
+                {{ service.formatCurrency(item.actual) }}
+              </span>
+              <span class="item-pct-label" *ngIf="grp.actualTotal > 0 && item.actual > 0">
+                {{ Math.round((item.actual / grp.actualTotal) * 100) }}%
+              </span>
             </div>
           </div>
 
           <!-- Group Subtotal Row -->
-          <div class="group-subtotal-row font-mono">
-            <div class="subtotal-label">
-              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Total</span>
-            </div>
+          <div class="group-subtotal-row font-mono" *ngIf="grp.items.length > 1">
+            <div class="subtotal-label">Group Total</div>
             <div class="subtotal-values">
-              <span class="subtotal-planned">{{ service.formatCurrency(grp.plannedTotal) }}</span>
-              <span class="subtotal-remaining" [class.negative]="grp.remainingTotal < 0">
-                {{ viewMode() === 'remaining' ? service.formatCurrency(grp.remainingTotal) : service.formatCurrency(grp.actualTotal) }}
-              </span>
+              <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal) }}</span>
             </div>
           </div>
         </div>

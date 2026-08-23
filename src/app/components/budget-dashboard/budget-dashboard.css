@@ -175,32 +175,35 @@
   background: rgba(0, 229, 255, 0.05);
 }
 
-/* Status Banner */
-.budget-status-banner {
+/* Quick Metrics Pills */
+.quick-metrics-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.metric-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.35rem 0.75rem;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--primary);
+  font-size: 0.82rem;
 }
 
-.budget-status-banner.balanced {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+.pill-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.budget-status-banner.over {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #ef4444;
-}
-
-.status-icon {
-  font-weight: 800;
-  margin-right: 0.2rem;
+.pill-val {
+  font-weight: 700;
+  font-size: 0.88rem;
 }
 
 .past-month-badge {
@@ -210,12 +213,6 @@
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.25);
   color: #f59e0b;
-}
-
-.past-month-badge.future {
-  background: rgba(139, 92, 246, 0.12);
-  border-color: rgba(139, 92, 246, 0.25);
-  color: #a78bfa;
 }
 
 .month-arrows-group {
@@ -283,36 +280,14 @@
   color: var(--text-main);
 }
 
-.group-col-labels {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-}
-
-.col-lbl {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-}
-
-.col-planned {
-  width: 100px;
-  text-align: right;
-}
-
-.col-remaining-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  width: 110px;
-  text-align: right;
-  padding: 0;
-}
-
-.col-remaining-btn:hover {
+.grp-total-badge {
+  font-size: 0.95rem;
+  font-weight: 700;
   color: var(--primary);
+  background: rgba(0, 229, 255, 0.08);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 229, 255, 0.2);
 }
 
 /* Items Body */
@@ -325,8 +300,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.55rem 0;
+  padding: 0.6rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  gap: 1rem;
+}
+
+.item-info-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .item-name-col {
@@ -338,50 +321,68 @@
   color: var(--text-main);
 }
 
+.item-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.item-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
 .item-values-col {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 0.8rem;
+  flex-shrink: 0;
 }
 
-.planned-val-wrap {
-  width: 100px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.ed-planned-input {
-  width: 100px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: #38bdf8;
-  font-size: 0.9rem;
+.item-actual-val {
+  font-size: 0.88rem;
   font-weight: 600;
-  text-align: right;
-  padding: 0.15rem 0.3rem;
-  outline: none;
-  cursor: pointer;
-  transition: var(--transition-smooth);
+  color: var(--text-muted);
 }
 
-.ed-planned-input:hover, .ed-planned-input:focus {
-  background: rgba(56, 189, 248, 0.08);
-  border-color: rgba(56, 189, 248, 0.3);
-  cursor: text;
-}
-
-.remaining-val-col {
-  width: 110px;
-  text-align: right;
-  font-size: 0.9rem;
-  font-weight: 500;
+.item-actual-val.has-spend {
   color: var(--text-main);
+  font-weight: 700;
 }
 
-.remaining-val-col.negative {
-  color: var(--danger);
-  font-weight: 600;
+.item-pct-label {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  min-width: 35px;
+  text-align: center;
+}
+
+.group-subtotal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.6rem;
+  margin-top: 0.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.subtotal-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.subtotal-actual {
+  color: var(--text-main);
 }
 
 .add-item-row {
