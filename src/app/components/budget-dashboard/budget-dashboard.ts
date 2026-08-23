@@ -19,6 +19,9 @@ interface CategoryGroupSummary {
     remaining: number;
     percentage: number;
     defaultOwner?: string;
+    isFund?: boolean;
+    startingBalance?: number;
+    totalAvailable?: number;
   }[];
 }
 
@@ -194,24 +197,52 @@ export class BudgetDashboardComponent {
     return this.service.categoryGroups().map((grp) => {
       let groupPlanned = 0;
       let groupActual = 0;
+      const isSavingsGroup = grp.id === 'grp-savings' || grp.name.toLowerCase().includes('saving');
 
       const items = grp.items.map((item) => {
-        const planned = plannedBudget[item.id] !== undefined ? plannedBudget[item.id] : (item.plannedDefault || 0);
-        const actual = actualsMap[item.name] || 0;
-        const remaining = planned - actual;
-        const percentage = planned > 0 ? Math.min(100, Math.round((actual / planned) * 100)) : (actual > 0 ? 100 : 0);
+        const plannedThisMonth = plannedBudget[item.id] !== undefined ? plannedBudget[item.id] : (item.plannedDefault || 0);
+        const actualThisMonth = actualsMap[item.name] || 0;
 
-        groupPlanned += planned;
-        groupActual += actual;
+        let startingBalance = 0;
+        let isFund = isSavingsGroup;
+
+        if (isSavingsGroup) {
+          // Calculate starting balance rolled over from all prior months
+          const priorTxs = this.service.transactions().filter(
+            (tx) => tx.date && tx.date.slice(0, 7) < month && (
+              tx.categoryItem === item.name || 
+              (tx.categoryGroup === grp.name && (!tx.categoryItem || tx.categoryItem === item.name))
+            )
+          );
+
+          priorTxs.forEach((tx) => {
+            const amt = Number(tx.amount) || 0;
+            if (tx.type === 'INCOME' || tx.isCashTransfer) {
+              startingBalance += amt;
+            } else {
+              startingBalance -= amt;
+            }
+          });
+        }
+
+        const totalAvailable = startingBalance + plannedThisMonth;
+        const remaining = totalAvailable - actualThisMonth;
+        const percentage = totalAvailable > 0 ? Math.min(100, Math.round((actualThisMonth / totalAvailable) * 100)) : (actualThisMonth > 0 ? 100 : 0);
+
+        groupPlanned += plannedThisMonth;
+        groupActual += actualThisMonth;
 
         return {
           id: item.id,
           name: item.name,
-          planned,
-          actual,
+          planned: plannedThisMonth,
+          actual: actualThisMonth,
           remaining,
           percentage,
-          defaultOwner: item.defaultOwner
+          defaultOwner: item.defaultOwner,
+          isFund,
+          startingBalance,
+          totalAvailable
         };
       });
 

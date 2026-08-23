@@ -86,69 +86,78 @@
   <div class="everydollar-workspace">
     <!-- LEFT COLUMN: Spending Categories Breakdown -->
     <div class="everydollar-budget-col">
-      <!-- Big Empty State when no transactions in this month -->
-      <div *ngIf="sidebarTransactions().length === 0" class="glass-card" style="text-align: center; padding: 4rem 2rem;">
-        <div style="font-size: 3rem; margin-bottom: 0.8rem;">📊</div>
-        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem;">No spending recorded for {{ service.formatMonth(selectedMonth()) }}</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto; line-height: 1.5;">
-          No bank transactions or cash expenses have been logged for this month yet. Import statements in <strong>Import Statements</strong> or log cash in <strong>Transactions & Splitter</strong> to view live spending analytics.
-        </p>
-      </div>
-
-      <!-- Category Group Cards (rendered when month has transactions) -->
-      <ng-container *ngIf="sidebarTransactions().length > 0">
-        <div class="everydollar-group-card glass-card" *ngFor="let grp of groupSummaries()">
-          <!-- Group Header -->
-          <div class="group-card-top">
-            <div class="group-title-wrap">
-              <span class="group-icon">{{ grp.icon }}</span>
-              <span class="group-name">{{ grp.name }}</span>
-            </div>
-
-            <div class="group-col-labels font-mono">
-              <span class="grp-total-badge">{{ service.formatCurrency(grp.actualTotal) }}</span>
-            </div>
+      <!-- Category Group Cards (Always rendered for planning & fund tracking) -->
+      <div class="everydollar-group-card glass-card" *ngFor="let grp of groupSummaries()">
+        <!-- Group Header -->
+        <div class="group-card-top">
+          <div class="group-title-wrap">
+            <span class="group-icon">{{ grp.icon }}</span>
+            <span class="group-name">{{ grp.name }}</span>
           </div>
 
-          <!-- Items List -->
-          <div class="group-items-body">
-            <div class="item-line" *ngFor="let item of grp.items">
-              <div class="item-info-wrap">
-                <div class="item-name-col">
-                  <span class="item-name-text">{{ item.name }}</span>
-                  <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
-                    {{ item.defaultOwner }}
-                  </span>
-                </div>
+          <div class="group-col-labels font-mono">
+            <span class="grp-total-badge" *ngIf="grp.actualTotal > 0">{{ service.formatCurrency(grp.actualTotal) }} spent</span>
+            <span class="grp-total-badge" *ngIf="grp.actualTotal === 0" style="color: var(--text-muted);">{{ service.formatCurrency(grp.plannedTotal) }} planned</span>
+          </div>
+        </div>
 
-                <!-- Spending Share Bar -->
-                <div class="item-progress-track" *ngIf="grp.actualTotal > 0">
-                  <div
-                    class="item-progress-fill"
-                    [style.width.%]="(item.actual / grp.actualTotal) * 100"></div>
-                </div>
+        <!-- Items List -->
+        <div class="group-items-body">
+          <div class="item-line" *ngFor="let item of grp.items">
+            <div class="item-info-wrap">
+              <div class="item-name-col">
+                <span class="item-name-text">{{ item.name }}</span>
+                <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
+                  {{ item.defaultOwner }}
+                </span>
+                <!-- Fund Rollover Badge -->
+                <span *ngIf="item.isFund && item.startingBalance && item.startingBalance > 0" class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;">
+                  🏦 Rollover: {{ service.formatCurrency(item.startingBalance) }}
+                </span>
               </div>
 
-              <div class="item-values-col font-mono">
+              <!-- Spending Share Bar -->
+              <div class="item-progress-track" *ngIf="grp.actualTotal > 0">
+                <div
+                  class="item-progress-fill"
+                  [style.width.%]="(item.actual / grp.actualTotal) * 100"></div>
+              </div>
+            </div>
+
+            <div class="item-values-col font-mono">
+              <!-- If Fund: Show Available Fund Balance -->
+              <ng-container *ngIf="item.isFund">
+                <div style="text-align: right;">
+                  <span class="item-actual-val" style="color: var(--success); font-weight: 700;">
+                    {{ service.formatCurrency(item.totalAvailable || item.planned) }}
+                  </span>
+                  <div *ngIf="item.actual > 0" style="font-size: 0.68rem; color: var(--danger);">
+                    Spent: {{ service.formatCurrency(item.actual) }}
+                  </div>
+                </div>
+              </ng-container>
+
+              <!-- If Standard Expense / Income -->
+              <ng-container *ngIf="!item.isFund">
                 <span class="item-actual-val" [class.has-spend]="item.actual > 0">
                   {{ service.formatCurrency(item.actual) }}
                 </span>
                 <span class="item-pct-label" *ngIf="grp.actualTotal > 0 && item.actual > 0">
                   {{ Math.round((item.actual / grp.actualTotal) * 100) }}%
                 </span>
-              </div>
+              </ng-container>
             </div>
+          </div>
 
-            <!-- Group Subtotal Row -->
-            <div class="group-subtotal-row font-mono" *ngIf="grp.items.length > 1">
-              <div class="subtotal-label">Group Total</div>
-              <div class="subtotal-values">
-                <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal) }}</span>
-              </div>
+          <!-- Group Subtotal Row -->
+          <div class="group-subtotal-row font-mono" *ngIf="grp.items.length > 1">
+            <div class="subtotal-label">Group Total</div>
+            <div class="subtotal-values">
+              <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal > 0 ? grp.actualTotal : grp.plannedTotal) }}</span>
             </div>
           </div>
         </div>
-      </ng-container>
+      </div>
     </div>
 
     <!-- RIGHT COLUMN: EveryDollar Sidebar Panel (Summary & Transactions) -->
