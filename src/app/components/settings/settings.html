@@ -146,35 +146,34 @@
         </div>
       </div>
 
-      <div class="table-container rates-table" style="max-height: 175px; overflow-y: auto; margin-top: 0.3rem;">
-        <table>
-          <thead>
-            <tr>
-              <th>Pair</th>
-              <th style="text-align: right; padding-right: 0.6rem;">Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let pair of exchangeRatePairs()">
-              <td class="bold-ticker font-mono" style="font-weight: 700; color: var(--primary); font-size: 0.74rem;">
-                {{ pair.pairLabel }}
-              </td>
-              <td style="text-align: right; padding-right: 0.6rem; vertical-align: middle;">
-                <input 
-                  *ngIf="isEditingRates()"
-                  type="number" 
-                  step="0.0001"
-                  [ngModel]="pair.rate" 
-                  (ngModelChange)="updateExchangeRate(pair.key, $event)"
-                  class="table-inline-input price-input font-mono"
-                  style="width: 75px; text-align: right; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.1rem 0.25rem; color: #fff; font-size: 0.74rem;">
-                <span *ngIf="!isEditingRates()" class="font-mono" style="font-size: 0.78rem; font-weight: 700; color: var(--text-main);">
-                  {{ pair.rate.toFixed(4) }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="rates-box-table" style="margin-top: 0.35rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+        <!-- Fixed Header (No scrollbar on header) -->
+        <div style="display: flex; justify-content: space-between; padding: 0.4rem 0.75rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+          <span>Pair</span>
+          <span>Rate</span>
+        </div>
+
+        <!-- Scrollable Rows Body (Scrollbar strictly below header) -->
+        <div style="max-height: 135px; overflow-y: auto;">
+          <div *ngFor="let pair of exchangeRatePairs()" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+            <span class="bold-ticker font-mono" style="font-weight: 700; color: var(--primary); font-size: 0.76rem;">
+              {{ pair.pairLabel }}
+            </span>
+            <div>
+              <input 
+                *ngIf="isEditingRates()"
+                type="number" 
+                step="0.0001"
+                [ngModel]="pair.rate" 
+                (ngModelChange)="updateExchangeRate(pair.key, $event)"
+                class="table-inline-input price-input font-mono"
+                style="width: 75px; text-align: right; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.1rem 0.25rem; color: #fff; font-size: 0.74rem;">
+              <span *ngIf="!isEditingRates()" class="font-mono" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">
+                {{ pair.rate.toFixed(4) }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
