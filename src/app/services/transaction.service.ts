@@ -650,7 +650,7 @@ export class TransactionService {
 
   // Deduplication
   public getTransactionSignature(tx: Transaction): string {
-    const d = (tx.date || '').slice(0, 10);
+    const d = tx.rawDate ? tx.rawDate.trim() : (tx.date || '').slice(0, 10);
     const amt = Number(tx.amount).toFixed(2);
     const desc = (tx.description || '').trim().toLowerCase();
     const bank = (tx.bank || '').trim().toLowerCase();

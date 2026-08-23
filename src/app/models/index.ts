@@ -53,6 +53,7 @@ export interface Transaction {
   
   note?: string;
   sourceFile?: string;
+  rawDate?: string; // Exact statement timestamp including seconds if present (e.g. 2026-03-06 18:20:14)
   createdAt?: string;
 }
 

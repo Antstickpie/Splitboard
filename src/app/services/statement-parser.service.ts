@@ -203,6 +203,7 @@ export class StatementParserService {
         originalCurrency: origCurr,
         exchangeRate: exRate,
         sourceFile: fileName,
+        rawDate: dateStr.trim(),
         createdAt: new Date().toISOString()
       };
 
