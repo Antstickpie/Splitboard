@@ -21,9 +21,9 @@ import { TransactionService } from './services/transaction.service';
 })
 export class App {
   public service = inject(TransactionService);
-  public activeTab = signal<'ledger' | 'dashboard' | 'import' | 'settings'>('ledger');
+  public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
 
-  public switchTab(tab: 'ledger' | 'dashboard' | 'import' | 'settings') {
+  public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings') {
     this.activeTab.set(tab);
   }
 
