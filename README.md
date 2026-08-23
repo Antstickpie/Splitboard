@@ -1,4 +1,4 @@
-# Splitbunch
+# Splitboard
 
 Zero-backend client-side financial manager, statement processor, and multi-person expense splitter.
 
