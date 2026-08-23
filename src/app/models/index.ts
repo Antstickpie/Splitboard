@@ -78,6 +78,12 @@ export interface CategoryRule {
   paidBy?: string;
 }
 
+export interface ExcludeRule {
+  id: string;
+  bank: string; // 'All' or specific bank e.g. 'Sparkasse', 'Revolut'
+  keyword: string; // keyword to match in description
+}
+
 export interface AppDataBackup {
   version: number;
   exportedAt: string;
@@ -87,6 +93,7 @@ export interface AppDataBackup {
   monthlyBudgets: MonthlyBudget[];
   bankConfigs: BankConfig[];
   rules?: CategoryRule[];
+  excludeRules?: ExcludeRule[];
   settings: {
     currency: string;
     dateFormat: string;

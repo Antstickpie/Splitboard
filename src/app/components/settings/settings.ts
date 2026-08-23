@@ -71,6 +71,10 @@ export class SettingsComponent {
   public newRuleSplitType: 'SELF' | 'OTHER' | 'SPLIT' = 'SPLIT';
   public newRuleOwner = '';
 
+  // Exclude Rules Form
+  public newExcludeBank = 'All';
+  public newExcludeKeyword = '';
+
   constructor() {
     const firstGroup = this.service.categoryGroups()[0];
     if (firstGroup) this.selectedGroupIdForNewCat = firstGroup.id;
@@ -90,6 +94,16 @@ export class SettingsComponent {
 
   public deleteRule(id: string) {
     this.service.deleteRule(id);
+  }
+
+  public addExcludeRule() {
+    if (!this.newExcludeKeyword.trim()) return;
+    this.service.addExcludeRule(this.newExcludeBank, this.newExcludeKeyword.trim());
+    this.newExcludeKeyword = '';
+  }
+
+  public deleteExcludeRule(id: string) {
+    this.service.deleteExcludeRule(id);
   }
 
   public reapplyRules() {

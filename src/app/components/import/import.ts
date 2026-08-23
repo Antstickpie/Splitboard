@@ -23,6 +23,7 @@ export class ImportComponent {
   public rawClipboardText = '';
 
   public previewResult = signal<ParsedStatementResult | null>(null);
+  public previewTab = signal<'valid' | 'duplicates' | 'excluded'>('valid');
 
   constructor() {
     this.selectedOwner.set(this.service.personOne().name);
@@ -35,11 +36,15 @@ export class ImportComponent {
     const file = input.files[0];
     this.uploadedFileName.set(file.name);
     this.isParsing.set(true);
+    this.previewTab.set('valid');
 
     try {
       const res = await this.parser.parseFile(file, this.selectedBank(), this.selectedOwner());
       this.previewResult.set(res);
-      this.service.showToast(`Parsed ${res.transactions.length} transactions (${res.duplicatesCount} duplicates skipped)`, 'info');
+      this.service.showToast(
+        `Parsed ${res.transactions.length} new transactions (${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
+        'info'
+      );
     } catch (e: any) {
       this.service.showToast('Error parsing file: ' + e.message, 'error');
     } finally {
@@ -51,6 +56,7 @@ export class ImportComponent {
   public parseClipboardText() {
     if (!this.rawClipboardText.trim()) return;
     this.isParsing.set(true);
+    this.previewTab.set('valid');
 
     try {
       const res = this.parser.parseText(
@@ -60,12 +66,48 @@ export class ImportComponent {
         'Clipboard Paste'
       );
       this.previewResult.set(res);
-      this.service.showToast(`Parsed ${res.transactions.length} transactions from text`, 'info');
+      this.service.showToast(
+        `Parsed ${res.transactions.length} new transactions (${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
+        'info'
+      );
     } catch (e: any) {
       this.service.showToast('Error parsing text: ' + e.message, 'error');
     } finally {
       this.isParsing.set(false);
     }
+  }
+
+  public includeDuplicate(tx: Transaction): void {
+    const res = this.previewResult();
+    if (!res) return;
+    this.previewResult.set({
+      ...res,
+      duplicates: res.duplicates.filter((t) => t.id !== tx.id),
+      transactions: [tx, ...res.transactions],
+      duplicatesCount: Math.max(0, res.duplicatesCount - 1)
+    });
+    this.service.showToast('Included transaction in import list', 'success');
+  }
+
+  public includeExcluded(tx: Transaction): void {
+    const res = this.previewResult();
+    if (!res) return;
+    this.previewResult.set({
+      ...res,
+      excluded: res.excluded.filter((t) => t.id !== tx.id),
+      transactions: [tx, ...res.transactions],
+      excludedCount: Math.max(0, res.excludedCount - 1)
+    });
+    this.service.showToast('Included transaction in import list', 'success');
+  }
+
+  public removeValidTransaction(txId: string): void {
+    const res = this.previewResult();
+    if (!res) return;
+    this.previewResult.set({
+      ...res,
+      transactions: res.transactions.filter((t) => t.id !== txId)
+    });
   }
 
   public async commitImport() {
@@ -75,11 +117,11 @@ export class ImportComponent {
     this.service.addTransactions(res.transactions);
     this.service.showToast(`Successfully imported ${res.transactions.length} transactions!`, 'success');
 
-    if (res.duplicatesCount > 0) {
-      await this.service.showAlert(
-        'Import Completed',
-        `Imported ${res.transactions.length} new transactions.\nSkipped ${res.duplicatesCount} duplicate rows that already existed.`
-      );
+    if (res.duplicatesCount > 0 || res.excludedCount > 0) {
+      let msg = `Imported ${res.transactions.length} new transactions.`;
+      if (res.duplicatesCount > 0) msg += `\n• Skipped ${res.duplicatesCount} duplicates.`;
+      if (res.excludedCount > 0) msg += `\n• Filtered ${res.excludedCount} excluded by bank rules.`;
+      await this.service.showAlert('Import Completed', msg);
     }
 
     this.clearPreview();

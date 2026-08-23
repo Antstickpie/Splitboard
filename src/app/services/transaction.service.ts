@@ -57,6 +57,13 @@ export interface SettlementSummary {
   }[];
 }
 
+export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [
+  { id: 'ex-1', bank: 'All', keyword: 'Daily Interest' },
+  { id: 'ex-2', bank: 'All', keyword: 'Interest Payment' },
+  { id: 'ex-3', bank: 'All', keyword: 'Zinsgutschrift' },
+  { id: 'ex-4', bank: 'All', keyword: 'Tagesgeld Zinsen' }
+];
+
 @Injectable({
   providedIn: 'root'
 })
@@ -71,6 +78,7 @@ export class TransactionService {
   public monthlyBudgets = signal<MonthlyBudget[]>([]);
   public bankConfigs = signal<BankConfig[]>(DEFAULT_BANKS);
   public rules = signal<CategoryRule[]>(DEFAULT_RULES);
+  public excludeRules = signal<ExcludeRule[]>(DEFAULT_EXCLUDE_RULES);
 
   // Settings Signals
   public theme = signal<'dark' | 'light'>('dark');
@@ -309,6 +317,7 @@ export class TransactionService {
         monthlyBudgets: this.monthlyBudgets(),
         bankConfigs: this.bankConfigs(),
         rules: this.rules(),
+        excludeRules: this.excludeRules(),
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
@@ -375,6 +384,9 @@ export class TransactionService {
         });
         this.rules.set(cleanedRules);
       }
+      if (data.excludeRules && data.excludeRules.length > 0) {
+        this.excludeRules.set(data.excludeRules);
+      }
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
@@ -403,6 +415,36 @@ export class TransactionService {
   public deleteRule(id: string): void {
     this.rules.update((curr) => curr.filter((r) => r.id !== id));
     this.showToast('Rule removed', 'info');
+  }
+
+  // Bank Exclusion Rules Operations
+  public addExcludeRule(bank: string, keyword: string): void {
+    const trimmed = keyword.trim();
+    if (!trimmed) return;
+    const newRule: ExcludeRule = {
+      id: 'ex-' + Date.now(),
+      bank: bank || 'All',
+      keyword: trimmed
+    };
+    this.excludeRules.update((curr) => [...curr, newRule]);
+    this.showToast(`Added exclude rule for "${trimmed}"`, 'success');
+  }
+
+  public deleteExcludeRule(id: string): void {
+    this.excludeRules.update((curr) => curr.filter((r) => r.id !== id));
+    this.showToast('Exclude rule removed', 'info');
+  }
+
+  public isTransactionExcluded(desc: string, bank: string): boolean {
+    if (!desc) return false;
+    const lowerDesc = desc.toLowerCase();
+    const lowerBank = (bank || '').toLowerCase();
+    return this.excludeRules().some((rule) => {
+      const ruleBank = (rule.bank || 'All').toLowerCase();
+      const matchesBank = ruleBank === 'all' || ruleBank === lowerBank || lowerBank.includes(ruleBank);
+      const matchesKeyword = rule.keyword && lowerDesc.includes(rule.keyword.toLowerCase());
+      return matchesBank && matchesKeyword;
+    });
   }
 
   public applyRulesToAllTransactions(): void {

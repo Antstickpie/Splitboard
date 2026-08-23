@@ -60,9 +60,10 @@
   <div class="glass-card preview-card animate-fade-in" *ngIf="previewResult() as res">
     <div class="preview-header">
       <div>
-        <h3>Statement Preview ({{ res.transactions.length }} new transactions)</h3>
+        <h3>Statement Preview ({{ res.transactions.length }} ready to import)</h3>
         <span class="subtitle" style="margin: 0;">
-          {{ res.duplicatesCount > 0 ? res.duplicatesCount + ' duplicate rows detected and skipped.' : 'Ready to import.' }}
+          {{ res.duplicatesCount > 0 ? res.duplicatesCount + ' duplicates' : '0 duplicates' }},
+          {{ res.excludedCount > 0 ? res.excludedCount + ' excluded by bank rules' : '0 excluded' }}
         </span>
       </div>
 
@@ -74,36 +75,155 @@
       </div>
     </div>
 
-    <div class="table-container" style="max-height: 400px; overflow-y: auto; margin-top: 0.8rem;">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Bank</th>
-            <th>Owner</th>
-            <th>Auto Category</th>
-            <th style="text-align: right;">Amount</th>
-            <th>Split Mode</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let tx of res.transactions">
-            <td>{{ service.formatDate(tx.date) }}</td>
-            <td style="font-weight: 500;">{{ tx.description }}</td>
-            <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
-            <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
-            <td><span class="badge badge-warning">{{ tx.categoryItem || 'Uncategorized' }}</span></td>
-            <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
-            <td><span class="badge badge-success">{{ tx.splitType }}</span></td>
-          </tr>
-          <tr *ngIf="res.transactions.length === 0">
-            <td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
-              No new transactions found in this statement (all may be duplicates).
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Preview Sub-Tabs: Valid, Duplicates, Excluded -->
+    <div class="preview-tabs-bar">
+      <button
+        class="preview-tab-btn"
+        [class.active]="previewTab() === 'valid'"
+        (click)="previewTab.set('valid')">
+        ✓ Ready to Import ({{ res.transactions.length }})
+      </button>
+
+      <button
+        class="preview-tab-btn"
+        [class.active]="previewTab() === 'duplicates'"
+        (click)="previewTab.set('duplicates')"
+        [style.color]="res.duplicates.length > 0 ? '#f59e0b' : 'var(--text-muted)'">
+        ⚠️ Duplicates Found ({{ res.duplicates.length }})
+      </button>
+
+      <button
+        class="preview-tab-btn"
+        [class.active]="previewTab() === 'excluded'"
+        (click)="previewTab.set('excluded')"
+        [style.color]="res.excluded.length > 0 ? '#f87171' : 'var(--text-muted)'">
+        🚫 Excluded by Rules ({{ res.excluded.length }})
+      </button>
+    </div>
+
+    <!-- TAB 1: Valid Transactions Ready to Import -->
+    <div *ngIf="previewTab() === 'valid'">
+      <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Bank</th>
+              <th>Owner</th>
+              <th>Auto Category</th>
+              <th style="text-align: right;">Amount</th>
+              <th>Split Mode</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of res.transactions">
+              <td>{{ service.formatDate(tx.date) }}</td>
+              <td style="font-weight: 500;">{{ tx.description }}</td>
+              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+              <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
+              <td><span class="badge badge-warning">{{ tx.categoryItem || 'Uncategorized' }}</span></td>
+              <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td><span class="badge badge-success">{{ tx.splitType }}</span></td>
+              <td style="text-align: center;">
+                <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+              </td>
+            </tr>
+            <tr *ngIf="res.transactions.length === 0">
+              <td colspan="8" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No new transactions to import. (Check the Duplicates or Excluded tabs above).
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: Duplicate Transactions Separate Table -->
+    <div *ngIf="previewTab() === 'duplicates'">
+      <div class="preview-info-banner warning">
+        <span>⚠️</span>
+        <span>These {{ res.duplicates.length }} transactions already match existing records in your database or appeared multiple times in this file. They are skipped by default.</span>
+      </div>
+
+      <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Bank</th>
+              <th>Owner</th>
+              <th style="text-align: right;">Amount</th>
+              <th>Status</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of res.duplicates">
+              <td>{{ service.formatDate(tx.date) }}</td>
+              <td style="font-weight: 500;">{{ tx.description }}</td>
+              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+              <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
+              <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td><span class="badge badge-warning">Already in Ledger</span></td>
+              <td style="text-align: center;">
+                <button class="btn btn-secondary btn-xs" (click)="includeDuplicate(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
+                  + Include Anyway
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="res.duplicates.length === 0">
+              <td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No duplicate transactions detected in this statement.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: Excluded Transactions Separate Table -->
+    <div *ngIf="previewTab() === 'excluded'">
+      <div class="preview-info-banner danger">
+        <span>🚫</span>
+        <span>These {{ res.excluded.length }} transactions matched your Bank Exclusion Rules (e.g. daily interest, internal transfers) and are ignored from splitting.</span>
+      </div>
+
+      <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Bank</th>
+              <th style="text-align: right;">Amount</th>
+              <th>Status</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of res.excluded">
+              <td>{{ service.formatDate(tx.date) }}</td>
+              <td style="font-weight: 500;">{{ tx.description }}</td>
+              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+              <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td><span class="badge badge-danger">Excluded by Bank Rule</span></td>
+              <td style="text-align: center;">
+                <button class="btn btn-secondary btn-xs" (click)="includeExcluded(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
+                  + Include Anyway
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="res.excluded.length === 0">
+              <td colspan="6" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No transactions matched your exclusion rules in this statement.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

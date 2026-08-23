@@ -5,7 +5,10 @@ import { Transaction, SplitType } from '../models';
 
 export interface ParsedStatementResult {
   transactions: Transaction[];
+  duplicates: Transaction[];
+  excluded: Transaction[];
   duplicatesCount: number;
+  excludedCount: number;
   bankName: string;
   totalParsed: number;
 }
@@ -112,7 +115,7 @@ export class StatementParserService {
   ): ParsedStatementResult {
     const lines = this.splitIntoLines(text);
     if (lines.length === 0) {
-      return { transactions: [], duplicatesCount: 0, bankName, totalParsed: 0 };
+      return { transactions: [], duplicates: [], excluded: [], duplicatesCount: 0, excludedCount: 0, bankName, totalParsed: 0 };
     }
 
     const detectedBank = this.detectBank(bankName, fileName, text);
@@ -125,7 +128,8 @@ export class StatementParserService {
     );
 
     const transactions: Transaction[] = [];
-    let duplicatesCount = 0;
+    const duplicates: Transaction[] = [];
+    const excluded: Transaction[] = [];
     const startIdx = mapping.hasHeader ? (mapping.headerRowIndex !== undefined ? mapping.headerRowIndex + 1 : 1) : 0;
 
     for (let i = startIdx; i < parsedRows.length; i++) {
@@ -145,14 +149,15 @@ export class StatementParserService {
       const amount = this.parseAmount(rawAmt);
       if (amount === 0) continue;
 
-      const { group, item, defaultSplit } = this.matchCategory(desc);
+      const cleanDesc = desc.replace(/\s+/g, ' ').trim();
+      const { group, item, defaultSplit } = this.matchCategory(cleanDesc);
 
       const tx: Transaction = {
         id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
         date: isoDate,
         amount: Math.abs(amount),
         type: amount < 0 ? 'EXPENSE' : 'INCOME',
-        description: desc.replace(/\s+/g, ' ').trim(),
+        description: cleanDesc,
         bank: detectedBank,
         account: detectedBank,
         paidBy: defaultOwner || this.service.personOne().name,
@@ -164,9 +169,16 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
+      // 1. Check Bank Exclusion Rules (e.g. Daily Interest)
+      if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
+        excluded.push(tx);
+        continue;
+      }
+
+      // 2. Check Duplicates
       const sig = this.service.getTransactionSignature(tx);
       if (existingSignatures.has(sig)) {
-        duplicatesCount++;
+        duplicates.push(tx);
       } else {
         existingSignatures.add(sig);
         transactions.push(tx);
@@ -175,7 +187,10 @@ export class StatementParserService {
 
     return {
       transactions,
-      duplicatesCount,
+      duplicates,
+      excluded,
+      duplicatesCount: duplicates.length,
+      excludedCount: excluded.length,
       bankName: detectedBank,
       totalParsed: parsedRows.length - (mapping.hasHeader ? 1 : 0)
     };
@@ -188,7 +203,8 @@ export class StatementParserService {
     fileName: string
   ): ParsedStatementResult {
     const transactions: Transaction[] = [];
-    let duplicatesCount = 0;
+    const duplicates: Transaction[] = [];
+    const excluded: Transaction[] = [];
     const detectedBank = this.detectBank(bankName, fileName, text);
     const existingSignatures = new Set(
       this.service.transactions().map((t) => this.service.getTransactionSignature(t))
@@ -212,14 +228,15 @@ export class StatementParserService {
       const amount = this.parseAmount(rawAmt);
       if (amount === 0) continue;
 
-      const { group, item, defaultSplit } = this.matchCategory(rawDesc);
+      const cleanDesc = rawDesc.replace(/\s+/g, ' ').trim();
+      const { group, item, defaultSplit } = this.matchCategory(cleanDesc);
 
       const tx: Transaction = {
         id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
         date: isoDate,
         amount: Math.abs(amount),
         type: amount < 0 ? 'EXPENSE' : 'INCOME',
-        description: rawDesc.replace(/\s+/g, ' ').trim(),
+        description: cleanDesc,
         bank: detectedBank,
         account: detectedBank,
         paidBy: defaultOwner || this.service.personOne().name,
@@ -231,9 +248,14 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
+      if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
+        excluded.push(tx);
+        continue;
+      }
+
       const sig = this.service.getTransactionSignature(tx);
       if (existingSignatures.has(sig)) {
-        duplicatesCount++;
+        duplicates.push(tx);
       } else {
         existingSignatures.add(sig);
         transactions.push(tx);
@@ -242,7 +264,10 @@ export class StatementParserService {
 
     return {
       transactions,
-      duplicatesCount,
+      duplicates,
+      excluded,
+      duplicatesCount: duplicates.length,
+      excludedCount: excluded.length,
       bankName: detectedBank,
       totalParsed: count
     };

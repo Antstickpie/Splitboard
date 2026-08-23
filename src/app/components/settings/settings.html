@@ -380,6 +380,70 @@
     </div>
   </div>
 
+  <!-- WIDE SECTION 3: Bank Exclusion Rules (Ignore List) -->
+  <div class="settings-section wide-section">
+    <div class="section-title">
+      <span class="section-icon">🚫</span>
+      <span>Bank Exclusion Rules (Ignore from Split Ledger)</span>
+    </div>
+
+    <div class="glass-card rules-editor-card">
+      <p class="subtitle" style="margin: 0 0 0.8rem 0;">
+        Transactions matching these keywords for specific banks (or all banks) are automatically ignored during statement import (e.g. daily interest payments, internal transfers).
+      </p>
+
+      <!-- Add New Exclude Rule Form -->
+      <div class="rule-add-form">
+        <select [(ngModel)]="newExcludeBank" class="settings-select" style="width: 160px;">
+          <option value="All">All Banks</option>
+          <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+          <option value="Revolut">Revolut</option>
+          <option value="Bunq">Bunq</option>
+          <option value="N26">N26</option>
+          <option value="Sparkasse">Sparkasse</option>
+          <option value="DKB">DKB</option>
+          <option value="ING">ING</option>
+        </select>
+
+        <input
+          type="text"
+          [(ngModel)]="newExcludeKeyword"
+          placeholder="Keyword to ignore (e.g. Daily Interest, Zinsgutschrift)..."
+          class="person-input"
+          style="flex: 1; min-width: 220px;"
+          (keydown.enter)="addExcludeRule()">
+
+        <button class="btn btn-primary btn-xs" (click)="addExcludeRule()" [disabled]="!newExcludeKeyword.trim()">
+          + Add Exclude Rule
+        </button>
+      </div>
+
+      <!-- Active Exclude Rules List (Fixed header, scroll strictly below) -->
+      <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+        <!-- Fixed Header Row -->
+        <div style="display: grid; grid-template-columns: 140px 1fr 60px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+          <span>Target Bank</span>
+          <span>Ignore Keyword</span>
+          <span style="text-align: center;">Action</span>
+        </div>
+
+        <!-- Scrollable Rows Body -->
+        <div style="max-height: 160px; overflow-y: auto;">
+          <div *ngFor="let r of service.excludeRules()" style="display: grid; grid-template-columns: 140px 1fr 60px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+            <div><span class="badge badge-neutral">{{ r.bank || 'All Banks' }}</span></div>
+            <div><code style="color: #f87171; font-weight: 600;">"{{ r.keyword }}"</code></div>
+            <div style="text-align: center;">
+              <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteExcludeRule(r.id)">✕</button>
+            </div>
+          </div>
+          <div *ngIf="service.excludeRules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
+            No exclusion rules configured.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- BOTTOM DANGER ZONE -->
   <div class="settings-section">
     <div class="glass-card danger-zone-card">
