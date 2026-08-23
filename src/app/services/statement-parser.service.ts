@@ -152,10 +152,39 @@ export class StatementParserService {
       const cleanDesc = desc.replace(/\s+/g, ' ').trim();
       const { group, item, defaultSplit } = this.matchCategory(cleanDesc);
 
+      // Extract statement Currency and convert if different from Base Currency
+      let txCurrency = '';
+      if (mapping.currencyIdx !== undefined && mapping.currencyIdx >= 0 && row[mapping.currencyIdx]) {
+        txCurrency = row[mapping.currencyIdx].trim().toUpperCase();
+      } else {
+        const customConfig = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
+        if (customConfig?.defaultCurrency) {
+          txCurrency = customConfig.defaultCurrency.toUpperCase();
+        }
+      }
+
+      if (txCurrency === '€' || txCurrency === 'EURO') txCurrency = 'EUR';
+      else if (txCurrency === '$') txCurrency = 'USD';
+      else if (txCurrency === '₹') txCurrency = 'INR';
+      else if (txCurrency === '£') txCurrency = 'GBP';
+
+      const baseCurr = this.service.currency();
+      let finalAmount = Math.abs(amount);
+      let origAmt: number | undefined;
+      let origCurr: string | undefined;
+      let exRate: number | undefined;
+
+      if (txCurrency && txCurrency !== baseCurr) {
+        origAmt = Math.abs(amount);
+        origCurr = txCurrency;
+        exRate = this.service.getExchangeRate(txCurrency, baseCurr);
+        finalAmount = this.service.convertAmount(origAmt, txCurrency, baseCurr);
+      }
+
       const tx: Transaction = {
         id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
         date: isoDate,
-        amount: Math.abs(amount),
+        amount: finalAmount,
         type: amount < 0 ? 'EXPENSE' : 'INCOME',
         description: cleanDesc,
         bank: detectedBank,
@@ -165,6 +194,10 @@ export class StatementParserService {
         categoryItem: item,
         splitType: defaultSplit || 'SELF',
         splitPercentage: 50,
+        currency: baseCurr,
+        originalAmount: origAmt,
+        originalCurrency: origCurr,
+        exchangeRate: exRate,
         sourceFile: fileName,
         createdAt: new Date().toISOString()
       };
@@ -289,6 +322,7 @@ export class StatementParserService {
     descIdx: number;
     descIdx2?: number;
     amountIdx: number;
+    currencyIdx?: number;
     hasHeader: boolean;
     headerRowIndex?: number;
   } {
@@ -312,12 +346,15 @@ export class StatementParserService {
     }
 
     const header = rows[headerRowIdx].map((h) => h.toLowerCase().trim());
+    const genericCurrencyIdx = header.findIndex(
+      (h) => h.includes('currency') || h.includes('währung') || h.includes('curr') || h.includes('devise')
+    );
 
     // 0. Check user-configured BankConfig custom column mapping
     const customConfig = this.service.bankConfigs().find(
       (b) => b.name.toLowerCase() === bank.toLowerCase()
     );
-    if (customConfig && (customConfig.dateColName || customConfig.descColName || customConfig.amountColName)) {
+    if (customConfig && (customConfig.dateColName || customConfig.descColName || customConfig.amountColName || customConfig.currencyColName)) {
       const dateIdx = customConfig.dateColName
         ? header.findIndex((h) => h.includes(customConfig.dateColName!.toLowerCase()))
         : -1;
@@ -327,12 +364,16 @@ export class StatementParserService {
       const amountIdx = customConfig.amountColName
         ? header.findIndex((h) => h.includes(customConfig.amountColName!.toLowerCase()))
         : -1;
+      const currencyIdx = customConfig.currencyColName
+        ? header.findIndex((h) => h.includes(customConfig.currencyColName!.toLowerCase()))
+        : genericCurrencyIdx;
 
       if (dateIdx >= 0 || descIdx >= 0 || amountIdx >= 0) {
         return {
           dateIdx: dateIdx >= 0 ? dateIdx : 0,
           descIdx: descIdx >= 0 ? descIdx : 1,
           amountIdx: amountIdx >= 0 ? amountIdx : header.length - 1,
+          currencyIdx: currencyIdx >= 0 ? currencyIdx : undefined,
           hasHeader: true,
           headerRowIndex: headerRowIdx
         };
@@ -350,6 +391,7 @@ export class StatementParserService {
         descIdx: descIdx >= 0 ? descIdx : 3,
         descIdx2: descIdx2 >= 0 ? descIdx2 : undefined,
         amountIdx: amountIdx >= 0 ? amountIdx : rows[headerRowIdx].length - 1,
+        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
         hasHeader: true,
         headerRowIndex: headerRowIdx
       };
@@ -364,6 +406,7 @@ export class StatementParserService {
         dateIdx: dateIdx >= 0 ? dateIdx : 0,
         descIdx: descIdx >= 0 ? descIdx : 2,
         amountIdx: amountIdx >= 0 ? amountIdx : 3,
+        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
         hasHeader: true,
         headerRowIndex: headerRowIdx
       };
@@ -378,6 +421,7 @@ export class StatementParserService {
         dateIdx: dateIdx >= 0 ? dateIdx : 0,
         descIdx: descIdx >= 0 ? descIdx : 1,
         amountIdx: amountIdx >= 0 ? amountIdx : 4,
+        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
         hasHeader: true,
         headerRowIndex: headerRowIdx
       };
@@ -388,10 +432,12 @@ export class StatementParserService {
       const dateIdx = header.findIndex((h) => h.includes('started date') || h.includes('completed date') || h.includes('date') || h.includes('datum'));
       const descIdx = header.findIndex((h) => h.includes('description') || h.includes('beschreibung'));
       const amountIdx = header.findIndex((h) => h.includes('amount') || h.includes('betrag'));
+      const currencyIdx = header.findIndex((h) => h.includes('currency') || h.includes('währung'));
       return {
         dateIdx: dateIdx >= 0 ? dateIdx : 2,
         descIdx: descIdx >= 0 ? descIdx : 4,
         amountIdx: amountIdx >= 0 ? amountIdx : 5,
+        currencyIdx: currencyIdx >= 0 ? currencyIdx : 7,
         hasHeader: true,
         headerRowIndex: headerRowIdx
       };
@@ -408,6 +454,7 @@ export class StatementParserService {
         descIdx: descIdx >= 0 ? descIdx : 3,
         descIdx2: descIdx2 >= 0 && descIdx2 !== descIdx ? descIdx2 : undefined,
         amountIdx: amountIdx >= 0 ? amountIdx : 4,
+        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
         hasHeader: true,
         headerRowIndex: headerRowIdx
       };
@@ -422,7 +469,14 @@ export class StatementParserService {
     if (descIdx === -1) descIdx = 1;
     if (amountIdx === -1) amountIdx = rows[headerRowIdx].length - 1;
 
-    return { dateIdx, descIdx, amountIdx, hasHeader: true, headerRowIndex: headerRowIdx };
+    return {
+      dateIdx,
+      descIdx,
+      amountIdx,
+      currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
+      hasHeader: true,
+      headerRowIndex: headerRowIdx
+    };
   }
 
   public normalizeDate(str: string): string | null {

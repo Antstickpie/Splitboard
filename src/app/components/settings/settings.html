@@ -455,17 +455,25 @@
         <input
           type="text"
           [(ngModel)]="newBankName"
-          placeholder="New Bank Name (e.g. Barclays, Trade Republic)..."
+          placeholder="New Bank Name (e.g. Barclays, Wise, Degiro)..."
           class="person-input"
           style="min-width: 180px; flex: 1;"
           (keydown.enter)="addBank()">
 
-        <select [(ngModel)]="newBankOwner" class="settings-select" style="width: 140px;">
+        <select [(ngModel)]="newBankOwner" class="settings-select" style="width: 130px;">
           <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }} (Default)</option>
         </select>
 
+        <select [(ngModel)]="newBankCurrency" class="settings-select" style="width: 100px;">
+          <option *ngFor="let c of service.visibleCurrencies()" [value]="c">{{ c }}</option>
+          <option value="EUR">EUR</option>
+          <option value="USD">USD</option>
+          <option value="INR">INR</option>
+          <option value="GBP">GBP</option>
+        </select>
+
         <button class="btn btn-secondary btn-xs" (click)="showAdvancedBankMapping = !showAdvancedBankMapping">
-          {{ showAdvancedBankMapping ? 'Hide Column Mapping ▲' : 'Custom Columns ▼' }}
+          {{ showAdvancedBankMapping ? 'Hide Options ▲' : 'Custom Headers / IBAN ▼' }}
         </button>
 
         <button class="btn btn-primary btn-xs" (click)="addBank()" [disabled]="!newBankName.trim()">
@@ -474,9 +482,13 @@
       </div>
 
       <!-- Advanced Column Mapping Fields -->
-      <div *ngIf="showAdvancedBankMapping" class="animate-fade-in" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; padding: 0.6rem; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+      <div *ngIf="showAdvancedBankMapping" class="animate-fade-in" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; padding: 0.6rem; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
         <div>
-          <label class="input-label">Date Column Header</label>
+          <label class="input-label">Account / IBAN / Card #</label>
+          <input type="text" [(ngModel)]="newBankAccountNo" placeholder="e.g. *6554 or DE89..." class="person-input" style="width: 100%;">
+        </div>
+        <div>
+          <label class="input-label">Date Header</label>
           <input type="text" [(ngModel)]="newBankDateCol" placeholder="e.g. Buchungstag, Date" class="person-input" style="width: 100%;">
         </div>
         <div>
@@ -487,23 +499,32 @@
           <label class="input-label">Amount Header</label>
           <input type="text" [(ngModel)]="newBankAmountCol" placeholder="e.g. Betrag, Amount" class="person-input" style="width: 100%;">
         </div>
+        <div>
+          <label class="input-label">Currency Header</label>
+          <input type="text" [(ngModel)]="newBankCurrencyCol" placeholder="e.g. Currency, Währung" class="person-input" style="width: 100%;">
+        </div>
       </div>
 
       <!-- Active Banks Table -->
       <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row -->
-        <div style="display: grid; grid-template-columns: 180px 140px 1fr 60px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+        <div style="display: grid; grid-template-columns: 180px 100px 100px 1fr 50px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Bank Name</span>
-          <span>Default Payer</span>
-          <span>Parser Configuration</span>
+          <span>Payer</span>
+          <span>Currency</span>
+          <span>Statement Parser Config</span>
           <span style="text-align: center;">Action</span>
         </div>
 
         <!-- Scrollable Rows Body -->
         <div style="max-height: 200px; overflow-y: auto;">
-          <div *ngFor="let b of service.bankConfigs()" style="display: grid; grid-template-columns: 180px 140px 1fr 60px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-            <div><strong style="font-size: 0.82rem; color: var(--text-main);">{{ b.name }}</strong></div>
+          <div *ngFor="let b of service.bankConfigs()" style="display: grid; grid-template-columns: 180px 100px 100px 1fr 50px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+            <div>
+              <strong style="font-size: 0.82rem; color: var(--text-main);">{{ b.name }}</strong>
+              <div *ngIf="b.accountNumber" style="font-size: 0.68rem; color: var(--text-muted);">{{ b.accountNumber }}</div>
+            </div>
             <div><span class="badge badge-info">{{ b.defaultOwner }}</span></div>
+            <div><span class="badge badge-neutral font-mono">{{ b.defaultCurrency || service.currency() }}</span></div>
             <div>
               <span *ngIf="!b.dateColName && !b.descColName && !b.amountColName" class="badge badge-neutral">Auto-Detect Preset</span>
               <span *ngIf="b.dateColName || b.descColName || b.amountColName" class="badge badge-success">

@@ -65,10 +65,12 @@ export interface BankConfig {
   id: string;
   name: string;
   defaultOwner: string;
+  defaultCurrency?: string; // e.g. 'EUR', 'USD', 'INR', 'GBP'
   accountNumber?: string;
   dateColName?: string;
   descColName?: string;
   amountColName?: string;
+  currencyColName?: string;
 }
 
 export interface CategoryRule {

@@ -78,9 +78,12 @@ export class SettingsComponent {
   // Bank Config Form
   public newBankName = '';
   public newBankOwner = '';
+  public newBankCurrency = 'EUR';
+  public newBankAccountNo = '';
   public newBankDateCol = '';
   public newBankDescCol = '';
   public newBankAmountCol = '';
+  public newBankCurrencyCol = '';
   public showAdvancedBankMapping = false;
 
   constructor() {
@@ -88,6 +91,7 @@ export class SettingsComponent {
     if (firstGroup) this.selectedGroupIdForNewCat = firstGroup.id;
     if (firstGroup && firstGroup.items[0]) this.newRuleCategory = firstGroup.items[0].name;
     this.newBankOwner = this.service.personOne().name;
+    this.newBankCurrency = this.service.currency();
   }
 
   public addBank() {
@@ -95,14 +99,19 @@ export class SettingsComponent {
     this.service.addBankConfig({
       name: this.newBankName.trim(),
       defaultOwner: this.newBankOwner || this.service.personOne().name,
+      defaultCurrency: this.newBankCurrency || this.service.currency(),
+      accountNumber: this.newBankAccountNo.trim() || undefined,
       dateColName: this.newBankDateCol.trim() || undefined,
       descColName: this.newBankDescCol.trim() || undefined,
-      amountColName: this.newBankAmountCol.trim() || undefined
+      amountColName: this.newBankAmountCol.trim() || undefined,
+      currencyColName: this.newBankCurrencyCol.trim() || undefined
     });
     this.newBankName = '';
+    this.newBankAccountNo = '';
     this.newBankDateCol = '';
     this.newBankDescCol = '';
     this.newBankAmountCol = '';
+    this.newBankCurrencyCol = '';
     this.showAdvancedBankMapping = false;
   }
 
