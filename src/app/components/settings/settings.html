@@ -7,15 +7,11 @@
     </div>
   </div>
 
-  <!-- SECTION 1: General & Currencies (2 Column Grid) -->
-  <div class="settings-section">
-    <div class="section-title">
-      <span class="section-icon">👤</span>
-      <span>Members & Regional Preferences</span>
-    </div>
-
-    <div class="settings-grid-2">
-      <!-- Card 1: Persons / Split Participants -->
+  <!-- TOP 2-COLUMN COMPACT GRID (Members, Currency, Rates, Backup) -->
+  <div class="settings-top-grid">
+    <!-- LEFT COLUMN -->
+    <div class="settings-col">
+      <!-- Card 1: Split Members -->
       <div class="glass-card setting-box">
         <div class="box-header">
           <h3>👥 Split Members</h3>
@@ -56,7 +52,7 @@
         </div>
       </div>
 
-      <!-- Card 2: Multi-Currency & Regional Formatting -->
+      <!-- Card 2: Currency & Formatting -->
       <div class="glass-card setting-box">
         <div class="box-header">
           <h3>🌐 Currency & Formatting</h3>
@@ -73,7 +69,6 @@
             </select>
           </div>
 
-          <!-- Supported Currencies List -->
           <div>
             <label class="input-label">Active Supported Currencies</label>
             <div class="currency-chips-wrap">
@@ -95,15 +90,12 @@
               <input
                 type="text"
                 [(ngModel)]="newCurrencyCode"
-                placeholder="e.g. CAD, JPY, CHF, AUD..."
+                placeholder="e.g. CAD, JPY, CHF..."
                 class="person-input"
                 style="flex: 1; text-transform: uppercase;"
                 (keydown.enter)="addCurrency()">
               <button class="btn btn-secondary btn-xs" (click)="addCurrency()" [disabled]="!newCurrencyCode.trim()">
                 + Add
-              </button>
-              <button class="btn btn-secondary btn-xs" (click)="service.fetchExchangeRates()" [disabled]="service.isFetchingRates()">
-                {{ service.isFetchingRates() ? 'Fetching...' : '🔄 Live Rates' }}
               </button>
             </div>
           </div>
@@ -132,78 +124,124 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- SECTION: Live Currency Exchange Rates Table (Portfolio Tracker Engine) -->
-  <div class="settings-section">
-    <div class="section-title">
-      <span class="section-icon">💱</span>
-      <span>Live Currency Exchange Rates</span>
-    </div>
+    <!-- RIGHT COLUMN -->
+    <div class="settings-col">
+      <!-- Card 3: Currency Rates Table -->
+      <div class="glass-card setting-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
+          <div>
+            <h3 style="margin: 0; font-size: 1.05rem;">💱 Currency Rates</h3>
+            <p class="subtitle" style="margin: 0.15rem 0 0 0;">Live rates for cash logging.</p>
+          </div>
+          <div style="display: flex; gap: 0.4rem;">
+            <button 
+              class="btn btn-xs" 
+              [class.btn-primary]="isEditingRates()" 
+              [class.btn-secondary]="!isEditingRates()"
+              (click)="isEditingRates.set(!isEditingRates())">
+              {{ isEditingRates() ? '✓ Save' : '✏ Edit' }}
+            </button>
+            <button 
+              class="btn btn-secondary btn-xs" 
+              (click)="service.fetchExchangeRates()" 
+              [disabled]="service.isFetchingRates()">
+              {{ service.isFetchingRates() ? 'Fetching...' : '🔄 Live' }}
+            </button>
+          </div>
+        </div>
 
-    <div class="glass-card rates-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 0.5rem;">
-        <h3 (click)="isRatesCollapsed.set(!isRatesCollapsed())" style="cursor: pointer; user-select: none; display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem;">
-          <span>Exchange Rates Table</span>
-          <span class="collapse-chevron" style="font-size: 0.85rem; color: var(--text-muted); transition: transform 0.2s;" [style.transform]="isRatesCollapsed() ? 'rotate(-90deg)' : 'rotate(0deg)'">▼</span>
-        </h3>
-        <div style="display: flex; gap: 0.4rem; align-items: center;" *ngIf="!isRatesCollapsed()">
-          <button 
-            class="btn btn-xs" 
-            [class.btn-primary]="isEditingRates()" 
-            [class.btn-secondary]="!isEditingRates()"
-            (click)="isEditingRates.set(!isEditingRates())">
-            {{ isEditingRates() ? '✓ Save Rates' : '✏ Edit Overrides' }}
-          </button>
-          <button 
-            class="btn btn-secondary btn-xs" 
-            (click)="service.fetchExchangeRates()" 
-            [disabled]="service.isFetchingRates()">
-            {{ service.isFetchingRates() ? 'Fetching...' : '🔄 Live Fetch' }}
-          </button>
+        <div class="table-container rates-table" style="max-height: 180px; overflow-y: auto; margin-top: 0.4rem;">
+          <table>
+            <thead>
+              <tr>
+                <th>Pair</th>
+                <th style="text-align: right; padding-right: 1rem;">Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let pair of exchangeRatePairs()">
+                <td class="bold-ticker font-mono" style="font-weight: 700; color: var(--primary); font-size: 0.78rem;">
+                  {{ pair.pairLabel }}
+                </td>
+                <td style="text-align: right; padding-right: 1rem; vertical-align: middle;">
+                  <input 
+                    *ngIf="isEditingRates()"
+                    type="number" 
+                    step="0.0001"
+                    [ngModel]="pair.rate" 
+                    (ngModelChange)="updateExchangeRate(pair.key, $event)"
+                    class="table-inline-input price-input font-mono"
+                    style="width: 85px; text-align: right; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.15rem 0.3rem; color: #fff; font-size: 0.76rem;">
+                  <span *ngIf="!isEditingRates()" class="font-mono" style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
+                    {{ pair.rate.toFixed(4) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
-      <p class="subtitle" *ngIf="!isRatesCollapsed()" style="margin-bottom: 0.6rem;">Real-time conversion rates used when logging foreign cash expenses and calculating balances.</p>
-      
-      <div class="table-container rates-table" style="max-height: 260px; overflow-y: auto;" *ngIf="!isRatesCollapsed()">
-        <table>
-          <thead>
-            <tr>
-              <th>Currency Pair</th>
-              <th>Formula</th>
-              <th style="text-align: right; padding-right: 1.5rem;">Conversion Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let pair of exchangeRatePairs()">
-              <td class="bold-ticker font-mono" style="font-weight: 700; color: var(--primary);">
-                {{ pair.pairLabel }}
-              </td>
-              <td style="color: var(--text-muted); font-size: 0.8rem;">
-                1 {{ pair.from }} = {{ pair.rate }} {{ pair.to }}
-              </td>
-              <td style="text-align: right; padding-right: 1.5rem; vertical-align: middle;">
-                <input 
-                  *ngIf="isEditingRates()"
-                  type="number" 
-                  step="0.0001"
-                  [ngModel]="pair.rate" 
-                  (ngModelChange)="updateExchangeRate(pair.key, $event)"
-                  class="table-inline-input price-input font-mono"
-                  style="width: 110px; text-align: right; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.2rem 0.4rem; color: #fff;">
-                <span *ngIf="!isEditingRates()" class="font-mono" style="font-size: 0.88rem; font-weight: 700; color: var(--text-main);">
-                  {{ pair.rate.toFixed(4) }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+      <!-- Card 4: Cloud & Backup Sync -->
+      <div class="glass-card setting-box">
+        <div class="box-header">
+          <h3>☁ Cloud & Local Backup</h3>
+          <p class="subtitle">Google Drive sync and JSON data backup.</p>
+        </div>
+
+        <div class="cloud-sync-box" style="margin-top: 0.2rem;">
+          <div class="sync-status-row">
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+              <span style="font-size: 1.1rem;">📁</span>
+              <strong>Google Drive</strong>
+            </div>
+            <span *ngIf="service.isGoogleConnected()" style="color: var(--success); font-size: 0.75rem; font-weight: bold;">
+              ● Connected
+            </span>
+            <button *ngIf="!service.isGoogleConnected()" class="btn btn-secondary btn-xs" (click)="service.connectGoogleDrive()">
+              Connect Drive
+            </button>
+          </div>
+
+          <div class="auto-sync-toggle-row" style="margin-top: 0.4rem; padding-top: 0.4rem;">
+            <span style="font-size: 0.74rem; color: var(--text-muted);">Auto-sync on changes</span>
+            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.74rem;">
+              <input
+                type="checkbox"
+                [ngModel]="service.autoSyncGoogleDrive()"
+                (ngModelChange)="service.autoSyncGoogleDrive.set($event)"
+                style="accent-color: var(--primary); cursor: pointer;">
+              <span>{{ service.autoSyncGoogleDrive() ? 'Enabled' : 'Disabled' }}</span>
+            </label>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.5rem;">
+            <button class="btn btn-secondary btn-xs" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+              Download
+            </button>
+            <button class="btn btn-primary btn-xs" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+              Upload
+            </button>
+          </div>
+        </div>
+
+        <!-- Local JSON Backup -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.06);">
+          <button class="btn btn-secondary btn-xs" (click)="service.exportBackupJson()">
+            💾 Export .json
+          </button>
+          <div style="display: flex; align-items: center; gap: 0.3rem;">
+            <span style="font-size: 0.72rem; color: var(--text-muted);">Restore:</span>
+            <input type="file" accept=".json" (change)="onBackupFileSelected($event)" style="font-size: 0.7rem; width: 130px;">
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- SECTION 2: Categories Hierarchy -->
-  <div class="settings-section">
+  <!-- WIDE SECTION 1: Budget Categories Hierarchy (Full Width) -->
+  <div class="settings-section wide-section">
     <div class="section-title">
       <span class="section-icon">📁</span>
       <span>Budget Categories Hierarchy</span>
@@ -211,9 +249,7 @@
 
     <div class="glass-card categories-editor-card">
       <div class="cat-editor-header">
-        <div>
-          <p class="subtitle" style="margin: 0;">Add, rename, or reorganize category groups and items.</p>
-        </div>
+        <p class="subtitle" style="margin: 0;">Add, rename, or reorganize category groups and items.</p>
 
         <!-- Add Group + Add Item Bars -->
         <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center;">
@@ -272,8 +308,8 @@
     </div>
   </div>
 
-  <!-- SECTION 3: Auto-Categorization Rules Engine -->
-  <div class="settings-section">
+  <!-- WIDE SECTION 2: Auto-Categorization Rules Engine (Full Width) -->
+  <div class="settings-section wide-section">
     <div class="section-title">
       <span class="section-icon">⚡</span>
       <span>Auto-Categorization Rules</span>
@@ -349,96 +385,14 @@
     </div>
   </div>
 
-  <!-- SECTION 4: Cloud & Backup Sync -->
-  <div class="settings-section">
-    <div class="section-title">
-      <span class="section-icon">☁</span>
-      <span>Cloud & Backup Sync</span>
-    </div>
-
-    <div class="glass-card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
-      <!-- Google Drive Sync -->
-      <div class="cloud-sync-box">
-        <div class="sync-status-row">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.2rem;">📁</span>
-            <strong>Google Drive Sync</strong>
-          </div>
-          <span *ngIf="service.isGoogleConnected()" style="color: var(--success); font-size: 0.75rem; font-weight: bold;">
-            ● Connected
-          </span>
-          <button *ngIf="!service.isGoogleConnected()" class="btn btn-secondary btn-xs" (click)="service.connectGoogleDrive()">
-            Connect Drive
-          </button>
-        </div>
-
-        <div *ngIf="service.isGoogleConnected() && service.lastGoogleSyncTime()" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">
-          Last cloud backup: {{ formatSyncTime(service.lastGoogleSyncTime()!) }}
-        </div>
-
-        <div style="margin-top: 0.6rem;">
-          <label class="input-label">Sync File Name</label>
-          <input
-            type="text"
-            [ngModel]="service.googleFileName()"
-            (ngModelChange)="service.googleFileName.set($event)"
-            class="file-name-input">
-        </div>
-
-        <div class="auto-sync-toggle-row">
-          <span style="font-size: 0.76rem; color: var(--text-muted);">Auto-sync changes to Google Drive</span>
-          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.76rem;">
-            <input
-              type="checkbox"
-              [ngModel]="service.autoSyncGoogleDrive()"
-              (ngModelChange)="service.autoSyncGoogleDrive.set($event)"
-              style="accent-color: var(--primary); cursor: pointer;">
-            <span>{{ service.autoSyncGoogleDrive() ? 'Enabled' : 'Disabled' }}</span>
-          </label>
-        </div>
-
-        <div style="display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.8rem;">
-          <button class="btn btn-secondary btn-xs" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            Download from Drive
-          </button>
-          <button class="btn btn-primary btn-xs" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            Upload to Drive
-          </button>
-        </div>
-      </div>
-
-      <!-- Local File Backup -->
-      <div class="local-backup-box">
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem;">
-          <span style="font-size: 1.2rem;">💾</span>
-          <strong>Local JSON Backup</strong>
-        </div>
-        <p class="subtitle" style="margin-bottom: 0.8rem;">Export a snapshot of all data or restore from an existing JSON backup.</p>
-
-        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 0.78rem; color: var(--text-muted);">Export data to file:</span>
-            <button class="btn btn-secondary btn-xs" (click)="service.exportBackupJson()">
-              Export .json
-            </button>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.06);">
-            <span style="font-size: 0.78rem; color: var(--text-muted);">Restore from file:</span>
-            <input type="file" accept=".json" (change)="onBackupFileSelected($event)" style="font-size: 0.72rem; width: 140px;">
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SECTION 5: Danger Zone (Dedicated Warning Box at the Bottom) -->
+  <!-- BOTTOM DANGER ZONE -->
   <div class="settings-section">
     <div class="glass-card danger-zone-card">
       <div class="danger-zone-content">
         <div class="danger-zone-info">
           <div class="danger-title">
-            <span style="font-size: 1.2rem;">⚠️</span>
-            <h3>Danger Zone</h3>
+            <span style="font-size: 1.1rem;">⚠️</span>
+            <h3 style="font-size: 0.95rem;">Danger Zone</h3>
           </div>
           <p class="danger-desc">
             Clearing all transactions will delete all imported bank records, cash entries, and split history permanently from local storage.
