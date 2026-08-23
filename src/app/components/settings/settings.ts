@@ -112,6 +112,29 @@ export class SettingsComponent {
     this.showAdvancedBankMapping = false;
   }
 
+  public editingBankId = signal<string | null>(null);
+  public editBankModel: BankConfig | null = null;
+
+  public startEditBank(b: BankConfig): void {
+    this.editingBankId.set(b.id);
+    this.editBankModel = { ...b };
+  }
+
+  public cancelEditBank(): void {
+    this.editingBankId.set(null);
+    this.editBankModel = null;
+  }
+
+  public saveEditBank(): void {
+    if (!this.editBankModel || !this.editBankModel.name.trim()) return;
+    this.service.updateBankConfig({
+      ...this.editBankModel,
+      name: this.editBankModel.name.trim()
+    });
+    this.editingBankId.set(null);
+    this.editBankModel = null;
+  }
+
   public async deleteBank(id: string, name: string) {
     const ok = await this.service.showConfirm('Remove Bank', `Remove "${name}" statement configuration?`);
     if (ok) {

@@ -504,29 +504,89 @@
       <!-- Active Banks Table -->
       <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row -->
-        <div style="display: grid; grid-template-columns: 200px 100px 1fr 50px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+        <div style="display: grid; grid-template-columns: 180px 90px 1fr 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Bank Name</span>
           <span>Currency</span>
           <span>Statement Parser Config</span>
-          <span style="text-align: center;">Action</span>
+          <span style="text-align: center;">Actions</span>
         </div>
 
         <!-- Scrollable Rows Body -->
-        <div style="max-height: 200px; overflow-y: auto;">
-          <div *ngFor="let b of service.bankConfigs()" style="display: grid; grid-template-columns: 200px 100px 1fr 50px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-            <div>
-              <strong style="font-size: 0.82rem; color: var(--text-main);">{{ b.name }}</strong>
-              <div *ngIf="b.accountNumber" style="font-size: 0.68rem; color: var(--text-muted);">{{ b.accountNumber }}</div>
+        <div style="max-height: 250px; overflow-y: auto;">
+          <div *ngFor="let b of service.bankConfigs()">
+            <!-- Normal Row Display -->
+            <div
+              *ngIf="editingBankId() !== b.id"
+              style="display: grid; grid-template-columns: 180px 90px 1fr 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+              <div>
+                <strong style="font-size: 0.82rem; color: var(--text-main);">{{ b.name }}</strong>
+                <div *ngIf="b.accountNumber" style="font-size: 0.68rem; color: var(--text-muted);">{{ b.accountNumber }}</div>
+              </div>
+              <div><span class="badge badge-neutral font-mono">{{ b.defaultCurrency || service.currency() }}</span></div>
+              <div>
+                <span *ngIf="!b.dateColName && !b.descColName && !b.amountColName" class="badge badge-neutral">Auto-Detect</span>
+                <span *ngIf="b.dateColName || b.descColName || b.amountColName" class="badge badge-success" style="font-size: 0.68rem;">
+                  Headers: {{ b.dateColName || 'Date' }} | {{ b.descColName || 'Desc' }} | {{ b.amountColName || 'Amt' }}
+                </span>
+              </div>
+              <div style="display: flex; justify-content: center; gap: 0.25rem;">
+                <button class="btn-icon-action" style="width: 24px; height: 24px; font-size: 0.75rem; background: rgba(255,255,255,0.06); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" (click)="startEditBank(b)" title="Edit bank config">✏️</button>
+                <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteBank(b.id, b.name)" title="Remove bank">✕</button>
+              </div>
             </div>
-            <div><span class="badge badge-neutral font-mono">{{ b.defaultCurrency || service.currency() }}</span></div>
-            <div>
-              <span *ngIf="!b.dateColName && !b.descColName && !b.amountColName" class="badge badge-neutral">Auto-Detect Preset</span>
-              <span *ngIf="b.dateColName || b.descColName || b.amountColName" class="badge badge-success">
-                Custom ({{ b.dateColName || 'Date' }} | {{ b.descColName || 'Desc' }} | {{ b.amountColName || 'Amt' }})
-              </span>
-            </div>
-            <div style="text-align: center;">
-              <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteBank(b.id, b.name)" title="Remove bank">✕</button>
+
+            <!-- Inline Edit Mode -->
+            <div
+              *ngIf="editingBankId() === b.id && editBankModel"
+              class="animate-fade-in"
+              style="padding: 0.6rem 0.8rem; background: rgba(0, 229, 255, 0.04); border-bottom: 1px solid rgba(0, 229, 255, 0.2);">
+              <div style="display: grid; grid-template-columns: 1fr 100px 140px; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div>
+                  <label class="input-label">Bank Name</label>
+                  <input type="text" [(ngModel)]="editBankModel.name" class="person-input" style="width: 100%;">
+                </div>
+                <div>
+                  <label class="input-label">Currency</label>
+                  <select [(ngModel)]="editBankModel.defaultCurrency" class="settings-select" style="width: 100%;">
+                    <option *ngFor="let c of service.visibleCurrencies()" [value]="c">{{ c }}</option>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="INR">INR</option>
+                    <option value="GBP">GBP</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="input-label">Account # / IBAN</label>
+                  <input type="text" [(ngModel)]="editBankModel.accountNumber" placeholder="*6554" class="person-input" style="width: 100%;">
+                </div>
+              </div>
+
+              <!-- Column Header Mappings in Edit Mode -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem;">
+                <div>
+                  <label class="input-label">Date Column</label>
+                  <input type="text" [(ngModel)]="editBankModel.dateColName" placeholder="Date" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+                <div>
+                  <label class="input-label">Desc Column</label>
+                  <input type="text" [(ngModel)]="editBankModel.descColName" placeholder="Description" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+                <div>
+                  <label class="input-label">Amount Column</label>
+                  <input type="text" [(ngModel)]="editBankModel.amountColName" placeholder="Amount" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+                <div>
+                  <label class="input-label">Currency Column</label>
+                  <input type="text" [(ngModel)]="editBankModel.currencyColName" placeholder="Currency" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.6rem;">
+                <button class="btn btn-secondary btn-xs" (click)="cancelEditBank()">Cancel</button>
+                <button class="btn btn-primary btn-xs" (click)="saveEditBank()" [disabled]="!editBankModel.name.trim()">
+                  ✓ Save Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>
