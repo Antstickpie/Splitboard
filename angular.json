@@ -7,7 +7,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "splitbunch": {
+    "splitboard": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:class": { "skipTests": true },
@@ -26,7 +26,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/splitbunch",
+            "outputPath": "dist/splitboard",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "assets": [
@@ -43,7 +43,7 @@
                 {
                   "type": "initial",
                   "maximumWarning": "1MB",
-                  "maximumError": "3MB"
+                  "maximumError": "2MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -65,10 +65,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "splitbunch:build:production"
+              "buildTarget": "splitboard:build:production"
             },
             "development": {
-              "buildTarget": "splitbunch:build:development"
+              "buildTarget": "splitboard:build:development"
             }
           },
           "defaultConfiguration": "development"

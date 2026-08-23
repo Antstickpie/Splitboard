@@ -78,7 +78,7 @@ export class TransactionService {
   public currency = signal<string>('EUR');
   public numberFormat = signal<string>('1,234.56');
   public autoSyncGoogleDrive = signal<boolean>(false);
-  public googleFileName = signal<string>('splitbunch_backup.json');
+  public googleFileName = signal<string>('splitboard_backup.json');
 
   // Currency & Multi-Currency State
   public visibleCurrencies = signal<string[]>(['EUR', 'USD', 'INR', 'GBP']);
