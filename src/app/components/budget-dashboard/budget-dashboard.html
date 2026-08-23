@@ -3,7 +3,7 @@
   <div class="everydollar-top-bar glass-card">
     <div class="top-bar-left">
       <!-- Month Trigger Popover -->
-      <div style="position: relative;">
+      <div class="everydollar-month-container" style="position: relative;">
         <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
           <span class="month-title-text">{{ service.formatMonth(selectedMonth()) }}</span>
           <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
@@ -36,6 +36,18 @@
         </div>
       </div>
 
+      <!-- Month Navigation Arrows & Today Button (Grouped with selector) -->
+      <div style="display: flex; align-items: center; gap: 0.35rem;">
+        <div class="month-arrows-group">
+          <button class="btn-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
+          <button class="btn-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
+        </div>
+
+        <button class="btn btn-secondary btn-xs" (click)="goToToday()" *ngIf="selectedMonth() !== service.getCurrentMonthString()">
+          Today
+        </button>
+      </div>
+
       <!-- Quick Metrics Badges -->
       <div class="quick-metrics-row">
         <div class="metric-pill">
@@ -59,20 +71,11 @@
       </div>
     </div>
 
-    <!-- Top Bar Right Controls -->
+    <!-- Top Bar Right Status -->
     <div class="top-bar-right">
       <span class="past-month-badge" *ngIf="isPastMonth()">
         ⏱ Past month
       </span>
-
-      <button class="btn btn-secondary btn-xs" (click)="goToToday()">
-        Today
-      </button>
-
-      <div class="month-arrows-group">
-        <button class="btn-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
-        <button class="btn-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
-      </div>
     </div>
   </div>
 

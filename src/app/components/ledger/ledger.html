@@ -85,7 +85,7 @@
     <div class="toolbar-top-row">
       <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
         <!-- EveryDollar Custom Month Trigger & Popover -->
-        <div style="position: relative;">
+        <div class="everydollar-month-container" style="position: relative;">
           <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
             <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
             <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>

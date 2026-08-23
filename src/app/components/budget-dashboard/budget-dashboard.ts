@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { Component, inject, computed, signal, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -78,6 +78,18 @@ export class BudgetDashboardComponent {
     const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     this.selectedMonth.set(mStr);
     this.service.selectedMonth.set(mStr);
+  }
+
+  private elementRef = inject(ElementRef);
+
+  @HostListener('document:click', ['$event'])
+  public onDocumentClick(event: MouseEvent): void {
+    if (this.isMonthPickerOpen()) {
+      const container = this.elementRef.nativeElement.querySelector('.everydollar-month-container');
+      if (container && !container.contains(event.target as Node)) {
+        this.isMonthPickerOpen.set(false);
+      }
+    }
   }
 
   public toggleMonthPicker(): void {

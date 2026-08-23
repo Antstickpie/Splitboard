@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -13,6 +13,17 @@ import { Transaction, SplitType, SplitMode } from '../../models';
 })
 export class LedgerComponent {
   public service = inject(TransactionService);
+  private elementRef = inject(ElementRef);
+
+  @HostListener('document:click', ['$event'])
+  public onDocumentClick(event: MouseEvent): void {
+    if (this.isMonthPickerOpen()) {
+      const container = this.elementRef.nativeElement.querySelector('.everydollar-month-container');
+      if (container && !container.contains(event.target as Node)) {
+        this.isMonthPickerOpen.set(false);
+      }
+    }
+  }
 
   // Settlement breakdown drawer toggle
   public isSettlementExpanded = signal(false);
