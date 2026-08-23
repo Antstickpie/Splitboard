@@ -278,7 +278,7 @@ export class StatementParserService {
     if (combined.includes('deutsche bank') || combined.includes('db')) return 'Deutsche Bank';
     if (combined.includes('zinia') || combined.includes('amazon visa') || combined.includes('santander')) return 'Amazon Visa (Zinia)';
     if (combined.includes('amex') || combined.includes('american express')) return 'Amex';
-    if (combined.includes('revolut')) return 'Revolut';
+    if (combined.includes('revolut') || combined.includes('-rev-') || combined.includes('rev_') || combined.includes('an-rev')) return 'Revolut';
     if (combined.includes('commerzbank') || combined.includes('commerz')) return 'Commerzbank';
     return selectedBank || 'Generic Bank';
   }

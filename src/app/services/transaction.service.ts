@@ -59,10 +59,21 @@ export interface SettlementSummary {
 }
 
 export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [
+  // Global Exclusions
   { id: 'ex-1', bank: 'All', keyword: 'Daily Interest' },
   { id: 'ex-2', bank: 'All', keyword: 'Interest Payment' },
-  { id: 'ex-3', bank: 'All', keyword: 'Zinsgutschrift' },
-  { id: 'ex-4', bank: 'All', keyword: 'Tagesgeld Zinsen' }
+  { id: 'ex-3', bank: 'All', keyword: 'Net Interest Paid' },
+  { id: 'ex-4', bank: 'All', keyword: 'Zinsgutschrift' },
+  { id: 'ex-5', bank: 'All', keyword: 'Tagesgeld Zinsen' },
+
+  // Revolut Specific Exclusions
+  { id: 'ex-rev-1', bank: 'Revolut', keyword: 'Instant Access Savings' },
+  { id: 'ex-rev-2', bank: 'Revolut', keyword: 'Exchanged to' },
+  { id: 'ex-rev-3', bank: 'Revolut', keyword: 'Google Pay top-up' },
+  { id: 'ex-rev-4', bank: 'Revolut', keyword: 'Top Up' },
+  { id: 'ex-rev-5', bank: 'Revolut', keyword: 'Payment from ANIRUDH APPALA' },
+  { id: 'ex-rev-6', bank: 'Revolut', keyword: 'To investment account' },
+  { id: 'ex-rev-7', bank: 'Revolut', keyword: 'To Me Commerzbank' }
 ];
 
 @Injectable({
