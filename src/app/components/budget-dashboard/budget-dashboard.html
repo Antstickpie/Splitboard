@@ -6,11 +6,41 @@
       <p class="subtitle">EveryDollar-style zero-based budget planning, category tracking, and spending analytics.</p>
     </div>
 
-    <div class="header-right">
-      <label class="input-label" style="margin-bottom: 0;">Budget Month:</label>
-      <select [ngModel]="selectedMonth()" (ngModelChange)="selectedMonth.set($event)" class="month-selector">
-        <option *ngFor="let m of service.availableMonths()" [value]="m">{{ service.formatMonth(m) }}</option>
-      </select>
+    <div class="header-right" style="position: relative;">
+      <!-- EveryDollar Month Button Trigger -->
+      <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
+        <span class="month-title-text">{{ service.formatMonth(selectedMonth()) }}</span>
+        <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
+      </button>
+
+      <!-- EveryDollar Month Picker Popover Grid -->
+      <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
+        <!-- Year Header with Arrows -->
+        <div class="popover-year-bar">
+          <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+          <span class="popover-year-text">{{ pickerYear() }}</span>
+          <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+        </div>
+
+        <!-- 12-Month Grid -->
+        <div class="popover-months-grid">
+          <button
+            *ngFor="let m of monthsList; let idx = index"
+            class="month-cell-btn"
+            [class.selected]="isMonthSelected(idx)"
+            [class.has-data]="hasMonthData(idx)"
+            (click)="selectMonth(idx)">
+            {{ m }}
+          </button>
+        </div>
+
+        <!-- Go to Today Footer -->
+        <div class="popover-footer">
+          <button class="btn-today" (click)="goToToday()">
+            Go to today
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

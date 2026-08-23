@@ -33,6 +33,48 @@ export class BudgetDashboardComponent {
   public service = inject(TransactionService);
 
   public selectedMonth = signal<string>(this.service.getCurrentMonthString());
+  public isMonthPickerOpen = signal<boolean>(false);
+  public pickerYear = signal<number>(new Date().getFullYear());
+  public monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  public toggleMonthPicker(): void {
+    const [y] = this.selectedMonth().split('-').map(Number);
+    if (!isNaN(y)) this.pickerYear.set(y);
+    this.isMonthPickerOpen.update((v) => !v);
+  }
+
+  public prevYear(): void {
+    this.pickerYear.update((y) => y - 1);
+  }
+
+  public nextYear(): void {
+    this.pickerYear.update((y) => y + 1);
+  }
+
+  public selectMonth(monthIdx: number): void {
+    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    this.selectedMonth.set(mStr);
+    this.service.selectedMonth.set(mStr);
+    this.isMonthPickerOpen.set(false);
+  }
+
+  public goToToday(): void {
+    const today = this.service.getCurrentMonthString();
+    this.selectedMonth.set(today);
+    this.service.selectedMonth.set(today);
+    this.pickerYear.set(new Date().getFullYear());
+    this.isMonthPickerOpen.set(false);
+  }
+
+  public isMonthSelected(monthIdx: number): boolean {
+    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    return this.selectedMonth() === mStr;
+  }
+
+  public hasMonthData(monthIdx: number): boolean {
+    const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    return this.service.transactions().some((t) => t.date && t.date.startsWith(mStr));
+  }
 
   // Planned vs Actual Budget Computation
   public groupSummaries = computed<CategoryGroupSummary[]>(() => {
