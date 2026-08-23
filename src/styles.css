@@ -233,6 +233,14 @@ input::placeholder {
   opacity: 0.9;
 }
 
+.btn:disabled, button:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+  filter: grayscale(60%) !important;
+}
+
 .btn-secondary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
