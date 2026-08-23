@@ -66,6 +66,17 @@
             <option value="MMMM d, yyyy">August 23, 2026</option>
           </select>
         </div>
+
+        <div>
+          <label class="input-label">Number / Money Format</label>
+          <select [ngModel]="service.numberFormat()" (ngModelChange)="service.numberFormat.set($event)" class="settings-select">
+            <option value="1,234.56">1,234.56 (Dot decimal - US/UK)</option>
+            <option value="1.234,56">1.234,56 (Comma decimal - German/EU)</option>
+            <option value="1 234.56">1 234.56 (Space thousand, Dot decimal)</option>
+            <option value="1 234,56">1 234,56 (Space thousand, Comma decimal)</option>
+            <option value="1234.56">1234.56 (No thousand separator)</option>
+          </select>
+        </div>
       </div>
     </div>
 

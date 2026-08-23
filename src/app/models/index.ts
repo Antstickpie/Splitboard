@@ -85,6 +85,7 @@ export interface AppDataBackup {
   settings: {
     currency: string;
     dateFormat: string;
+    numberFormat?: string; // '1,234.56' | '1.234,56' | '1 234.56' | '1 234,56'
     autoSyncDrive: boolean;
     googleFileName: string;
     theme: 'dark' | 'light';

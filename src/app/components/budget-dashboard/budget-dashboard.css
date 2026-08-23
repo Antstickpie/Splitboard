@@ -140,7 +140,7 @@
 .actual-val {
   font-size: 0.82rem;
   font-weight: 600;
-  min-width: 60px;
+  min-width: 75px;
   text-align: right;
 }
 
@@ -148,22 +148,23 @@
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  padding: 0.1rem 0.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0.15rem 0.4rem;
+  min-width: 100px;
 }
 
 .currency-symbol {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
 .inline-planned-input {
-  width: 65px;
+  width: 85px;
   border: none;
   background: transparent;
   padding: 0.15rem 0.2rem;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-family: monospace;
   text-align: right;
   color: var(--text-main);
@@ -172,7 +173,7 @@
 
 .remaining-val {
   font-size: 0.78rem;
-  min-width: 65px;
+  min-width: 75px;
   text-align: right;
   color: var(--success);
 }

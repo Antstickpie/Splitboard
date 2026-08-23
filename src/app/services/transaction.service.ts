@@ -76,8 +76,9 @@ export class TransactionService {
   public theme = signal<'dark' | 'light'>('dark');
   public dateFormat = signal<string>('yyyy-MM-dd');
   public currency = signal<string>('EUR');
+  public numberFormat = signal<string>('1,234.56');
   public autoSyncGoogleDrive = signal<boolean>(false);
-  public googleFileName = signal<string>('transactions_processor_backup.json');
+  public googleFileName = signal<string>('splitbunch_backup.json');
 
   // UI State Signals
   public toasts = signal<Toast[]>([]);
@@ -280,6 +281,7 @@ export class TransactionService {
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
+          numberFormat: this.numberFormat(),
           autoSyncDrive: this.autoSyncGoogleDrive(),
           googleFileName: this.googleFileName(),
           theme: this.theme()
@@ -310,6 +312,7 @@ export class TransactionService {
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.numberFormat) this.numberFormat.set(data.settings.numberFormat);
         if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
         if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
         if (data.settings.theme) this.theme.set(data.settings.theme);
@@ -754,9 +757,40 @@ export class TransactionService {
     }
   }
 
+  public formatNumber(val: number): string {
+    const num = Math.abs(val || 0);
+    const parts = num.toFixed(2).split('.');
+    let integerPart = parts[0];
+    const decimalPart = parts[1];
+
+    const fmt = this.numberFormat();
+    let thousandSep = ',';
+    let decimalSep = '.';
+
+    if (fmt === '1.234,56') {
+      thousandSep = '.';
+      decimalSep = ',';
+    } else if (fmt === '1 234.56') {
+      thousandSep = ' ';
+      decimalSep = '.';
+    } else if (fmt === '1 234,56') {
+      thousandSep = ' ';
+      decimalSep = ',';
+    } else if (fmt === '1234.56') {
+      thousandSep = '';
+      decimalSep = '.';
+    }
+
+    if (thousandSep) {
+      integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSep);
+    }
+
+    return (val < 0 ? '-' : '') + integerPart + decimalSep + decimalPart;
+  }
+
   public formatCurrency(amount: number): string {
     const c = this.currency();
     const symbol = c === 'EUR' ? '€' : c === 'USD' ? '$' : c === 'INR' ? '₹' : c === 'GBP' ? '£' : c + ' ';
-    return symbol + (amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return symbol + this.formatNumber(amount);
   }
 }
