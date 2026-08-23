@@ -220,15 +220,15 @@
         </div>
       </div>
 
-      <!-- Local JSON Backup -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.06);">
-        <button class="btn btn-secondary btn-xs" (click)="service.exportBackupJson()">
-          💾 Export .json
+      <!-- Local JSON Backup & Restore -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.08); gap: 0.5rem;">
+        <button class="btn btn-secondary btn-xs" (click)="service.exportBackupJson()" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.74rem;">
+          💾 Export Backup
         </button>
-        <div style="display: flex; align-items: center; gap: 0.25rem;">
-          <span style="font-size: 0.7rem; color: var(--text-muted);">Restore:</span>
-          <input type="file" accept=".json" (change)="onBackupFileSelected($event)" style="font-size: 0.68rem; width: 110px;">
-        </div>
+        <button class="btn btn-secondary btn-xs" (click)="backupFileInput.click()" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.74rem;">
+          📂 Restore Backup
+        </button>
+        <input #backupFileInput type="file" accept=".json" (change)="onBackupFileSelected($event)" style="display: none;">
       </div>
     </div>
   </div>
