@@ -347,33 +347,35 @@
         </button>
       </div>
 
-      <!-- Active Rules List -->
-      <div class="table-container" style="margin-top: 0.8rem; max-height: 220px; overflow-y: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Keyword Contains</th>
-              <th>Assigned Category</th>
-              <th>Split Mode</th>
-              <th>Default Payer</th>
-              <th style="text-align: center;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let r of service.rules()">
-              <td><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></td>
-              <td><span class="badge badge-warning">{{ r.categoryItem }}</span></td>
-              <td><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></td>
-              <td><span class="badge badge-info" *ngIf="r.paidBy">{{ r.paidBy }}</span><span *ngIf="!r.paidBy" style="color: var(--text-muted);">—</span></td>
-              <td style="text-align: center;">
-                <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteRule(r.id)">✕</button>
-              </td>
-            </tr>
-            <tr *ngIf="service.rules().length === 0">
-              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">No rules configured yet.</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Active Rules List (Fixed header, scroll strictly below) -->
+      <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+        <!-- Fixed Header Row (No scrollbar on header) -->
+        <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 60px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+          <span>Keyword Contains</span>
+          <span>Assigned Category</span>
+          <span>Split Mode</span>
+          <span>Default Payer</span>
+          <span style="text-align: center;">Action</span>
+        </div>
+
+        <!-- Scrollable Rows Body (Scrollbar strictly below header) -->
+        <div style="max-height: 180px; overflow-y: auto;">
+          <div *ngFor="let r of service.rules()" style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 60px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+            <div><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></div>
+            <div><span class="badge badge-warning">{{ r.categoryItem }}</span></div>
+            <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
+            <div>
+              <span class="badge badge-info" *ngIf="r.paidBy">{{ r.paidBy }}</span>
+              <span *ngIf="!r.paidBy" style="color: var(--text-muted);">—</span>
+            </div>
+            <div style="text-align: center;">
+              <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteRule(r.id)">✕</button>
+            </div>
+          </div>
+          <div *ngIf="service.rules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
+            No rules configured yet.
+          </div>
+        </div>
       </div>
     </div>
   </div>
