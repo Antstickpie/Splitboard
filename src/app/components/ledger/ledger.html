@@ -83,12 +83,39 @@
   <div class="glass-card ledger-toolbar">
     <!-- Row 1: Month Selector & Quick Action Buttons -->
     <div class="toolbar-top-row">
-      <div class="month-selector-group">
+      <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
         <label class="toolbar-label">Month:</label>
-        <select [ngModel]="service.selectedMonth()" (ngModelChange)="service.selectedMonth.set($event)" class="month-select">
-          <option value="ALL">All Months</option>
-          <option *ngFor="let m of service.availableMonths()" [value]="m">{{ service.formatMonth(m) }}</option>
-        </select>
+        
+        <!-- Month-Year Native Picker -->
+        <input
+          type="month"
+          [ngModel]="service.selectedMonth() === 'ALL' ? '' : service.selectedMonth()"
+          (ngModelChange)="onMonthPick($event)"
+          class="month-picker-input">
+
+        <!-- Month Navigation Arrows -->
+        <div class="month-nav-btns" style="display: flex; gap: 0.25rem;">
+          <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
+          <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
+        </div>
+
+        <!-- All Months Pill Toggle -->
+        <button
+          class="pill-btn"
+          [class.active]="service.selectedMonth() === 'ALL'"
+          (click)="showAllMonths()"
+          style="font-size: 0.76rem; padding: 0.25rem 0.6rem; border-radius: 12px;">
+          All Months
+        </button>
+
+        <!-- Current Month Shortcut -->
+        <button
+          *ngIf="service.selectedMonth() !== service.getCurrentMonthString()"
+          class="btn btn-secondary btn-xs"
+          (click)="goToCurrentMonth()"
+          style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">
+          Today
+        </button>
       </div>
 
       <div class="toolbar-actions">

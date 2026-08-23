@@ -43,6 +43,38 @@ export class LedgerComponent {
     this.cashCurrency = this.service.currency();
   }
 
+  public onMonthPick(val: string) {
+    if (val) {
+      this.service.selectedMonth.set(val);
+    }
+  }
+
+  public showAllMonths() {
+    this.service.selectedMonth.set('ALL');
+  }
+
+  public goToCurrentMonth() {
+    this.service.selectedMonth.set(this.service.getCurrentMonthString());
+  }
+
+  public prevMonth() {
+    const curr = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
+    const [y, m] = curr.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    const newY = d.getFullYear();
+    const newM = String(d.getMonth() + 1).padStart(2, '0');
+    this.service.selectedMonth.set(`${newY}-${newM}`);
+  }
+
+  public nextMonth() {
+    const curr = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
+    const [y, m] = curr.split('-').map(Number);
+    const d = new Date(y, m, 1);
+    const newY = d.getFullYear();
+    const newM = String(d.getMonth() + 1).padStart(2, '0');
+    this.service.selectedMonth.set(`${newY}-${newM}`);
+  }
+
   public openCashModal() {
     this.cashDate = new Date().toISOString().slice(0, 10);
     this.cashAmount = 0;
