@@ -269,11 +269,12 @@ export class BudgetDashboardComponent {
     };
   });
 
-  // Person-Level Savings & Leftover Unused Budget Breakdown
+  // Person-Level Savings & Remaining Unused Budget Breakdown (Including Split Settlements)
   public personSavingsBreakdown = computed(() => {
     const p1 = this.service.personOne().name;
     const p2 = this.service.personTwo().name;
     const summaries = this.groupSummaries();
+    const settlement = this.service.monthSettlement();
 
     let p1Income = 0;
     let p2Income = 0;
@@ -325,8 +326,25 @@ export class BudgetDashboardComponent {
       });
     });
 
-    const p1TotalSavings = p1PlannedSavings + p1UnusedBudget;
-    const p2TotalSavings = p2PlannedSavings + p2UnusedBudget;
+    const p1BaseSavings = p1PlannedSavings + p1UnusedBudget;
+    const p2BaseSavings = p2PlannedSavings + p2UnusedBudget;
+
+    // Split settlement adjustments
+    let p1SettlementAdj = 0;
+    let p2SettlementAdj = 0;
+
+    if (!settlement.isSettled) {
+      if (settlement.creditorName === p1) {
+        p1SettlementAdj = settlement.netOwedAmount;
+        p2SettlementAdj = -settlement.netOwedAmount;
+      } else if (settlement.creditorName === p2) {
+        p1SettlementAdj = -settlement.netOwedAmount;
+        p2SettlementAdj = settlement.netOwedAmount;
+      }
+    }
+
+    const p1TotalSavings = p1BaseSavings + p1SettlementAdj;
+    const p2TotalSavings = p2BaseSavings + p2SettlementAdj;
 
     return {
       p1: {
@@ -335,6 +353,8 @@ export class BudgetDashboardComponent {
         plannedSavings: p1PlannedSavings,
         unusedBudget: p1UnusedBudget,
         actualSpent: p1ActualSpent,
+        baseSavings: p1BaseSavings,
+        settlementAdj: p1SettlementAdj,
         totalSavings: p1TotalSavings
       },
       p2: {
@@ -343,8 +363,11 @@ export class BudgetDashboardComponent {
         plannedSavings: p2PlannedSavings,
         unusedBudget: p2UnusedBudget,
         actualSpent: p2ActualSpent,
+        baseSavings: p2BaseSavings,
+        settlementAdj: p2SettlementAdj,
         totalSavings: p2TotalSavings
       },
+      settlement,
       totalSavingsCombined: p1TotalSavings + p2TotalSavings
     };
   });

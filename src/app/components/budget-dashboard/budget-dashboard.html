@@ -277,6 +277,11 @@
                 <span>+ Leftover Unused Budget:</span>
                 <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p1.unusedBudget) }}</span>
               </div>
+              <!-- Split Reimbursement Adjustment -->
+              <div *ngIf="personSavingsBreakdown().p1.settlementAdj !== 0" style="display: flex; justify-content: space-between;" [style.color]="personSavingsBreakdown().p1.settlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>{{ personSavingsBreakdown().p1.settlementAdj > 0 ? '+ Owed by ' + personSavingsBreakdown().p2.name + ' (Split)' : '- Owes ' + personSavingsBreakdown().p2.name + ' (Split)' }}:</span>
+                <span class="font-mono">{{ personSavingsBreakdown().p1.settlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p1.settlementAdj) }}</span>
+              </div>
             </div>
           </div>
 
@@ -296,6 +301,11 @@
               <div style="display: flex; justify-content: space-between; color: #38bdf8;">
                 <span>+ Leftover Unused Budget:</span>
                 <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p2.unusedBudget) }}</span>
+              </div>
+              <!-- Split Reimbursement Adjustment -->
+              <div *ngIf="personSavingsBreakdown().p2.settlementAdj !== 0" style="display: flex; justify-content: space-between;" [style.color]="personSavingsBreakdown().p2.settlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>{{ personSavingsBreakdown().p2.settlementAdj > 0 ? '+ Owed by ' + personSavingsBreakdown().p1.name + ' (Split)' : '- Owes ' + personSavingsBreakdown().p1.name + ' (Split)' }}:</span>
+                <span class="font-mono">{{ personSavingsBreakdown().p2.settlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p2.settlementAdj) }}</span>
               </div>
             </div>
           </div>
