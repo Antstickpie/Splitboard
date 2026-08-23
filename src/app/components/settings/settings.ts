@@ -24,20 +24,28 @@ export class SettingsComponent {
   public isEditingRates = signal<boolean>(false);
 
   public exchangeRatePairs = computed(() => {
-    const rates = this.service.exchangeRates();
-    return Object.entries(rates).map(([key, rate]) => {
-      const parts = key.includes('_') ? key.split('_') : key.split('/');
-      const from = parts[0] || '';
-      const to = parts[1] || '';
-      return {
-        key,
-        from,
-        to,
-        name: `1 ${from} = ${rate} ${to}`,
-        pairLabel: `${from} → ${to}`,
-        rate
-      };
-    });
+    const currencies = this.service.visibleCurrencies();
+    const pairs: Array<{ key: string; from: string; to: string; name: string; pairLabel: string; rate: number }> = [];
+
+    for (let i = 0; i < currencies.length; i++) {
+      for (let j = 0; j < currencies.length; j++) {
+        if (i !== j) {
+          const from = currencies[i];
+          const to = currencies[j];
+          const key = `${from}_${to}`;
+          const rate = this.service.getExchangeRate(from, to);
+          pairs.push({
+            key,
+            from,
+            to,
+            name: `1 ${from} = ${rate} ${to}`,
+            pairLabel: `${from} → ${to}`,
+            rate
+          });
+        }
+      }
+    }
+    return pairs;
   });
 
   public updateExchangeRate(key: string, rate: number) {
