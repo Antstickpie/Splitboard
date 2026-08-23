@@ -10,6 +10,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.8rem;
+  overflow: visible !important;
+  z-index: 50;
+  position: relative;
 }
 
 /* EveryDollar Month Picker */
@@ -52,6 +55,17 @@
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1);
   padding: 1.1rem;
   animation: fadeInDown 0.15s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .popover-year-bar {

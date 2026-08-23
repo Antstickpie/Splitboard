@@ -155,7 +155,7 @@ body.light-theme {
   box-shadow: var(--shadow-md);
   transition: var(--transition-smooth);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .glass-card::before {
