@@ -112,6 +112,19 @@ export class ImportComponent {
     this.service.showToast('Included transaction in import list', 'success');
   }
 
+  public includeAllDuplicates(): void {
+    const res = this.previewResult();
+    if (!res || res.duplicates.length === 0) return;
+    const count = res.duplicates.length;
+    this.previewResult.set({
+      ...res,
+      transactions: [...res.transactions, ...res.duplicates],
+      duplicates: [],
+      duplicatesCount: 0
+    });
+    this.service.showToast(`Included all ${count} duplicate rows into import list`, 'success');
+  }
+
   public includeExcluded(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;

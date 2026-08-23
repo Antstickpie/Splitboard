@@ -123,9 +123,13 @@ export class StatementParserService {
     const parsedRows = lines.map((line) => this.parseCsvLine(line, delimiter));
 
     const mapping = customMappings || this.detectColumnMapping(parsedRows, detectedBank);
-    const existingSignatures = new Set(
-      this.service.transactions().map((t) => this.service.getTransactionSignature(t))
-    );
+    
+    // Count occurrences already in Database (never flag intra-statement rows as duplicate)
+    const dbSigCounts = new Map<string, number>();
+    for (const t of this.service.transactions()) {
+      const sig = this.service.getTransactionSignature(t);
+      dbSigCounts.set(sig, (dbSigCounts.get(sig) || 0) + 1);
+    }
 
     const transactions: Transaction[] = [];
     const duplicates: Transaction[] = [];
@@ -209,12 +213,13 @@ export class StatementParserService {
         continue;
       }
 
-      // 2. Check Duplicates
+      // 2. Check Duplicates against Database only
       const sig = this.service.getTransactionSignature(tx);
-      if (existingSignatures.has(sig)) {
+      const dbCount = dbSigCounts.get(sig) || 0;
+      if (dbCount > 0) {
         duplicates.push(tx);
+        dbSigCounts.set(sig, dbCount - 1);
       } else {
-        existingSignatures.add(sig);
         transactions.push(tx);
       }
     }
@@ -240,9 +245,13 @@ export class StatementParserService {
     const duplicates: Transaction[] = [];
     const excluded: Transaction[] = [];
     const detectedBank = this.detectBank(bankName, fileName, text);
-    const existingSignatures = new Set(
-      this.service.transactions().map((t) => this.service.getTransactionSignature(t))
-    );
+    
+    // Count occurrences already in Database (never flag intra-statement rows as duplicate)
+    const dbSigCounts = new Map<string, number>();
+    for (const t of this.service.transactions()) {
+      const sig = this.service.getTransactionSignature(t);
+      dbSigCounts.set(sig, (dbSigCounts.get(sig) || 0) + 1);
+    }
 
     // Matches German statement patterns: DD.MM.YYYY | DD/MM/YYYY text +/-amount EUR
     const regex = /(\d{2}[./\-]\d{2}[./\-]\d{2,4})\s+([A-Za-z0-9\s\-.,/&@äöüÄÖÜß#*+]+?)\s+([+\-]?\s*\d{1,3}(?:\.\d{3})*,\d{2}|[+\-]?\s*\d+\.\d{2})\s*(?:EUR|€)?/g;
@@ -288,10 +297,11 @@ export class StatementParserService {
       }
 
       const sig = this.service.getTransactionSignature(tx);
-      if (existingSignatures.has(sig)) {
+      const dbCount = dbSigCounts.get(sig) || 0;
+      if (dbCount > 0) {
         duplicates.push(tx);
+        dbSigCounts.set(sig, dbCount - 1);
       } else {
-        existingSignatures.add(sig);
         transactions.push(tx);
       }
     }

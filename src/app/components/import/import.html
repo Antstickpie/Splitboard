@@ -197,9 +197,18 @@
 
     <!-- TAB 2: Duplicate Transactions Separate Table -->
     <div *ngIf="previewTab() === 'duplicates'">
-      <div class="preview-info-banner warning">
-        <span>⚠️</span>
-        <span>These {{ res.duplicates.length }} transactions already match existing records in your database or appeared multiple times in this file. They are skipped by default.</span>
+      <div class="preview-info-banner warning" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <span>⚠️</span>
+          <span>These {{ res.duplicates.length }} transactions already match records existing in your database ledger.</span>
+        </div>
+        <button
+          *ngIf="res.duplicates.length > 0"
+          class="btn btn-primary btn-xs"
+          (click)="includeAllDuplicates()"
+          style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
+          + Include All {{ res.duplicates.length }} Rows Anyway
+        </button>
       </div>
 
       <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
