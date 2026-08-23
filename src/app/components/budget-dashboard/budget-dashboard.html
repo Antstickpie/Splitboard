@@ -239,6 +239,37 @@
 
       <!-- TAB 2: Summary / Analytics -->
       <div class="sidebar-body" *ngIf="sidebarTab() === 'summary'">
+        <!-- Monthly Split Settlement Card (Who Owes Who) -->
+        <div class="sidebar-summary-box" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 0.8rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+            <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600;">⚖️ Split Settlement</span>
+            <span class="badge" [class.badge-success]="service.monthSettlement().isSettled" [class.badge-warning]="!service.monthSettlement().isSettled" style="font-size: 0.68rem;">
+              {{ service.monthSettlement().isSettled ? 'All Settled' : 'Active Balance' }}
+            </span>
+          </div>
+
+          <!-- When debt exists -->
+          <div *ngIf="!service.monthSettlement().isSettled" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.4rem; padding: 0.6rem 0.8rem; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px;">
+            <div>
+              <div style="font-size: 0.92rem; font-weight: 700; color: #f59e0b;">
+                <strong>{{ service.monthSettlement().debtorName }}</strong> owes <strong>{{ service.monthSettlement().creditorName }}</strong>
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem;">
+                Net split settlement for {{ service.formatMonth(selectedMonth()) }}
+              </div>
+            </div>
+            <div class="font-mono" style="font-size: 1.2rem; font-weight: 800; color: #f59e0b;">
+              {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
+            </div>
+          </div>
+
+          <!-- When settled -->
+          <div *ngIf="service.monthSettlement().isSettled" style="padding: 0.5rem 0.8rem; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; text-align: center; margin-top: 0.4rem;">
+            <span style="color: var(--success); font-weight: 700; font-size: 0.84rem;">✓ All Settled Up</span>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem;">No outstanding split balances for this month</div>
+          </div>
+        </div>
+
         <!-- Key Metrics Cards -->
         <div class="sidebar-summary-box">
           <div class="summary-kpi-row">
