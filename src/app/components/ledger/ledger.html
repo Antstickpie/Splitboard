@@ -374,9 +374,9 @@
           <div *ngIf="cashSplitOption === 'CUSTOM'" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Custom Split Mode:</span>
-              <div class="toggle-group" style="height: 26px; width: 160px;">
-                <button class="toggle-btn" [class.active]="cashSplitMode === 'EXACT'" (click)="cashSplitMode = 'EXACT'" style="flex: 1; font-size: 0.72rem;">$ Exact Money</button>
-                <button class="toggle-btn" [class.active]="cashSplitMode === 'PERCENTAGE'" (click)="cashSplitMode = 'PERCENTAGE'" style="flex: 1; font-size: 0.72rem;">% Percent</button>
+              <div class="toggle-group" style="height: 30px; width: 190px;">
+                <button class="toggle-btn" [class.active]="cashSplitMode === 'EXACT'" (click)="cashSplitMode = 'EXACT'" style="flex: 1; font-size: 0.75rem; white-space: nowrap; padding: 0 0.5rem;">Amount ($)</button>
+                <button class="toggle-btn" [class.active]="cashSplitMode === 'PERCENTAGE'" (click)="cashSplitMode = 'PERCENTAGE'" style="flex: 1; font-size: 0.75rem; white-space: nowrap; padding: 0 0.5rem;">Percent (%)</button>
               </div>
             </div>
 
