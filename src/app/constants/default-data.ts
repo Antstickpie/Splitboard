@@ -6,11 +6,54 @@ export const DEFAULT_PERSONS: Person[] = [
 ];
 
 export const DEFAULT_BANKS: BankConfig[] = [
-  { id: 'b1', name: 'Deutsche Bank', defaultOwner: 'Mac' },
-  { id: 'b2', name: 'Amazon Visa (Zinia)', defaultOwner: 'Mac' },
-  { id: 'b3', name: 'Amex', defaultOwner: 'Mac' },
-  { id: 'b4', name: 'Revolut', defaultOwner: 'Cheese' },
-  { id: 'b5', name: 'Commerzbank', defaultOwner: 'Cheese' }
+  {
+    id: 'b1',
+    name: 'Deutsche Bank',
+    defaultOwner: 'Mac',
+    defaultCurrency: 'EUR',
+    dateColName: 'Buchungstag',
+    descColName: 'Begünstigter',
+    descColName2: 'Verwendungszweck',
+    amountColName: 'Betrag'
+  },
+  {
+    id: 'b2',
+    name: 'Amazon Visa (Zinia)',
+    defaultOwner: 'Mac',
+    defaultCurrency: 'EUR',
+    dateColName: 'Transaktion',
+    descColName: 'Händler',
+    amountColName: 'Betrag'
+  },
+  {
+    id: 'b3',
+    name: 'Amex',
+    defaultOwner: 'Mac',
+    defaultCurrency: 'EUR',
+    dateColName: 'Datum',
+    descColName: 'Beschreibung',
+    amountColName: 'Betrag'
+  },
+  {
+    id: 'b4',
+    name: 'Revolut',
+    defaultOwner: 'Cheese',
+    defaultCurrency: 'EUR',
+    dateColName: 'Started Date',
+    descColName: 'Description',
+    amountColName: 'Amount',
+    currencyColName: 'Currency'
+  },
+  {
+    id: 'b5',
+    name: 'Commerzbank',
+    defaultOwner: 'Cheese',
+    defaultCurrency: 'EUR',
+    dateColName: 'Buchungstag',
+    descColName: 'Buchungstext',
+    descColName2: 'Verwendungszweck',
+    amountColName: 'Betrag'
+  }
 ];
 
 export const DEFAULT_RULES: CategoryRule[] = [

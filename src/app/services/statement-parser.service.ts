@@ -338,7 +338,9 @@ export class StatementParserService {
         lineStr.includes('buchungstag') ||
         lineStr.includes('verwendungszweck') ||
         lineStr.includes('betrag') ||
-        lineStr.includes('amount')
+        lineStr.includes('amount') ||
+        lineStr.includes('description') ||
+        lineStr.includes('started date')
       ) {
         headerRowIdx = r;
         break;
@@ -350,120 +352,51 @@ export class StatementParserService {
       (h) => h.includes('currency') || h.includes('währung') || h.includes('curr') || h.includes('devise')
     );
 
-    // 0. Check user-configured BankConfig custom column mapping
-    const customConfig = this.service.bankConfigs().find(
-      (b) => b.name.toLowerCase() === bank.toLowerCase()
+    // Look up bank from exported / user-configured BankConfigs
+    const bankConfig = this.service.bankConfigs().find(
+      (b) => b.name.toLowerCase() === bank.toLowerCase() || bank.toLowerCase().includes(b.name.toLowerCase())
     );
-    if (customConfig && (customConfig.dateColName || customConfig.descColName || customConfig.amountColName || customConfig.currencyColName)) {
-      const dateIdx = customConfig.dateColName
-        ? header.findIndex((h) => h.includes(customConfig.dateColName!.toLowerCase()))
-        : -1;
-      const descIdx = customConfig.descColName
-        ? header.findIndex((h) => h.includes(customConfig.descColName!.toLowerCase()))
-        : -1;
-      const amountIdx = customConfig.amountColName
-        ? header.findIndex((h) => h.includes(customConfig.amountColName!.toLowerCase()))
-        : -1;
-      const currencyIdx = customConfig.currencyColName
-        ? header.findIndex((h) => h.includes(customConfig.currencyColName!.toLowerCase()))
-        : genericCurrencyIdx;
 
-      if (dateIdx >= 0 || descIdx >= 0 || amountIdx >= 0) {
-        return {
-          dateIdx: dateIdx >= 0 ? dateIdx : 0,
-          descIdx: descIdx >= 0 ? descIdx : 1,
-          amountIdx: amountIdx >= 0 ? amountIdx : header.length - 1,
-          currencyIdx: currencyIdx >= 0 ? currencyIdx : undefined,
-          hasHeader: true,
-          headerRowIndex: headerRowIdx
-        };
+    let dateIdx = -1;
+    let descIdx = -1;
+    let descIdx2: number | undefined = undefined;
+    let amountIdx = -1;
+    let currencyIdx: number | undefined = genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined;
+
+    if (bankConfig) {
+      if (bankConfig.dateColName) {
+        dateIdx = header.findIndex((h) => h.includes(bankConfig.dateColName!.toLowerCase()));
+      }
+      if (bankConfig.descColName) {
+        descIdx = header.findIndex((h) => h.includes(bankConfig.descColName!.toLowerCase()));
+      }
+      if (bankConfig.descColName2) {
+        const d2 = header.findIndex((h) => h.includes(bankConfig.descColName2!.toLowerCase()));
+        if (d2 >= 0 && d2 !== descIdx) descIdx2 = d2;
+      }
+      if (bankConfig.amountColName) {
+        amountIdx = header.findIndex((h) => h.includes(bankConfig.amountColName!.toLowerCase()));
+      }
+      if (bankConfig.currencyColName) {
+        const cIdx = header.findIndex((h) => h.includes(bankConfig.currencyColName!.toLowerCase()));
+        if (cIdx >= 0) currencyIdx = cIdx;
       }
     }
 
-    // 1. Deutsche Bank
-    if (bank === 'Deutsche Bank') {
-      const dateIdx = header.findIndex((h) => h.includes('buchungstag') || h.includes('wertstellung') || h.includes('datum'));
-      const descIdx = header.findIndex((h) => h.includes('begünstigter') || h.includes('verwendungszweck') || h.includes('umsatzart'));
-      const descIdx2 = header.findIndex((h) => h.includes('verwendungszweck') && h !== header[descIdx]);
-      const amountIdx = header.findIndex((h) => h.includes('betrag') || h.includes('soll') || h.includes('haben'));
-      return {
-        dateIdx: dateIdx >= 0 ? dateIdx : 0,
-        descIdx: descIdx >= 0 ? descIdx : 3,
-        descIdx2: descIdx2 >= 0 ? descIdx2 : undefined,
-        amountIdx: amountIdx >= 0 ? amountIdx : rows[headerRowIdx].length - 1,
-        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
-        hasHeader: true,
-        headerRowIndex: headerRowIdx
-      };
+    // Smart Fallback if bank config column was not found in header
+    if (dateIdx === -1) {
+      dateIdx = header.findIndex((h) => h.includes('started date') || h.includes('completed date') || h.includes('transaktion') || h.includes('buchungstag') || h.includes('datum') || h.includes('date') || h.includes('buchung'));
     }
-
-    // 2. Amazon Visa (Zinia)
-    if (bank === 'Amazon Visa (Zinia)') {
-      const dateIdx = header.findIndex((h) => h.includes('transaktion') || h.includes('datum') || h.includes('buchung'));
-      const descIdx = header.findIndex((h) => h.includes('händler') || h.includes('beschreibung') || h.includes('description') || h.includes('text'));
-      const amountIdx = header.findIndex((h) => h.includes('betrag') || h.includes('amount'));
-      return {
-        dateIdx: dateIdx >= 0 ? dateIdx : 0,
-        descIdx: descIdx >= 0 ? descIdx : 2,
-        amountIdx: amountIdx >= 0 ? amountIdx : 3,
-        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
-        hasHeader: true,
-        headerRowIndex: headerRowIdx
-      };
+    if (descIdx === -1) {
+      descIdx = header.findIndex((h) => h.includes('description') || h.includes('beschreibung') || h.includes('händler') || h.includes('begünstigter') || h.includes('buchungstext') || h.includes('verwendungszweck') || h.includes('empfänger') || h.includes('payee') || h.includes('text') || h.includes('details'));
     }
-
-    // 3. Amex (American Express Germany)
-    if (bank === 'Amex') {
-      const dateIdx = header.findIndex((h) => h.includes('datum') || h.includes('date'));
-      const descIdx = header.findIndex((h) => h.includes('beschreibung') || h.includes('description') || h.includes('details'));
-      const amountIdx = header.findIndex((h) => h.includes('betrag') || h.includes('amount'));
-      return {
-        dateIdx: dateIdx >= 0 ? dateIdx : 0,
-        descIdx: descIdx >= 0 ? descIdx : 1,
-        amountIdx: amountIdx >= 0 ? amountIdx : 4,
-        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
-        hasHeader: true,
-        headerRowIndex: headerRowIdx
-      };
+    if (descIdx2 === undefined) {
+      const secondaryDesc = header.findIndex((h) => (h.includes('verwendungszweck') || h.includes('auftraggeber') || h.includes('details')) && h !== header[descIdx]);
+      if (secondaryDesc >= 0) descIdx2 = secondaryDesc;
     }
-
-    // 4. Revolut
-    if (bank === 'Revolut') {
-      const dateIdx = header.findIndex((h) => h.includes('started date') || h.includes('completed date') || h.includes('date') || h.includes('datum'));
-      const descIdx = header.findIndex((h) => h.includes('description') || h.includes('beschreibung'));
-      const amountIdx = header.findIndex((h) => h.includes('amount') || h.includes('betrag'));
-      const currencyIdx = header.findIndex((h) => h.includes('currency') || h.includes('währung'));
-      return {
-        dateIdx: dateIdx >= 0 ? dateIdx : 2,
-        descIdx: descIdx >= 0 ? descIdx : 4,
-        amountIdx: amountIdx >= 0 ? amountIdx : 5,
-        currencyIdx: currencyIdx >= 0 ? currencyIdx : 7,
-        hasHeader: true,
-        headerRowIndex: headerRowIdx
-      };
+    if (amountIdx === -1) {
+      amountIdx = header.findIndex((h) => h.includes('amount') || h.includes('betrag') || h.includes('summe') || h.includes('soll') || h.includes('haben') || h.includes('wert'));
     }
-
-    // 5. Commerzbank
-    if (bank === 'Commerzbank') {
-      const dateIdx = header.findIndex((h) => h.includes('buchungstag') || h.includes('wertstellung') || h.includes('datum'));
-      const descIdx = header.findIndex((h) => h.includes('buchungstext') || h.includes('auftraggeber') || h.includes('text') || h.includes('verwendungszweck'));
-      const descIdx2 = header.findIndex((h) => h.includes('verwendungszweck') || h.includes('auftraggeber'));
-      const amountIdx = header.findIndex((h) => h.includes('betrag') || h.includes('amount'));
-      return {
-        dateIdx: dateIdx >= 0 ? dateIdx : 0,
-        descIdx: descIdx >= 0 ? descIdx : 3,
-        descIdx2: descIdx2 >= 0 && descIdx2 !== descIdx ? descIdx2 : undefined,
-        amountIdx: amountIdx >= 0 ? amountIdx : 4,
-        currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
-        hasHeader: true,
-        headerRowIndex: headerRowIdx
-      };
-    }
-
-    // Generic fallback
-    let dateIdx = header.findIndex((h) => h.includes('datum') || h.includes('date') || h.includes('buchung'));
-    let descIdx = header.findIndex((h) => h.includes('verwendungszweck') || h.includes('beschreibung') || h.includes('empfänger') || h.includes('payee') || h.includes('text'));
-    let amountIdx = header.findIndex((h) => h.includes('betrag') || h.includes('amount') || h.includes('summe') || h.includes('wert'));
 
     if (dateIdx === -1) dateIdx = 0;
     if (descIdx === -1) descIdx = 1;
@@ -472,11 +405,13 @@ export class StatementParserService {
     return {
       dateIdx,
       descIdx,
+      descIdx2,
       amountIdx,
-      currencyIdx: genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined,
+      currencyIdx,
       hasHeader: true,
       headerRowIndex: headerRowIdx
     };
+  }
   }
 
   public normalizeDate(str: string): string | null {

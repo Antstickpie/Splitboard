@@ -414,7 +414,23 @@ export class TransactionService {
       if (data.bankConfigs && data.bankConfigs.length > 0) {
         const unwantedDefaults = new Set(['sparkasse', 'dkb', 'ing', 'n26', 'bunq']);
         const cleaned = data.bankConfigs.filter((b) => !unwantedDefaults.has(b.name.toLowerCase()));
-        this.bankConfigs.set(cleaned.length > 0 ? cleaned : DEFAULT_BANKS);
+        const merged = cleaned.map((b) => {
+          const def = DEFAULT_BANKS.find((d) => d.name.toLowerCase() === b.name.toLowerCase());
+          if (def) {
+            return {
+              ...def,
+              ...b,
+              dateColName: b.dateColName || def.dateColName,
+              descColName: b.descColName || def.descColName,
+              descColName2: b.descColName2 || def.descColName2,
+              amountColName: b.amountColName || def.amountColName,
+              currencyColName: b.currencyColName || def.currencyColName,
+              defaultCurrency: b.defaultCurrency || def.defaultCurrency
+            };
+          }
+          return b;
+        });
+        this.bankConfigs.set(merged.length > 0 ? merged : DEFAULT_BANKS);
       } else {
         this.bankConfigs.set(DEFAULT_BANKS);
       }
@@ -499,6 +515,11 @@ export class TransactionService {
     const newBank: BankConfig = { id, ...bank, name: trimmedName };
     this.bankConfigs.update((curr) => [...curr, newBank]);
     this.showToast(`Configured statement reader for "${trimmedName}"`, 'success');
+  }
+
+  public updateBankConfig(bank: BankConfig): void {
+    this.bankConfigs.update((curr) => curr.map((b) => (b.id === bank.id ? bank : b)));
+    this.showToast(`Updated "${bank.name}" configuration`, 'success');
   }
 
   public deleteBankConfig(id: string): void {

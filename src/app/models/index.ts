@@ -69,8 +69,10 @@ export interface BankConfig {
   accountNumber?: string;
   dateColName?: string;
   descColName?: string;
+  descColName2?: string;
   amountColName?: string;
   currencyColName?: string;
+  delimiter?: string;
 }
 
 export interface CategoryRule {
