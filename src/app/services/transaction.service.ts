@@ -412,15 +412,9 @@ export class TransactionService {
         this.transactions.set(cleanedTxs);
       }
       if (data.bankConfigs && data.bankConfigs.length > 0) {
-        const existingBankNames = new Set(data.bankConfigs.map((b) => b.name.toLowerCase()));
-        const mergedBanks = [...data.bankConfigs];
-        for (const def of DEFAULT_BANKS) {
-          if (!existingBankNames.has(def.name.toLowerCase())) {
-            mergedBanks.push(def);
-            existingBankNames.add(def.name.toLowerCase());
-          }
-        }
-        this.bankConfigs.set(mergedBanks);
+        const unwantedDefaults = new Set(['sparkasse', 'dkb', 'ing', 'n26', 'bunq']);
+        const cleaned = data.bankConfigs.filter((b) => !unwantedDefaults.has(b.name.toLowerCase()));
+        this.bankConfigs.set(cleaned.length > 0 ? cleaned : DEFAULT_BANKS);
       } else {
         this.bankConfigs.set(DEFAULT_BANKS);
       }
