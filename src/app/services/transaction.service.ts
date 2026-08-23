@@ -9,7 +9,8 @@ import {
   AppDataBackup,
   SplitType,
   SplitMode,
-  CategoryRule
+  CategoryRule,
+  ExcludeRule
 } from '../models';
 import { DEFAULT_PERSONS, DEFAULT_BANKS, DEFAULT_CATEGORY_GROUPS, DEFAULT_RULES } from '../constants/default-data';
 
