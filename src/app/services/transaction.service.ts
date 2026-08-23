@@ -80,6 +80,25 @@ export class TransactionService {
   public autoSyncGoogleDrive = signal<boolean>(false);
   public googleFileName = signal<string>('splitbunch_backup.json');
 
+  // Currency & Multi-Currency State
+  public visibleCurrencies = signal<string[]>(['EUR', 'USD', 'INR', 'GBP']);
+  public exchangeRates = signal<Record<string, number>>({
+    'EUR_USD': 1.085,
+    'USD_EUR': 0.9216,
+    'EUR_INR': 90.5,
+    'INR_EUR': 0.01105,
+    'EUR_GBP': 0.855,
+    'GBP_EUR': 1.1696,
+    'USD_INR': 83.4,
+    'INR_USD': 0.01199,
+    'GBP_USD': 1.27,
+    'USD_GBP': 0.7874,
+    'GBP_INR': 105.8,
+    'INR_GBP': 0.00945
+  });
+  public lastRatesRefresh = signal<number | null>(null);
+  public isFetchingRates = signal<boolean>(false);
+
   // UI State Signals
   public toasts = signal<Toast[]>([]);
   public confirmModal = signal<ConfirmModalConfig | null>(null);
@@ -277,6 +296,7 @@ export class TransactionService {
     this.loadFromStorage();
     this.applyTheme();
     this.initGoogleAuthIfPossible();
+    this.fetchExchangeRates(true);
 
     // Auto-save effect
     effect(() => {
@@ -293,6 +313,8 @@ export class TransactionService {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
           numberFormat: this.numberFormat(),
+          visibleCurrencies: this.visibleCurrencies(),
+          exchangeRates: this.exchangeRates(),
           autoSyncDrive: this.autoSyncGoogleDrive(),
           googleFileName: this.googleFileName(),
           theme: this.theme()
@@ -324,6 +346,10 @@ export class TransactionService {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
         if (data.settings.numberFormat) this.numberFormat.set(data.settings.numberFormat);
+        if (data.settings.visibleCurrencies && data.settings.visibleCurrencies.length > 0) {
+          this.visibleCurrencies.set(data.settings.visibleCurrencies);
+        }
+        if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
         if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
         if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
         if (data.settings.theme) this.theme.set(data.settings.theme);
@@ -573,6 +599,104 @@ export class TransactionService {
         return [...curr, { month, planned: defaults }];
       }
     });
+  }
+
+  // Multi-Currency & Exchange Rates
+  public getCurrencySymbol(code?: string): string {
+    const c = (code || this.currency()).toUpperCase().trim();
+    switch (c) {
+      case 'EUR': return '€';
+      case 'USD': return '$';
+      case 'INR': return '₹';
+      case 'GBP': return '£';
+      case 'JPY': return '¥';
+      case 'CAD': return 'C$';
+      case 'AUD': return 'A$';
+      case 'CHF': return 'CHF';
+      case 'SGD': return 'S$';
+      case 'AED': return 'AED';
+      default: return c;
+    }
+  }
+
+  public addVisibleCurrency(code: string): void {
+    const clean = code.toUpperCase().trim();
+    if (!clean) return;
+    if (!this.visibleCurrencies().includes(clean)) {
+      this.visibleCurrencies.update((curr) => [...curr, clean]);
+      this.fetchExchangeRates(true);
+      this.showToast(`Currency "${clean}" added`, 'success');
+    }
+  }
+
+  public removeVisibleCurrency(index: number): void {
+    const list = this.visibleCurrencies();
+    if (list.length <= 1) return;
+    const removed = list[index];
+    this.visibleCurrencies.update((curr) => curr.filter((_, i) => i !== index));
+    if (this.currency() === removed) {
+      this.currency.set(this.visibleCurrencies()[0] || 'EUR');
+    }
+  }
+
+  public getExchangeRate(from: string, to: string): number {
+    const f = (from || 'EUR').toUpperCase().trim();
+    const t = (to || 'EUR').toUpperCase().trim();
+    if (f === t) return 1.0;
+
+    const pair = `${f}_${t}`;
+    const rates = this.exchangeRates();
+    if (rates[pair]) return rates[pair];
+
+    const revPair = `${t}_${f}`;
+    if (rates[revPair] && rates[revPair] > 0) return parseFloat((1 / rates[revPair]).toFixed(6));
+
+    // Bridge via EUR
+    const fToEur = f === 'EUR' ? 1 : (rates[`${f}_EUR`] || (rates[`EUR_${f}`] ? 1 / rates[`EUR_${f}`] : null));
+    const eurToT = t === 'EUR' ? 1 : (rates[`EUR_${t}`] || (rates[`${t}_EUR`] ? 1 / rates[`${t}_EUR`] : null));
+
+    if (fToEur !== null && eurToT !== null) {
+      return parseFloat((fToEur * eurToT).toFixed(6));
+    }
+
+    return 1.0;
+  }
+
+  public convertAmount(amount: number, from: string, to: string): number {
+    const rate = this.getExchangeRate(from, to);
+    return parseFloat((amount * rate).toFixed(2));
+  }
+
+  public async fetchExchangeRates(silent = false): Promise<void> {
+    this.isFetchingRates.set(true);
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/EUR');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data && data.rates) {
+        const rates = data.rates;
+        const newRates: Record<string, number> = { ...this.exchangeRates() };
+        const currencies = Array.from(new Set([...this.visibleCurrencies(), 'EUR', 'USD', 'INR', 'GBP', 'CAD', 'AUD', 'CHF', 'JPY']));
+
+        currencies.forEach((c1) => {
+          currencies.forEach((c2) => {
+            if (c1 !== c2 && rates[c1] && rates[c2]) {
+              const rate = rates[c2] / rates[c1];
+              newRates[`${c1}_${c2}`] = parseFloat(rate.toFixed(6));
+            }
+          });
+        });
+
+        this.exchangeRates.set(newRates);
+        this.lastRatesRefresh.set(Date.now());
+        if (!silent) this.showToast('Exchange rates updated live!', 'success');
+      }
+    } catch (err) {
+      console.warn('Failed to fetch exchange rates:', err);
+      if (!silent) this.showToast('Failed to refresh exchange rates online.', 'error');
+    } finally {
+      this.isFetchingRates.set(false);
+    }
   }
 
   // Backup & Restore

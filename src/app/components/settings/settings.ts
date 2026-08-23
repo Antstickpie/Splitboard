@@ -18,6 +18,9 @@ export class SettingsComponent {
   public newCategoryName = '';
   public selectedGroupIdForNewCat = '';
 
+  // Currency Form
+  public newCurrencyCode = '';
+
   // Rule Engine Form
   public newRuleKeyword = '';
   public newRuleCategory = '';
@@ -47,6 +50,12 @@ export class SettingsComponent {
 
   public reapplyRules() {
     this.service.applyRulesToAllTransactions();
+  }
+
+  public addCurrency() {
+    if (!this.newCurrencyCode.trim()) return;
+    this.service.addVisibleCurrency(this.newCurrencyCode.trim());
+    this.newCurrencyCode = '';
   }
 
   public addPerson() {

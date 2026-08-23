@@ -8,28 +8,6 @@
       </div>
 
       <div class="nav-top-right">
-        <!-- Currency Selector -->
-        <div class="currency-toggle">
-          <button
-            class="currency-btn"
-            [class.active]="service.currency() === 'EUR'"
-            (click)="service.currency.set('EUR')">
-            € EUR
-          </button>
-          <button
-            class="currency-btn"
-            [class.active]="service.currency() === 'USD'"
-            (click)="service.currency.set('USD')">
-            $ USD
-          </button>
-          <button
-            class="currency-btn"
-            [class.active]="service.currency() === 'INR'"
-            (click)="service.currency.set('INR')">
-            ₹ INR
-          </button>
-        </div>
-
         <!-- Google Drive Sync Status -->
         <div class="nav-sync" (click)="service.uploadToGoogleDrive()" title="Google Drive cloud sync status. Click to sync.">
           <span [style.color]="service.isGoogleConnected() ? 'var(--success)' : 'var(--text-muted)'" class="sync-dot">●</span>

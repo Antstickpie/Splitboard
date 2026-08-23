@@ -27,6 +27,7 @@ export class LedgerComponent {
   public cashTransferTo = '';
   public cashCategoryGroup = 'Housing';
   public cashCategoryItem = '';
+  public cashCurrency = 'EUR';
   public cashSplitType: SplitType = 'SPLIT';
   public cashSplitPercentage = 50;
 
@@ -39,11 +40,13 @@ export class LedgerComponent {
   constructor() {
     this.cashPaidBy = this.service.personOne().name;
     this.cashTransferTo = this.service.personTwo().name;
+    this.cashCurrency = this.service.currency();
   }
 
   public openCashModal() {
     this.cashDate = new Date().toISOString().slice(0, 10);
     this.cashAmount = 0;
+    this.cashCurrency = this.service.currency();
     this.cashDescription = '';
     this.cashPaidBy = this.service.personOne().name;
     this.cashTransferTo = this.service.personTwo().name;
@@ -61,10 +64,23 @@ export class LedgerComponent {
       return;
     }
 
+    const baseCurrency = this.service.currency();
+    let finalAmount = this.cashAmount;
+    let originalAmount: number | undefined = undefined;
+    let originalCurrency: string | undefined = undefined;
+    let rate: number | undefined = undefined;
+
+    if (this.cashCurrency !== baseCurrency) {
+      finalAmount = this.service.convertAmount(this.cashAmount, this.cashCurrency, baseCurrency);
+      originalAmount = this.cashAmount;
+      originalCurrency = this.cashCurrency;
+      rate = this.service.getExchangeRate(this.cashCurrency, baseCurrency);
+    }
+
     const tx: Transaction = {
       id: 'tx-cash-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
       date: this.cashDate,
-      amount: this.cashAmount,
+      amount: finalAmount,
       type: this.cashIsTransfer ? 'TRANSFER' : 'EXPENSE',
       description: this.cashDescription || (this.cashIsTransfer ? `Cash Transfer to ${this.cashTransferTo}` : 'Cash Expense'),
       bank: 'Cash',
@@ -77,6 +93,10 @@ export class LedgerComponent {
       categoryItem: this.cashIsTransfer ? undefined : this.cashCategoryItem,
       splitType: this.cashIsTransfer ? 'OTHER' : this.cashSplitType,
       splitPercentage: this.cashSplitPercentage,
+      currency: this.cashCurrency,
+      originalAmount,
+      originalCurrency,
+      exchangeRate: rate,
       createdAt: new Date().toISOString()
     };
 

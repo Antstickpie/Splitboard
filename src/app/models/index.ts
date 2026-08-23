@@ -41,10 +41,15 @@ export interface Transaction {
   splitPercentage?: number; // % paidBy keeps for self (default 50)
   customSplitAmounts?: Record<string, number>; // personName -> amount they are responsible for
   
-  // Cash & Transfer
+  // Cash & Transfer & Multi-Currency
   isCash?: boolean;
   isCashTransfer?: boolean;
   transferTo?: string; // person who received cash
+  
+  currency?: string; // transaction currency
+  originalAmount?: number; // amount in original currency
+  originalCurrency?: string;
+  exchangeRate?: number; // exchange rate to app base currency
   
   note?: string;
   sourceFile?: string;
@@ -86,6 +91,8 @@ export interface AppDataBackup {
     currency: string;
     dateFormat: string;
     numberFormat?: string; // '1,234.56' | '1.234,56' | '1 234.56' | '1 234,56'
+    visibleCurrencies?: string[];
+    exchangeRates?: Record<string, number>;
     autoSyncDrive: boolean;
     googleFileName: string;
     theme: 'dark' | 'light';

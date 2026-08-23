@@ -48,13 +48,47 @@
 
       <div class="form-group-stack">
         <div>
-          <label class="input-label">Display Currency</label>
+          <label class="input-label">Base App Currency</label>
           <select [ngModel]="service.currency()" (ngModelChange)="service.currency.set($event)" class="settings-select">
-            <option value="EUR">€ EUR (Euro)</option>
-            <option value="USD">$ USD (US Dollar)</option>
-            <option value="INR">₹ INR (Indian Rupee)</option>
-            <option value="GBP">£ GBP (British Pound)</option>
+            <option *ngFor="let curr of service.visibleCurrencies()" [value]="curr">
+              {{ service.getCurrencySymbol(curr) }} {{ curr }}
+            </option>
           </select>
+        </div>
+
+        <!-- Supported Currencies List -->
+        <div>
+          <label class="input-label">Configured Currencies</label>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem;">
+            <span
+              *ngFor="let curr of service.visibleCurrencies(); let i = index"
+              style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); font-size: 0.78rem;">
+              <strong>{{ service.getCurrencySymbol(curr) }} {{ curr }}</strong>
+              <button
+                *ngIf="service.visibleCurrencies().length > 1"
+                (click)="service.removeVisibleCurrency(i)"
+                style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 0;"
+                title="Remove currency">
+                ✕
+              </button>
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 0.4rem;">
+            <input
+              type="text"
+              [(ngModel)]="newCurrencyCode"
+              placeholder="e.g. CAD, JPY, CHF, AUD..."
+              class="person-input"
+              style="flex: 1; text-transform: uppercase;"
+              (keydown.enter)="addCurrency()">
+            <button class="btn btn-secondary btn-xs" (click)="addCurrency()" [disabled]="!newCurrencyCode.trim()">
+              + Add Currency
+            </button>
+            <button class="btn btn-secondary btn-xs" (click)="service.fetchExchangeRates()" [disabled]="service.isFetchingRates()">
+              {{ service.isFetchingRates() ? 'Fetching...' : '🔄 Live Rates' }}
+            </button>
+          </div>
         </div>
 
         <div>

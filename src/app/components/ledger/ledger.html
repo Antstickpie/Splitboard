@@ -187,7 +187,10 @@
               </select>
             </td>
             <td class="font-mono" style="text-align: right; font-weight: 700; font-size: 0.88rem;" [class.text-success]="tx.type === 'INCOME'">
-              {{ service.formatCurrency(tx.amount) }}
+              <div>{{ service.formatCurrency(tx.amount) }}</div>
+              <div *ngIf="tx.originalCurrency && tx.originalCurrency !== service.currency() && tx.originalAmount" style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500;">
+                ({{ service.getCurrencySymbol(tx.originalCurrency) }}{{ tx.originalAmount }} {{ tx.originalCurrency }})
+              </div>
             </td>
             <td style="text-align: center;">
               <div class="split-toggle-pill">
@@ -252,14 +255,29 @@
     </div>
     <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.8rem;">
       <div style="display: flex; gap: 0.8rem;">
-        <div style="flex: 1;">
+        <div style="flex: 1.2;">
           <label class="input-label">Date</label>
           <input type="date" [(ngModel)]="cashDate" style="width: 100%;">
         </div>
-        <div style="flex: 1;">
-          <label class="input-label">Amount (€)</label>
+        <div style="flex: 1.2;">
+          <label class="input-label">Amount</label>
           <input type="number" step="0.01" [(ngModel)]="cashAmount" placeholder="0.00" style="width: 100%;">
         </div>
+        <div style="flex: 0.9;">
+          <label class="input-label">Currency</label>
+          <select [(ngModel)]="cashCurrency" style="width: 100%;">
+            <option *ngFor="let c of service.visibleCurrencies()" [value]="c">
+              {{ service.getCurrencySymbol(c) }} {{ c }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Multi-Currency Conversion Info -->
+      <div *ngIf="cashCurrency !== service.currency() && cashAmount > 0" style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.76rem;">
+        <span style="color: var(--text-muted);">Converts to base: </span>
+        <strong style="color: var(--primary);">{{ service.formatCurrency(service.convertAmount(cashAmount, cashCurrency, service.currency())) }}</strong>
+        <span style="color: var(--text-muted); font-size: 0.7rem; margin-left: 0.4rem;">(Rate: 1 {{ service.currency() }} = {{ service.getExchangeRate(service.currency(), cashCurrency) }} {{ cashCurrency }})</span>
       </div>
 
       <div>
