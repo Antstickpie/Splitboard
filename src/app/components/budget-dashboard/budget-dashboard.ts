@@ -269,6 +269,86 @@ export class BudgetDashboardComponent {
     };
   });
 
+  // Person-Level Savings & Leftover Unused Budget Breakdown
+  public personSavingsBreakdown = computed(() => {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    const summaries = this.groupSummaries();
+
+    let p1Income = 0;
+    let p2Income = 0;
+    let p1PlannedSavings = 0;
+    let p2PlannedSavings = 0;
+    let p1UnusedBudget = 0;
+    let p2UnusedBudget = 0;
+    let p1ActualSpent = 0;
+    let p2ActualSpent = 0;
+
+    summaries.forEach((grp) => {
+      const isIncome = grp.id === 'grp-income' || grp.name.toLowerCase().includes('income');
+      const isSavings = grp.id === 'grp-savings' || grp.name.toLowerCase().includes('saving');
+
+      grp.items.forEach((item) => {
+        if (isIncome) {
+          if (item.defaultOwner === p1) {
+            p1Income += item.planned;
+          } else if (item.defaultOwner === p2) {
+            p2Income += item.planned;
+          } else {
+            p1Income += item.planned / 2;
+            p2Income += item.planned / 2;
+          }
+        } else if (isSavings) {
+          if (item.defaultOwner === p1) {
+            p1PlannedSavings += item.planned;
+          } else if (item.defaultOwner === p2) {
+            p2PlannedSavings += item.planned;
+          } else {
+            p1PlannedSavings += item.planned / 2;
+            p2PlannedSavings += item.planned / 2;
+          }
+        } else {
+          const unused = Math.max(0, item.remaining);
+          if (item.defaultOwner === p1) {
+            p1UnusedBudget += unused;
+            p1ActualSpent += item.actual;
+          } else if (item.defaultOwner === p2) {
+            p2UnusedBudget += unused;
+            p2ActualSpent += item.actual;
+          } else {
+            p1UnusedBudget += unused / 2;
+            p2UnusedBudget += unused / 2;
+            p1ActualSpent += item.actual / 2;
+            p2ActualSpent += item.actual / 2;
+          }
+        }
+      });
+    });
+
+    const p1TotalSavings = p1PlannedSavings + p1UnusedBudget;
+    const p2TotalSavings = p2PlannedSavings + p2UnusedBudget;
+
+    return {
+      p1: {
+        name: p1,
+        income: p1Income,
+        plannedSavings: p1PlannedSavings,
+        unusedBudget: p1UnusedBudget,
+        actualSpent: p1ActualSpent,
+        totalSavings: p1TotalSavings
+      },
+      p2: {
+        name: p2,
+        income: p2Income,
+        plannedSavings: p2PlannedSavings,
+        unusedBudget: p2UnusedBudget,
+        actualSpent: p2ActualSpent,
+        totalSavings: p2TotalSavings
+      },
+      totalSavingsCombined: p1TotalSavings + p2TotalSavings
+    };
+  });
+
   // Category Expense Distribution Analytics
   public categoryBreakdown = computed(() => {
     const summaries = this.groupSummaries().filter(

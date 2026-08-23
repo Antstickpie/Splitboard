@@ -273,8 +273,58 @@
           </div>
         </div>
 
+        <!-- Person-Level Savings & Remaining Unused Budget Card -->
+        <div class="sidebar-summary-box" style="margin-top: 0.8rem; background: rgba(0, 229, 255, 0.03); border-color: rgba(0, 229, 255, 0.15);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; font-size: 0.88rem; color: var(--primary);">💰 Savings & Unused Budget</h4>
+            <span class="badge badge-success font-mono" style="font-size: 0.75rem;">
+              {{ service.formatCurrency(personSavingsBreakdown().totalSavingsCombined) }} total
+            </span>
+          </div>
+
+          <!-- Person 1 Breakdown -->
+          <div style="background: rgba(255, 255, 255, 0.02); padding: 0.6rem; border-radius: 6px; margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+              <span style="font-weight: 700; font-size: 0.82rem; color: var(--primary);">{{ personSavingsBreakdown().p1.name }}</span>
+              <span class="font-mono" style="font-weight: 700; color: var(--success); font-size: 0.9rem;">
+                {{ service.formatCurrency(personSavingsBreakdown().p1.totalSavings) }}
+              </span>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.15rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>Planned Savings:</span>
+                <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p1.plannedSavings) }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #38bdf8;">
+                <span>+ Leftover Unused Budget:</span>
+                <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p1.unusedBudget) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Person 2 Breakdown -->
+          <div style="background: rgba(255, 255, 255, 0.02); padding: 0.6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+              <span style="font-weight: 700; font-size: 0.82rem; color: var(--secondary);">{{ personSavingsBreakdown().p2.name }}</span>
+              <span class="font-mono" style="font-weight: 700; color: var(--success); font-size: 0.9rem;">
+                {{ service.formatCurrency(personSavingsBreakdown().p2.totalSavings) }}
+              </span>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.15rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>Planned Savings:</span>
+                <span class="font-mono">{{ service.formatCurrency(personSavingsBreakdown().p2.plannedSavings) }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #38bdf8;">
+                <span>+ Leftover Unused Budget:</span>
+                <span class="font-mono">+{{ service.formatCurrency(personSavingsBreakdown().p2.unusedBudget) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Person Split Share Bar -->
-        <div class="sidebar-summary-box" style="margin-top: 1rem;">
+        <div class="sidebar-summary-box" style="margin-top: 0.8rem;">
           <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem;">Spending Split</h4>
           <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.3rem;">
             <span><strong>{{ spendByPerson().p1Name }}</strong>: {{ service.formatCurrency(spendByPerson().p1Spend) }}</span>
