@@ -140,8 +140,61 @@ export class BudgetDashboardComponent {
     };
   });
 
-  public updateItemPlanned(itemId: string, val: any) {
-    const num = parseFloat(val) || 0;
-    this.service.updateBudgetPlanned(this.selectedMonth(), itemId, num);
+  // Category Expense Distribution Analytics
+  public categoryBreakdown = computed(() => {
+    const summaries = this.groupSummaries().filter(
+      (g) => g.id !== 'grp-income' && !g.name.toLowerCase().includes('income')
+    );
+    const totalSpent = summaries.reduce((sum, g) => sum + g.actualTotal, 0);
+
+    const colors = ['#00e5ff', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#6366f1', '#14b8a6'];
+
+    return summaries.map((g, idx) => {
+      const pct = totalSpent > 0 ? Math.round((g.actualTotal / totalSpent) * 100) : 0;
+      return {
+        name: g.name,
+        icon: g.icon,
+        actual: g.actualTotal,
+        planned: g.plannedTotal,
+        pct,
+        color: colors[idx % colors.length]
+      };
+    }).sort((a, b) => b.actual - a.actual);
+  });
+
+  // 6-Month Historical Spending Trend
+  public recentMonthlyTrends = computed(() => {
+    const current = this.selectedMonth();
+    const [currY, currM] = current.split('-').map(Number);
+    const trends = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(currY, currM - 1 - i, 1);
+      const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      
+      let income = 0;
+      let expense = 0;
+
+      this.service.transactions().filter((t) => t.date.startsWith(mStr)).forEach((t) => {
+        const isInc = (t.categoryGroup || '').toLowerCase().includes('income') || (t.categoryItem || '').toLowerCase().includes('salary');
+        const amt = Number(t.amount) || 0;
+        if (isInc) income += amt;
+        else expense += amt;
+      });
+
+      trends.push({
+        monthStr: mStr,
+        label: this.service.formatMonth(mStr),
+        income,
+        expense
+      });
+    }
+
+    return trends;
+  });
+
+  public updateItemPlanned(itemId: string, val: number | string): void {
+    const num = Number(val) || 0;
+    this.service.updateMonthlyBudgetPlanned(this.selectedMonth(), itemId, num);
   }
 }

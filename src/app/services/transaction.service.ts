@@ -105,12 +105,23 @@ export class TransactionService {
 
   public availableMonths = computed(() => {
     const months = new Set<string>();
-    months.add(this.getCurrentMonthString());
+    const d = new Date();
+
+    // Generate rolling 24 months (past 18 months to next 6 months)
+    for (let offset = -18; offset <= 6; offset++) {
+      const target = new Date(d.getFullYear(), d.getMonth() + offset, 1);
+      const y = target.getFullYear();
+      const m = String(target.getMonth() + 1).padStart(2, '0');
+      months.add(`${y}-${m}`);
+    }
+
+    // Add any transaction months
     this.transactions().forEach((tx) => {
       if (tx.date && tx.date.length >= 7) {
         months.add(tx.date.substring(0, 7));
       }
     });
+
     return Array.from(months).sort().reverse();
   });
 

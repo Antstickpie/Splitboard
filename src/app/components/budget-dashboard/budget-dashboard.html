@@ -42,10 +42,45 @@
 
     <div class="metric-card">
       <div class="label">Spending Balance</div>
-      <div class="value font-mono" style="font-size: 1.15rem;">
+      <div class="value font-mono" style="font-size: 1.05rem;">
         {{ spendByPerson().p1Name }}: {{ spendByPerson().p1Pct }}% | {{ spendByPerson().p2Name }}: {{ spendByPerson().p2Pct }}%
       </div>
       <div class="sub-value">Total Spent: {{ service.formatCurrency(spendByPerson().total) }}</div>
+    </div>
+  </div>
+
+  <!-- Analytics Section: Spending Distribution & Person Shares -->
+  <div class="glass-card analytics-card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.1rem;">📈 Spending Analytics & Distribution</h3>
+        <p class="subtitle" style="margin: 0;">Breakdown by category group and person spending shares for {{ service.formatMonth(selectedMonth()) }}.</p>
+      </div>
+    </div>
+
+    <!-- Person Split Visual Bar -->
+    <div style="margin-bottom: 1.2rem; background: rgba(255,255,255,0.02); padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+      <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.4rem;">
+        <span><strong>{{ spendByPerson().p1Name }}</strong>: {{ service.formatCurrency(spendByPerson().p1Spend) }} ({{ spendByPerson().p1Pct }}%)</span>
+        <span><strong>{{ spendByPerson().p2Name }}</strong>: {{ service.formatCurrency(spendByPerson().p2Spend) }} ({{ spendByPerson().p2Pct }}%)</span>
+      </div>
+      <div style="height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden; display: flex;">
+        <div [style.width.%]="spendByPerson().p1Pct" style="background: var(--primary); transition: width 0.4s ease;" title="{{ spendByPerson().p1Name }}"></div>
+        <div [style.width.%]="spendByPerson().p2Pct" style="background: var(--secondary); transition: width 0.4s ease;" title="{{ spendByPerson().p2Name }}"></div>
+      </div>
+    </div>
+
+    <!-- Category Distribution Bars -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.8rem;">
+      <div *ngFor="let cat of categoryBreakdown()" style="background: rgba(255,255,255,0.02); padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.3rem;">
+          <span>{{ cat.icon }} <strong>{{ cat.name }}</strong></span>
+          <span class="font-mono" style="font-weight: 600;">{{ service.formatCurrency(cat.actual) }} <small style="color: var(--text-muted);">({{ cat.pct }}%)</small></span>
+        </div>
+        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+          <div [style.width.%]="cat.pct" [style.background]="cat.color" style="height: 100%; transition: width 0.4s ease;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
