@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -18,8 +18,44 @@ export class SettingsComponent {
   public newCategoryName = '';
   public selectedGroupIdForNewCat = '';
 
-  // Currency Form
+  // Currency & Rates State
   public newCurrencyCode = '';
+  public isRatesCollapsed = signal<boolean>(false);
+  public isEditingRates = signal<boolean>(false);
+
+  public exchangeRatePairs = computed(() => {
+    const rates = this.service.exchangeRates();
+    return Object.entries(rates).map(([key, rate]) => {
+      const parts = key.includes('_') ? key.split('_') : key.split('/');
+      const from = parts[0] || '';
+      const to = parts[1] || '';
+      return {
+        key,
+        from,
+        to,
+        name: `1 ${from} = ${rate} ${to}`,
+        pairLabel: `${from} → ${to}`,
+        rate
+      };
+    });
+  });
+
+  public updateExchangeRate(key: string, rate: number) {
+    if (!isNaN(rate) && rate > 0) {
+      this.service.exchangeRates.update((prev) => {
+        const updated = { ...prev, [key]: rate };
+        const delimiter = key.includes('_') ? '_' : '/';
+        const parts = key.split(delimiter);
+        if (parts.length === 2) {
+          const inverseKey = `${parts[1]}${delimiter}${parts[0]}`;
+          if (prev[inverseKey] !== undefined) {
+            updated[inverseKey] = parseFloat((1.0 / rate).toFixed(6));
+          }
+        }
+        return updated;
+      });
+    }
+  }
 
   // Rule Engine Form
   public newRuleKeyword = '';

@@ -1,208 +1,300 @@
 <div class="animate-fade-in settings-container">
+  <!-- Header -->
   <div class="glass-card settings-header">
-    <h2>⚙ Settings & Preferences</h2>
-    <p class="subtitle">Configure persons, EveryDollar category tree, Google Drive cloud backup, and regional preferences.</p>
+    <div class="settings-header-left">
+      <h2>⚙ Settings & Preferences</h2>
+      <p class="subtitle">Manage split members, multi-currency exchange rates, category tree, auto-rules, and cloud backup.</p>
+    </div>
   </div>
 
-  <div class="settings-grid">
-    <!-- Card 1: Persons / Split Participants -->
-    <div class="glass-card">
-      <h3>👥 Persons / Split Owners</h3>
-      <p class="subtitle">Names of people involved in transactions and splits.</p>
-
-      <div class="persons-list">
-        <div *ngFor="let p of service.persons(); let i = index" class="person-row">
-          <input
-            type="text"
-            [value]="p.name"
-            (blur)="updatePersonName(i, $any($event.target).value)"
-            placeholder="Person Name"
-            class="person-input">
-          <button
-            *ngIf="service.persons().length > 1"
-            (click)="removePerson(i)"
-            class="btn-icon-remove"
-            title="Remove person">
-            ✕
-          </button>
-        </div>
-
-        <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
-          <input
-            type="text"
-            [(ngModel)]="newPersonName"
-            placeholder="New person name..."
-            class="person-input"
-            (keydown.enter)="addPerson()">
-          <button class="btn btn-primary btn-xs" (click)="addPerson()" [disabled]="!newPersonName.trim()">
-            + Add
-          </button>
-        </div>
-      </div>
+  <!-- SECTION 1: General & Currencies (2 Column Grid) -->
+  <div class="settings-section">
+    <div class="section-title">
+      <span class="section-icon">👤</span>
+      <span>Members & Regional Preferences</span>
     </div>
 
-    <!-- Card 2: App Preferences -->
-    <div class="glass-card">
-      <h3>🌐 Regional & Formatting</h3>
-      <p class="subtitle">Set your display currency and date presentation format.</p>
-
-      <div class="form-group-stack">
-        <div>
-          <label class="input-label">Base App Currency</label>
-          <select [ngModel]="service.currency()" (ngModelChange)="service.currency.set($event)" class="settings-select">
-            <option *ngFor="let curr of service.visibleCurrencies()" [value]="curr">
-              {{ service.getCurrencySymbol(curr) }} {{ curr }}
-            </option>
-          </select>
+    <div class="settings-grid-2">
+      <!-- Card 1: Persons / Split Participants -->
+      <div class="glass-card setting-box">
+        <div class="box-header">
+          <h3>👥 Split Members</h3>
+          <p class="subtitle">Names of people involved in transactions and splits.</p>
         </div>
 
-        <!-- Supported Currencies List -->
-        <div>
-          <label class="input-label">Configured Currencies</label>
-          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem;">
-            <span
-              *ngFor="let curr of service.visibleCurrencies(); let i = index"
-              style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); font-size: 0.78rem;">
-              <strong>{{ service.getCurrencySymbol(curr) }} {{ curr }}</strong>
-              <button
-                *ngIf="service.visibleCurrencies().length > 1"
-                (click)="service.removeVisibleCurrency(i)"
-                style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 0;"
-                title="Remove currency">
-                ✕
-              </button>
+        <div class="persons-list">
+          <div *ngFor="let p of service.persons(); let i = index" class="person-row">
+            <span class="person-avatar" [style.background]="i === 0 ? 'var(--primary)' : 'var(--secondary)'">
+              {{ p.name.charAt(0).toUpperCase() }}
             </span>
-          </div>
-
-          <div style="display: flex; gap: 0.4rem;">
             <input
               type="text"
-              [(ngModel)]="newCurrencyCode"
-              placeholder="e.g. CAD, JPY, CHF, AUD..."
-              class="person-input"
-              style="flex: 1; text-transform: uppercase;"
-              (keydown.enter)="addCurrency()">
-            <button class="btn btn-secondary btn-xs" (click)="addCurrency()" [disabled]="!newCurrencyCode.trim()">
-              + Add Currency
-            </button>
-            <button class="btn btn-secondary btn-xs" (click)="service.fetchExchangeRates()" [disabled]="service.isFetchingRates()">
-              {{ service.isFetchingRates() ? 'Fetching...' : '🔄 Live Rates' }}
+              [value]="p.name"
+              (blur)="updatePersonName(i, $any($event.target).value)"
+              placeholder="Person Name"
+              class="person-input">
+            <button
+              *ngIf="service.persons().length > 1"
+              (click)="removePerson(i)"
+              class="btn-icon-remove"
+              title="Remove person">
+              ✕
             </button>
           </div>
-        </div>
 
-        <div>
-          <label class="input-label">Date Format</label>
-          <select [ngModel]="service.dateFormat()" (ngModelChange)="service.dateFormat.set($event)" class="settings-select">
-            <option value="yyyy-MM-dd">2026-08-23 (ISO)</option>
-            <option value="dd/MM/yyyy">23/08/2026 (EU)</option>
-            <option value="MM/dd/yyyy">08/23/2026 (US)</option>
-            <option value="MMMM d, yyyy">August 23, 2026</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="input-label">Number / Money Format</label>
-          <select [ngModel]="service.numberFormat()" (ngModelChange)="service.numberFormat.set($event)" class="settings-select">
-            <option value="1,234.56">1,234.56 (Dot decimal - US/UK)</option>
-            <option value="1.234,56">1.234,56 (Comma decimal - German/EU)</option>
-            <option value="1 234.56">1 234.56 (Space thousand, Dot decimal)</option>
-            <option value="1 234,56">1 234,56 (Space thousand, Comma decimal)</option>
-            <option value="1234.56">1234.56 (No thousand separator)</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 3: Cloud & Backup Sync -->
-    <div class="glass-card">
-      <h3>☁ Data & Google Drive Sync</h3>
-      <p class="subtitle">Direct sync to your Google Drive. No third-party servers.</p>
-
-      <div class="cloud-sync-box">
-        <div class="sync-status-row">
-          <div style="display: flex; align-items: center; gap: 0.4rem;">
-            <span style="font-size: 1.1rem;">📁</span>
-            <strong>Google Drive Sync</strong>
-          </div>
-          <span *ngIf="service.isGoogleConnected()" style="color: var(--success); font-size: 0.75rem; font-weight: bold;">
-            ● Connected
-          </span>
-          <button *ngIf="!service.isGoogleConnected()" class="btn btn-secondary btn-xs" (click)="service.connectGoogleDrive()">
-            Connect Drive
-          </button>
-        </div>
-
-        <div *ngIf="service.isGoogleConnected() && service.lastGoogleSyncTime()" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">
-          Last cloud backup: {{ formatSyncTime(service.lastGoogleSyncTime()!) }}
-        </div>
-
-        <div style="margin-top: 0.6rem;">
-          <label class="input-label">Sync File Name</label>
-          <input
-            type="text"
-            [ngModel]="service.googleFileName()"
-            (ngModelChange)="service.googleFileName.set($event)"
-            class="file-name-input">
-        </div>
-
-        <div class="auto-sync-toggle-row">
-          <span style="font-size: 0.76rem; color: var(--text-muted);">Auto-sync changes to Google Drive</span>
-          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.76rem;">
+          <div class="add-person-bar">
             <input
-              type="checkbox"
-              [ngModel]="service.autoSyncGoogleDrive()"
-              (ngModelChange)="service.autoSyncGoogleDrive.set($event)"
-              style="accent-color: var(--primary); cursor: pointer;">
-            <span>{{ service.autoSyncGoogleDrive() ? 'Enabled' : 'Disabled' }}</span>
-          </label>
-        </div>
-
-        <div style="display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.6rem;">
-          <button class="btn btn-secondary btn-xs" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            Download from Drive
-          </button>
-          <button class="btn btn-primary btn-xs" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            Upload to Drive
-          </button>
+              type="text"
+              [(ngModel)]="newPersonName"
+              placeholder="Add new person..."
+              class="person-input"
+              (keydown.enter)="addPerson()">
+            <button class="btn btn-primary btn-xs" (click)="addPerson()" [disabled]="!newPersonName.trim()">
+              + Add
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Local File Backup -->
-      <div class="local-backup-box">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.78rem; color: var(--text-muted);">Download backup JSON</span>
-          <button class="btn btn-secondary btn-xs" (click)="service.exportBackupJson()">
-            Export .json
-          </button>
+      <!-- Card 2: Multi-Currency & Regional Formatting -->
+      <div class="glass-card setting-box">
+        <div class="box-header">
+          <h3>🌐 Currency & Formatting</h3>
+          <p class="subtitle">Configure base currency, multi-currencies, and number formats.</p>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
-          <span style="font-size: 0.78rem; color: var(--text-muted);">Restore backup JSON</span>
-          <input type="file" accept=".json" (change)="onBackupFileSelected($event)" style="font-size: 0.72rem; width: 140px;">
+
+        <div class="form-group-stack">
+          <div>
+            <label class="input-label">Base Display Currency</label>
+            <select [ngModel]="service.currency()" (ngModelChange)="service.currency.set($event)" class="settings-select">
+              <option *ngFor="let curr of service.visibleCurrencies()" [value]="curr">
+                {{ service.getCurrencySymbol(curr) }} {{ curr }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Supported Currencies List -->
+          <div>
+            <label class="input-label">Active Supported Currencies</label>
+            <div class="currency-chips-wrap">
+              <span
+                *ngFor="let curr of service.visibleCurrencies(); let i = index"
+                class="currency-chip">
+                <strong>{{ service.getCurrencySymbol(curr) }} {{ curr }}</strong>
+                <button
+                  *ngIf="service.visibleCurrencies().length > 1"
+                  (click)="service.removeVisibleCurrency(i)"
+                  class="currency-chip-del"
+                  title="Remove currency">
+                  ✕
+                </button>
+              </span>
+            </div>
+
+            <div class="add-currency-bar">
+              <input
+                type="text"
+                [(ngModel)]="newCurrencyCode"
+                placeholder="e.g. CAD, JPY, CHF, AUD..."
+                class="person-input"
+                style="flex: 1; text-transform: uppercase;"
+                (keydown.enter)="addCurrency()">
+              <button class="btn btn-secondary btn-xs" (click)="addCurrency()" [disabled]="!newCurrencyCode.trim()">
+                + Add
+              </button>
+              <button class="btn btn-secondary btn-xs" (click)="service.fetchExchangeRates()" [disabled]="service.isFetchingRates()">
+                {{ service.isFetchingRates() ? 'Fetching...' : '🔄 Live Rates' }}
+              </button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+            <div>
+              <label class="input-label">Date Format</label>
+              <select [ngModel]="service.dateFormat()" (ngModelChange)="service.dateFormat.set($event)" class="settings-select">
+                <option value="yyyy-MM-dd">2026-08-23 (ISO)</option>
+                <option value="dd/MM/yyyy">23/08/2026 (EU)</option>
+                <option value="MM/dd/yyyy">08/23/2026 (US)</option>
+                <option value="MMMM d, yyyy">August 23, 2026</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="input-label">Number Format</label>
+              <select [ngModel]="service.numberFormat()" (ngModelChange)="service.numberFormat.set($event)" class="settings-select">
+                <option value="1,234.56">1,234.56 (Dot)</option>
+                <option value="1.234,56">1.234,56 (Comma)</option>
+                <option value="1 234.56">1 234.56 (Space)</option>
+                <option value="1234.56">1234.56 (Plain)</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Card 4: Auto-Categorization Rule Engine -->
-    <div class="glass-card rules-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-        <div>
-          <h3>⚡ Auto-Categorization Rules</h3>
-          <p class="subtitle" style="margin: 0;">Auto-assign categories and split behavior based on merchant name / keyword match.</p>
+  <!-- SECTION: Live Currency Exchange Rates Table (Portfolio Tracker Engine) -->
+  <div class="settings-section">
+    <div class="section-title">
+      <span class="section-icon">💱</span>
+      <span>Live Currency Exchange Rates</span>
+    </div>
+
+    <div class="glass-card rates-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 (click)="isRatesCollapsed.set(!isRatesCollapsed())" style="cursor: pointer; user-select: none; display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem;">
+          <span>Exchange Rates Table</span>
+          <span class="collapse-chevron" style="font-size: 0.85rem; color: var(--text-muted); transition: transform 0.2s;" [style.transform]="isRatesCollapsed() ? 'rotate(-90deg)' : 'rotate(0deg)'">▼</span>
+        </h3>
+        <div style="display: flex; gap: 0.4rem; align-items: center;" *ngIf="!isRatesCollapsed()">
+          <button 
+            class="btn btn-xs" 
+            [class.btn-primary]="isEditingRates()" 
+            [class.btn-secondary]="!isEditingRates()"
+            (click)="isEditingRates.set(!isEditingRates())">
+            {{ isEditingRates() ? '✓ Save Rates' : '✏ Edit Overrides' }}
+          </button>
+          <button 
+            class="btn btn-secondary btn-xs" 
+            (click)="service.fetchExchangeRates()" 
+            [disabled]="service.isFetchingRates()">
+            {{ service.isFetchingRates() ? 'Fetching...' : '🔄 Live Fetch' }}
+          </button>
         </div>
+      </div>
+      <p class="subtitle" *ngIf="!isRatesCollapsed()" style="margin-bottom: 0.6rem;">Real-time conversion rates used when logging foreign cash expenses and calculating balances.</p>
+      
+      <div class="table-container rates-table" style="max-height: 260px; overflow-y: auto;" *ngIf="!isRatesCollapsed()">
+        <table>
+          <thead>
+            <tr>
+              <th>Currency Pair</th>
+              <th>Formula</th>
+              <th style="text-align: right; padding-right: 1.5rem;">Conversion Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let pair of exchangeRatePairs()">
+              <td class="bold-ticker font-mono" style="font-weight: 700; color: var(--primary);">
+                {{ pair.pairLabel }}
+              </td>
+              <td style="color: var(--text-muted); font-size: 0.8rem;">
+                1 {{ pair.from }} = {{ pair.rate }} {{ pair.to }}
+              </td>
+              <td style="text-align: right; padding-right: 1.5rem; vertical-align: middle;">
+                <input 
+                  *ngIf="isEditingRates()"
+                  type="number" 
+                  step="0.0001"
+                  [ngModel]="pair.rate" 
+                  (ngModelChange)="updateExchangeRate(pair.key, $event)"
+                  class="table-inline-input price-input font-mono"
+                  style="width: 110px; text-align: right; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.2rem 0.4rem; color: #fff;">
+                <span *ngIf="!isEditingRates()" class="font-mono" style="font-size: 0.88rem; font-weight: 700; color: var(--text-main);">
+                  {{ pair.rate.toFixed(4) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Categories Hierarchy -->
+  <div class="settings-section">
+    <div class="section-title">
+      <span class="section-icon">📁</span>
+      <span>Budget Categories Hierarchy</span>
+    </div>
+
+    <div class="glass-card categories-editor-card">
+      <div class="cat-editor-header">
+        <div>
+          <p class="subtitle" style="margin: 0;">Add, rename, or reorganize category groups and items.</p>
+        </div>
+
+        <!-- Add Group + Add Item Bars -->
+        <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center;">
+          <!-- Add New Group -->
+          <div class="cat-quick-add">
+            <input
+              type="text"
+              [(ngModel)]="newGroupName"
+              placeholder="New Group..."
+              class="person-input"
+              style="width: 150px;"
+              (keydown.enter)="addGroup()">
+            <button class="btn btn-secondary btn-xs" (click)="addGroup()" [disabled]="!newGroupName.trim()">
+              + Add Group
+            </button>
+          </div>
+
+          <!-- Add Item under Group -->
+          <div class="cat-quick-add">
+            <select [(ngModel)]="selectedGroupIdForNewCat" class="settings-select" style="width: 140px;">
+              <option *ngFor="let g of service.categoryGroups()" [value]="g.id">{{ g.name }}</option>
+            </select>
+            <input
+              type="text"
+              [(ngModel)]="newCategoryName"
+              placeholder="New Item..."
+              class="person-input"
+              style="width: 150px;"
+              (keydown.enter)="addCategory()">
+            <button class="btn btn-primary btn-xs" (click)="addCategory()" [disabled]="!newCategoryName.trim()">
+              + Add Item
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="category-groups-preview-grid">
+        <div class="group-preview-box" *ngFor="let grp of service.categoryGroups()">
+          <div class="group-preview-title">
+            <span>{{ grp.icon || '📁' }} <strong>{{ grp.name }}</strong></span>
+            <span class="badge badge-neutral" style="font-size: 0.65rem;">{{ grp.items.length }} items</span>
+          </div>
+
+          <div class="group-items-chip-list">
+            <div class="cat-chip" *ngFor="let item of grp.items">
+              <span class="cat-chip-name">{{ item.name }}</span>
+              <span *ngIf="item.defaultOwner" class="badge badge-info" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;">{{ item.defaultOwner }}</span>
+              <button class="cat-chip-del" (click)="deleteCategoryItem(grp.id, item.id, item.name)">✕</button>
+            </div>
+            <span *ngIf="grp.items.length === 0" style="font-size: 0.72rem; color: var(--text-muted);">
+              No items yet. Add items above.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: Auto-Categorization Rules Engine -->
+  <div class="settings-section">
+    <div class="section-title">
+      <span class="section-icon">⚡</span>
+      <span>Auto-Categorization Rules</span>
+    </div>
+
+    <div class="glass-card rules-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.5rem;">
+        <p class="subtitle" style="margin: 0;">Auto-assign categories and split behavior based on merchant keyword match.</p>
         <button class="btn btn-secondary btn-xs" (click)="reapplyRules()" title="Re-evaluate all rules on existing transactions">
           ↻ Re-apply Rules
         </button>
       </div>
 
       <!-- Quick Add Rule Form -->
-      <div class="rule-add-form" style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.8rem; background: rgba(255,255,255,0.02); padding: 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+      <div class="rule-add-form">
         <input
           type="text"
           [(ngModel)]="newRuleKeyword"
-          placeholder="If text contains (e.g. Netflix, Shell, DM)..."
+          placeholder="If description contains (e.g. Netflix, Shell, DM)..."
           class="person-input"
-          style="flex: 1 1 180px;">
+          style="flex: 1 1 200px;">
 
         <select [(ngModel)]="newRuleCategory" class="settings-select" style="flex: 1 1 180px;">
           <optgroup *ngFor="let g of service.categoryGroups()" [label]="g.name">
@@ -210,13 +302,13 @@
           </optgroup>
         </select>
 
-        <select [(ngModel)]="newRuleSplitType" class="settings-select" style="width: 100px;">
+        <select [(ngModel)]="newRuleSplitType" class="settings-select" style="width: 110px;">
           <option value="SPLIT">Split 50/50</option>
           <option value="SELF">Self Only</option>
           <option value="OTHER">Other Only</option>
         </select>
 
-        <select [(ngModel)]="newRuleOwner" class="settings-select" style="width: 100px;">
+        <select [(ngModel)]="newRuleOwner" class="settings-select" style="width: 110px;">
           <option value="">Any Payer</option>
           <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
         </select>
@@ -255,79 +347,106 @@
         </table>
       </div>
     </div>
+  </div>
 
-    <!-- Card 5: Danger Zone -->
-    <div class="glass-card danger-card">
-      <h3 style="color: var(--danger);">⚠️ Danger Zone</h3>
-      <p class="subtitle">Irreversible actions to reset your stored transactions.</p>
+  <!-- SECTION 4: Cloud & Backup Sync -->
+  <div class="settings-section">
+    <div class="section-title">
+      <span class="section-icon">☁</span>
+      <span>Cloud & Backup Sync</span>
+    </div>
 
-      <div style="margin-top: 0.8rem;">
-        <button class="btn btn-danger btn-sm" (click)="clearAllData()">
-          🗑 Clear All Transactions
-        </button>
+    <div class="glass-card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+      <!-- Google Drive Sync -->
+      <div class="cloud-sync-box">
+        <div class="sync-status-row">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.2rem;">📁</span>
+            <strong>Google Drive Sync</strong>
+          </div>
+          <span *ngIf="service.isGoogleConnected()" style="color: var(--success); font-size: 0.75rem; font-weight: bold;">
+            ● Connected
+          </span>
+          <button *ngIf="!service.isGoogleConnected()" class="btn btn-secondary btn-xs" (click)="service.connectGoogleDrive()">
+            Connect Drive
+          </button>
+        </div>
+
+        <div *ngIf="service.isGoogleConnected() && service.lastGoogleSyncTime()" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">
+          Last cloud backup: {{ formatSyncTime(service.lastGoogleSyncTime()!) }}
+        </div>
+
+        <div style="margin-top: 0.6rem;">
+          <label class="input-label">Sync File Name</label>
+          <input
+            type="text"
+            [ngModel]="service.googleFileName()"
+            (ngModelChange)="service.googleFileName.set($event)"
+            class="file-name-input">
+        </div>
+
+        <div class="auto-sync-toggle-row">
+          <span style="font-size: 0.76rem; color: var(--text-muted);">Auto-sync changes to Google Drive</span>
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.76rem;">
+            <input
+              type="checkbox"
+              [ngModel]="service.autoSyncGoogleDrive()"
+              (ngModelChange)="service.autoSyncGoogleDrive.set($event)"
+              style="accent-color: var(--primary); cursor: pointer;">
+            <span>{{ service.autoSyncGoogleDrive() ? 'Enabled' : 'Disabled' }}</span>
+          </label>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.8rem;">
+          <button class="btn btn-secondary btn-xs" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+            Download from Drive
+          </button>
+          <button class="btn btn-primary btn-xs" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+            Upload to Drive
+          </button>
+        </div>
+      </div>
+
+      <!-- Local File Backup -->
+      <div class="local-backup-box">
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem;">
+          <span style="font-size: 1.2rem;">💾</span>
+          <strong>Local JSON Backup</strong>
+        </div>
+        <p class="subtitle" style="margin-bottom: 0.8rem;">Export a snapshot of all data or restore from an existing JSON backup.</p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Export data to file:</span>
+            <button class="btn btn-secondary btn-xs" (click)="service.exportBackupJson()">
+              Export .json
+            </button>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.06);">
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Restore from file:</span>
+            <input type="file" accept=".json" (change)="onBackupFileSelected($event)" style="font-size: 0.72rem; width: 140px;">
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Category Hierarchy Editor (Full Width) -->
-  <div class="glass-card categories-editor-card">
-    <div class="cat-editor-header">
-      <div>
-        <h3>📁 Budget Categories & Hierarchy</h3>
-        <p class="subtitle" style="margin: 0;">Add, reorganize, or rename category groups and items (EveryDollar structure).</p>
-      </div>
-
-      <!-- Add Group + Add Item Bars -->
-      <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center;">
-        <!-- Add New Group -->
-        <div class="cat-quick-add" style="background: rgba(255,255,255,0.02); padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-          <input
-            type="text"
-            [(ngModel)]="newGroupName"
-            placeholder="New Group (e.g. Vacation)..."
-            class="person-input"
-            style="width: 170px;"
-            (keydown.enter)="addGroup()">
-          <button class="btn btn-secondary btn-xs" (click)="addGroup()" [disabled]="!newGroupName.trim()">
-            + Add Group
-          </button>
-        </div>
-
-        <!-- Add Item under Group -->
-        <div class="cat-quick-add" style="background: rgba(255,255,255,0.02); padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-          <select [(ngModel)]="selectedGroupIdForNewCat" class="settings-select" style="width: 140px;">
-            <option *ngFor="let g of service.categoryGroups()" [value]="g.id">{{ g.name }}</option>
-          </select>
-          <input
-            type="text"
-            [(ngModel)]="newCategoryName"
-            placeholder="Item (e.g. Flights)..."
-            class="person-input"
-            style="width: 160px;"
-            (keydown.enter)="addCategory()">
-          <button class="btn btn-primary btn-xs" (click)="addCategory()" [disabled]="!newCategoryName.trim()">
-            + Add Item
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="category-groups-preview-grid">
-      <div class="group-preview-box" *ngFor="let grp of service.categoryGroups()">
-        <div class="group-preview-title">
-          <span>{{ grp.icon || '📁' }} <strong>{{ grp.name }}</strong></span>
-          <span class="badge badge-neutral">{{ grp.items.length }} items</span>
-        </div>
-
-        <div class="group-items-chip-list">
-          <div class="cat-chip" *ngFor="let item of grp.items">
-            <span class="cat-chip-name">{{ item.name }}</span>
-            <button class="cat-chip-del" (click)="deleteCategoryItem(grp.id, item.id, item.name)">✕</button>
+  <!-- SECTION 5: Danger Zone (Dedicated Warning Box at the Bottom) -->
+  <div class="settings-section">
+    <div class="glass-card danger-zone-card">
+      <div class="danger-zone-content">
+        <div class="danger-zone-info">
+          <div class="danger-title">
+            <span style="font-size: 1.2rem;">⚠️</span>
+            <h3>Danger Zone</h3>
           </div>
-          <span *ngIf="grp.items.length === 0" style="font-size: 0.72rem; color: var(--text-muted);">
-            No items yet. Select "{{ grp.name }}" above to add items.
-          </span>
+          <p class="danger-desc">
+            Clearing all transactions will delete all imported bank records, cash entries, and split history permanently from local storage.
+          </p>
         </div>
+        <button class="btn btn-danger btn-sm" (click)="clearAllData()">
+          🗑 Clear All Transactions
+        </button>
       </div>
     </div>
   </div>
