@@ -9,7 +9,7 @@
     <div class="header-right">
       <label class="input-label" style="margin-bottom: 0;">Budget Month:</label>
       <select [ngModel]="selectedMonth()" (ngModelChange)="selectedMonth.set($event)" class="month-selector">
-        <option *ngFor="let m of service.availableMonths()" [value]="m">{{ m }}</option>
+        <option *ngFor="let m of service.availableMonths()" [value]="m">{{ service.formatMonth(m) }}</option>
       </select>
     </div>
   </div>

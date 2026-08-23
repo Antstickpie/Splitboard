@@ -89,7 +89,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let tx of res.transactions">
-            <td>{{ tx.date }}</td>
+            <td>{{ service.formatDate(tx.date) }}</td>
             <td style="font-weight: 500;">{{ tx.description }}</td>
             <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
             <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>

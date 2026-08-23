@@ -793,4 +793,44 @@ export class TransactionService {
     const symbol = c === 'EUR' ? '€' : c === 'USD' ? '$' : c === 'INR' ? '₹' : c === 'GBP' ? '£' : c + ' ';
     return symbol + this.formatNumber(amount);
   }
+
+  public formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const clean = dateStr.slice(0, 10);
+    const parts = clean.split('-');
+    if (parts.length !== 3) return dateStr;
+
+    const y = parts[0];
+    const m = parts[1];
+    const d = parts[2];
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthName = monthNames[parseInt(m, 10) - 1] || m;
+
+    const fmt = this.dateFormat();
+    if (fmt === 'dd/MM/yyyy') return `${d}/${m}/${y}`;
+    if (fmt === 'MM/dd/yyyy') return `${m}/${d}/${y}`;
+    if (fmt === 'MMMM d, yyyy') return `${monthName} ${parseInt(d, 10)}, ${y}`;
+    return `${y}-${m}-${d}`;
+  }
+
+  public formatMonth(monthStr: string): string {
+    if (!monthStr || monthStr === 'ALL') return monthStr;
+    const parts = monthStr.split('-');
+    if (parts.length !== 2) return monthStr;
+    const y = parts[0];
+    const m = parts[1];
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthName = monthNames[parseInt(m, 10) - 1] || m;
+
+    const fmt = this.dateFormat();
+    if (fmt === 'dd/MM/yyyy' || fmt === 'MM/dd/yyyy') return `${m}/${y}`;
+    if (fmt === 'MMMM d, yyyy') return `${monthName} ${y}`;
+    return `${y}-${m}`;
+  }
 }
