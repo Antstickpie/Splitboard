@@ -59,9 +59,9 @@ export const DEFAULT_CATEGORY_GROUPS: CategoryGroup[] = [
     name: 'Car and Transportation',
     icon: '🚗',
     items: [
-      { id: 'tra-1', groupId: 'grp-transport', name: 'Car Charging', plannedDefault: 34.18 },
+      { id: 'tra-1', groupId: 'grp-transport', name: 'Charging', plannedDefault: 34.18 },
       { id: 'tra-2', groupId: 'grp-transport', name: 'Parking and Tolls', plannedDefault: 2.59 },
-      { id: 'tra-3', groupId: 'grp-transport', name: 'Car Maintenance', plannedDefault: 18.10 }
+      { id: 'tra-3', groupId: 'grp-transport', name: 'Maintenance', plannedDefault: 18.10 }
     ]
   },
   {

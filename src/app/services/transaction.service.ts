@@ -337,11 +337,36 @@ export class TransactionService {
       if (!raw) return;
       const data: AppDataBackup = JSON.parse(raw);
       if (data.persons && data.persons.length > 0) this.persons.set(data.persons);
-      if (data.categoryGroups && data.categoryGroups.length > 0) this.categoryGroups.set(data.categoryGroups);
-      if (data.transactions) this.transactions.set(data.transactions);
+      if (data.categoryGroups && data.categoryGroups.length > 0) {
+        // Auto-migrate "Car Charging" and "Car Maintenance" to remove "Car"
+        const cleanedGroups = data.categoryGroups.map((g) => ({
+          ...g,
+          items: g.items.map((it) => {
+            if (it.name === 'Car Charging') return { ...it, name: 'Charging' };
+            if (it.name === 'Car Maintenance') return { ...it, name: 'Maintenance' };
+            return it;
+          })
+        }));
+        this.categoryGroups.set(cleanedGroups);
+      }
+      if (data.transactions) {
+        const cleanedTxs = data.transactions.map((tx) => {
+          if (tx.categoryItem === 'Car Charging') return { ...tx, categoryItem: 'Charging' };
+          if (tx.categoryItem === 'Car Maintenance') return { ...tx, categoryItem: 'Maintenance' };
+          return tx;
+        });
+        this.transactions.set(cleanedTxs);
+      }
       if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
       if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
-      if (data.rules && data.rules.length > 0) this.rules.set(data.rules);
+      if (data.rules && data.rules.length > 0) {
+        const cleanedRules = data.rules.map((r) => {
+          if (r.categoryItem === 'Car Charging') return { ...r, categoryItem: 'Charging' };
+          if (r.categoryItem === 'Car Maintenance') return { ...r, categoryItem: 'Maintenance' };
+          return r;
+        });
+        this.rules.set(cleanedRules);
+      }
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
