@@ -223,6 +223,10 @@ export class BudgetDashboardComponent {
     });
   });
 
+  public activeGroupSummaries = computed(() => {
+    return this.groupSummaries().filter((grp) => grp.actualTotal > 0);
+  });
+
   public budgetTotals = computed(() => {
     const month = this.selectedMonth();
     let totalIncomeActual = 0;
@@ -281,6 +285,13 @@ export class BudgetDashboardComponent {
     const currentMonth = this.selectedMonth();
     const allTxs = this.service.transactions();
 
+    const isSavingsCategory = (tx: Transaction) => {
+      const grp = tx.categoryGroup?.toLowerCase() || '';
+      const item = tx.categoryItem?.toLowerCase() || '';
+      const desc = tx.description?.toLowerCase() || '';
+      return grp.includes('saving') || item.includes('saving') || desc.includes('saving from everydollar');
+    };
+
     // 1. Current Month Actuals
     const monthTxs = allTxs.filter((tx) => tx.date && tx.date.startsWith(currentMonth));
     let p1IncomeMonth = 0;
@@ -292,7 +303,7 @@ export class BudgetDashboardComponent {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
 
-      if (tx.type === 'INCOME') {
+      if (tx.type === 'INCOME' || isSavingsCategory(tx)) {
         if (tx.paidBy === p1) p1IncomeMonth += amt;
         else if (tx.paidBy === p2) p2IncomeMonth += amt;
         else {
@@ -353,7 +364,7 @@ export class BudgetDashboardComponent {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
 
-      if (tx.type === 'INCOME') {
+      if (tx.type === 'INCOME' || isSavingsCategory(tx)) {
         if (tx.paidBy === p1) p1PriorSavings += amt;
         else if (tx.paidBy === p2) p2PriorSavings += amt;
         else {
@@ -361,7 +372,7 @@ export class BudgetDashboardComponent {
           p2PriorSavings += amt / 2;
         }
       } else if (tx.isCashTransfer) {
-        // Cash transfer between persons
+        // Direct cash transfer
         if (tx.paidBy === p1 && tx.transferTo === p2) {
           p1PriorSavings -= amt;
           p2PriorSavings += amt;
