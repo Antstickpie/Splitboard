@@ -1,0 +1,762 @@
+import { Injectable, signal, computed, effect } from '@angular/core';
+import {
+  Person,
+  CategoryGroup,
+  CategoryItem,
+  Transaction,
+  MonthlyBudget,
+  BankConfig,
+  AppDataBackup,
+  SplitType,
+  SplitMode,
+  CategoryRule
+} from '../models';
+import { DEFAULT_PERSONS, DEFAULT_BANKS, DEFAULT_CATEGORY_GROUPS, DEFAULT_RULES } from '../constants/default-data';
+
+declare const google: any;
+
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+export interface ConfirmModalConfig {
+  title: string;
+  message: string;
+  resolve: (value: boolean) => void;
+}
+
+export interface AlertModalConfig {
+  title: string;
+  message: string;
+  resolve: () => void;
+}
+
+export interface SettlementSummary {
+  personAPaid: number;
+  personBPaid: number;
+  personAShare: number;
+  personBShare: number;
+  personAOwesPersonB: number;
+  personBOwesPersonA: number;
+  netOwedAmount: number;
+  debtorName: string;
+  creditorName: string;
+  isSettled: boolean;
+  itemizedDetails: {
+    id: string;
+    date: string;
+    description: string;
+    paidBy: string;
+    amount: number;
+    splitType: SplitType;
+    personAShare: number;
+    personBShare: number;
+    category?: string;
+  }[];
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TransactionService {
+  private readonly STORAGE_KEY = 'tx_processor_data_v1';
+  private readonly GOOGLE_CLIENT_ID = '905187123985-efr820m362ghf1u5i6j10s8l4vff9o42.apps.googleusercontent.com';
+
+  // Core State Signals
+  public persons = signal<Person[]>(DEFAULT_PERSONS);
+  public categoryGroups = signal<CategoryGroup[]>(DEFAULT_CATEGORY_GROUPS);
+  public transactions = signal<Transaction[]>([]);
+  public monthlyBudgets = signal<MonthlyBudget[]>([]);
+  public bankConfigs = signal<BankConfig[]>(DEFAULT_BANKS);
+  public rules = signal<CategoryRule[]>(DEFAULT_RULES);
+
+  // Settings Signals
+  public theme = signal<'dark' | 'light'>('dark');
+  public dateFormat = signal<string>('yyyy-MM-dd');
+  public currency = signal<string>('EUR');
+  public autoSyncGoogleDrive = signal<boolean>(false);
+  public googleFileName = signal<string>('transactions_processor_backup.json');
+
+  // UI State Signals
+  public toasts = signal<Toast[]>([]);
+  public confirmModal = signal<ConfirmModalConfig | null>(null);
+  public alertModal = signal<AlertModalConfig | null>(null);
+  public selectedMonth = signal<string>(this.getCurrentMonthString());
+  public searchQuery = signal<string>('');
+  public filterBank = signal<string>('ALL');
+  public filterOwner = signal<string>('ALL');
+  public filterSplitType = signal<string>('ALL');
+  public filterCategory = signal<string>('ALL');
+
+  // Google Drive State
+  public isGoogleConnected = signal<boolean>(false);
+  public isGoogleSyncing = signal<boolean>(false);
+  public lastGoogleSyncTime = signal<number | null>(null);
+  private driveToken: string | null = null;
+  private tokenClient: any = null;
+  private driveFileIdCache: string | null = null;
+
+  // Computed Values
+  public personOne = computed(() => this.persons()[0] || { id: 'p1', name: 'Person 1' });
+  public personTwo = computed(() => this.persons()[1] || { id: 'p2', name: 'Person 2' });
+
+  public availableMonths = computed(() => {
+    const months = new Set<string>();
+    months.add(this.getCurrentMonthString());
+    this.transactions().forEach((tx) => {
+      if (tx.date && tx.date.length >= 7) {
+        months.add(tx.date.substring(0, 7));
+      }
+    });
+    return Array.from(months).sort().reverse();
+  });
+
+  public filteredTransactions = computed(() => {
+    const m = this.selectedMonth();
+    const q = this.searchQuery().toLowerCase().trim();
+    const bank = this.filterBank();
+    const owner = this.filterOwner();
+    const split = this.filterSplitType();
+    const cat = this.filterCategory();
+
+    return this.transactions()
+      .filter((tx) => {
+        if (m !== 'ALL' && !tx.date.startsWith(m)) return false;
+        if (bank !== 'ALL' && tx.bank !== bank) return false;
+        if (owner !== 'ALL' && tx.paidBy !== owner) return false;
+        if (split !== 'ALL' && tx.splitType !== split) return false;
+        if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) return false;
+        if (q) {
+          const matchDesc = (tx.description || '').toLowerCase().includes(q);
+          const matchBank = (tx.bank || '').toLowerCase().includes(q);
+          const matchNote = (tx.note || '').toLowerCase().includes(q);
+          const matchCat = (tx.categoryItem || '').toLowerCase().includes(q);
+          if (!matchDesc && !matchBank && !matchNote && !matchCat) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  });
+
+  // Current Month Settlement Calculation
+  public monthSettlement = computed<SettlementSummary>(() => {
+    const p1 = this.personOne().name;
+    const p2 = this.personTwo().name;
+    const month = this.selectedMonth();
+
+    let p1Paid = 0;
+    let p2Paid = 0;
+    let p1TotalShare = 0;
+    let p2TotalShare = 0;
+    let p1OwesP2 = 0;
+    let p2OwesP1 = 0;
+
+    const relevantTxs = this.transactions().filter(
+      (tx) => month === 'ALL' || tx.date.startsWith(month)
+    );
+
+    const itemized: SettlementSummary['itemizedDetails'] = [];
+
+    relevantTxs.forEach((tx) => {
+      const amount = Number(tx.amount) || 0;
+      if (amount <= 0 && tx.type !== 'EXPENSE') return;
+
+      const isP1 = tx.paidBy === p1;
+      const isP2 = tx.paidBy === p2;
+
+      if (isP1) p1Paid += amount;
+      if (isP2) p2Paid += amount;
+
+      let p1Share = 0;
+      let p2Share = 0;
+
+      if (tx.isCashTransfer) {
+        // Direct cash transfer: paidBy gave cash to transferTo
+        if (tx.transferTo === p2 && isP1) {
+          p2OwesP1 += amount;
+          p2Share = amount;
+        } else if (tx.transferTo === p1 && isP2) {
+          p1OwesP2 += amount;
+          p1Share = amount;
+        }
+      } else if (tx.splitType === 'SELF') {
+        // 100% self
+        if (isP1) p1Share = amount;
+        else p2Share = amount;
+      } else if (tx.splitType === 'OTHER') {
+        // 100% for the other person
+        if (isP1) {
+          p2Share = amount;
+          p2OwesP1 += amount;
+        } else {
+          p1Share = amount;
+          p1OwesP2 += amount;
+        }
+      } else {
+        // SPLIT
+        if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+          p1Share = Number(tx.customSplitAmounts[p1]) || 0;
+          p2Share = Number(tx.customSplitAmounts[p2]) || 0;
+        } else {
+          const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
+          if (isP1) {
+            p1Share = parseFloat(((amount * pct) / 100).toFixed(2));
+            p2Share = parseFloat((amount - p1Share).toFixed(2));
+          } else {
+            p2Share = parseFloat(((amount * pct) / 100).toFixed(2));
+            p1Share = parseFloat((amount - p2Share).toFixed(2));
+          }
+        }
+
+        if (isP1) {
+          p2OwesP1 += p2Share;
+        } else if (isP2) {
+          p1OwesP2 += p1Share;
+        }
+      }
+
+      p1TotalShare += p1Share;
+      p2TotalShare += p2Share;
+
+      itemized.push({
+        id: tx.id,
+        date: tx.date,
+        description: tx.description,
+        paidBy: tx.paidBy,
+        amount,
+        splitType: tx.splitType,
+        personAShare: p1Share,
+        personBShare: p2Share,
+        category: tx.categoryItem
+      });
+    });
+
+    const diff = p2OwesP1 - p1OwesP2;
+    let netOwedAmount = Math.abs(diff);
+    let debtorName = '';
+    let creditorName = '';
+
+    if (diff > 0.005) {
+      debtorName = p2;
+      creditorName = p1;
+    } else if (diff < -0.005) {
+      debtorName = p1;
+      creditorName = p2;
+    }
+
+    return {
+      personAPaid: p1Paid,
+      personBPaid: p2Paid,
+      personAShare: p1TotalShare,
+      personBShare: p2TotalShare,
+      personAOwesPersonB: p1OwesP2,
+      personBOwesPersonA: p2OwesP1,
+      netOwedAmount: parseFloat(netOwedAmount.toFixed(2)),
+      debtorName,
+      creditorName,
+      isSettled: netOwedAmount < 0.01,
+      itemizedDetails: itemized
+    };
+  });
+
+  constructor() {
+    this.loadFromStorage();
+    this.applyTheme();
+    this.initGoogleAuthIfPossible();
+
+    // Auto-save effect
+    effect(() => {
+      const data: AppDataBackup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        persons: this.persons(),
+        categoryGroups: this.categoryGroups(),
+        transactions: this.transactions(),
+        monthlyBudgets: this.monthlyBudgets(),
+        bankConfigs: this.bankConfigs(),
+        rules: this.rules(),
+        settings: {
+          currency: this.currency(),
+          dateFormat: this.dateFormat(),
+          autoSyncDrive: this.autoSyncGoogleDrive(),
+          googleFileName: this.googleFileName(),
+          theme: this.theme()
+        }
+      };
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+    });
+  }
+
+  public getCurrentMonthString(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  }
+
+  public loadFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (!raw) return;
+      const data: AppDataBackup = JSON.parse(raw);
+      if (data.persons && data.persons.length > 0) this.persons.set(data.persons);
+      if (data.categoryGroups && data.categoryGroups.length > 0) this.categoryGroups.set(data.categoryGroups);
+      if (data.transactions) this.transactions.set(data.transactions);
+      if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
+      if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
+      if (data.rules && data.rules.length > 0) this.rules.set(data.rules);
+      if (data.settings) {
+        if (data.settings.currency) this.currency.set(data.settings.currency);
+        if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
+        if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
+        if (data.settings.theme) this.theme.set(data.settings.theme);
+      }
+    } catch (e) {
+      console.error('Failed to load local data', e);
+    }
+  }
+
+  // Rule Operations
+  public addRule(rule: Omit<CategoryRule, 'id'>): void {
+    const id = 'r-' + Math.random().toString(36).substr(2, 6);
+    const newRule: CategoryRule = { id, ...rule };
+    this.rules.update((curr) => [...curr, newRule]);
+    this.showToast(`Auto-rule for "${rule.keyword}" saved`, 'success');
+  }
+
+  public deleteRule(id: string): void {
+    this.rules.update((curr) => curr.filter((r) => r.id !== id));
+    this.showToast('Rule removed', 'info');
+  }
+
+  public applyRulesToAllTransactions(): void {
+    const activeRules = this.rules();
+    let updatedCount = 0;
+
+    this.transactions.update((curr) =>
+      curr.map((tx) => {
+        const desc = (tx.description || '').toLowerCase();
+        const matched = activeRules.find((r) => desc.includes(r.keyword.toLowerCase()));
+        if (matched) {
+          updatedCount++;
+          return {
+            ...tx,
+            categoryItem: matched.categoryItem,
+            categoryGroup: matched.categoryGroup || tx.categoryGroup,
+            splitType: matched.splitType || tx.splitType,
+            splitPercentage: matched.splitPercentage !== undefined ? matched.splitPercentage : tx.splitPercentage,
+            paidBy: matched.paidBy || tx.paidBy
+          };
+        }
+        return tx;
+      })
+    );
+
+    this.showToast(`Re-applied rules across ${updatedCount} transactions`, 'success');
+  }
+
+  public toggleTheme(): void {
+    const next = this.theme() === 'dark' ? 'light' : 'dark';
+    this.theme.set(next);
+    this.applyTheme();
+  }
+
+  private applyTheme(): void {
+    if (this.theme() === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+  }
+
+  // Toast System
+  public showToast(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    const id = 'toast-' + Math.random().toString(36).substr(2, 9);
+    this.toasts.update((curr) => [...curr, { id, message, type }]);
+    setTimeout(() => {
+      this.toasts.update((curr) => curr.filter((t) => t.id !== id));
+    }, 4000);
+  }
+
+  // Modal Dialogs
+  public showConfirm(title: string, message: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.confirmModal.set({ title, message, resolve });
+    });
+  }
+
+  public showAlert(title: string, message: string): Promise<void> {
+    return new Promise((resolve) => {
+      this.alertModal.set({ title, message, resolve });
+    });
+  }
+
+  // Transaction Operations
+  public addTransaction(tx: Transaction): void {
+    this.transactions.update((curr) => [tx, ...curr]);
+    this.showToast('Transaction added', 'success');
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public addTransactions(newTxs: Transaction[]): void {
+    this.transactions.update((curr) => [...newTxs, ...curr]);
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public updateTransaction(id: string, updates: Partial<Transaction>): void {
+    this.transactions.update((curr) =>
+      curr.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
+    );
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public deleteTransaction(id: string): void {
+    this.transactions.update((curr) => curr.filter((tx) => tx.id !== id));
+    this.showToast('Transaction deleted', 'info');
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public clearAllTransactions(): void {
+    this.transactions.set([]);
+    this.showToast('All transactions cleared', 'info');
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  // Deduplication
+  public getTransactionSignature(tx: Transaction): string {
+    const d = (tx.date || '').slice(0, 10);
+    const amt = Number(tx.amount).toFixed(2);
+    const desc = (tx.description || '').trim().toLowerCase();
+    const bank = (tx.bank || '').trim().toLowerCase();
+    return `${d}_${amt}_${desc}_${bank}`;
+  }
+
+  // Person Operations
+  public addPerson(name: string): void {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const id = 'p-' + Math.random().toString(36).substr(2, 6);
+    this.persons.update((curr) => [...curr, { id, name: trimmed }]);
+    this.showToast(`Person "${trimmed}" added`, 'success');
+  }
+
+  public updatePerson(index: number, name: string): void {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const oldName = this.persons()[index]?.name;
+    this.persons.update((curr) => {
+      const updated = [...curr];
+      updated[index] = { ...updated[index], name: trimmed };
+      return updated;
+    });
+
+    if (oldName && oldName !== trimmed) {
+      // Update existing transactions with old person name
+      this.transactions.update((curr) =>
+        curr.map((tx) => ({
+          ...tx,
+          paidBy: tx.paidBy === oldName ? trimmed : tx.paidBy,
+          transferTo: tx.transferTo === oldName ? trimmed : tx.transferTo
+        }))
+      );
+    }
+  }
+
+  public removePerson(index: number): void {
+    this.persons.update((curr) => curr.filter((_, i) => i !== index));
+  }
+
+  // Category Operations
+  public addCategoryGroup(name: string, icon = '📁'): void {
+    const id = 'grp-' + Math.random().toString(36).substr(2, 6);
+    this.categoryGroups.update((curr) => [...curr, { id, name, icon, items: [] }]);
+    this.showToast(`Category Group "${name}" created`, 'success');
+  }
+
+  public addCategoryItem(groupId: string, name: string, plannedDefault = 0, defaultOwner?: string): void {
+    const id = 'cat-' + Math.random().toString(36).substr(2, 6);
+    this.categoryGroups.update((curr) =>
+      curr.map((grp) =>
+        grp.id === groupId
+          ? {
+              ...grp,
+              items: [...grp.items, { id, groupId, name, plannedDefault, defaultOwner }]
+            }
+          : grp
+      )
+    );
+    this.showToast(`Category "${name}" added`, 'success');
+  }
+
+  public deleteCategoryItem(groupId: string, itemId: string): void {
+    this.categoryGroups.update((curr) =>
+      curr.map((grp) =>
+        grp.id === groupId
+          ? { ...grp, items: grp.items.filter((item) => item.id !== itemId) }
+          : grp
+      )
+    );
+  }
+
+  // Monthly Budget Operations
+  public getBudgetForMonth(month: string): Record<string, number> {
+    const found = this.monthlyBudgets().find((b) => b.month === month);
+    if (found) return found.planned;
+
+    // Fall back to category default planned values
+    const defaults: Record<string, number> = {};
+    this.categoryGroups().forEach((grp) => {
+      grp.items.forEach((item) => {
+        defaults[item.id] = item.plannedDefault || 0;
+      });
+    });
+    return defaults;
+  }
+
+  public updateBudgetPlanned(month: string, categoryItemId: string, amount: number): void {
+    this.monthlyBudgets.update((curr) => {
+      const idx = curr.findIndex((b) => b.month === month);
+      if (idx !== -1) {
+        const updated = [...curr];
+        updated[idx] = {
+          ...updated[idx],
+          planned: { ...updated[idx].planned, [categoryItemId]: amount }
+        };
+        return updated;
+      } else {
+        const defaults = this.getBudgetForMonth(month);
+        defaults[categoryItemId] = amount;
+        return [...curr, { month, planned: defaults }];
+      }
+    });
+  }
+
+  // Backup & Restore
+  public exportBackupJson(): void {
+    const data: AppDataBackup = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      persons: this.persons(),
+      categoryGroups: this.categoryGroups(),
+      transactions: this.transactions(),
+      monthlyBudgets: this.monthlyBudgets(),
+      bankConfigs: this.bankConfigs(),
+      settings: {
+        currency: this.currency(),
+        dateFormat: this.dateFormat(),
+        autoSyncDrive: this.autoSyncGoogleDrive(),
+        googleFileName: this.googleFileName(),
+        theme: this.theme()
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions_processor_backup_${this.getCurrentMonthString()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.showToast('Backup downloaded successfully', 'success');
+  }
+
+  public async importBackupJson(file: File): Promise<void> {
+    try {
+      const text = await file.text();
+      const data: AppDataBackup = JSON.parse(text);
+      if (data.persons) this.persons.set(data.persons);
+      if (data.categoryGroups) this.categoryGroups.set(data.categoryGroups);
+      if (data.transactions) this.transactions.set(data.transactions);
+      if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
+      if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
+      if (data.settings) {
+        if (data.settings.currency) this.currency.set(data.settings.currency);
+        if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
+        if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
+        if (data.settings.theme) {
+          this.theme.set(data.settings.theme);
+          this.applyTheme();
+        }
+      }
+      this.showToast('Backup restored successfully!', 'success');
+    } catch (e) {
+      this.showToast('Error restoring backup file', 'error');
+    }
+  }
+
+  // Google Drive Direct Integration
+  private initGoogleAuthIfPossible(): void {
+    if (typeof google === 'undefined' || !google.accounts?.oauth2) return;
+    try {
+      this.tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: this.GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (response: any) => {
+          if (response.error) {
+            this.showToast('Google Auth Failed: ' + response.error, 'error');
+            return;
+          }
+          this.driveToken = response.access_token;
+          this.isGoogleConnected.set(true);
+          this.showToast('Connected to Google Drive!', 'success');
+        }
+      });
+    } catch (e) {
+      console.warn('Google client init failed', e);
+    }
+  }
+
+  public connectGoogleDrive(): void {
+    if (!this.tokenClient) {
+      this.initGoogleAuthIfPossible();
+    }
+    if (this.tokenClient) {
+      this.tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+      this.showToast('Google Auth script not loaded.', 'error');
+    }
+  }
+
+  public async uploadToGoogleDrive(): Promise<void> {
+    if (!this.driveToken) {
+      this.connectGoogleDrive();
+      return;
+    }
+    this.isGoogleSyncing.set(true);
+    try {
+      const fileName = this.googleFileName() || 'transactions_processor_backup.json';
+      const fileId = await this.findGoogleDriveFileId(fileName);
+
+      const content = JSON.stringify({
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        persons: this.persons(),
+        categoryGroups: this.categoryGroups(),
+        transactions: this.transactions(),
+        monthlyBudgets: this.monthlyBudgets(),
+        bankConfigs: this.bankConfigs(),
+        settings: {
+          currency: this.currency(),
+          dateFormat: this.dateFormat(),
+          autoSyncDrive: this.autoSyncGoogleDrive(),
+          googleFileName: this.googleFileName(),
+          theme: this.theme()
+        }
+      }, null, 2);
+
+      const metadata = { name: fileName, mimeType: 'application/json' };
+      const boundary = '-------314159265358979323846';
+      const delimiter = '\r\n--' + boundary + '\r\n';
+      const closeDelim = '\r\n--' + boundary + '--';
+
+      const multipartRequestBody =
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(metadata) +
+        delimiter +
+        'Content-Type: application/json\r\n\r\n' +
+        content +
+        closeDelim;
+
+      const url = fileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      const method = fileId ? 'PATCH' : 'POST';
+
+      const resp = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${this.driveToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body: multipartRequestBody
+      });
+
+      if (!resp.ok) throw new Error('Upload HTTP status ' + resp.status);
+      const resJson = await resp.json();
+      this.driveFileIdCache = resJson.id;
+      this.lastGoogleSyncTime.set(Date.now());
+      this.showToast('Uploaded backup to Google Drive!', 'success');
+    } catch (e: any) {
+      this.showToast('Google Drive upload failed: ' + e.message, 'error');
+    } finally {
+      this.isGoogleSyncing.set(false);
+    }
+  }
+
+  public async downloadFromGoogleDrive(): Promise<void> {
+    if (!this.driveToken) {
+      this.connectGoogleDrive();
+      return;
+    }
+    this.isGoogleSyncing.set(true);
+    try {
+      const fileName = this.googleFileName() || 'transactions_processor_backup.json';
+      const fileId = await this.findGoogleDriveFileId(fileName);
+      if (!fileId) {
+        this.showToast(`File "${fileName}" not found in Google Drive.`, 'error');
+        return;
+      }
+
+      const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { Authorization: `Bearer ${this.driveToken}` }
+      });
+
+      if (!resp.ok) throw new Error('Download HTTP status ' + resp.status);
+      const data: AppDataBackup = await resp.json();
+
+      if (data.persons) this.persons.set(data.persons);
+      if (data.categoryGroups) this.categoryGroups.set(data.categoryGroups);
+      if (data.transactions) this.transactions.set(data.transactions);
+      if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
+      if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
+      if (data.settings) {
+        if (data.settings.currency) this.currency.set(data.settings.currency);
+        if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
+        if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
+        if (data.settings.theme) {
+          this.theme.set(data.settings.theme);
+          this.applyTheme();
+        }
+      }
+      this.lastGoogleSyncTime.set(Date.now());
+      this.showToast('Loaded data from Google Drive!', 'success');
+    } catch (e: any) {
+      this.showToast('Google Drive download failed: ' + e.message, 'error');
+    } finally {
+      this.isGoogleSyncing.set(false);
+    }
+  }
+
+  private async findGoogleDriveFileId(fileName: string): Promise<string | null> {
+    if (this.driveFileIdCache) return this.driveFileIdCache;
+    const q = encodeURIComponent(`name='${fileName}' and trashed=false`);
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+      headers: { Authorization: `Bearer ${this.driveToken}` }
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.files && data.files.length > 0) {
+      this.driveFileIdCache = data.files[0].id;
+      return this.driveFileIdCache;
+    }
+    return null;
+  }
+
+  private triggerAutoSyncIfEnabled(): void {
+    if (this.autoSyncGoogleDrive() && this.isGoogleConnected() && this.driveToken) {
+      this.uploadToGoogleDrive();
+    }
+  }
+
+  public formatCurrency(amount: number): string {
+    const c = this.currency();
+    const symbol = c === 'EUR' ? '€' : c === 'USD' ? '$' : c === 'INR' ? '₹' : c === 'GBP' ? '£' : c + ' ';
+    return symbol + (amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+}

@@ -1,0 +1,361 @@
+<div class="animate-fade-in ledger-container">
+  <!-- Top Settlement Hero Card -->
+  <div class="glass-card settlement-hero-card">
+    <div class="settlement-hero-header">
+      <div class="settlement-status-badge">
+        <span class="status-dot" [class.settled]="service.monthSettlement().isSettled">●</span>
+        <span class="status-title" *ngIf="service.monthSettlement().isSettled">All Settled Up</span>
+        <span class="status-title" *ngIf="!service.monthSettlement().isSettled">
+          <strong>{{ service.monthSettlement().debtorName }}</strong> owes <strong>{{ service.monthSettlement().creditorName }}</strong>
+        </span>
+      </div>
+      <div class="settlement-main-amount">
+        {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
+      </div>
+      <button class="btn btn-secondary btn-sm" (click)="isSettlementExpanded.set(!isSettlementExpanded())">
+        {{ isSettlementExpanded() ? 'Hide Breakdown ▲' : 'View Split Breakdown ▼' }}
+      </button>
+    </div>
+
+    <!-- Quick Month Metrics -->
+    <div class="metrics-grid settlement-metrics">
+      <div class="metric-card">
+        <div class="label">{{ service.personOne().name }} Paid</div>
+        <div class="value">{{ service.formatCurrency(service.monthSettlement().personAPaid) }}</div>
+        <div class="sub-value">Share: {{ service.formatCurrency(service.monthSettlement().personAShare) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">{{ service.personTwo().name }} Paid</div>
+        <div class="value">{{ service.formatCurrency(service.monthSettlement().personBPaid) }}</div>
+        <div class="sub-value">Share: {{ service.formatCurrency(service.monthSettlement().personBShare) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Total Processed</div>
+        <div class="value">{{ service.formatCurrency(service.monthSettlement().personAPaid + service.monthSettlement().personBPaid) }}</div>
+        <div class="sub-value">{{ service.filteredTransactions().length }} transactions</div>
+      </div>
+    </div>
+
+    <!-- Expanded Itemized Breakdown Drawer -->
+    <div class="settlement-breakdown-drawer animate-fade-in" *ngIf="isSettlementExpanded()">
+      <h4 style="margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-main);">Itemized Split Breakdown</h4>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Paid By</th>
+              <th>Total</th>
+              <th>Split Type</th>
+              <th>{{ service.personOne().name }}'s Share</th>
+              <th>{{ service.personTwo().name }}'s Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of service.monthSettlement().itemizedDetails">
+              <td>{{ item.date }}</td>
+              <td style="font-weight: 500;">{{ item.description }}</td>
+              <td>
+                <span class="badge" [class.badge-info]="item.paidBy === service.personOne().name" [class.badge-warning]="item.paidBy === service.personTwo().name">
+                  {{ item.paidBy }}
+                </span>
+              </td>
+              <td class="font-mono">{{ service.formatCurrency(item.amount) }}</td>
+              <td>
+                <span class="badge" [class.badge-neutral]="item.splitType === 'SELF'" [class.badge-danger]="item.splitType === 'OTHER'" [class.badge-success]="item.splitType === 'SPLIT'">
+                  {{ item.splitType }}
+                </span>
+              </td>
+              <td class="font-mono">{{ service.formatCurrency(item.personAShare) }}</td>
+              <td class="font-mono">{{ service.formatCurrency(item.personBShare) }}</td>
+            </tr>
+            <tr *ngIf="service.monthSettlement().itemizedDetails.length === 0">
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1rem;">No transactions to settle for this period.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls & Filter Toolbar -->
+  <div class="glass-card ledger-toolbar">
+    <!-- Row 1: Month Selector & Quick Action Buttons -->
+    <div class="toolbar-top-row">
+      <div class="month-selector-group">
+        <label class="toolbar-label">Month:</label>
+        <select [ngModel]="service.selectedMonth()" (ngModelChange)="service.selectedMonth.set($event)" class="month-select">
+          <option value="ALL">All Months</option>
+          <option *ngFor="let m of service.availableMonths()" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="btn btn-primary btn-sm" (click)="openCashModal()">
+          💵 + Log Cash / Transfer
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 2: Search and Category/Bank Filters -->
+    <div class="toolbar-filters-row">
+      <input
+        type="text"
+        placeholder="Search description, bank, note..."
+        [ngModel]="service.searchQuery()"
+        (ngModelChange)="service.searchQuery.set($event)"
+        class="search-input">
+
+      <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select">
+        <option value="ALL">All Payers</option>
+        <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+      </select>
+
+      <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select">
+        <option value="ALL">All Banks</option>
+        <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+        <option value="Cash">Cash</option>
+      </select>
+
+      <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select">
+        <option value="ALL">All Splits</option>
+        <option value="SELF">Self Only</option>
+        <option value="OTHER">For Other</option>
+        <option value="SPLIT">Split</option>
+      </select>
+
+      <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select">
+        <option value="ALL">All Categories</option>
+        <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+          <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
+        </optgroup>
+      </select>
+    </div>
+  </div>
+
+  <!-- Transactions Table -->
+  <div class="glass-card ledger-table-card">
+    <div class="table-header-info">
+      <h3>Transactions Ledger ({{ service.filteredTransactions().length }})</h3>
+      <span class="subtitle" style="margin: 0;">Click split buttons to toggle between Self, Other, and 50/50 or custom split.</span>
+    </div>
+
+    <div class="table-container ledger-table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Bank / Account</th>
+            <th>Paid By</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th style="text-align: right;">Amount</th>
+            <th style="text-align: center;">Split Allocation</th>
+            <th>Note</th>
+            <th style="text-align: center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let tx of service.filteredTransactions()">
+            <td style="font-size: 0.78rem; color: var(--text-muted);">{{ tx.date }}</td>
+            <td>
+              <span class="badge badge-neutral">{{ tx.bank }}</span>
+            </td>
+            <td>
+              <select
+                [ngModel]="tx.paidBy"
+                (ngModelChange)="service.updateTransaction(tx.id, { paidBy: $event })"
+                class="inline-select"
+                [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'">
+                <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+              </select>
+            </td>
+            <td style="font-weight: 500; max-width: 250px; text-overflow: ellipsis; overflow: hidden;">
+              {{ tx.description }}
+              <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem;">Cash Transfer</span>
+            </td>
+            <td>
+              <select
+                [ngModel]="tx.categoryItem"
+                (ngModelChange)="service.updateTransaction(tx.id, { categoryItem: $event })"
+                class="inline-select category-select">
+                <option value="">Uncategorized</option>
+                <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+                  <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
+                </optgroup>
+              </select>
+            </td>
+            <td class="font-mono" style="text-align: right; font-weight: 700; font-size: 0.88rem;" [class.text-success]="tx.type === 'INCOME'">
+              {{ service.formatCurrency(tx.amount) }}
+            </td>
+            <td style="text-align: center;">
+              <div class="split-toggle-pill">
+                <button
+                  class="pill-btn"
+                  [class.active]="tx.splitType === 'SELF'"
+                  (click)="updateSplitType(tx, 'SELF')"
+                  title="100% spent for payer">
+                  Self
+                </button>
+                <button
+                  class="pill-btn"
+                  [class.active]="tx.splitType === 'OTHER'"
+                  (click)="updateSplitType(tx, 'OTHER')"
+                  title="100% spent for other person">
+                  Other
+                </button>
+                <button
+                  class="pill-btn"
+                  [class.active]="tx.splitType === 'SPLIT'"
+                  (click)="updateSplitType(tx, 'SPLIT')"
+                  title="Split (50/50 or Custom)">
+                  {{ tx.splitType === 'SPLIT' && tx.splitMode === 'EXACT' ? 'Custom' : '50/50' }}
+                </button>
+                <button
+                  *ngIf="tx.splitType === 'SPLIT'"
+                  class="pill-config-btn"
+                  (click)="openCustomSplitModal(tx)"
+                  title="Configure custom % or exact split amounts">
+                  ⚙
+                </button>
+              </div>
+            </td>
+            <td>
+              <input
+                type="text"
+                [ngModel]="tx.note || ''"
+                (blur)="service.updateTransaction(tx.id, { note: $any($event.target).value })"
+                placeholder="Add note..."
+                class="inline-note-input">
+            </td>
+            <td style="text-align: center;">
+              <button class="btn-icon-delete" (click)="deleteTx(tx)" title="Delete transaction">✕</button>
+            </td>
+          </tr>
+          <tr *ngIf="service.filteredTransactions().length === 0">
+            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+              No transactions found. Import a bank statement or log a cash spend to get started!
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Quick Cash Expense / Transfer -->
+<div class="modal-backdrop-overlay animate-fade-in" *ngIf="isCashModalOpen()">
+  <div class="modal-content-card glass-card animate-scale-in">
+    <div class="modal-header">
+      <h3>💵 Log Cash Spend / Transfer</h3>
+    </div>
+    <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.8rem;">
+      <div style="display: flex; gap: 0.8rem;">
+        <div style="flex: 1;">
+          <label class="input-label">Date</label>
+          <input type="date" [(ngModel)]="cashDate" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+          <label class="input-label">Amount (€)</label>
+          <input type="number" step="0.01" [(ngModel)]="cashAmount" placeholder="0.00" style="width: 100%;">
+        </div>
+      </div>
+
+      <div>
+        <label class="input-label">Description</label>
+        <input type="text" [(ngModel)]="cashDescription" placeholder="e.g. Farmer market, Taxi, Cash to Cheese" style="width: 100%;">
+      </div>
+
+      <div style="display: flex; gap: 0.8rem;">
+        <div style="flex: 1;">
+          <label class="input-label">Who paid / gave cash?</label>
+          <select [(ngModel)]="cashPaidBy" style="width: 100%;">
+            <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+          </select>
+        </div>
+        <div style="flex: 1;">
+          <label class="input-label">Type</label>
+          <select [ngModel]="cashIsTransfer" (ngModelChange)="cashIsTransfer = $event" style="width: 100%;">
+            <option [ngValue]="false">Expense</option>
+            <option [ngValue]="true">Cash Transfer to Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div *ngIf="cashIsTransfer">
+        <label class="input-label">Who received the cash?</label>
+        <select [(ngModel)]="cashTransferTo" style="width: 100%;">
+          <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+        </select>
+      </div>
+
+      <div *ngIf="!cashIsTransfer">
+        <label class="input-label">Category</label>
+        <select [(ngModel)]="cashCategoryItem" style="width: 100%;">
+          <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+            <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
+          </optgroup>
+        </select>
+
+        <div style="margin-top: 0.8rem;">
+          <label class="input-label">Split Allocation</label>
+          <div class="toggle-group" style="width: 100%; height: 34px;">
+            <button class="toggle-btn" [class.active]="cashSplitType === 'SELF'" (click)="cashSplitType = 'SELF'" style="flex: 1;">Self (100%)</button>
+            <button class="toggle-btn" [class.active]="cashSplitType === 'OTHER'" (click)="cashSplitType = 'OTHER'" style="flex: 1;">Other (100%)</button>
+            <button class="toggle-btn" [class.active]="cashSplitType === 'SPLIT'" (click)="cashSplitType = 'SPLIT'" style="flex: 1;">Split 50/50</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-sm" (click)="isCashModalOpen.set(false)">Cancel</button>
+      <button class="btn btn-primary btn-sm" (click)="saveCashSpend()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Custom Split Configurator -->
+<div class="modal-backdrop-overlay animate-fade-in" *ngIf="activeCustomSplitTx() as tx">
+  <div class="modal-content-card glass-card animate-scale-in">
+    <div class="modal-header">
+      <h3>⚙ Configure Custom Split</h3>
+    </div>
+    <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
+      <div style="background: rgba(255,255,255,0.02); padding: 0.6rem 0.8rem; border-radius: 6px;">
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">{{ tx.description }}</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Total Amount: <strong>{{ service.formatCurrency(tx.amount) }}</strong> | Paid by {{ tx.paidBy }}</div>
+      </div>
+
+      <!-- Percentage Presets -->
+      <div>
+        <label class="input-label">Percentage Split Presets</label>
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          <button class="btn btn-secondary btn-xs" (click)="applyCustomPercentage(50)">50% / 50%</button>
+          <button class="btn btn-secondary btn-xs" (click)="applyCustomPercentage(60)">60% / 40%</button>
+          <button class="btn btn-secondary btn-xs" (click)="applyCustomPercentage(70)">70% / 30%</button>
+          <button class="btn btn-secondary btn-xs" (click)="applyCustomPercentage(80)">80% / 20%</button>
+        </div>
+      </div>
+
+      <!-- Exact Amount Breakdown -->
+      <div style="display: flex; gap: 0.8rem;">
+        <div style="flex: 1;">
+          <label class="input-label">{{ service.personOne().name }} Share (€)</label>
+          <input type="number" step="0.01" [ngModel]="customSplitP1Amount" (ngModelChange)="onP1AmountChange($event)" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+          <label class="input-label">{{ service.personTwo().name }} Share (€)</label>
+          <input type="number" step="0.01" [(ngModel)]="customSplitP2Amount" style="width: 100%;">
+        </div>
+      </div>
+      <div style="font-size: 0.72rem; color: var(--text-muted);">
+        Sum: {{ service.formatCurrency(customSplitP1Amount + customSplitP2Amount) }} / {{ service.formatCurrency(tx.amount) }}
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-sm" (click)="activeCustomSplitTx.set(null)">Cancel</button>
+      <button class="btn btn-primary btn-sm" (click)="saveCustomSplit()">Apply Split</button>
+    </div>
+  </div>
+</div>

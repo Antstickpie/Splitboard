@@ -1,0 +1,92 @@
+export interface Person {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  groupId: string;
+  defaultOwner?: string;
+  plannedDefault?: number;
+}
+
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  icon?: string;
+  items: CategoryItem[];
+}
+
+export type SplitType = 'SELF' | 'OTHER' | 'SPLIT';
+export type SplitMode = 'EQUAL' | 'PERCENTAGE' | 'EXACT';
+
+export interface Transaction {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  type: 'EXPENSE' | 'INCOME' | 'TRANSFER';
+  description: string;
+  merchant?: string;
+  bank: string;
+  account: string;
+  paidBy: string; // Person name
+  categoryGroup?: string;
+  categoryItem?: string;
+  
+  // Split logic
+  splitType: SplitType;
+  splitMode?: SplitMode;
+  splitPercentage?: number; // % paidBy keeps for self (default 50)
+  customSplitAmounts?: Record<string, number>; // personName -> amount they are responsible for
+  
+  // Cash & Transfer
+  isCash?: boolean;
+  isCashTransfer?: boolean;
+  transferTo?: string; // person who received cash
+  
+  note?: string;
+  sourceFile?: string;
+  createdAt?: string;
+}
+
+export interface MonthlyBudget {
+  month: string; // YYYY-MM
+  planned: Record<string, number>; // categoryItemId -> planned amount
+}
+
+export interface BankConfig {
+  id: string;
+  name: string;
+  defaultOwner: string;
+  accountNumber?: string;
+}
+
+export interface CategoryRule {
+  id: string;
+  keyword: string;
+  categoryItem: string;
+  categoryGroup?: string;
+  splitType?: SplitType;
+  splitPercentage?: number;
+  paidBy?: string;
+}
+
+export interface AppDataBackup {
+  version: number;
+  exportedAt: string;
+  persons: Person[];
+  categoryGroups: CategoryGroup[];
+  transactions: Transaction[];
+  monthlyBudgets: MonthlyBudget[];
+  bankConfigs: BankConfig[];
+  rules?: CategoryRule[];
+  settings: {
+    currency: string;
+    dateFormat: string;
+    autoSyncDrive: boolean;
+    googleFileName: string;
+    theme: 'dark' | 'light';
+  };
+}

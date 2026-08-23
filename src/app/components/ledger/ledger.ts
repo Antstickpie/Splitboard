@@ -1,0 +1,153 @@
+import { Component, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { TransactionService } from '../../services/transaction.service';
+import { Transaction, SplitType, SplitMode } from '../../models';
+
+@Component({
+  selector: 'app-ledger',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './ledger.html',
+  styleUrl: './ledger.css'
+})
+export class LedgerComponent {
+  public service = inject(TransactionService);
+
+  // Settlement breakdown drawer toggle
+  public isSettlementExpanded = signal(false);
+
+  // Quick Cash / Transfer modal
+  public isCashModalOpen = signal(false);
+  public cashDate = new Date().toISOString().slice(0, 10);
+  public cashAmount = 0;
+  public cashDescription = '';
+  public cashPaidBy = '';
+  public cashIsTransfer = false;
+  public cashTransferTo = '';
+  public cashCategoryGroup = 'Housing';
+  public cashCategoryItem = '';
+  public cashSplitType: SplitType = 'SPLIT';
+  public cashSplitPercentage = 50;
+
+  // Split customization modal
+  public activeCustomSplitTx = signal<Transaction | null>(null);
+  public customSplitP1Amount = 0;
+  public customSplitP2Amount = 0;
+  public customSplitPercentage = 50;
+
+  constructor() {
+    this.cashPaidBy = this.service.personOne().name;
+    this.cashTransferTo = this.service.personTwo().name;
+  }
+
+  public openCashModal() {
+    this.cashDate = new Date().toISOString().slice(0, 10);
+    this.cashAmount = 0;
+    this.cashDescription = '';
+    this.cashPaidBy = this.service.personOne().name;
+    this.cashTransferTo = this.service.personTwo().name;
+    this.cashIsTransfer = false;
+    this.cashCategoryGroup = 'Food';
+    this.cashCategoryItem = '[W][C-Mac]Food and Chill';
+    this.cashSplitType = 'SPLIT';
+    this.cashSplitPercentage = 50;
+    this.isCashModalOpen.set(true);
+  }
+
+  public saveCashSpend() {
+    if (this.cashAmount <= 0) {
+      this.service.showToast('Please enter a valid amount', 'error');
+      return;
+    }
+
+    const tx: Transaction = {
+      id: 'tx-cash-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
+      date: this.cashDate,
+      amount: this.cashAmount,
+      type: this.cashIsTransfer ? 'TRANSFER' : 'EXPENSE',
+      description: this.cashDescription || (this.cashIsTransfer ? `Cash Transfer to ${this.cashTransferTo}` : 'Cash Expense'),
+      bank: 'Cash',
+      account: 'Cash Wallet',
+      paidBy: this.cashPaidBy,
+      isCash: true,
+      isCashTransfer: this.cashIsTransfer,
+      transferTo: this.cashIsTransfer ? this.cashTransferTo : undefined,
+      categoryGroup: this.cashIsTransfer ? undefined : this.cashCategoryGroup,
+      categoryItem: this.cashIsTransfer ? undefined : this.cashCategoryItem,
+      splitType: this.cashIsTransfer ? 'OTHER' : this.cashSplitType,
+      splitPercentage: this.cashSplitPercentage,
+      createdAt: new Date().toISOString()
+    };
+
+    this.service.addTransaction(tx);
+    this.isCashModalOpen.set(false);
+  }
+
+  public updateSplitType(tx: Transaction, type: SplitType) {
+    this.service.updateTransaction(tx.id, {
+      splitType: type,
+      splitPercentage: type === 'SPLIT' ? (tx.splitPercentage || 50) : undefined
+    });
+  }
+
+  public openCustomSplitModal(tx: Transaction) {
+    this.activeCustomSplitTx.set(tx);
+    this.customSplitPercentage = tx.splitPercentage || 50;
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+
+    if (tx.customSplitAmounts) {
+      this.customSplitP1Amount = tx.customSplitAmounts[p1] || 0;
+      this.customSplitP2Amount = tx.customSplitAmounts[p2] || 0;
+    } else {
+      const p1Share = parseFloat(((tx.amount * this.customSplitPercentage) / 100).toFixed(2));
+      this.customSplitP1Amount = p1Share;
+      this.customSplitP2Amount = parseFloat((tx.amount - p1Share).toFixed(2));
+    }
+  }
+
+  public applyCustomPercentage(pct: number) {
+    this.customSplitPercentage = pct;
+    const tx = this.activeCustomSplitTx();
+    if (!tx) return;
+    const p1Share = parseFloat(((tx.amount * pct) / 100).toFixed(2));
+    this.customSplitP1Amount = p1Share;
+    this.customSplitP2Amount = parseFloat((tx.amount - p1Share).toFixed(2));
+  }
+
+  public onP1AmountChange(val: number) {
+    this.customSplitP1Amount = val;
+    const tx = this.activeCustomSplitTx();
+    if (tx) {
+      this.customSplitP2Amount = parseFloat(Math.max(0, tx.amount - val).toFixed(2));
+    }
+  }
+
+  public saveCustomSplit() {
+    const tx = this.activeCustomSplitTx();
+    if (!tx) return;
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+
+    this.service.updateTransaction(tx.id, {
+      splitType: 'SPLIT',
+      splitMode: 'EXACT',
+      splitPercentage: this.customSplitPercentage,
+      customSplitAmounts: {
+        [p1]: this.customSplitP1Amount,
+        [p2]: this.customSplitP2Amount
+      }
+    });
+
+    this.activeCustomSplitTx.set(null);
+    this.service.showToast('Custom split saved', 'success');
+  }
+
+  public async deleteTx(tx: Transaction) {
+    const ok = await this.service.showConfirm('Delete Transaction', `Delete "${tx.description}" (${this.service.formatCurrency(tx.amount)})?`);
+    if (ok) {
+      this.service.deleteTransaction(tx.id);
+    }
+  }
+}

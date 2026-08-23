@@ -1,0 +1,109 @@
+<div class="animate-fade-in import-container">
+  <div class="glass-card import-header">
+    <h2>📥 Import Bank Statements & Receipts</h2>
+    <p class="subtitle">Upload bank statements (PDF, CSV, XLSX) from Sparkasse, N26, DKB, Commerzbank, Revolut, etc. Transactions are automatically standardized and categorized.</p>
+  </div>
+
+  <!-- Settings & Upload Area -->
+  <div class="glass-card import-config-card">
+    <div class="config-grid">
+      <div>
+        <label class="input-label">Select Bank / Source</label>
+        <select [ngModel]="selectedBank()" (ngModelChange)="selectedBank.set($event)" class="styled-select">
+          <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+          <option value="Generic Bank">Generic Bank (CSV/PDF)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="input-label">Default Account Owner</label>
+        <select [ngModel]="selectedOwner()" (ngModelChange)="selectedOwner.set($event)" class="styled-select">
+          <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Dropzone / File Upload -->
+    <div class="dropzone-box" (click)="fileInput.click()">
+      <input type="file" #fileInput (change)="onFileSelected($event)" accept=".pdf,.csv,.tsv,.xlsx,.xls,.txt" style="display: none;">
+      <div class="dropzone-icon">📄</div>
+      <div class="dropzone-title">
+        {{ uploadedFileName() ? uploadedFileName() : 'Click or Drop Bank Statement File Here' }}
+      </div>
+      <div class="dropzone-subtitle">
+        Supports PDF statements, CSV exports, Excel sheets (.xlsx)
+      </div>
+      <div *ngIf="isParsing()" class="loading-spin-text">
+        <span class="animate-spin">⏳</span> Processing statement...
+      </div>
+    </div>
+
+    <!-- Direct Paste Toggle / Alternative -->
+    <div class="paste-section">
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem;">
+        Or paste raw CSV / TSV text directly:
+      </div>
+      <textarea
+        [(ngModel)]="rawClipboardText"
+        placeholder="Paste CSV rows here (e.g. 15.08.2026;REWE; -45,20)..."
+        rows="3"
+        class="raw-textarea"></textarea>
+      <div style="display: flex; justify-content: flex-end; margin-top: 0.4rem;">
+        <button class="btn btn-secondary btn-xs" (click)="parseClipboardText()" [disabled]="!rawClipboardText.trim()">
+          Parse Text
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Card -->
+  <div class="glass-card preview-card animate-fade-in" *ngIf="previewResult() as res">
+    <div class="preview-header">
+      <div>
+        <h3>Statement Preview ({{ res.transactions.length }} new transactions)</h3>
+        <span class="subtitle" style="margin: 0;">
+          {{ res.duplicatesCount > 0 ? res.duplicatesCount + ' duplicate rows detected and skipped.' : 'Ready to import.' }}
+        </span>
+      </div>
+
+      <div style="display: flex; gap: 0.6rem;">
+        <button class="btn btn-secondary btn-sm" (click)="clearPreview()">Cancel</button>
+        <button class="btn btn-primary btn-sm" (click)="commitImport()" [disabled]="res.transactions.length === 0">
+          ✓ Confirm & Import {{ res.transactions.length }} Rows
+        </button>
+      </div>
+    </div>
+
+    <div class="table-container" style="max-height: 400px; overflow-y: auto; margin-top: 0.8rem;">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Bank</th>
+            <th>Owner</th>
+            <th>Auto Category</th>
+            <th style="text-align: right;">Amount</th>
+            <th>Split Mode</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let tx of res.transactions">
+            <td>{{ tx.date }}</td>
+            <td style="font-weight: 500;">{{ tx.description }}</td>
+            <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+            <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
+            <td><span class="badge badge-warning">{{ tx.categoryItem || 'Uncategorized' }}</span></td>
+            <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+            <td><span class="badge badge-success">{{ tx.splitType }}</span></td>
+          </tr>
+          <tr *ngIf="res.transactions.length === 0">
+            <td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+              No new transactions found in this statement (all may be duplicates).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

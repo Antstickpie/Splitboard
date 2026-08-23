@@ -1,0 +1,157 @@
+<div class="app-frame">
+  <!-- Navigation Header -->
+  <header class="app-navbar glass-card">
+    <div class="nav-row-top">
+      <div class="nav-logo">
+        <span class="logo-icon">⚖️</span>
+        <span class="logo-text">SPLIT<span class="logo-sub">BUNCH</span></span>
+      </div>
+
+      <div class="nav-top-right">
+        <!-- Currency Selector -->
+        <div class="currency-toggle">
+          <button
+            class="currency-btn"
+            [class.active]="service.currency() === 'EUR'"
+            (click)="service.currency.set('EUR')">
+            € EUR
+          </button>
+          <button
+            class="currency-btn"
+            [class.active]="service.currency() === 'USD'"
+            (click)="service.currency.set('USD')">
+            $ USD
+          </button>
+          <button
+            class="currency-btn"
+            [class.active]="service.currency() === 'INR'"
+            (click)="service.currency.set('INR')">
+            ₹ INR
+          </button>
+        </div>
+
+        <!-- Google Drive Sync Status -->
+        <div class="nav-sync" (click)="service.uploadToGoogleDrive()" title="Google Drive cloud sync status. Click to sync.">
+          <span [style.color]="service.isGoogleConnected() ? 'var(--success)' : 'var(--text-muted)'" class="sync-dot">●</span>
+          <span class="sync-text">
+            <span class="sync-label">Drive: </span>
+            <span class="sync-time">{{ service.isGoogleConnected() ? (service.lastGoogleSyncTime() ? formatSyncTime(service.lastGoogleSyncTime()!) : 'Connected') : 'Offline' }}</span>
+          </span>
+        </div>
+
+        <!-- Theme Toggle Button -->
+        <button
+          (click)="service.toggleTheme()"
+          [title]="service.theme() === 'light' ? 'Switch to Dark Theme' : 'Switch to Light Theme'"
+          class="nav-icon-btn">
+          <svg *ngIf="service.theme() === 'light'" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg *ngIf="service.theme() === 'dark'" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 2: Nav Controls / Tabs -->
+    <div class="nav-row-controls">
+      <nav class="nav-tabs">
+        <button
+          class="nav-tab-btn"
+          [class.active]="activeTab() === 'ledger'"
+          (click)="switchTab('ledger')">
+          <span class="tab-icon">💳</span> <span class="tab-label">Transactions & Splitter</span>
+        </button>
+        <button
+          class="nav-tab-btn"
+          [class.active]="activeTab() === 'dashboard'"
+          (click)="switchTab('dashboard')">
+          <span class="tab-icon">📊</span> <span class="tab-label">Budget & Analytics</span>
+        </button>
+        <button
+          class="nav-tab-btn"
+          [class.active]="activeTab() === 'import'"
+          (click)="switchTab('import')">
+          <span class="tab-icon">📥</span> <span class="tab-label">Import Statements</span>
+        </button>
+        <button
+          class="nav-tab-btn"
+          [class.active]="activeTab() === 'settings'"
+          (click)="switchTab('settings')">
+          <span class="tab-icon">⚙</span> <span class="tab-label">Settings</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Body -->
+  <main class="app-main-content">
+    <app-ledger *ngIf="activeTab() === 'ledger'"></app-ledger>
+    <app-budget-dashboard *ngIf="activeTab() === 'dashboard'"></app-budget-dashboard>
+    <app-import *ngIf="activeTab() === 'import'"></app-import>
+    <app-settings *ngIf="activeTab() === 'settings'"></app-settings>
+  </main>
+
+  <!-- Global Footer -->
+  <footer class="app-footer">
+    <p>Splitbunch &copy; 2026. Private and stored locally in browser.</p>
+  </footer>
+</div>
+
+<!-- Global Custom Toast Notifications -->
+<div class="toast-container">
+  <div
+    *ngFor="let toast of service.toasts()"
+    class="toast-item glass-card animate-slide-in"
+    [class]="toast.type">
+    <span class="toast-icon" *ngIf="toast.type === 'success'">✓</span>
+    <span class="toast-icon" *ngIf="toast.type === 'error'">✕</span>
+    <span class="toast-icon" *ngIf="toast.type === 'info'">ℹ</span>
+    <span class="toast-message">{{ toast.message }}</span>
+  </div>
+</div>
+
+<!-- Global Confirmation Modal -->
+<div class="modal-backdrop-overlay animate-fade-in" *ngIf="service.confirmModal() as modal">
+  <div class="modal-content-card glass-card animate-scale-in">
+    <div class="modal-header">
+      <h3>{{ modal.title }}</h3>
+    </div>
+    <div class="modal-body">
+      <p>{{ modal.message }}</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-sm" (click)="modal.resolve(false); service.confirmModal.set(null)">
+        Cancel
+      </button>
+      <button class="btn btn-primary btn-sm" (click)="modal.resolve(true); service.confirmModal.set(null)">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Global Alert Modal -->
+<div class="modal-backdrop-overlay animate-fade-in" *ngIf="service.alertModal() as modal">
+  <div class="modal-content-card glass-card animate-scale-in">
+    <div class="modal-header">
+      <h3>{{ modal.title }}</h3>
+    </div>
+    <div class="modal-body">
+      <p style="white-space: pre-line;">{{ modal.message }}</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary btn-sm" (click)="modal.resolve(); service.alertModal.set(null)">
+        OK
+      </button>
+    </div>
+  </div>
+</div>
