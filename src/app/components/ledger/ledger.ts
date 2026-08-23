@@ -55,6 +55,21 @@ export class LedgerComponent {
   public cashCustomP2Amount = 0;
   public cashCustomPercentage = 50;
 
+  // Edit Transaction Modal State
+  public editingTx = signal<Transaction | null>(null);
+  public editDate = '';
+  public editAmount = 0;
+  public editDescription = '';
+  public editPaidBy = '';
+  public editCategoryItem = '';
+  public editCategoryGroup = '';
+  public editSplitOption: 'PAYER_ONLY' | 'OTHER_ONLY' | 'SPLIT_5050' | 'CUSTOM' = 'SPLIT_5050';
+  public editSplitMode: SplitMode = 'PERCENTAGE';
+  public editCustomP1Amount = 0;
+  public editCustomP2Amount = 0;
+  public editCustomPercentage = 50;
+  public editNote = '';
+
   // Split customization modal
   public activeCustomSplitTx = signal<Transaction | null>(null);
   public customSplitP1Amount = 0;
@@ -281,6 +296,164 @@ export class LedgerComponent {
   }
 
 
+
+  public getSplitBadgeText(tx: Transaction): string {
+    if (tx.isCashTransfer) {
+      return `Transfer → ${tx.transferTo || this.getOtherPersonName(tx.paidBy)}`;
+    }
+    if (tx.splitType === 'SELF') {
+      return `100% ${tx.paidBy}`;
+    }
+    if (tx.splitType === 'OTHER') {
+      return `100% ${this.getOtherPersonName(tx.paidBy)}`;
+    }
+    if (tx.splitType === 'SPLIT') {
+      if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+        const p1 = this.service.personOne().name;
+        const p2 = this.service.personTwo().name;
+        const a1 = tx.customSplitAmounts[p1] || 0;
+        const a2 = tx.customSplitAmounts[p2] || 0;
+        return `Custom (${this.service.formatCurrency(a1)} / ${this.service.formatCurrency(a2)})`;
+      }
+      const pct = tx.splitPercentage !== undefined ? tx.splitPercentage : 50;
+      if (pct === 50) return 'Split 50/50';
+      return `Split ${pct}% / ${100 - pct}%`;
+    }
+    return '100% ' + tx.paidBy;
+  }
+
+  public openEditTxModal(tx: Transaction) {
+    this.editingTx.set(tx);
+    this.editDate = tx.date;
+    this.editAmount = tx.amount;
+    this.editDescription = tx.description || '';
+    this.editPaidBy = tx.paidBy || this.service.personOne().name;
+    this.editCategoryItem = tx.categoryItem || '';
+    this.editCategoryGroup = tx.categoryGroup || '';
+    this.editNote = tx.note || '';
+
+    if (tx.splitType === 'SELF') {
+      this.editSplitOption = 'PAYER_ONLY';
+      this.editSplitMode = 'PERCENTAGE';
+      this.editCustomPercentage = 100;
+    } else if (tx.splitType === 'OTHER') {
+      this.editSplitOption = 'OTHER_ONLY';
+      this.editSplitMode = 'PERCENTAGE';
+      this.editCustomPercentage = 0;
+    } else if (tx.splitType === 'SPLIT') {
+      if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+        this.editSplitOption = 'CUSTOM';
+        this.editSplitMode = 'EXACT';
+        const p1 = this.service.personOne().name;
+        const p2 = this.service.personTwo().name;
+        this.editCustomP1Amount = tx.customSplitAmounts[p1] || 0;
+        this.editCustomP2Amount = tx.customSplitAmounts[p2] || 0;
+      } else {
+        const pct = tx.splitPercentage !== undefined ? tx.splitPercentage : 50;
+        if (pct === 50) {
+          this.editSplitOption = 'SPLIT_5050';
+        } else {
+          this.editSplitOption = 'CUSTOM';
+        }
+        this.editSplitMode = 'PERCENTAGE';
+        this.editCustomPercentage = pct;
+        this.editCustomP1Amount = parseFloat(((tx.amount * pct) / 100).toFixed(2));
+        this.editCustomP2Amount = parseFloat((tx.amount - this.editCustomP1Amount).toFixed(2));
+      }
+    } else {
+      this.editSplitOption = 'SPLIT_5050';
+      this.editSplitMode = 'PERCENTAGE';
+      this.editCustomPercentage = 50;
+    }
+  }
+
+  public setEditSplitOption(opt: 'PAYER_ONLY' | 'OTHER_ONLY' | 'SPLIT_5050' | 'CUSTOM') {
+    this.editSplitOption = opt;
+    if (opt === 'CUSTOM') {
+      if (this.editSplitMode === 'PERCENTAGE') {
+        this.editCustomP1Amount = parseFloat(((this.editAmount * this.editCustomPercentage) / 100).toFixed(2));
+        this.editCustomP2Amount = parseFloat((this.editAmount - this.editCustomP1Amount).toFixed(2));
+      } else {
+        const half = parseFloat((this.editAmount / 2).toFixed(2));
+        this.editCustomP1Amount = half;
+        this.editCustomP2Amount = parseFloat((this.editAmount - half).toFixed(2));
+      }
+    }
+  }
+
+  public setEditCustomPercentage(pct: number) {
+    this.editCustomPercentage = pct;
+    this.editCustomP1Amount = parseFloat(((this.editAmount * pct) / 100).toFixed(2));
+    this.editCustomP2Amount = parseFloat((this.editAmount - this.editCustomP1Amount).toFixed(2));
+  }
+
+  public onEditP1AmountChange(val: number) {
+    this.editCustomP1Amount = val;
+    this.editCustomP2Amount = Math.max(0, parseFloat((this.editAmount - val).toFixed(2)));
+  }
+
+  public onEditP2AmountChange(val: number) {
+    this.editCustomP2Amount = val;
+    this.editCustomP1Amount = Math.max(0, parseFloat((this.editAmount - val).toFixed(2)));
+  }
+
+  public saveEditTx() {
+    const tx = this.editingTx();
+    if (!tx) return;
+
+    let splitType: SplitType = 'SPLIT';
+    let splitMode: SplitMode = 'PERCENTAGE';
+    let splitPercentage: number | undefined = 50;
+    let customSplitAmounts: Record<string, number> | undefined = undefined;
+
+    if (tx.isCashTransfer) {
+      splitType = 'OTHER';
+    } else if (this.editSplitOption === 'PAYER_ONLY') {
+      splitType = 'SELF';
+      splitPercentage = 100;
+    } else if (this.editSplitOption === 'OTHER_ONLY') {
+      splitType = 'OTHER';
+      splitPercentage = 0;
+    } else if (this.editSplitOption === 'SPLIT_5050') {
+      splitType = 'SPLIT';
+      splitMode = 'PERCENTAGE';
+      splitPercentage = 50;
+    } else if (this.editSplitOption === 'CUSTOM') {
+      splitType = 'SPLIT';
+      splitMode = this.editSplitMode;
+      if (this.editSplitMode === 'EXACT') {
+        const p1 = this.service.personOne().name;
+        const p2 = this.service.personTwo().name;
+        customSplitAmounts = { [p1]: this.editCustomP1Amount, [p2]: this.editCustomP2Amount };
+      } else {
+        splitPercentage = this.editCustomPercentage;
+      }
+    }
+
+    // Auto-detect group for category if changed
+    let categoryGroup = this.editCategoryGroup;
+    if (this.editCategoryItem) {
+      const found = this.service.categoryGroups().find((g) => g.items.some((it) => it.name === this.editCategoryItem));
+      if (found) categoryGroup = found.name;
+    }
+
+    this.service.updateTransaction(tx.id, {
+      date: this.editDate,
+      amount: this.editAmount,
+      description: this.editDescription,
+      paidBy: this.editPaidBy,
+      categoryItem: this.editCategoryItem,
+      categoryGroup,
+      splitType,
+      splitMode,
+      splitPercentage,
+      customSplitAmounts,
+      note: this.editNote
+    });
+
+    this.editingTx.set(null);
+    this.service.showToast('Transaction updated', 'success');
+  }
 
   public updateSplitType(tx: Transaction, type: SplitType) {
     this.service.updateTransaction(tx.id, {

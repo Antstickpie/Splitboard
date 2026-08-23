@@ -208,33 +208,23 @@
         </thead>
         <tbody>
           <tr *ngFor="let tx of service.filteredTransactions()">
-            <td style="font-size: 0.78rem; color: var(--text-muted);">{{ service.formatDate(tx.date) }}</td>
+            <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
             <td>
               <span class="badge badge-neutral">{{ tx.bank }}</span>
             </td>
             <td>
-              <select
-                [ngModel]="tx.paidBy"
-                (ngModelChange)="service.updateTransaction(tx.id, { paidBy: $event })"
-                class="inline-select"
-                [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'">
-                <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
-              </select>
+              <span class="badge" [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-weight: 600;">
+                {{ tx.paidBy }}
+              </span>
             </td>
-            <td style="font-weight: 500; max-width: 250px; text-overflow: ellipsis; overflow: hidden;">
+            <td style="font-weight: 500; max-width: 260px; text-overflow: ellipsis; overflow: hidden;">
               {{ tx.description }}
               <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem;">Cash Transfer</span>
             </td>
             <td>
-              <select
-                [ngModel]="tx.categoryItem"
-                (ngModelChange)="service.updateTransaction(tx.id, { categoryItem: $event })"
-                class="inline-select category-select">
-                <option value="">Uncategorized</option>
-                <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
-                  <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
-                </optgroup>
-              </select>
+              <span class="badge badge-neutral" style="font-size: 0.76rem; color: var(--text-main);">
+                {{ tx.categoryItem || 'Uncategorized' }}
+              </span>
             </td>
             <td class="font-mono" style="text-align: right; font-weight: 700; font-size: 0.88rem;" [class.text-success]="tx.type === 'INCOME'">
               <div>{{ service.formatCurrency(tx.amount) }}</div>
@@ -243,47 +233,25 @@
               </div>
             </td>
             <td style="text-align: center;">
-              <div class="split-toggle-pill">
-                <button
-                  class="pill-btn"
-                  [class.active]="tx.splitType === 'SELF'"
-                  (click)="updateSplitType(tx, 'SELF')"
-                  title="100% spent for payer">
-                  Self
-                </button>
-                <button
-                  class="pill-btn"
-                  [class.active]="tx.splitType === 'OTHER'"
-                  (click)="updateSplitType(tx, 'OTHER')"
-                  title="100% spent for other person">
-                  Other
-                </button>
-                <button
-                  class="pill-btn"
-                  [class.active]="tx.splitType === 'SPLIT'"
-                  (click)="updateSplitType(tx, 'SPLIT')"
-                  title="Split (50/50 or Custom)">
-                  {{ tx.splitType === 'SPLIT' && tx.splitMode === 'EXACT' ? 'Custom' : '50/50' }}
-                </button>
-                <button
-                  *ngIf="tx.splitType === 'SPLIT'"
-                  class="pill-config-btn"
-                  (click)="openCustomSplitModal(tx)"
-                  title="Configure custom % or exact split amounts">
-                  ⚙
-                </button>
-              </div>
+              <span class="badge" 
+                    [class.badge-warning]="tx.isCashTransfer" 
+                    [class.badge-success]="!tx.isCashTransfer && tx.splitType === 'SPLIT'" 
+                    [class.badge-info]="!tx.isCashTransfer && tx.splitType === 'SELF'" 
+                    [class.badge-danger]="!tx.isCashTransfer && tx.splitType === 'OTHER'"
+                    style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.55rem;">
+                {{ getSplitBadgeText(tx) }}
+              </span>
             </td>
-            <td>
-              <input
-                type="text"
-                [ngModel]="tx.note || ''"
-                (blur)="service.updateTransaction(tx.id, { note: $any($event.target).value })"
-                placeholder="Add note..."
-                class="inline-note-input">
+            <td style="font-size: 0.78rem; color: var(--text-muted); max-width: 150px; text-overflow: ellipsis; overflow: hidden;">
+              {{ tx.note || '—' }}
             </td>
             <td style="text-align: center;">
-              <button class="btn-icon-delete" (click)="deleteTx(tx)" title="Delete transaction">✕</button>
+              <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
+                <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
+                  ✏ Edit
+                </button>
+                <button class="btn-icon-delete" (click)="deleteTx(tx)" title="Delete transaction">✕</button>
+              </div>
             </td>
           </tr>
           <tr *ngIf="service.filteredTransactions().length === 0">
@@ -482,6 +450,113 @@
     <div class="modal-actions">
       <button class="btn btn-secondary btn-sm" (click)="activeCustomSplitTx.set(null)">Cancel</button>
       <button class="btn btn-primary btn-sm" (click)="saveCustomSplit()">Apply Split</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Transaction -->
+<div class="modal-backdrop-overlay animate-fade-in" *ngIf="editingTx() as tx">
+  <div class="modal-content-card glass-card animate-scale-in" style="max-width: 520px;">
+    <div class="modal-header">
+      <h3 style="margin: 0; font-size: 1.15rem;">✏ Edit Transaction</h3>
+    </div>
+    <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.8rem; padding: 1rem 0;">
+      <div style="display: flex; gap: 0.8rem;">
+        <div style="flex: 1.2;">
+          <label class="input-label">Date</label>
+          <input type="date" [(ngModel)]="editDate" style="width: 100%;">
+        </div>
+        <div style="flex: 1.2;">
+          <label class="input-label">Amount ({{ service.currency() }})</label>
+          <input type="number" step="0.01" [(ngModel)]="editAmount" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+          <label class="input-label">Paid By</label>
+          <select [(ngModel)]="editPaidBy" style="width: 100%;">
+            <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="input-label">Description</label>
+        <input type="text" [(ngModel)]="editDescription" style="width: 100%;">
+      </div>
+
+      <div>
+        <label class="input-label">Category</label>
+        <select [(ngModel)]="editCategoryItem" style="width: 100%;">
+          <option value="">Uncategorized</option>
+          <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+            <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Split Allocation (only for non-transfers) -->
+      <div *ngIf="!tx.isCashTransfer" style="margin-top: 0.2rem;">
+        <label class="input-label">Split Allocation</label>
+        <div class="toggle-group" style="width: 100%; height: 34px; margin-bottom: 0.6rem;">
+          <button class="toggle-btn" [class.active]="editSplitOption === 'PAYER_ONLY'" (click)="setEditSplitOption('PAYER_ONLY')" style="flex: 1;">
+            100% {{ editPaidBy }}
+          </button>
+          <button class="toggle-btn" [class.active]="editSplitOption === 'OTHER_ONLY'" (click)="setEditSplitOption('OTHER_ONLY')" style="flex: 1;">
+            100% {{ getOtherPersonName(editPaidBy) }}
+          </button>
+          <button class="toggle-btn" [class.active]="editSplitOption === 'SPLIT_5050'" (click)="setEditSplitOption('SPLIT_5050')" style="flex: 1;">
+            Split 50/50
+          </button>
+          <button class="toggle-btn" [class.active]="editSplitOption === 'CUSTOM'" (click)="setEditSplitOption('CUSTOM')" style="flex: 1;">
+            Custom
+          </button>
+        </div>
+
+        <!-- Custom Split Section -->
+        <div *ngIf="editSplitOption === 'CUSTOM'" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Custom Split Mode:</span>
+            <div class="toggle-group" style="height: 30px; width: 190px;">
+              <button class="toggle-btn" [class.active]="editSplitMode === 'EXACT'" (click)="editSplitMode = 'EXACT'" style="flex: 1; font-size: 0.75rem; white-space: nowrap; padding: 0 0.5rem;">Amount ($)</button>
+              <button class="toggle-btn" [class.active]="editSplitMode === 'PERCENTAGE'" (click)="editSplitMode = 'PERCENTAGE'" style="flex: 1; font-size: 0.75rem; white-space: nowrap; padding: 0 0.5rem;">Percent (%)</button>
+            </div>
+          </div>
+
+          <!-- Mode 1: Exact Money -->
+          <div *ngIf="editSplitMode === 'EXACT'" style="display: flex; gap: 0.6rem;">
+            <div style="flex: 1;">
+              <label class="input-label">{{ service.personOne().name }}'s Share ({{ service.currency() }})</label>
+              <input type="number" step="0.01" [ngModel]="editCustomP1Amount" (ngModelChange)="onEditP1AmountChange($event)" style="width: 100%;">
+            </div>
+            <div style="flex: 1;">
+              <label class="input-label">{{ service.personTwo().name }}'s Share ({{ service.currency() }})</label>
+              <input type="number" step="0.01" [ngModel]="editCustomP2Amount" (ngModelChange)="onEditP2AmountChange($event)" style="width: 100%;">
+            </div>
+          </div>
+
+          <!-- Mode 2: Percentage -->
+          <div *ngIf="editSplitMode === 'PERCENTAGE'">
+            <div style="display: flex; gap: 0.35rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-xs" (click)="setEditCustomPercentage(50)" [class.btn-primary]="editCustomPercentage === 50">50% / 50%</button>
+              <button class="btn btn-secondary btn-xs" (click)="setEditCustomPercentage(60)" [class.btn-primary]="editCustomPercentage === 60">60% / 40%</button>
+              <button class="btn btn-secondary btn-xs" (click)="setEditCustomPercentage(70)" [class.btn-primary]="editCustomPercentage === 70">70% / 30%</button>
+              <button class="btn btn-secondary btn-xs" (click)="setEditCustomPercentage(80)" [class.btn-primary]="editCustomPercentage === 80">80% / 20%</button>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; font-weight: 600;">
+              <span style="color: var(--primary);">{{ service.personOne().name }}: {{ editCustomPercentage }}% ({{ service.formatCurrency((editAmount * editCustomPercentage) / 100) }})</span>
+              <span style="color: var(--secondary);">{{ service.personTwo().name }}: {{ 100 - editCustomPercentage }}% ({{ service.formatCurrency((editAmount * (100 - editCustomPercentage)) / 100) }})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="input-label">Note</label>
+        <input type="text" [(ngModel)]="editNote" placeholder="Optional notes..." style="width: 100%;">
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top: 0.5rem;">
+      <button class="btn btn-secondary btn-sm" (click)="editingTx.set(null)">Cancel</button>
+      <button class="btn btn-primary btn-sm" (click)="saveEditTx()">Save Changes</button>
     </div>
   </div>
 </div>
