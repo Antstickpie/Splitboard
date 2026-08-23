@@ -22,6 +22,7 @@ import { TransactionService } from './services/transaction.service';
 export class App {
   public service = inject(TransactionService);
   public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
+  public currentYear = new Date().getFullYear();
 
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings') {
     this.activeTab.set(tab);
