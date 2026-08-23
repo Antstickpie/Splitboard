@@ -9,7 +9,6 @@ export const DEFAULT_BANKS: BankConfig[] = [
   {
     id: 'b1',
     name: 'Deutsche Bank',
-    defaultOwner: 'Mac',
     defaultCurrency: 'EUR',
     dateColName: 'Buchungstag',
     descColName: 'Begünstigter',
@@ -19,7 +18,6 @@ export const DEFAULT_BANKS: BankConfig[] = [
   {
     id: 'b2',
     name: 'Amazon Visa (Zinia)',
-    defaultOwner: 'Mac',
     defaultCurrency: 'EUR',
     dateColName: 'Transaktion',
     descColName: 'Händler',
@@ -28,7 +26,6 @@ export const DEFAULT_BANKS: BankConfig[] = [
   {
     id: 'b3',
     name: 'Amex',
-    defaultOwner: 'Mac',
     defaultCurrency: 'EUR',
     dateColName: 'Datum',
     descColName: 'Beschreibung',
@@ -37,7 +34,6 @@ export const DEFAULT_BANKS: BankConfig[] = [
   {
     id: 'b4',
     name: 'Revolut',
-    defaultOwner: 'Cheese',
     defaultCurrency: 'EUR',
     dateColName: 'Started Date',
     descColName: 'Description',
@@ -47,7 +43,6 @@ export const DEFAULT_BANKS: BankConfig[] = [
   {
     id: 'b5',
     name: 'Commerzbank',
-    defaultOwner: 'Cheese',
     defaultCurrency: 'EUR',
     dateColName: 'Buchungstag',
     descColName: 'Buchungstext',

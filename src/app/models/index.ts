@@ -64,7 +64,6 @@ export interface MonthlyBudget {
 export interface BankConfig {
   id: string;
   name: string;
-  defaultOwner: string;
   defaultCurrency?: string; // e.g. 'EUR', 'USD', 'INR', 'GBP'
   accountNumber?: string;
   dateColName?: string;

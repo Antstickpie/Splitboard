@@ -694,15 +694,7 @@ export class TransactionService {
         }))
       );
 
-      // 3. Update bank default owners
-      this.bankConfigs.update((curr) =>
-        curr.map((b) => ({
-          ...b,
-          defaultOwner: b.defaultOwner === oldName ? trimmed : b.defaultOwner
-        }))
-      );
-
-      // 4. Update category items default owner
+      // 3. Update category items default owner
       this.categoryGroups.update((curr) =>
         curr.map((g) => ({
           ...g,

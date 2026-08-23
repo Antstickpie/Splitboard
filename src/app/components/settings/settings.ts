@@ -77,7 +77,6 @@ export class SettingsComponent {
 
   // Bank Config Form
   public newBankName = '';
-  public newBankOwner = '';
   public newBankCurrency = 'EUR';
   public newBankAccountNo = '';
   public newBankDateCol = '';
@@ -90,7 +89,6 @@ export class SettingsComponent {
     const firstGroup = this.service.categoryGroups()[0];
     if (firstGroup) this.selectedGroupIdForNewCat = firstGroup.id;
     if (firstGroup && firstGroup.items[0]) this.newRuleCategory = firstGroup.items[0].name;
-    this.newBankOwner = this.service.personOne().name;
     this.newBankCurrency = this.service.currency();
   }
 
@@ -98,7 +96,6 @@ export class SettingsComponent {
     if (!this.newBankName.trim()) return;
     this.service.addBankConfig({
       name: this.newBankName.trim(),
-      defaultOwner: this.newBankOwner || this.service.personOne().name,
       defaultCurrency: this.newBankCurrency || this.service.currency(),
       accountNumber: this.newBankAccountNo.trim() || undefined,
       dateColName: this.newBankDateCol.trim() || undefined,

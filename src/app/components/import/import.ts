@@ -29,35 +29,25 @@ export class ImportComponent {
     const firstBank = this.service.bankConfigs()[0];
     if (firstBank) {
       this.selectedBank.set(firstBank.name);
-      this.selectedOwner.set(firstBank.defaultOwner || this.service.personOne().name);
-    } else {
-      this.selectedOwner.set(this.service.personOne().name);
     }
+    this.selectedOwner.set(this.service.personOne().name);
   }
 
   public onBankChange(bankName: string): void {
     this.selectedBank.set(bankName);
-    const bank = this.service.bankConfigs().find((b) => b.name === bankName);
-    if (bank && bank.defaultOwner) {
-      this.selectedOwner.set(bank.defaultOwner);
-    }
   }
 
   // Quick Add Bank Directly from Import Page
   public isAddingBankInline = false;
   public newInlineBankName = '';
-  public newInlineBankOwner = '';
 
   public saveInlineBank(): void {
     if (!this.newInlineBankName.trim()) return;
     const name = this.newInlineBankName.trim();
-    const owner = this.newInlineBankOwner || this.service.personOne().name;
     this.service.addBankConfig({
-      name,
-      defaultOwner: owner
+      name
     });
     this.selectedBank.set(name);
-    this.selectedOwner.set(owner);
     this.newInlineBankName = '';
     this.isAddingBankInline = false;
   }
