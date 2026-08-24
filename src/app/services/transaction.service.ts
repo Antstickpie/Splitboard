@@ -71,7 +71,7 @@ export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [
   { id: 'ex-rev-2', bank: 'Revolut', keyword: 'Exchanged to' },
   { id: 'ex-rev-3', bank: 'Revolut', keyword: 'Google Pay top-up' },
   { id: 'ex-rev-4', bank: 'Revolut', keyword: 'Top Up' },
-  { id: 'ex-rev-5', bank: 'Revolut', keyword: 'Payment from ANIRUDH APPALA' },
+  { id: 'ex-rev-5', bank: 'Revolut', keyword: 'Payment from' },
   { id: 'ex-rev-6', bank: 'Revolut', keyword: 'To investment account' },
   { id: 'ex-rev-7', bank: 'Revolut', keyword: 'To Me Commerzbank' }
 ];
