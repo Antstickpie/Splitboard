@@ -99,6 +99,17 @@ export class TransactionService {
   public numberFormat = signal<string>('1,234.56');
   public autoSyncGoogleDrive = signal<boolean>(false);
   public googleFileName = signal<string>('splitboard_backup.json');
+  public googleClientId = signal<string>(
+    localStorage.getItem('splitboard_google_client_id') ||
+    '905187123985-efr820m362ghf1u5i6j10s8l4vff9o42.apps.googleusercontent.com'
+  );
+
+  public setGoogleClientId(id: string): void {
+    const clean = id.trim();
+    this.googleClientId.set(clean);
+    localStorage.setItem('splitboard_google_client_id', clean);
+    this.initGoogleAuthIfPossible();
+  }
 
   // Currency & Multi-Currency State
   public visibleCurrencies = signal<string[]>(['EUR', 'USD', 'INR', 'GBP']);
@@ -957,7 +968,7 @@ export class TransactionService {
     if (typeof google === 'undefined' || !google.accounts?.oauth2) return;
     try {
       this.tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: this.GOOGLE_CLIENT_ID,
+        client_id: this.googleClientId(),
         scope: 'https://www.googleapis.com/auth/drive.file',
         callback: (response: any) => {
           if (response.error) {
