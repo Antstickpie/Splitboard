@@ -39,6 +39,7 @@
           },
           "configurations": {
             "production": {
+              "baseHref": "/Splitbunch/",
               "budgets": [
                 {
                   "type": "initial",
