@@ -23,7 +23,6 @@ export class SettingsComponent {
   public newCurrencyCode = '';
   public isRatesCollapsed = signal<boolean>(false);
   public isEditingRates = signal<boolean>(false);
-  public showGoogleConfig = false;
 
   public exchangeRatePairs = computed(() => {
     const currencies = this.service.visibleCurrencies();

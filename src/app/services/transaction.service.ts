@@ -99,17 +99,7 @@ export class TransactionService {
   public numberFormat = signal<string>('1,234.56');
   public autoSyncGoogleDrive = signal<boolean>(false);
   public googleFileName = signal<string>('splitboard_backup.json');
-  public googleClientId = signal<string>(
-    localStorage.getItem('splitboard_google_client_id') ||
-    '905187123985-efr820m362ghf1u5i6j10s8l4vff9o42.apps.googleusercontent.com'
-  );
-
-  public setGoogleClientId(id: string): void {
-    const clean = id.trim();
-    this.googleClientId.set(clean);
-    localStorage.setItem('splitboard_google_client_id', clean);
-    this.initGoogleAuthIfPossible();
-  }
+  public googleClientId = signal<string>('309949315167-dfr5pfvogun0lq4lohg9v79g4cp3uvss.apps.googleusercontent.com');
 
   // Currency & Multi-Currency State
   public visibleCurrencies = signal<string[]>(['EUR', 'USD', 'INR', 'GBP']);

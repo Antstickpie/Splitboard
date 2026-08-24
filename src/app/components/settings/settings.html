@@ -210,32 +210,13 @@
           </label>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.06);">
-          <button
-            class="btn btn-secondary btn-xs"
-            (click)="showGoogleConfig = !showGoogleConfig"
-            style="padding: 0.1rem 0.4rem; font-size: 0.68rem;">
-            ⚙ {{ showGoogleConfig ? 'Hide OAuth Key' : 'OAuth Client ID' }}
+        <div style="display: flex; justify-content: flex-end; gap: 0.35rem; margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.06);">
+          <button class="btn btn-secondary btn-xs" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+            Pull
           </button>
-          <div style="display: flex; gap: 0.35rem;">
-            <button class="btn btn-secondary btn-xs" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-              Pull
-            </button>
-            <button class="btn btn-primary btn-xs" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-              Push
-            </button>
-          </div>
-        </div>
-
-        <div *ngIf="showGoogleConfig" class="animate-fade-in" style="margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px solid rgba(255,255,255,0.06);">
-          <label class="input-label" style="font-size: 0.68rem; margin-bottom: 0.15rem;">Google OAuth Client ID</label>
-          <input
-            type="text"
-            [ngModel]="service.googleClientId()"
-            (ngModelChange)="service.setGoogleClientId($event)"
-            placeholder="xxxx.apps.googleusercontent.com"
-            class="person-input"
-            style="width: 100%; font-size: 0.7rem; font-family: monospace;">
+          <button class="btn btn-primary btn-xs" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+            Push
+          </button>
         </div>
       </div>
 
