@@ -79,20 +79,36 @@ export class StatementParserService {
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(' ');
+          let lastY: number | undefined;
+          let pageText = '';
+
+          for (const item of textContent.items as any[]) {
+            const str = item.str || '';
+            const y = item.transform ? Math.round(item.transform[5]) : undefined;
+            if (lastY !== undefined && y !== undefined && Math.abs(y - lastY) > 3) {
+              pageText += '\n';
+            } else if (pageText.length > 0 && !pageText.endsWith(' ') && !pageText.endsWith('\n')) {
+              pageText += ' ';
+            }
+            pageText += str;
+            if (y !== undefined) lastY = y;
+          }
+
           fullText += '\n' + pageText;
         }
+        console.log(`[StatementParser] Parsed ${pdf.numPages} PDF pages via pdfjsLib.`);
       }
     } catch (e) {
-      console.warn('pdfjsLib runtime parse failed:', e);
+      console.warn('[StatementParser] pdfjsLib runtime parse failed:', e);
     }
 
     // Fallback: extract plain text / stream text from raw PDF bytes
     if (!fullText.trim()) {
+      console.log('[StatementParser] Using raw PDF byte extractor fallback.');
       fullText = this.extractRawPdfText(new Uint8Array(arrayBuffer));
     }
+
+    console.log('[StatementParser] === Extracted PDF Text ===\n' + fullText);
 
     return this.extractTransactionsFromPdfText(fullText, bankName, defaultOwner, file.name);
   }
@@ -325,13 +341,14 @@ export class StatementParserService {
     defaultOwner: string,
     fileName: string
   ): ParsedStatementResult {
+    console.log('[StatementParser] === Processing PDF text for bank:', bankName, '===');
     const transactions: Transaction[] = [];
     const incomes: Transaction[] = [];
     const duplicates: Transaction[] = [];
     const excluded: Transaction[] = [];
     const detectedBank = this.detectBank(bankName, fileName, text);
     
-    // Count occurrences already in Database (never flag intra-statement rows as duplicate)
+    // Count occurrences already in Database
     const dbSigCounts = new Map<string, number>();
     for (const t of this.service.transactions()) {
       const sig = this.service.getTransactionSignature(t);
@@ -341,100 +358,193 @@ export class StatementParserService {
     const bankCfg = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
     let invertSigns = bankCfg?.invertAmountSign ?? false;
 
-    if (!bankCfg || bankCfg.invertAmountSign === undefined) {
-      if (/(\b(zahlung|überweisung)\s+erhalten\b|\bpayment\s+received\b|\bbesten\s+dank\b|\bgutschrift\b)/i.test(text) && /-\s*\d+[.,]\d{2}/.test(text)) {
-        invertSigns = true;
-      }
-    }
-
-    // Matches German statement patterns: DD.MM.YYYY (optional DD.MM.YYYY) text amount [+/-/S/H/EUR]
-    const regex = /(\d{2}[./\-]\d{2}(?:[./\-]\d{2,4})?)\s+(?:\d{2}[./\-]\d{2}(?:[./\-]\d{2,4})?\s+)?([A-Za-z0-9\s\-.,/&@äöüÄÖÜß#*+]+?)\s+([+\-]?\s*\d{1,3}(?:\.\d{3})*,\d{2}\s*[+\-SH]?|[+\-]?\s*\d+\.\d{2}\s*[+\-SH]?)\s*(?:EUR|€)?/g;
-
-    let match: RegExpExecArray | null;
-    let count = 0;
-
-    // Detect statement year from header if dates are DD.MM.
+    // Detect statement year from text if dates are DD.MM.
     let fallbackYear = new Date().getFullYear().toString();
     const yearMatch = text.match(/\b(202\d)\b/);
     if (yearMatch) fallbackYear = yearMatch[1];
+    console.log('[StatementParser] Detected bank:', detectedBank, 'Fallback Year:', fallbackYear);
 
-    while ((match = regex.exec(text)) !== null) {
-      const matchIndex = match.index;
-      const matchFull = match[0];
-      const afterMatch = text.slice(matchIndex + matchFull.length, matchIndex + matchFull.length + 6);
-      // If amount was immediately followed by .YYYY (part of another date in range like 01.03.2026 - 24.08.2026)
-      if (/^\.\d{2,4}/.test(afterMatch)) {
+    // Line-by-line processing
+    const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    console.log(`[StatementParser] Total raw lines in PDF: ${rawLines.length}`);
+
+    // Patterns for matching transactions:
+    // 1. Date at start: "DD.MM.YYYY" or "DD.MM." or "DD/MM/YYYY" or "DD-MM-YYYY" or "YYYY-MM-DD"
+    // 2. Amount at end or mid: e.g. "123,45-", "-123,45", "+123,45", "123.45 S", "123.45 H", "123,45 EUR", "123.45+"
+    const lineTxRegex = /^(\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?)(?:\s+\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?)?\s+(.+?)\s+([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)\s*(?:EUR|€|USD|\$|GBP|£)?$/i;
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i];
+
+      // Skip obvious metadata / header lines
+      if (
+        /\b(branch number|balance as at|opening balance|closing balance|old balance|new balance|alter kontostand|neuer kontostand|rechnungsabschluss|kontostand per|saldo per|iban|bic|page \d|seite \d)\b/i.test(
+          line
+        )
+      ) {
+        console.log('[StatementParser] Skipped metadata header line:', line);
         continue;
       }
 
-      count++;
-      let rawDate = match[1];
-      // If date was only DD.MM. without year, append detected statement year
-      if (/^\d{2}[./\-]\d{2}$/.test(rawDate.trim())) {
-        rawDate = rawDate.trim() + '.' + fallbackYear;
+      const match = line.match(lineTxRegex);
+      if (match) {
+        let rawDate = match[1].trim();
+        const rawDesc = match[2].trim();
+        const rawAmt = match[3].trim();
+
+        // If date was only DD.MM. without year, append detected statement year
+        if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
+          rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
+        }
+
+        const isoDate = this.normalizeDate(rawDate);
+        if (!isoDate) {
+          console.log('[StatementParser] Failed to parse date from line:', line);
+          continue;
+        }
+
+        let amount = this.parseAmount(rawAmt);
+        if (rawAmt.endsWith('S') || rawAmt.endsWith('-')) {
+          amount = -Math.abs(amount);
+        } else if (rawAmt.endsWith('H') || rawAmt.endsWith('+')) {
+          amount = Math.abs(amount);
+        }
+        if (amount === 0) continue;
+
+        let cleanDesc = rawDesc
+          .replace(/\*{3,}\d{2,6}/g, '')
+          .replace(/^[-–—]\s*/, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        cleanDesc = this.service.fixMojibake(cleanDesc);
+
+        if (!cleanDesc || cleanDesc === '-' || cleanDesc === '–' || !/[a-zA-Z0-9äöüÄÖÜß]/.test(cleanDesc)) {
+          continue;
+        }
+
+        const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
+        const isCharge = invertSigns ? amount > 0 : amount < 0;
+        const isIncomeOrPayment = !isCharge;
+
+        const tx: Transaction = {
+          id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
+          date: isoDate,
+          amount: Math.abs(amount),
+          type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
+          description: cleanDesc,
+          bank: detectedBank,
+          account: detectedBank,
+          paidBy: defaultOwner || this.service.personOne().name,
+          categoryGroup: group,
+          categoryItem: item,
+          splitType: defaultSplit || 'SELF',
+          splitPercentage: 50,
+          sourceFile: fileName,
+          createdAt: new Date().toISOString()
+        };
+
+        if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
+          excluded.push(tx);
+          console.log('[StatementParser] Excluded by rule:', cleanDesc);
+          continue;
+        }
+
+        const sig = this.service.getTransactionSignature(tx);
+        const dbCount = dbSigCounts.get(sig) || 0;
+        if (dbCount > 0) {
+          duplicates.push(tx);
+          dbSigCounts.set(sig, dbCount - 1);
+          console.log('[StatementParser] Duplicate found:', cleanDesc, tx.amount);
+        } else if (isIncomeOrPayment) {
+          incomes.push(tx);
+          console.log('[StatementParser] Parsed Income/Payment:', cleanDesc, tx.amount);
+        } else {
+          transactions.push(tx);
+          console.log('[StatementParser] Parsed Valid Expense:', cleanDesc, tx.amount);
+        }
       }
+    }
 
-      const rawDesc = match[2].trim();
-      let rawAmt = match[3].trim();
+    // Fallback: If line regex found 0 items, run global multi-line regex
+    if (transactions.length === 0 && incomes.length === 0) {
+      console.log('[StatementParser] Line regex found 0, running fallback multi-line regex...');
+      const fallbackRegex = /(\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?)\s+(?:\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\s+)?([A-Za-z0-9\s\-.,/&@äöüÄÖÜß#*+]+?)\s+([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)\s*(?:EUR|€|USD|\$|GBP|£)?/g;
+      let m: RegExpExecArray | null;
 
-      const isoDate = this.normalizeDate(rawDate);
-      if (!isoDate) continue;
+      while ((m = fallbackRegex.exec(text)) !== null) {
+        let rawDate = m[1].trim();
+        const rawDesc = m[2].trim();
+        const rawAmt = m[3].trim();
 
-      let amount = this.parseAmount(rawAmt);
-      if (rawAmt.endsWith('S') || rawAmt.endsWith('-')) {
-        amount = -Math.abs(amount);
-      } else if (rawAmt.endsWith('H') || rawAmt.endsWith('+')) {
-        amount = Math.abs(amount);
-      }
-      if (amount === 0) continue;
+        if (/\b(branch number|balance as at|opening balance|closing balance|alter kontostand|neuer kontostand|kontostand per)\b/i.test(rawDesc)) {
+          continue;
+        }
 
-      // Strip masked card numbers like ************6925 and extra dashes
-      let cleanDesc = rawDesc.replace(/\*{3,}\d{2,6}/g, '').replace(/^[-–—]\s*/, '').replace(/\s+/g, ' ').trim();
-      cleanDesc = this.service.fixMojibake(cleanDesc);
+        if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
+          rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
+        }
 
-      // Skip invalid header fragments, date range artifacts (e.g. desc was just '-'), or metadata labels
-      if (!cleanDesc || cleanDesc === '-' || cleanDesc === '–' || !/[a-zA-Z0-9äöüÄÖÜß]/.test(cleanDesc)) {
-        continue;
-      }
-      if (/^(zeitraum|datum|saldo|kontostand|iban|bic|seite|belastung|rechnungsabschluss)\b/i.test(cleanDesc)) {
-        continue;
-      }
+        const isoDate = this.normalizeDate(rawDate);
+        if (!isoDate) continue;
 
-      const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
-      const isCharge = invertSigns ? amount > 0 : amount < 0;
-      const isIncomeOrPayment = !isCharge;
+        let amount = this.parseAmount(rawAmt);
+        if (rawAmt.endsWith('S') || rawAmt.endsWith('-')) {
+          amount = -Math.abs(amount);
+        } else if (rawAmt.endsWith('H') || rawAmt.endsWith('+')) {
+          amount = Math.abs(amount);
+        }
+        if (amount === 0) continue;
 
-      const tx: Transaction = {
-        id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
-        date: isoDate,
-        amount: Math.abs(amount),
-        type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
-        description: cleanDesc,
-        bank: detectedBank,
-        account: detectedBank,
-        paidBy: defaultOwner || this.service.personOne().name,
-        categoryGroup: group,
-        categoryItem: item,
-        splitType: defaultSplit || 'SELF',
-        splitPercentage: 50,
-        sourceFile: fileName,
-        createdAt: new Date().toISOString()
-      };
+        let cleanDesc = rawDesc
+          .replace(/\*{3,}\d{2,6}/g, '')
+          .replace(/^[-–—]\s*/, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        cleanDesc = this.service.fixMojibake(cleanDesc);
 
-      if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
-        excluded.push(tx);
-        continue;
-      }
+        if (!cleanDesc || cleanDesc === '-' || cleanDesc === '–' || !/[a-zA-Z0-9äöüÄÖÜß]/.test(cleanDesc)) {
+          continue;
+        }
+        if (/^(zeitraum|datum|saldo|kontostand|iban|bic|seite|belastung|rechnungsabschluss)\b/i.test(cleanDesc)) {
+          continue;
+        }
 
-      const sig = this.service.getTransactionSignature(tx);
-      const dbCount = dbSigCounts.get(sig) || 0;
-      if (dbCount > 0) {
-        duplicates.push(tx);
-        dbSigCounts.set(sig, dbCount - 1);
-      } else if (isIncomeOrPayment) {
-        incomes.push(tx);
-      } else {
-        transactions.push(tx);
+        const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
+        const isCharge = invertSigns ? amount > 0 : amount < 0;
+        const isIncomeOrPayment = !isCharge;
+
+        const tx: Transaction = {
+          id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
+          date: isoDate,
+          amount: Math.abs(amount),
+          type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
+          description: cleanDesc,
+          bank: detectedBank,
+          account: detectedBank,
+          paidBy: defaultOwner || this.service.personOne().name,
+          categoryGroup: group,
+          categoryItem: item,
+          splitType: defaultSplit || 'SELF',
+          splitPercentage: 50,
+          sourceFile: fileName,
+          createdAt: new Date().toISOString()
+        };
+
+        if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
+          excluded.push(tx);
+          continue;
+        }
+
+        const sig = this.service.getTransactionSignature(tx);
+        const dbCount = dbSigCounts.get(sig) || 0;
+        if (dbCount > 0) {
+          duplicates.push(tx);
+          dbSigCounts.set(sig, dbCount - 1);
+        } else if (isIncomeOrPayment) {
+          incomes.push(tx);
+        } else {
+          transactions.push(tx);
+        }
       }
     }
 
@@ -442,6 +552,10 @@ export class StatementParserService {
     incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    console.log(
+      `[StatementParser] Result -> ${transactions.length} expenses, ${incomes.length} incomes, ${duplicates.length} duplicates, ${excluded.length} excluded.`
+    );
 
     return {
       transactions,
@@ -452,7 +566,7 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
-      totalParsed: count
+      totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
     };
   }
 
