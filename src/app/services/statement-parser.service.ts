@@ -348,8 +348,12 @@ export class StatementParserService {
     if (!raw) return '';
     let clean = raw;
 
-    // Clean duplicate dots/slashes and extra whitespace, keep full original text
+    // Clean duplicate dots/slashes
     clean = clean.replace(/[./]{2,}/g, ' ');
+    // Remove isolated dashes/hyphens left over from date column splitting
+    clean = clean.replace(/(?:^|\s)[-–—]{1,3}(?=\s|$)/g, ' ');
+    // Remove leading/trailing symbols, dashes, dots, spaces
+    clean = clean.replace(/^[–—\-_:.,/\s]+|[–—\-_:.,/\s]+$/g, '');
     clean = clean.replace(/\s+/g, ' ').trim();
     return this.service.fixMojibake(clean);
   }
@@ -389,7 +393,8 @@ export class StatementParserService {
     const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
     const amountTokenRegex = /([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)/g;
 
-    // Structural table block grouping
+    // Structural table block grouping:
+    // A transaction block starts at a Date line and captures all lines until the next Date line or table boundary.
     interface RawBlock {
       dateStr: string;
       lines: string[];
@@ -398,12 +403,14 @@ export class StatementParserService {
     let currentBlock: RawBlock | null = null;
 
     for (const line of rawLines) {
-      // Skip common table header labels
-      if (
-        /\b(booking\s+date|value\s+item|debit\s+credit|carry\s+forward|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement)\b/i.test(
+      // 1. Check if line marks table headers or table end / footer notes
+      const isHeaderOrFooter =
+        /\b(booking\s+date|value\s+item|debit\s+credit|carry\s+forward|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement|balance|kontostand|rechnungsabschluss|interest|notes|objections|disclaimer|guarantee)\b/i.test(
           line
-        )
-      ) {
+        ) ||
+        (line.length > 60 && (line.includes('. ') || line.includes('! ') || line.includes('? ')));
+
+      if (isHeaderOrFooter) {
         if (currentBlock && currentBlock.lines.length > 0) {
           blocks.push(currentBlock);
           currentBlock = null;
