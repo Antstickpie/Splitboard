@@ -348,8 +348,9 @@ export class StatementParserService {
     if (!raw) return '';
     let clean = raw;
 
-    // 1. Remove common noise IDs, references, IBANs, BICs
-    clean = clean.replace(/\b(?:IBAN|BIC|EREF|MREF|CRED|KREF|KUNDENREFERENZ|MANDATSREFERENZ|GLÄUBIGER-ID|GLAEUBIGER-ID|END-TO-END-REF)[.:]?\s*[A-Z0-9\-+/]+/gi, '');
+    // 1. Remove payment references, EREF, MREF, Creditor IDs, IBANs, BICs
+    clean = clean.replace(/\bPayment Reference\/E2E-Ref[.:]?\s*[A-Z0-9\-+/]*/gi, '');
+    clean = clean.replace(/\b(?:IBAN|BIC|EREF|MREF|CRED|KREF|KUNDENREFERENZ|MANDATSREFERENZ|GLÄUBIGER-ID|GLAEUBIGER-ID|END-TO-END-REF|E2E-REF)[.:]?\s*[A-Z0-9\-+/]+/gi, '');
     clean = clean.replace(/\b[A-Z]{2}\d{2}\s*(?:[A-Z0-9]{4}\s*){3,7}[A-Z0-9]{1,4}\b/g, ''); // Raw IBAN pattern
     clean = clean.replace(/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/g, ''); // Raw BIC pattern
 
@@ -358,10 +359,11 @@ export class StatementParserService {
     clean = clean.replace(/\*{3,}\d{2,6}/g, '');
     clean = clean.replace(/\b\d{2}:\d{2}(?::\d{2})?\b/g, '');
     clean = clean.replace(/\bVALUTA\s*\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?/gi, '');
+    clean = clean.replace(/\b\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\b/g, ''); // embedded date strings
 
     // 3. Remove standard transaction method labels if longer merchant description exists
     const withoutMethod = clean.replace(
-      /\b(SEPA-(?:Basis)?Lastschrift|Lastschrift|Direct debit|SEPA direct debit|SEPA-(?:Credit )?Transfer|Überweisung|Credit transfer|Kartenzahlung|Kartenverfügung|Card payment|Debit card payment|Girocard|Dauerauftrag|Standing order|Gutschrift|Gutschrift\s*Arbeitgeber|Auszahlung|Withdrawal)\b/gi,
+      /\b(SEPA-(?:Basis)?Lastschrift|Lastschrift|Direct debit|SEPA direct debit|SEPA-(?:Credit )?Transfer|Überweisung|Credit transfer|Kartenzahlung|Kartenverfügung|Card payment|Debit card payment|Girocard|Dauerauftrag|Standing order|SALA\s+Lohn\/Gehalt|Lohn\/Gehalt|Gutschrift|Gutschrift\s*Arbeitgeber|Auszahlung|Withdrawal)\b/gi,
       ''
     ).trim();
 
@@ -369,7 +371,11 @@ export class StatementParserService {
       clean = withoutMethod;
     }
 
-    // 4. Remove leading/trailing punctuation symbols and compress whitespace
+    // 4. Clean messy delimiters like .. or // inside names (e.g. "Revolut..3236.//Dublin/IE" -> "Revolut 3236 Dublin IE")
+    clean = clean.replace(/(\w)\.{2,}(\w)/g, '$1 $2');
+    clean = clean.replace(/\/\/+/g, ' ');
+
+    // 5. Remove leading/trailing punctuation symbols and compress whitespace
     clean = clean.replace(/^[-–—:,./\s]+|[-–—:,./\s]+$/g, '').replace(/\s+/g, ' ').trim();
     return this.service.fixMojibake(clean);
   }
@@ -409,9 +415,7 @@ export class StatementParserService {
     const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
     const amountTokenRegex = /([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)/g;
 
-    // Structural table block grouping:
-    // A transaction block starts with a date and accepts at most 2 lines (date row + optional 1 sub-line).
-    // Subsequent non-date lines (paragraphs, footers, disclaimers) are naturally excluded.
+    // Structural table block grouping
     interface RawBlock {
       dateStr: string;
       lines: string[];
@@ -440,15 +444,21 @@ export class StatementParserService {
         }
         currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
       } else if (currentBlock) {
-        // Only append line if current block has < 2 lines and line is a short table entry (< 12 words, not a full sentence)
-        const words = line.split(/\s+/).filter(Boolean);
-        const isSentence = line.includes('. ') || line.includes('! ') || line.includes('? ');
-        if (currentBlock.lines.length < 2 && words.length <= 12 && !isSentence) {
-          currentBlock.lines.push(line);
+        // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
+        const yearWrapMatch = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
+        if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
+          currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]$/, '') + '-' + yearWrapMatch[1];
+          if (yearWrapMatch[2]) {
+            currentBlock.lines.push(yearWrapMatch[2]);
+          }
         } else {
-          // Block reached structural boundary
-          blocks.push(currentBlock);
-          currentBlock = null;
+          // Append continuation line (up to 4 lines per transaction block)
+          if (currentBlock.lines.length < 4) {
+            currentBlock.lines.push(line);
+          } else {
+            blocks.push(currentBlock);
+            currentBlock = null;
+          }
         }
       }
     }
