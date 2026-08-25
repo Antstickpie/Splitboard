@@ -368,10 +368,12 @@ export class StatementParserService {
     const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
     console.log(`[StatementParser] Total raw lines in PDF: ${rawLines.length}`);
 
-    // Patterns for matching transactions:
-    // 1. Date at start: "DD.MM.YYYY" or "DD.MM." or "DD/MM/YYYY" or "DD-MM-YYYY" or "YYYY-MM-DD"
-    // 2. Amount at end or mid: e.g. "123,45-", "-123,45", "+123,45", "123.45 S", "123.45 H", "123,45 EUR", "123.45+"
-    const lineTxRegex = /^(\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?)(?:\s+\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?)?\s+(.+?)\s+([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)\s*(?:EUR|€|USD|\$|GBP|£)?$/i;
+    // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
+    const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
+    const lineTxRegex = new RegExp(
+      `^(${strictDatePattern})(?:\\s+${strictDatePattern})?\\s+(.+?)\\s+([+\\-]?\\s*\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2}\\s*[+\\-SH]?)\\s*(?:EUR|€|USD|\\$|GBP|£)?$`,
+      'i'
+    );
 
     for (let i = 0; i < rawLines.length; i++) {
       const line = rawLines[i];
@@ -465,10 +467,13 @@ export class StatementParserService {
       }
     }
 
-    // Fallback: If line regex found 0 items, run global multi-line regex
+    // Fallback: If line regex found 0 items, run global multi-line regex with strict date pattern
     if (transactions.length === 0 && incomes.length === 0) {
       console.log('[StatementParser] Line regex found 0, running fallback multi-line regex...');
-      const fallbackRegex = /(\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?)\s+(?:\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\s+)?([A-Za-z0-9\s\-.,/&@äöüÄÖÜß#*+]+?)\s+([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)\s*(?:EUR|€|USD|\$|GBP|£)?/g;
+      const fallbackRegex = new RegExp(
+        `(${strictDatePattern})(?:\\s+${strictDatePattern})?\\s+([A-Za-z0-9\\s\\-.,/&@äöüÄÖÜß#*+]+?)\\s+([+\\-]?\\s*\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2}\\s*[+\\-SH]?)\\s*(?:EUR|€|USD|\\$|GBP|£)?`,
+        'g'
+      );
       let m: RegExpExecArray | null;
 
       while ((m = fallbackRegex.exec(text)) !== null) {
@@ -699,28 +704,48 @@ export class StatementParserService {
     if (!str) return null;
     const clean = str.trim();
 
-    // DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
+    // 1. DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
     const dmyMatch = clean.match(/^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})/);
     if (dmyMatch) {
-      const day = dmyMatch[1].padStart(2, '0');
-      const month = dmyMatch[2].padStart(2, '0');
-      let year = dmyMatch[3];
-      if (year.length === 2) year = '20' + year;
-      return `${year}-${month}-${day}`;
+      const dNum = parseInt(dmyMatch[1], 10);
+      const mNum = parseInt(dmyMatch[2], 10);
+      let yNum = parseInt(dmyMatch[3], 10);
+      if (yNum < 100) yNum += 2000;
+
+      if (dNum >= 1 && dNum <= 31 && mNum >= 1 && mNum <= 12 && yNum >= 2000 && yNum <= 2099) {
+        const day = dNum.toString().padStart(2, '0');
+        const month = mNum.toString().padStart(2, '0');
+        return `${yNum}-${month}-${day}`;
+      }
+      return null;
     }
 
-    // YYYY-MM-DD or YYYY.MM.DD
+    // 2. YYYY-MM-DD or YYYY.MM.DD
     const ymdMatch = clean.match(/^(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})/);
     if (ymdMatch) {
-      const year = ymdMatch[1];
-      const month = ymdMatch[2].padStart(2, '0');
-      const day = ymdMatch[3].padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      const yNum = parseInt(ymdMatch[1], 10);
+      const mNum = parseInt(ymdMatch[2], 10);
+      const dNum = parseInt(ymdMatch[3], 10);
+      if (dNum >= 1 && dNum <= 31 && mNum >= 1 && mNum <= 12 && yNum >= 2000 && yNum <= 2099) {
+        const year = yNum.toString();
+        const month = mNum.toString().padStart(2, '0');
+        const day = dNum.toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      return null;
     }
 
-    const dt = new Date(clean);
-    if (!isNaN(dt.getTime())) {
-      return dt.toISOString().slice(0, 10);
+    // 3. English Month formats: "28 Feb 2026", "28 February 2026", "Feb 28, 2026", "February 28, 2026"
+    const engMatch = clean.match(/\b(?:(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})|(\d{1,2})(?:st|nd|rd|th)?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?),?\s+(\d{4}))\b/i);
+    if (engMatch) {
+      const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const mStr = (engMatch[1] || engMatch[5]).toLowerCase().slice(0, 3);
+      const mIdx = months.indexOf(mStr) + 1;
+      const dNum = parseInt(engMatch[2] || engMatch[4], 10);
+      const yNum = parseInt(engMatch[3] || engMatch[6], 10);
+      if (mIdx >= 1 && dNum >= 1 && dNum <= 31 && yNum >= 2000 && yNum <= 2099) {
+        return `${yNum}-${mIdx.toString().padStart(2, '0')}-${dNum.toString().padStart(2, '0')}`;
+      }
     }
 
     return null;
