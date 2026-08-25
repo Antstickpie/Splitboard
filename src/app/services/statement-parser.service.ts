@@ -374,7 +374,9 @@ export class StatementParserService {
     }
 
     // 4. Strip any trailing disclaimer notes / footer text
-    clean = clean.split(/\b(?:important notes|please raise any objections|interest rate|rate \d+\s*%|cheques,? bills of exchange|closing balance|new balance|neuer kontostand|rechnungsabschluss|saldenbestätigung|deposit guarantee|einlagensicherung|information on deposit|gesetzliche einlagensicherung|hinweise zur rechnungslegung|allgemeine geschäftsbedingungen|disclaimer)\b/i)[0];
+    clean = clean.split(
+      /\b(?:interest\s*rate|interest|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|closing\s*balance|new\s*balance|neuer\s*kontostand|rechnungsabschluss|saldenbestätigung|deposit\s*guarantee|einlagensicherung|information\s*on\s*deposit|gesetzliche\s*einlagensicherung|hinweise|allgemeine\s*geschäftsbedingungen|disclaimer|exempt\s*from\s*v|eligible\s*deposits|frankfurt\s*de1)\b/i
+    )[0];
 
     // 5. Remove leading/trailing symbols and compress whitespace
     clean = clean.replace(/^[-–—:,./\s]+|[-–—:,./\s]+$/g, '').replace(/\s+/g, ' ').trim();
@@ -430,7 +432,7 @@ export class StatementParserService {
     for (const line of rawLines) {
       // 1. If line marks the end of transactions / footer disclaimers, finalize currentBlock and stop appending
       if (
-        /\b(important notes|please raise any objections|interest rate|rate \d+\s*%|cheques,? bills of exchange|closing balance|new balance|neuer kontostand|rechnungsabschluss|saldenbestätigung|deposit guarantee|einlagensicherung|information on deposit|gesetzliche einlagensicherung|hinweise zur rechnungslegung|allgemeine geschäftsbedingungen|disclaimer)\b/i.test(
+        /\b(interest\s*rate|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|closing\s*balance|new\s*balance|neuer\s*kontostand|rechnungsabschluss|saldenbestätigung|deposit\s*guarantee|einlagensicherung|information\s*on\s*deposit|gesetzliche\s*einlagensicherung|hinweise|allgemeine\s*geschäftsbedingungen|disclaimer|exempt\s*from|eligible\s*deposits)\b/i.test(
           line
         )
       ) {
@@ -512,9 +514,21 @@ export class StatementParserService {
       descCandidate = descCandidate.replace(chosenAmtStr, '');
       descCandidate = descCandidate.replace(/\b(?:EUR|€|USD|\$|GBP|£)\b/g, '');
 
+      // Cut off any disclaimer / footer text that leaked into candidate description
+      descCandidate = descCandidate.split(
+        /\b(?:interest\s*rate|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|closing\s*balance|new\s*balance|neuer\s*kontostand|rechnungsabschluss|saldenbestätigung|deposit\s*guarantee|einlagensicherung|information\s*on\s*deposit|gesetzliche\s*einlagensicherung|hinweise|disclaimer|exempt\s*from|eligible\s*deposits)\b/i
+      )[0];
+
       const cleanDesc = this.cleanTransactionDescription(descCandidate);
-      if (!cleanDesc || cleanDesc.length < 2 || !/[a-zA-Z0-9]/.test(cleanDesc)) {
-        console.log('[StatementParser] Rejected empty/invalid description from block:', fullBlockText);
+      if (
+        !cleanDesc ||
+        cleanDesc.length < 2 ||
+        !/[a-zA-Z0-9]/.test(cleanDesc) ||
+        /\b(interest\s*rate|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|deposit\s*guarantee|einlagensicherung|eligible\s*deposits)\b/i.test(
+          cleanDesc
+        )
+      ) {
+        console.log('[StatementParser] Rejected empty/disclaimer description from block:', fullBlockText);
         continue;
       }
 
