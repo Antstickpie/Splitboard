@@ -51,6 +51,12 @@ export interface Transaction {
   originalCurrency?: string;
   exchangeRate?: number; // exchange rate to app base currency
   
+  // Reimbursement tracking
+  isReimbursable?: boolean;
+  reimbursementStatus?: 'PENDING' | 'REIMBURSED';
+  reimbursedTo?: string; // Person who collected the repayment
+  reimbursementNote?: string; // e.g. "Work trip", "Dave dinner", "Insurance"
+  
   note?: string;
   sourceFile?: string;
   rawDate?: string; // Exact statement timestamp including seconds if present (e.g. 2026-03-06 18:20:14)
@@ -73,6 +79,7 @@ export interface BankConfig {
   amountColName?: string;
   currencyColName?: string;
   delimiter?: string;
+  invertAmountSign?: boolean; // If true, + is expense/charge and - is repayment/credit (e.g. Amex)
 }
 
 export interface CategoryRule {
@@ -83,6 +90,7 @@ export interface CategoryRule {
   splitType?: SplitType;
   splitPercentage?: number;
   paidBy?: string;
+  bank?: string; // 'All' or specific bank
 }
 
 export interface ExcludeRule {

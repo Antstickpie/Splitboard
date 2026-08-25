@@ -122,7 +122,14 @@
         </span>
       </div>
 
-      <div style="display: flex; gap: 0.6rem;">
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button
+          class="btn btn-secondary btn-sm"
+          (click)="invertPreviewSigns()"
+          title="Swap Charges and Payments if bank listed amounts with opposite signs"
+          style="font-size: 0.78rem;">
+          ⇄ Invert Signs (+/-)
+        </button>
         <button class="btn btn-secondary btn-sm" (click)="clearPreview()">Cancel</button>
         <button class="btn btn-primary btn-sm" (click)="commitImport()" [disabled]="res.transactions.length === 0">
           ✓ Confirm & Import {{ res.transactions.length }} Rows
@@ -130,13 +137,21 @@
       </div>
     </div>
 
-    <!-- Preview Sub-Tabs: Valid, Duplicates, Excluded -->
+    <!-- Preview Sub-Tabs: Valid, Incomes, Duplicates, Excluded -->
     <div class="preview-tabs-bar">
       <button
         class="preview-tab-btn"
         [class.active]="previewTab() === 'valid'"
         (click)="previewTab.set('valid')">
         ✓ Ready to Import ({{ res.transactions.length }})
+      </button>
+
+      <button
+        class="preview-tab-btn"
+        [class.active]="previewTab() === 'incomes'"
+        (click)="previewTab.set('incomes')"
+        [style.color]="res.incomes.length > 0 ? '#10b981' : 'var(--text-muted)'">
+        💵 Incomes & Payments ({{ res.incomes.length }})
       </button>
 
       <button
@@ -156,8 +171,22 @@
       </button>
     </div>
 
-    <!-- TAB 1: Valid Transactions Ready to Import -->
-    <div *ngIf="previewTab() === 'valid'">
+    <!-- TAB: Income / Card Payments (Not Imported by default) -->
+    <div *ngIf="previewTab() === 'incomes'">
+      <div class="preview-info-banner info" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <span>💵</span>
+          <span>These {{ res.incomes.length }} positive transactions (credit card repayments, refunds, inflows) are shown for review and NOT imported automatically.</span>
+        </div>
+        <button
+          *ngIf="res.incomes.length > 0"
+          class="btn btn-secondary btn-xs"
+          (click)="includeAllIncomes()"
+          style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
+          + Include All {{ res.incomes.length }} Rows in Import
+        </button>
+      </div>
+
       <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
         <table>
           <thead>
@@ -166,23 +195,122 @@
               <th>Description</th>
               <th>Bank</th>
               <th>Owner</th>
+              <th style="text-align: right;">Positive Amount</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of res.incomes">
+              <td>{{ service.formatDate(tx.date) }}</td>
+              <td style="font-weight: 500;">{{ tx.description }}</td>
+              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+              <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
+              <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
+              <td style="text-align: center;">
+                <button class="btn btn-secondary btn-xs" (click)="includeIncome(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
+                  + Include in Import
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="res.incomes.length === 0">
+              <td colspan="6" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No positive income or card payment transactions detected.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 1: Valid Transactions Ready to Import -->
+    <div *ngIf="previewTab() === 'valid'">
+      <div class="table-container" style="max-height: 380px; overflow-y: auto; margin-top: 0.6rem;">
+        <table>
+          <thead>
+            <tr>
+              <th (click)="toggleSort('date')" style="cursor: pointer; user-select: none;">
+                Date {{ sortColumn() === 'date' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('description')" style="cursor: pointer; user-select: none;">
+                Description {{ sortColumn() === 'description' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('bank')" style="cursor: pointer; user-select: none;">
+                Bank {{ sortColumn() === 'bank' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th>Owner</th>
               <th>Auto Category</th>
-              <th style="text-align: right;">Amount</th>
+              <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">
+                Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
               <th>Split Mode</th>
               <th style="text-align: center;">Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let tx of res.transactions">
-              <td>{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500;">{{ tx.description }}</td>
+            <tr *ngFor="let tx of sortedTransactions()">
+              <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+              <td style="font-weight: 500; max-width: 220px; text-overflow: ellipsis; overflow: hidden;">{{ tx.description }}</td>
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
-              <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
-              <td><span class="badge badge-warning">{{ tx.categoryItem || 'Uncategorized' }}</span></td>
+              <td>
+                <span
+                  class="badge"
+                  (click)="toggleTxOwner(tx)"
+                  [style.cursor]="'pointer'"
+                  [title]="'Click to switch owner (' + (tx.paidBy === service.personOne().name ? service.personTwo().name : service.personOne().name) + ')'"
+                  [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                  [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : 'rgba(139, 92, 246, 0.12)'"
+                  [style.border]="'1px solid ' + (tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.3)' : 'rgba(139, 92, 246, 0.3)')"
+                  style="font-weight: 600; user-select: none; font-size: 0.72rem; padding: 0.2rem 0.5rem;">
+                  👤 {{ tx.paidBy }}
+                </span>
+              </td>
+              <td>
+                <select
+                  [ngModel]="tx.categoryItem || ''"
+                  (ngModelChange)="onRowCategoryChange(tx, $event)"
+                  class="inline-category-select">
+                  <option value="">📁 Uncategorized</option>
+                  <optgroup *ngFor="let grp of service.categoryGroups()" [label]="(grp.icon || '📁') + ' ' + grp.name">
+                    <option *ngFor="let item of grp.items" [value]="item.name">{{ item.name }}</option>
+                  </optgroup>
+                </select>
+              </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
-              <td><span class="badge badge-success">{{ tx.splitType }}</span></td>
+              <td>
+                <div class="split-button-group">
+                  <button
+                    type="button"
+                    class="split-btn split-btn-5050"
+                    [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
+                    (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')"
+                    title="Split 50/50">
+                    50/50
+                  </button>
+                  <button
+                    type="button"
+                    class="split-btn split-btn-p1"
+                    [class.active]="getInlineSplitValue(tx) === '100_P1'"
+                    (click)="onInlineSplitButtonClick(tx, '100_P1')"
+                    [title]="'100% ' + service.personOne().name">
+                    {{ service.personOne().name }}
+                  </button>
+                  <button
+                    type="button"
+                    class="split-btn split-btn-p2"
+                    [class.active]="getInlineSplitValue(tx) === '100_P2'"
+                    (click)="onInlineSplitButtonClick(tx, '100_P2')"
+                    [title]="'100% ' + service.personTwo().name">
+                    {{ service.personTwo().name }}
+                  </button>
+                </div>
+              </td>
               <td style="text-align: center;">
-                <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
+                  <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule from this transaction" style="padding: 0.2rem 0.45rem; font-size: 0.72rem; gap: 0.2rem;">
+                    ⚡ Rule
+                  </button>
+                  <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="res.transactions.length === 0">
@@ -328,6 +456,118 @@
         <div *ngIf="groupedExcluded().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
           No transactions matched your exclusion rules in this statement.
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Rule Creator Modal -->
+  <div class="modal-backdrop-overlay animate-fade-in" *ngIf="showRuleModal()" (click)="closeRuleModal()">
+    <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()" style="max-width: 500px;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">⚡</span>
+          <h3 style="margin: 0; font-size: 1.05rem;">Create Rule</h3>
+        </div>
+        <button class="btn-icon-remove" (click)="closeRuleModal()" style="font-size: 1rem;">✕</button>
+      </div>
+
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.9rem; padding: 0.8rem 0;">
+        <!-- Rule Type Selection -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Rule Type</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;">
+            <button
+              type="button"
+              class="btn btn-xs"
+              [class.btn-primary]="ruleType() === 'categorize'"
+              [class.btn-secondary]="ruleType() !== 'categorize'"
+              (click)="ruleType.set('categorize')"
+              style="padding: 0.45rem;">
+              🏷️ Auto-Categorize
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs"
+              [class.btn-primary]="ruleType() === 'exclude'"
+              [class.btn-secondary]="ruleType() !== 'exclude'"
+              (click)="ruleType.set('exclude')"
+              style="padding: 0.45rem;">
+              🚫 Bank Exclude (Ignore)
+            </button>
+          </div>
+        </div>
+
+        <!-- Keyword Input -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">
+            Match Keyword in Description
+          </label>
+          <input
+            type="text"
+            class="styled-select"
+            [(ngModel)]="ruleKeyword"
+            placeholder="e.g. PAYBYPHONE DEUTSCHLAND"
+            style="width: 100%; box-sizing: border-box; font-size: 0.85rem;" />
+          <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; display: block;">
+            Transactions containing this keyword will trigger the rule.
+          </span>
+        </div>
+
+        <!-- Bank Scope -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Bank Scope</label>
+          <select [(ngModel)]="ruleBank" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+            <option value="All">🌐 All Banks (General Rule)</option>
+            <option *ngIf="ruleTargetTx()?.bank && ruleTargetTx()?.bank !== 'All'" [value]="ruleTargetTx()!.bank">
+              🏦 {{ ruleTargetTx()!.bank }} Only
+            </option>
+            <option *ngFor="let b of service.bankConfigs()" [value]="b.name">
+              {{ b.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Auto-Categorization Options -->
+        <ng-container *ngIf="ruleType() === 'categorize'">
+          <!-- Category Item -->
+          <div>
+            <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Assign Category</label>
+            <select [(ngModel)]="ruleCategory" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+              <option value="">-- Choose Category --</option>
+              <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+                <option *ngFor="let item of grp.items" [value]="item.name">
+                  {{ item.name }}
+                </option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Split Mode & Paid By -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+            <div>
+              <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Split Mode</label>
+              <select [(ngModel)]="ruleSplitType" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+                <option value="SELF">SELF (100% Owner)</option>
+                <option value="SPLIT">SPLIT (50/50)</option>
+                <option value="OTHER">OTHER (100% Partner)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Default Paid By</label>
+              <select [(ngModel)]="rulePaidBy" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+                <option [value]="service.personOne().name">{{ service.personOne().name }}</option>
+                <option [value]="service.personTwo().name">{{ service.personTwo().name }}</option>
+              </select>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.8rem;">
+        <button class="btn btn-secondary btn-sm" (click)="closeRuleModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" (click)="saveRuleFromModal()" [disabled]="!ruleKeyword.trim()">
+          ✓ Save & Apply Rule
+        </button>
       </div>
     </div>
   </div>

@@ -148,3 +148,95 @@
   border: 1px solid rgba(239, 68, 68, 0.25);
   color: #f87171;
 }
+
+/* Segmented 1-Click Split Button Group in Preview Table */
+.split-button-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.split-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.split-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.split-btn.split-btn-5050.active {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.4);
+  font-weight: 700;
+}
+
+.split-btn.split-btn-p1.active {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  font-weight: 700;
+}
+
+.split-btn.split-btn-p2.active {
+  background: rgba(167, 139, 250, 0.2);
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.4);
+  font-weight: 700;
+}
+
+/* Inline Category Dropdown in Preview Table */
+.inline-category-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 0.2rem 1.3rem 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  outline: none;
+  max-width: 160px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.35rem center;
+  background-size: 0.65rem;
+}
+
+.inline-category-select:hover, .inline-category-select:focus {
+  border-color: var(--primary);
+  background-color: rgba(0, 229, 255, 0.08);
+}
+
+.inline-category-select optgroup {
+  background: #111827;
+  color: #94a3b8;
+  font-weight: bold;
+  font-size: 0.75rem;
+}
+
+.inline-category-select option {
+  background: #111827;
+  color: #f3f4f6;
+  font-size: 0.8rem;
+}

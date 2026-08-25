@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
 import { StatementParserService, ParsedStatementResult } from '../../services/statement-parser.service';
-import { Transaction } from '../../models';
+import { Transaction, SplitType } from '../../models';
 
 export interface TransactionGroup {
   id: string;
@@ -31,7 +31,217 @@ export class ImportComponent {
   public rawClipboardText = '';
 
   public previewResult = signal<ParsedStatementResult | null>(null);
-  public previewTab = signal<'valid' | 'duplicates' | 'excluded'>('valid');
+  public previewTab = signal<'valid' | 'incomes' | 'duplicates' | 'excluded'>('valid');
+
+  public sortColumn = signal<'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem'>('date');
+  public sortAsc = signal<boolean>(false);
+
+  public sortedTransactions = computed(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return [];
+    const col = this.sortColumn();
+    const asc = this.sortAsc();
+    return [...res.transactions].sort((a, b) => {
+      let valA: any = a[col] ?? '';
+      let valB: any = b[col] ?? '';
+      if (col === 'amount') {
+        return asc ? (valA - valB) : (valB - valA);
+      }
+      return asc
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
+  });
+
+  public toggleSort(column: 'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem') {
+    if (this.sortColumn() === column) {
+      this.sortAsc.set(!this.sortAsc());
+    } else {
+      this.sortColumn.set(column);
+      this.sortAsc.set(column === 'description' || column === 'bank');
+    }
+  }
+
+  // Quick Rule Creator Modal
+  public showRuleModal = signal<boolean>(false);
+  public ruleTargetTx = signal<Transaction | null>(null);
+  public ruleType = signal<'categorize' | 'exclude'>('categorize');
+  public ruleKeyword = '';
+  public ruleBank = 'All';
+  public ruleCategory = '';
+  public ruleSplitType: SplitType = 'SELF';
+  public rulePaidBy = '';
+
+  public openRuleModal(tx: Transaction): void {
+    this.ruleTargetTx.set(tx);
+    this.ruleKeyword = tx.description || '';
+    this.ruleBank = tx.bank || 'All';
+    this.ruleType.set('categorize');
+    this.ruleCategory = tx.categoryItem || '';
+    this.ruleSplitType = tx.splitType || 'SELF';
+    this.rulePaidBy = tx.paidBy || this.service.personOne().name;
+    this.showRuleModal.set(true);
+  }
+
+  public closeRuleModal(): void {
+    this.showRuleModal.set(false);
+    this.ruleTargetTx.set(null);
+  }
+
+  public saveRuleFromModal(): void {
+    const keyword = this.ruleKeyword.trim();
+    if (!keyword) return;
+
+    if (this.ruleType() === 'exclude') {
+      this.service.addExcludeRule(this.ruleBank, keyword);
+      // Re-evaluate preview: move matching transactions to excluded
+      const res = this.previewResult();
+      if (res) {
+        const lowerKw = keyword.toLowerCase();
+        const ruleBank = this.ruleBank.toLowerCase();
+        const matches = (t: Transaction) => {
+          const tBank = (t.bank || '').toLowerCase();
+          const matchesB = ruleBank === 'all' || !tBank || tBank.includes(ruleBank) || ruleBank.includes(tBank);
+          return matchesB && (t.description || '').toLowerCase().includes(lowerKw);
+        };
+
+        const newlyExcluded = res.transactions.filter(matches);
+        if (newlyExcluded.length > 0) {
+          const remainingValid = res.transactions.filter((t) => !matches(t));
+          this.previewResult.set({
+            ...res,
+            transactions: remainingValid,
+            excluded: [...res.excluded, ...newlyExcluded],
+            excludedCount: res.excludedCount + newlyExcluded.length
+          });
+          this.service.showToast(`Exclude rule applied: moved ${newlyExcluded.length} rows to Excluded tab`, 'info');
+        }
+      }
+    } else {
+      let catGroup = '';
+      for (const grp of this.service.categoryGroups()) {
+        if (grp.items.some((i) => i.name === this.ruleCategory)) {
+          catGroup = grp.name;
+          break;
+        }
+      }
+
+      this.service.addRule({
+        keyword,
+        categoryItem: this.ruleCategory || 'Uncategorized',
+        categoryGroup: catGroup,
+        splitType: this.ruleSplitType,
+        paidBy: this.rulePaidBy,
+        bank: this.ruleBank
+      });
+
+      // Re-evaluate preview: update matching transactions
+      const res = this.previewResult();
+      if (res) {
+        const lowerKw = keyword.toLowerCase();
+        const ruleBank = this.ruleBank.toLowerCase();
+        const matches = (t: Transaction) => {
+          const tBank = (t.bank || '').toLowerCase();
+          const matchesB = ruleBank === 'all' || !tBank || tBank.includes(ruleBank) || ruleBank.includes(tBank);
+          return matchesB && (t.description || '').toLowerCase().includes(lowerKw);
+        };
+
+        let updatedInPreview = 0;
+        const updatedValid = res.transactions.map((t) => {
+          if (matches(t)) {
+            updatedInPreview++;
+            return {
+              ...t,
+              categoryItem: this.ruleCategory || t.categoryItem,
+              categoryGroup: catGroup || t.categoryGroup,
+              splitType: this.ruleSplitType,
+              paidBy: this.rulePaidBy || t.paidBy
+            };
+          }
+          return t;
+        });
+
+        this.previewResult.set({
+          ...res,
+          transactions: updatedValid
+        });
+        if (updatedInPreview > 0) {
+          this.service.showToast(`Updated ${updatedInPreview} matching rows in preview!`, 'success');
+        }
+      }
+    }
+
+    this.closeRuleModal();
+  }
+
+  // Inline Preview Table Editing
+  public toggleTxOwner(tx: Transaction): void {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    tx.paidBy = tx.paidBy === p1 ? p2 : p1;
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+  }
+
+  public onRowCategoryChange(tx: Transaction, newCategory: string): void {
+    tx.categoryItem = newCategory;
+    for (const grp of this.service.categoryGroups()) {
+      if (grp.items.some((i) => i.name === newCategory)) {
+        tx.categoryGroup = grp.name;
+        break;
+      }
+    }
+    if (newCategory.toLowerCase().includes('reimburse')) {
+      tx.isReimbursable = true;
+      tx.reimbursementStatus = 'PENDING';
+      tx.splitType = 'SELF';
+    }
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+  }
+
+  public getInlineSplitValue(tx: Transaction): 'SPLIT_5050' | '100_P1' | '100_P2' {
+    const p1 = this.service.personOne().name;
+    if (tx.splitType === 'SPLIT') return 'SPLIT_5050';
+    if (tx.paidBy === p1) {
+      return tx.splitType === 'SELF' ? '100_P1' : '100_P2';
+    } else {
+      return tx.splitType === 'SELF' ? '100_P2' : '100_P1';
+    }
+  }
+
+  public onInlineSplitButtonClick(tx: Transaction, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
+    const p1 = this.service.personOne().name;
+    if (choice === 'SPLIT_5050') {
+      tx.splitType = 'SPLIT';
+    } else if (choice === '100_P1') {
+      tx.splitType = tx.paidBy === p1 ? 'SELF' : 'OTHER';
+    } else {
+      tx.splitType = tx.paidBy === p1 ? 'OTHER' : 'SELF';
+    }
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+  }
+
+  public invertPreviewSigns(): void {
+    const res = this.previewResult();
+    if (!res) return;
+
+    const swappedTransactions = res.incomes.map((t) => ({ ...t, type: 'EXPENSE' as const }));
+    const swappedIncomes = res.transactions.map((t) => ({ ...t, type: 'INCOME' as const }));
+
+    this.previewResult.set({
+      ...res,
+      transactions: swappedTransactions,
+      incomes: swappedIncomes,
+      incomesCount: swappedIncomes.length
+    });
+
+    this.service.showToast(
+      `Inverted signs: ${swappedTransactions.length} expenses, ${swappedIncomes.length} incomes/payments`,
+      'info'
+    );
+  }
 
   constructor() {
     const firstBank = this.service.bankConfigs()[0];
@@ -73,7 +283,7 @@ export class ImportComponent {
       const res = await this.parser.parseFile(file, this.selectedBank(), this.selectedOwner());
       this.previewResult.set(res);
       this.service.showToast(
-        `Parsed ${res.transactions.length} new transactions (${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
+        `Parsed ${res.transactions.length} expenses (${res.incomesCount} incomes/credits, ${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
         'info'
       );
     } catch (e: any) {
@@ -98,7 +308,7 @@ export class ImportComponent {
       );
       this.previewResult.set(res);
       this.service.showToast(
-        `Parsed ${res.transactions.length} new transactions (${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
+        `Parsed ${res.transactions.length} expenses (${res.incomesCount} incomes/credits, ${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
         'info'
       );
     } catch (e: any) {
@@ -106,6 +316,31 @@ export class ImportComponent {
     } finally {
       this.isParsing.set(false);
     }
+  }
+
+  public includeIncome(tx: Transaction): void {
+    const res = this.previewResult();
+    if (!res) return;
+    this.previewResult.set({
+      ...res,
+      incomes: res.incomes.filter((t) => t.id !== tx.id),
+      transactions: [tx, ...res.transactions],
+      incomesCount: Math.max(0, res.incomesCount - 1)
+    });
+    this.service.showToast('Included transaction in import list', 'success');
+  }
+
+  public includeAllIncomes(): void {
+    const res = this.previewResult();
+    if (!res || res.incomes.length === 0) return;
+    const count = res.incomes.length;
+    this.previewResult.set({
+      ...res,
+      transactions: [...res.transactions, ...res.incomes],
+      incomes: [],
+      incomesCount: 0
+    });
+    this.service.showToast(`Included all ${count} income/payment rows into import list`, 'success');
   }
 
   public includeDuplicate(tx: Transaction): void {

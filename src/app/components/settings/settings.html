@@ -350,26 +350,83 @@
       <!-- Active Rules List (Fixed header, scroll strictly below) -->
       <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row (No scrollbar on header) -->
-        <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 60px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+        <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Keyword Contains</span>
           <span>Assigned Category</span>
           <span>Split Mode</span>
           <span>Default Payer</span>
-          <span style="text-align: center;">Action</span>
+          <span style="text-align: center;">Actions</span>
         </div>
 
         <!-- Scrollable Rows Body (Scrollbar strictly below header) -->
-        <div style="max-height: 180px; overflow-y: auto;">
-          <div *ngFor="let r of service.rules()" style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 60px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-            <div><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></div>
-            <div><span class="badge badge-warning">{{ r.categoryItem }}</span></div>
-            <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
-            <div>
-              <span class="badge badge-info" *ngIf="r.paidBy">{{ r.paidBy }}</span>
-              <span *ngIf="!r.paidBy" style="color: var(--text-muted);">—</span>
+        <div style="max-height: 220px; overflow-y: auto;">
+          <div *ngFor="let r of service.rules()">
+            <!-- Normal Row Display -->
+            <div
+              *ngIf="editingRuleId() !== r.id"
+              style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+              <div>
+                <code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code>
+                <span *ngIf="r.bank && r.bank !== 'All'" class="badge badge-neutral" style="margin-left: 0.4rem; font-size: 0.65rem;">{{ r.bank }}</span>
+              </div>
+              <div><span class="badge badge-warning">{{ r.categoryItem }}</span></div>
+              <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
+              <div>
+                <span class="badge badge-info" *ngIf="r.paidBy">{{ r.paidBy }}</span>
+                <span *ngIf="!r.paidBy" style="color: var(--text-muted);">—</span>
+              </div>
+              <div style="display: flex; justify-content: center; gap: 0.25rem;">
+                <button class="btn-icon-action" style="width: 24px; height: 24px; font-size: 0.75rem; background: rgba(255,255,255,0.06); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" (click)="startEditRule(r)" title="Edit rule">✏️</button>
+                <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteRule(r.id)" title="Delete rule">✕</button>
+              </div>
             </div>
-            <div style="text-align: center;">
-              <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteRule(r.id)">✕</button>
+
+            <!-- Inline Edit Mode -->
+            <div
+              *ngIf="editingRuleId() === r.id && editRuleModel"
+              class="animate-fade-in"
+              style="padding: 0.6rem 0.8rem; background: rgba(0, 229, 255, 0.04); border-bottom: 1px solid rgba(0, 229, 255, 0.2);">
+              <div style="display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 110px 110px; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div>
+                  <label class="input-label">Keyword</label>
+                  <input type="text" [(ngModel)]="editRuleModel.keyword" class="person-input" style="width: 100%;">
+                </div>
+                <div>
+                  <label class="input-label">Bank Scope</label>
+                  <select [(ngModel)]="editRuleModel.bank" class="settings-select" style="width: 100%;">
+                    <option value="All">All Banks</option>
+                    <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="input-label">Category</label>
+                  <select [(ngModel)]="editRuleModel.categoryItem" class="settings-select" style="width: 100%;">
+                    <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+                      <option *ngFor="let item of grp.items" [value]="item.name">{{ item.name }}</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <div>
+                  <label class="input-label">Split Mode</label>
+                  <select [(ngModel)]="editRuleModel.splitType" class="settings-select" style="width: 100%;">
+                    <option value="SELF">SELF</option>
+                    <option value="SPLIT">SPLIT</option>
+                    <option value="OTHER">OTHER</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="input-label">Payer</label>
+                  <select [(ngModel)]="editRuleModel.paidBy" class="settings-select" style="width: 100%;">
+                    <option value="">Default</option>
+                    <option [value]="service.personOne().name">{{ service.personOne().name }}</option>
+                    <option [value]="service.personTwo().name">{{ service.personTwo().name }}</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: flex-end; gap: 0.4rem;">
+                <button class="btn btn-secondary btn-xs" (click)="cancelEditRule()">Cancel</button>
+                <button class="btn btn-primary btn-xs" (click)="saveEditRule()" [disabled]="!editRuleModel.keyword.trim()">✓ Save Rule</button>
+              </div>
             </div>
           </div>
           <div *ngIf="service.rules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
@@ -415,19 +472,49 @@
       <!-- Active Exclude Rules List (Fixed header, scroll strictly below) -->
       <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row -->
-        <div style="display: grid; grid-template-columns: 140px 1fr 60px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+        <div style="display: grid; grid-template-columns: 140px 1fr 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Target Bank</span>
           <span>Ignore Keyword</span>
-          <span style="text-align: center;">Action</span>
+          <span style="text-align: center;">Actions</span>
         </div>
 
         <!-- Scrollable Rows Body -->
-        <div style="max-height: 160px; overflow-y: auto;">
-          <div *ngFor="let r of service.excludeRules()" style="display: grid; grid-template-columns: 140px 1fr 60px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-            <div><span class="badge badge-neutral">{{ r.bank || 'All Banks' }}</span></div>
-            <div><code style="color: #f87171; font-weight: 600;">"{{ r.keyword }}"</code></div>
-            <div style="text-align: center;">
-              <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteExcludeRule(r.id)">✕</button>
+        <div style="max-height: 200px; overflow-y: auto;">
+          <div *ngFor="let r of service.excludeRules()">
+            <!-- Normal Row Display -->
+            <div
+              *ngIf="editingExcludeRuleId() !== r.id"
+              style="display: grid; grid-template-columns: 140px 1fr 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+              <div><span class="badge badge-neutral">{{ r.bank || 'All Banks' }}</span></div>
+              <div><code style="color: #f87171; font-weight: 600;">"{{ r.keyword }}"</code></div>
+              <div style="display: flex; justify-content: center; gap: 0.25rem;">
+                <button class="btn-icon-action" style="width: 24px; height: 24px; font-size: 0.75rem; background: rgba(255,255,255,0.06); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" (click)="startEditExcludeRule(r)" title="Edit exclude rule">✏️</button>
+                <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteExcludeRule(r.id)" title="Delete rule">✕</button>
+              </div>
+            </div>
+
+            <!-- Inline Edit Mode -->
+            <div
+              *ngIf="editingExcludeRuleId() === r.id && editExcludeRuleModel"
+              class="animate-fade-in"
+              style="padding: 0.6rem 0.8rem; background: rgba(239, 68, 68, 0.04); border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
+              <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div>
+                  <label class="input-label">Target Bank</label>
+                  <select [(ngModel)]="editExcludeRuleModel.bank" class="settings-select" style="width: 100%;">
+                    <option value="All">All Banks</option>
+                    <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="input-label">Ignore Keyword</label>
+                  <input type="text" [(ngModel)]="editExcludeRuleModel.keyword" class="person-input" style="width: 100%;">
+                </div>
+              </div>
+              <div style="display: flex; justify-content: flex-end; gap: 0.4rem;">
+                <button class="btn btn-secondary btn-xs" (click)="cancelEditExcludeRule()">Cancel</button>
+                <button class="btn btn-primary btn-xs" (click)="saveEditExcludeRule()" [disabled]="!editExcludeRuleModel.keyword.trim()">✓ Save Exclude Rule</button>
+              </div>
             </div>
           </div>
           <div *ngIf="service.excludeRules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
@@ -499,6 +586,12 @@
           <label class="input-label">Currency Header</label>
           <input type="text" [(ngModel)]="newBankCurrencyCol" placeholder="e.g. Currency, Währung" class="person-input" style="width: 100%;">
         </div>
+        <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem;">
+          <input type="checkbox" id="newBankInvert" [(ngModel)]="newBankInvertSign" style="cursor: pointer;">
+          <label for="newBankInvert" class="input-label" style="margin: 0; cursor: pointer; text-transform: none;">
+            Invert Amounts (+ is charge/expense, - is repayment/credit e.g. Amex)
+          </label>
+        </div>
       </div>
 
       <!-- Active Banks Table -->
@@ -523,11 +616,12 @@
                 <div *ngIf="b.accountNumber" style="font-size: 0.68rem; color: var(--text-muted);">{{ b.accountNumber }}</div>
               </div>
               <div><span class="badge badge-neutral font-mono">{{ b.defaultCurrency || service.currency() }}</span></div>
-              <div>
+              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem;">
                 <span *ngIf="!b.dateColName && !b.descColName && !b.amountColName" class="badge badge-neutral">Auto-Detect</span>
                 <span *ngIf="b.dateColName || b.descColName || b.amountColName" class="badge badge-success" style="font-size: 0.68rem;">
                   Headers: {{ b.dateColName || 'Date' }} | {{ b.descColName || 'Desc' }} | {{ b.amountColName || 'Amt' }}
                 </span>
+                <span *ngIf="b.invertAmountSign" class="badge badge-warning" style="font-size: 0.65rem;">Invert Signs</span>
               </div>
               <div style="display: flex; justify-content: center; gap: 0.25rem;">
                 <button class="btn-icon-action" style="width: 24px; height: 24px; font-size: 0.75rem; background: rgba(255,255,255,0.06); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" (click)="startEditBank(b)" title="Edit bank config">✏️</button>
@@ -579,6 +673,13 @@
                   <label class="input-label">Currency Column</label>
                   <input type="text" [(ngModel)]="editBankModel.currencyColName" placeholder="Currency" class="person-input" style="width: 100%; font-size: 0.74rem;">
                 </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                <input type="checkbox" id="editBankInvert_{{b.id}}" [(ngModel)]="editBankModel.invertAmountSign" style="cursor: pointer;">
+                <label [for]="'editBankInvert_' + b.id" class="input-label" style="margin: 0; cursor: pointer; text-transform: none;">
+                  Invert Amounts (+ is charge/expense, - is repayment/credit e.g. Amex)
+                </label>
               </div>
 
               <div style="display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.6rem;">

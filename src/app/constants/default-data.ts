@@ -29,7 +29,8 @@ export const DEFAULT_BANKS: BankConfig[] = [
     defaultCurrency: 'EUR',
     dateColName: 'Datum',
     descColName: 'Beschreibung',
-    amountColName: 'Betrag'
+    amountColName: 'Betrag',
+    invertAmountSign: true
   },
   {
     id: 'b4',
@@ -121,7 +122,8 @@ export const DEFAULT_CATEGORY_GROUPS: CategoryGroup[] = [
       { id: 'lif-4', groupId: 'grp-lifestyle', name: 'Gadgets and Tech Tools', plannedDefault: 12.49 },
       { id: 'lif-5', groupId: 'grp-lifestyle', name: 'Mobile Phone Plans', plannedDefault: 37.39 },
       { id: 'lif-6', groupId: 'grp-lifestyle', name: 'Gym', plannedDefault: 156.28 },
-      { id: 'lif-7', groupId: 'grp-lifestyle', name: 'Sports & Health Apps', plannedDefault: 0.00 }
+      { id: 'lif-7', groupId: 'grp-lifestyle', name: 'Sports & Health Apps', plannedDefault: 0.00 },
+      { id: 'lif-8', groupId: 'grp-lifestyle', name: 'Reimbursements', plannedDefault: 0.00 }
     ]
   },
   {

@@ -224,7 +224,29 @@ export class TransactionService {
       let p1Share = 0;
       let p2Share = 0;
 
-      if (tx.isCashTransfer) {
+      if (tx.isReimbursable) {
+        if (tx.reimbursementStatus === 'REIMBURSED') {
+          // Money was collected back!
+          // If reimbursedTo is the other partner, that partner received the cash and must pay the original payer:
+          if (tx.reimbursedTo && tx.reimbursedTo !== tx.paidBy) {
+            if (isP1 && tx.reimbursedTo === p2) {
+              p2OwesP1 += amount;
+              p2Share = amount;
+            } else if (isP2 && tx.reimbursedTo === p1) {
+              p1OwesP2 += amount;
+              p1Share = amount;
+            }
+          } else {
+            // Reimbursed to same person who paid -> Net 0, neither partner owes anything
+            p1Share = 0;
+            p2Share = 0;
+          }
+        } else {
+          // PENDING: Out-of-pocket temporary loan by paidBy (100% SELF until reimbursed)
+          if (isP1) p1Share = amount;
+          else p2Share = amount;
+        }
+      } else if (tx.isCashTransfer) {
         // Direct cash transfer: paidBy gave cash to transferTo
         if (tx.transferTo === p2 && isP1) {
           p2OwesP1 += amount;
@@ -450,7 +472,8 @@ export class TransactionService {
               descColName2: b.descColName2 || def.descColName2,
               amountColName: b.amountColName || def.amountColName,
               currencyColName: b.currencyColName || def.currencyColName,
-              defaultCurrency: b.defaultCurrency || def.defaultCurrency
+              defaultCurrency: b.defaultCurrency || def.defaultCurrency,
+              invertAmountSign: b.invertAmountSign !== undefined ? b.invertAmountSign : def.invertAmountSign
             };
           }
           return b;
@@ -509,6 +532,11 @@ export class TransactionService {
     this.showToast(`Auto-rule for "${rule.keyword}" saved`, 'success');
   }
 
+  public updateRule(rule: CategoryRule): void {
+    this.rules.update((curr) => curr.map((r) => (r.id === rule.id ? rule : r)));
+    this.showToast(`Updated rule for "${rule.keyword}"`, 'success');
+  }
+
   public deleteRule(id: string): void {
     this.rules.update((curr) => curr.filter((r) => r.id !== id));
     this.showToast('Rule removed', 'info');
@@ -525,6 +553,11 @@ export class TransactionService {
     };
     this.excludeRules.update((curr) => [...curr, newRule]);
     this.showToast(`Added exclude rule for "${trimmed}"`, 'success');
+  }
+
+  public updateExcludeRule(rule: ExcludeRule): void {
+    this.excludeRules.update((curr) => curr.map((r) => (r.id === rule.id ? rule : r)));
+    this.showToast(`Updated exclude rule for "${rule.keyword}"`, 'success');
   }
 
   public deleteExcludeRule(id: string): void {
@@ -587,7 +620,12 @@ export class TransactionService {
     this.transactions.update((curr) =>
       curr.map((tx) => {
         const desc = (tx.description || '').toLowerCase();
-        const matched = activeRules.find((r) => desc.includes(r.keyword.toLowerCase()));
+        const txBank = (tx.bank || '').toLowerCase();
+        const matched = activeRules.find((r) => {
+          const ruleBank = (r.bank || 'All').toLowerCase();
+          const matchesBank = ruleBank === 'all' || !txBank || txBank.includes(ruleBank) || ruleBank.includes(txBank);
+          return matchesBank && desc.includes(r.keyword.toLowerCase());
+        });
         if (matched) {
           updatedCount++;
           return {

@@ -2,7 +2,7 @@ import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
-import { BankConfig } from '../../models';
+import { BankConfig, CategoryRule, ExcludeRule } from '../../models';
 
 @Component({
   selector: 'app-settings',
@@ -84,6 +84,7 @@ export class SettingsComponent {
   public newBankDescCol = '';
   public newBankAmountCol = '';
   public newBankCurrencyCol = '';
+  public newBankInvertSign = false;
   public showAdvancedBankMapping = false;
 
   constructor() {
@@ -102,7 +103,8 @@ export class SettingsComponent {
       dateColName: this.newBankDateCol.trim() || undefined,
       descColName: this.newBankDescCol.trim() || undefined,
       amountColName: this.newBankAmountCol.trim() || undefined,
-      currencyColName: this.newBankCurrencyCol.trim() || undefined
+      currencyColName: this.newBankCurrencyCol.trim() || undefined,
+      invertAmountSign: this.newBankInvertSign || undefined
     });
     this.newBankName = '';
     this.newBankAccountNo = '';
@@ -110,6 +112,7 @@ export class SettingsComponent {
     this.newBankDescCol = '';
     this.newBankAmountCol = '';
     this.newBankCurrencyCol = '';
+    this.newBankInvertSign = false;
     this.showAdvancedBankMapping = false;
   }
 
@@ -143,11 +146,53 @@ export class SettingsComponent {
     }
   }
 
+  // Category Rule Edit State
+  public editingRuleId = signal<string | null>(null);
+  public editRuleModel: CategoryRule | null = null;
+
+  public startEditRule(r: CategoryRule): void {
+    this.editingRuleId.set(r.id);
+    this.editRuleModel = { ...r };
+  }
+
+  public cancelEditRule(): void {
+    this.editingRuleId.set(null);
+    this.editRuleModel = null;
+  }
+
+  public saveEditRule(): void {
+    if (!this.editRuleModel || !this.editRuleModel.keyword.trim()) return;
+    let group = this.editRuleModel.categoryGroup;
+    if (!group) {
+      for (const grp of this.service.categoryGroups()) {
+        if (grp.items.some((i) => i.name === this.editRuleModel!.categoryItem)) {
+          group = grp.name;
+          break;
+        }
+      }
+    }
+    this.service.updateRule({
+      ...this.editRuleModel,
+      keyword: this.editRuleModel.keyword.trim(),
+      categoryGroup: group
+    });
+    this.editingRuleId.set(null);
+    this.editRuleModel = null;
+  }
+
   public addRule() {
     if (!this.newRuleKeyword.trim() || !this.newRuleCategory) return;
+    let group = '';
+    for (const grp of this.service.categoryGroups()) {
+      if (grp.items.some((i) => i.name === this.newRuleCategory)) {
+        group = grp.name;
+        break;
+      }
+    }
     this.service.addRule({
       keyword: this.newRuleKeyword.trim(),
       categoryItem: this.newRuleCategory,
+      categoryGroup: group,
       splitType: this.newRuleSplitType,
       paidBy: this.newRuleOwner || undefined
     });
@@ -156,6 +201,30 @@ export class SettingsComponent {
 
   public deleteRule(id: string) {
     this.service.deleteRule(id);
+  }
+
+  // Exclude Rule Edit State
+  public editingExcludeRuleId = signal<string | null>(null);
+  public editExcludeRuleModel: ExcludeRule | null = null;
+
+  public startEditExcludeRule(r: ExcludeRule): void {
+    this.editingExcludeRuleId.set(r.id);
+    this.editExcludeRuleModel = { ...r };
+  }
+
+  public cancelEditExcludeRule(): void {
+    this.editingExcludeRuleId.set(null);
+    this.editExcludeRuleModel = null;
+  }
+
+  public saveEditExcludeRule(): void {
+    if (!this.editExcludeRuleModel || !this.editExcludeRuleModel.keyword.trim()) return;
+    this.service.updateExcludeRule({
+      ...this.editExcludeRuleModel,
+      keyword: this.editExcludeRuleModel.keyword.trim()
+    });
+    this.editingExcludeRuleId.set(null);
+    this.editExcludeRuleModel = null;
   }
 
   public addExcludeRule() {

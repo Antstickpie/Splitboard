@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="splitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background rounded box -->
+  <rect width="100" height="100" rx="24" fill="#0b1329" />
+  <circle cx="50" cy="50" r="42" fill="url(#glow)" />
+  <rect x="2" y="2" width="96" height="96" rx="22" fill="none" stroke="url(#splitGrad)" stroke-width="3" stroke-opacity="0.7" />
+
+  <!-- Scales Vector Graphic -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Center Post & Base -->
+    <line x1="50" y1="22" x2="50" y2="78" stroke="#f1f5f9" stroke-width="4.5" />
+    <line x1="36" y1="78" x2="64" y2="78" stroke="#f1f5f9" stroke-width="4.5" />
+
+    <!-- Top Beam -->
+    <line x1="22" y1="36" x2="78" y2="36" stroke="url(#splitGrad)" stroke-width="5" />
+
+    <!-- Left Pan -->
+    <line x1="22" y1="36" x2="14" y2="54" stroke="#00e5ff" stroke-width="2.8" />
+    <line x1="22" y1="36" x2="30" y2="54" stroke="#00e5ff" stroke-width="2.8" />
+    <path d="M10 54 Q22 65 34 54 Z" fill="rgba(0, 229, 255, 0.35)" stroke="#00e5ff" stroke-width="3" />
+
+    <!-- Right Pan -->
+    <line x1="78" y1="36" x2="70" y2="54" stroke="#a78bfa" stroke-width="2.8" />
+    <line x1="78" y1="36" x2="86" y2="54" stroke="#a78bfa" stroke-width="2.8" />
+    <path d="M66 54 Q78 65 90 54 Z" fill="rgba(167, 139, 250, 0.35)" stroke="#a78bfa" stroke-width="3" />
+
+    <!-- Pivot Top Dot -->
+    <circle cx="50" cy="22" r="4.5" fill="#f1f5f9" stroke="#00e5ff" stroke-width="2" />
+  </g>
+</svg>

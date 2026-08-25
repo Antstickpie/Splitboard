@@ -198,9 +198,11 @@ export class BudgetDashboardComponent {
       (tx) => tx.date && tx.date.startsWith(month)
     );
 
-    // Compute actuals per category
+    // Compute actuals per category (excluding cash transfers and reimbursed expenses)
     const actualsMap: Record<string, number> = {};
     txsInMonth.forEach((tx) => {
+      if (tx.isCashTransfer) return;
+      if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
       if (tx.categoryItem) {
         actualsMap[tx.categoryItem] = (actualsMap[tx.categoryItem] || 0) + (Number(tx.amount) || 0);
       }
@@ -251,6 +253,7 @@ export class BudgetDashboardComponent {
       if (tx.type === 'INCOME') {
         totalIncomeActual += amt;
       } else if (tx.type === 'EXPENSE' && !tx.isCashTransfer) {
+        if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
         totalExpenseActual += amt;
       }
     });
@@ -275,6 +278,7 @@ export class BudgetDashboardComponent {
     let p2Spend = 0;
 
     this.service.transactions().filter((tx) => tx.date && tx.date.startsWith(month) && !tx.isCashTransfer && tx.type === 'EXPENSE').forEach((tx) => {
+      if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
       if (tx.paidBy === p1) p1Spend += Number(tx.amount) || 0;
       else if (tx.paidBy === p2) p2Spend += Number(tx.amount) || 0;
     });

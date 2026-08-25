@@ -5,8 +5,10 @@ import { Transaction, SplitType } from '../models';
 
 export interface ParsedStatementResult {
   transactions: Transaction[];
+  incomes: Transaction[];
   duplicates: Transaction[];
   excluded: Transaction[];
+  incomesCount: number;
   duplicatesCount: number;
   excludedCount: number;
   bankName: string;
@@ -53,11 +55,25 @@ export class StatementParserService {
     const arrayBuffer = await file.arrayBuffer();
     let fullText = '';
 
-    // Check if pdfjsLib is loaded in window or try runtime evaluation
-    const winPdfJs = (window as any).pdfjsLib;
-    if (winPdfJs) {
-      try {
-        const loadingTask = winPdfJs.getDocument({ data: new Uint8Array(arrayBuffer) });
+    try {
+      let pdfLib = (window as any).pdfjsLib;
+      if (!pdfLib) {
+        // Wait briefly or dynamically import if not yet loaded on window
+        try {
+          pdfLib = await (new Function('return import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs")'))();
+          if (pdfLib?.GlobalWorkerOptions && !pdfLib.GlobalWorkerOptions.workerSrc) {
+            pdfLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (pdfLib) {
+        if (pdfLib.GlobalWorkerOptions && !pdfLib.GlobalWorkerOptions.workerSrc) {
+          pdfLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+        }
+        const loadingTask = pdfLib.getDocument({ data: new Uint8Array(arrayBuffer) });
         const pdf = await loadingTask.promise;
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
@@ -68,9 +84,9 @@ export class StatementParserService {
             .join(' ');
           fullText += '\n' + pageText;
         }
-      } catch (e) {
-        console.warn('pdfjsLib runtime parse failed:', e);
       }
+    } catch (e) {
+      console.warn('pdfjsLib runtime parse failed:', e);
     }
 
     // Fallback: extract plain text / stream text from raw PDF bytes
@@ -115,7 +131,7 @@ export class StatementParserService {
   ): ParsedStatementResult {
     const lines = this.splitIntoLines(text);
     if (lines.length === 0) {
-      return { transactions: [], duplicates: [], excluded: [], duplicatesCount: 0, excludedCount: 0, bankName, totalParsed: 0 };
+      return { transactions: [], incomes: [], duplicates: [], excluded: [], incomesCount: 0, duplicatesCount: 0, excludedCount: 0, bankName, totalParsed: 0 };
     }
 
     const detectedBank = this.detectBank(bankName, fileName, text);
@@ -124,6 +140,46 @@ export class StatementParserService {
 
     const mapping = customMappings || this.detectColumnMapping(parsedRows, detectedBank);
     
+    // Check if bank has explicit invertAmountSign config or auto-detect credit card inversion
+    const bankCfg = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
+    let invertSigns = bankCfg?.invertAmountSign ?? false;
+
+    const startIdx = mapping.hasHeader ? (mapping.headerRowIndex !== undefined ? mapping.headerRowIndex + 1 : 1) : 0;
+
+    // Smart Heuristic: If negative rows have repayment keywords OR positive rows are clear merchant charges
+    if (!bankCfg || bankCfg.invertAmountSign === undefined) {
+      let paymentInNegativeCount = 0;
+      let merchantInPositiveCount = 0;
+      let totalNegativeCount = 0;
+      let totalPositiveCount = 0;
+
+      for (let i = startIdx; i < Math.min(startIdx + 50, parsedRows.length); i++) {
+        const row = parsedRows[i];
+        if (!row || row.length < 2) continue;
+        const rawAmt = mapping.amountIdx >= 0 ? (row[mapping.amountIdx] || '').trim() : '0';
+        const amt = this.parseAmount(rawAmt);
+        if (amt === 0) continue;
+
+        const rowDesc = ((mapping.descIdx >= 0 ? row[mapping.descIdx] : '') + ' ' + (mapping.descIdx2 !== undefined && mapping.descIdx2 >= 0 ? row[mapping.descIdx2] : '')).toLowerCase();
+        
+        if (amt < 0) {
+          totalNegativeCount++;
+          if (rowDesc.includes('zahlung') || rowDesc.includes('überweisung erhalten') || rowDesc.includes('payment received') || rowDesc.includes('dank') || rowDesc.includes('gutschrift') || rowDesc.includes('lastschrift')) {
+            paymentInNegativeCount++;
+          }
+        } else {
+          totalPositiveCount++;
+          if (rowDesc.includes('dm-') || rowDesc.includes('drogerie') || rowDesc.includes('penny') || rowDesc.includes('rewe') || rowDesc.includes('edeka') || rowDesc.includes('aldi') || rowDesc.includes('lidl') || rowDesc.includes('supermarkt') || rowDesc.includes('amazon') || rowDesc.includes('uber') || rowDesc.includes('restaurant')) {
+            merchantInPositiveCount++;
+          }
+        }
+      }
+
+      if (paymentInNegativeCount > 0 || (merchantInPositiveCount >= 2 && totalPositiveCount > totalNegativeCount)) {
+        invertSigns = true;
+      }
+    }
+
     // Count occurrences already in Database (never flag intra-statement rows as duplicate)
     const dbSigCounts = new Map<string, number>();
     for (const t of this.service.transactions()) {
@@ -132,9 +188,9 @@ export class StatementParserService {
     }
 
     const transactions: Transaction[] = [];
+    const incomes: Transaction[] = [];
     const duplicates: Transaction[] = [];
     const excluded: Transaction[] = [];
-    const startIdx = mapping.hasHeader ? (mapping.headerRowIndex !== undefined ? mapping.headerRowIndex + 1 : 1) : 0;
 
     for (let i = startIdx; i < parsedRows.length; i++) {
       const row = parsedRows[i];
@@ -154,7 +210,7 @@ export class StatementParserService {
       if (amount === 0) continue;
 
       const cleanDesc = this.service.fixMojibake(desc.replace(/\s+/g, ' ').trim());
-      const { group, item, defaultSplit } = this.matchCategory(cleanDesc);
+      const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
 
       // Extract statement Currency and convert if different from Base Currency
       let txCurrency = '';
@@ -185,11 +241,15 @@ export class StatementParserService {
         finalAmount = this.service.convertAmount(origAmt, txCurrency, baseCurr);
       }
 
+      // If invertSigns is true (+ is charge/expense, - is payment/credit)
+      const isCharge = invertSigns ? amount > 0 : amount < 0;
+      const isIncomeOrPayment = !isCharge;
+
       const tx: Transaction = {
         id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
         date: isoDate,
         amount: finalAmount,
-        type: amount < 0 ? 'EXPENSE' : 'INCOME',
+        type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
         description: cleanDesc,
         bank: detectedBank,
         account: detectedBank,
@@ -220,15 +280,24 @@ export class StatementParserService {
       if (dbCount > 0) {
         duplicates.push(tx);
         dbSigCounts.set(sig, dbCount - 1);
+      } else if (isIncomeOrPayment) {
+        incomes.push(tx);
       } else {
         transactions.push(tx);
       }
     }
 
+    transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
     return {
       transactions,
+      incomes,
       duplicates,
       excluded,
+      incomesCount: incomes.length,
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
@@ -243,6 +312,7 @@ export class StatementParserService {
     fileName: string
   ): ParsedStatementResult {
     const transactions: Transaction[] = [];
+    const incomes: Transaction[] = [];
     const duplicates: Transaction[] = [];
     const excluded: Transaction[] = [];
     const detectedBank = this.detectBank(bankName, fileName, text);
@@ -254,6 +324,15 @@ export class StatementParserService {
       dbSigCounts.set(sig, (dbSigCounts.get(sig) || 0) + 1);
     }
 
+    const bankCfg = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
+    let invertSigns = bankCfg?.invertAmountSign ?? false;
+
+    if (!bankCfg || bankCfg.invertAmountSign === undefined) {
+      if (/(\b(zahlung|überweisung)\s+erhalten\b|\bpayment\s+received\b|\bbesten\s+dank\b|\bgutschrift\b)/i.test(text) && /-\s*\d+[.,]\d{2}/.test(text)) {
+        invertSigns = true;
+      }
+    }
+
     // Matches German statement patterns: DD.MM.YYYY | DD/MM/YYYY text +/-amount EUR
     const regex = /(\d{2}[./\-]\d{2}[./\-]\d{2,4})\s+([A-Za-z0-9\s\-.,/&@äöüÄÖÜß#*+]+?)\s+([+\-]?\s*\d{1,3}(?:\.\d{3})*,\d{2}|[+\-]?\s*\d+\.\d{2})\s*(?:EUR|€)?/g;
 
@@ -261,6 +340,14 @@ export class StatementParserService {
     let count = 0;
 
     while ((match = regex.exec(text)) !== null) {
+      const matchIndex = match.index;
+      const matchFull = match[0];
+      const afterMatch = text.slice(matchIndex + matchFull.length, matchIndex + matchFull.length + 6);
+      // If amount was immediately followed by .YYYY (part of another date in range like 01.03.2026 - 24.08.2026)
+      if (/^\.\d{2,4}/.test(afterMatch)) {
+        continue;
+      }
+
       count++;
       const rawDate = match[1];
       const rawDesc = match[2].trim();
@@ -272,14 +359,27 @@ export class StatementParserService {
       const amount = this.parseAmount(rawAmt);
       if (amount === 0) continue;
 
-      const cleanDesc = this.service.fixMojibake(rawDesc.replace(/\s+/g, ' ').trim());
-      const { group, item, defaultSplit } = this.matchCategory(cleanDesc);
+      // Strip masked card numbers like ************6925 and extra dashes
+      let cleanDesc = rawDesc.replace(/\*{3,}\d{2,6}/g, '').replace(/^[-–—]\s*/, '').replace(/\s+/g, ' ').trim();
+      cleanDesc = this.service.fixMojibake(cleanDesc);
+
+      // Skip invalid header fragments, date range artifacts (e.g. desc was just '-'), or metadata labels
+      if (!cleanDesc || cleanDesc === '-' || cleanDesc === '–' || !/[a-zA-Z0-9äöüÄÖÜß]/.test(cleanDesc)) {
+        continue;
+      }
+      if (/^(zeitraum|datum|saldo|kontostand|iban|bic|seite|belastung|rechnungsabschluss)\b/i.test(cleanDesc)) {
+        continue;
+      }
+
+      const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
+      const isCharge = invertSigns ? amount > 0 : amount < 0;
+      const isIncomeOrPayment = !isCharge;
 
       const tx: Transaction = {
         id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
         date: isoDate,
         amount: Math.abs(amount),
-        type: amount < 0 ? 'EXPENSE' : 'INCOME',
+        type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
         description: cleanDesc,
         bank: detectedBank,
         account: detectedBank,
@@ -302,15 +402,24 @@ export class StatementParserService {
       if (dbCount > 0) {
         duplicates.push(tx);
         dbSigCounts.set(sig, dbCount - 1);
+      } else if (isIncomeOrPayment) {
+        incomes.push(tx);
       } else {
         transactions.push(tx);
       }
     }
 
+    transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
     return {
       transactions,
+      incomes,
       duplicates,
       excluded,
+      incomesCount: incomes.length,
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
@@ -477,49 +586,245 @@ export class StatementParserService {
     return isNegative ? -Math.abs(val) : val;
   }
 
-  private matchCategory(desc: string): { group?: string; item?: string; defaultSplit?: SplitType; defaultOwner?: string } {
-    const d = desc.toLowerCase();
+  /**
+   * Cleans messy bank description strings to isolate core merchant name/tokens
+   * (e.g. "DM-DROGERIE MARKT D1A4 KORNWESTHEIM DE" -> "dm drogerie markt")
+   */
+  public normalizeMerchant(desc: string): string {
+    if (!desc) return '';
+    let clean = desc.toLowerCase();
 
-    // 1. Evaluate user-configured rules first
+    // Strip masked cards, transaction references, dates, and order numbers
+    clean = clean.replace(/\*{3,}\d{2,6}/g, ' ');
+    clean = clean.replace(/\b\d{2}[./\-]\d{2}(?:[./\-]\d{2,4})?\b/g, ' ');
+    clean = clean.replace(/\b(?:de|lu|nl|fr|at|ch|gb|us)\d{6,}\b/g, ' ');
+    clean = clean.replace(/\b(?:ref|auftrag|kdnr|mandat|kauf|kartenzahlung|lastschrift|end-to-end)\b[:\s#0-9a-z]*/g, ' ');
+
+    // Strip common company legal forms and location suffixes
+    clean = clean.replace(/\b(gmbh|ag|kg|ug|co\.?\s*kg|se|sarl|sa|ltd|inc|bv|plc|e\.?\s*k\.?)\b/g, ' ');
+    clean = clean.replace(/\b(deutschland|germany|frankfurt|berlin|muenchen|münchen|hamburg|stuttgart|kornwestheim|ludwigsburg|duesseldorf|düsseldorf|koeln|köln)\b/g, ' ');
+
+    // Strip store codes, terminal numbers (e.g. "337", "D1A4", "0451")
+    clean = clean.replace(/\b[a-z]?\d+[a-z]?\b/g, ' ');
+
+    // Replace non-alphanumeric (except spaces) and collapse whitespace
+    clean = clean.replace(/[^a-z0-9äöüß\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    return clean;
+  }
+
+  public matchCategory(
+    desc: string,
+    bank?: string
+  ): { group?: string; item?: string; defaultSplit?: SplitType; defaultOwner?: string } {
+    if (!desc) return {};
+    const rawLower = desc.toLowerCase();
+    const bankLower = (bank || '').toLowerCase();
+    const normDesc = this.normalizeMerchant(desc);
+
+    // =========================================================================
+    // LAYER 1: Explicit User-Configured Rules (highest priority)
+    // =========================================================================
     for (const rule of this.service.rules()) {
-      if (rule.keyword && d.includes(rule.keyword.toLowerCase())) {
-        return {
-          group: rule.categoryGroup,
-          item: rule.categoryItem,
-          defaultSplit: rule.splitType || 'SELF',
-          defaultOwner: rule.paidBy
-        };
-      }
-    }
-
-    // 2. Evaluate default category names matching
-    for (const grp of this.service.categoryGroups()) {
-      for (const item of grp.items) {
-        const iname = item.name.toLowerCase();
-        const cleanName = iname.replace(/\[.*?\]/g, '').trim();
-
-        if (cleanName && cleanName.length > 3 && d.includes(cleanName)) {
-          let defaultSplit: SplitType = 'SELF';
-          if (iname.includes('split') || iname.includes('[s]') || iname.includes('groceries') || iname.includes('utilities') || iname.includes('rent')) {
-            defaultSplit = 'SPLIT';
-          }
-          return { group: grp.name, item: item.name, defaultSplit, defaultOwner: item.defaultOwner };
+      const ruleBank = (rule.bank || 'All').toLowerCase();
+      const matchesBank = ruleBank === 'all' || !bankLower || bankLower.includes(ruleBank) || ruleBank.includes(bankLower);
+      if (matchesBank && rule.keyword) {
+        const kw = rule.keyword.toLowerCase().trim();
+        if (rawLower.includes(kw) || normDesc.includes(kw)) {
+          return {
+            group: rule.categoryGroup,
+            item: rule.categoryItem,
+            defaultSplit: rule.splitType || 'SPLIT',
+            defaultOwner: rule.paidBy
+          };
         }
       }
     }
 
-    // 3. Common German banking heuristics
-    if (d.includes('rewe') || d.includes('edeka') || d.includes('aldi') || d.includes('lidl') || d.includes('kaufland') || d.includes('penny') || d.includes('supermarkt')) {
+    // =========================================================================
+    // LAYER 2: Historical Ledger Learning (Learns from user's past categorized transactions)
+    // =========================================================================
+    const pastTransactions = this.service.transactions();
+    if (pastTransactions.length > 0) {
+      // 2a. Exact normalized description match from past records
+      for (const t of pastTransactions) {
+        if (t.categoryItem && t.categoryItem !== 'Uncategorized') {
+          const pastRaw = (t.description || '').toLowerCase();
+          const pastNorm = this.normalizeMerchant(t.description || '');
+
+          if (pastNorm && normDesc && (pastNorm === normDesc || rawLower === pastRaw)) {
+            return {
+              group: t.categoryGroup,
+              item: t.categoryItem,
+              defaultSplit: t.splitType || 'SPLIT',
+              defaultOwner: t.paidBy
+            };
+          }
+        }
+      }
+
+      // 2b. Strong merchant token prefix / keyword match in history (tokens >= 4 chars)
+      const currentTokens = normDesc.split(/\s+/).filter((t) => t.length >= 4);
+      if (currentTokens.length > 0) {
+        for (const t of pastTransactions) {
+          if (t.categoryItem && t.categoryItem !== 'Uncategorized') {
+            const pastNorm = this.normalizeMerchant(t.description || '');
+            const matchingToken = currentTokens.find((tok) => pastNorm.includes(tok));
+            if (matchingToken) {
+              return {
+                group: t.categoryGroup,
+                item: t.categoryItem,
+                defaultSplit: t.splitType || 'SPLIT',
+                defaultOwner: t.paidBy
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // =========================================================================
+    // LAYER 3: Comprehensive Built-in Local Offline Dictionary
+    // =========================================================================
+    const d = rawLower + ' ' + normDesc;
+
+    // 1. Groceries (Housing -> Groceries, Split 50/50)
+    if (
+      /\b(rewe|edeka|aldi|lidl|kaufland|penny|netto|alnatura|denns|tegut|trader\s*joe|hit\s*markt|supermarkt|lebensmittel|biomarkt|asia\s*markt|nahkauf|norma|willy\s*s)\b/i.test(d)
+    ) {
       return { group: 'Housing', item: 'Groceries', defaultSplit: 'SPLIT' };
     }
-    if (d.includes('miete') || d.includes('rent') || d.includes('stadtwerke') || d.includes('vattenfall') || d.includes('eon') || d.includes('telekom') || d.includes('vodafone')) {
+
+    // 2. Food and Chill / Dining / Bakeries / Takeaway (Food -> Food and Chill, Split 50/50)
+    if (
+      /\b(backwerk|mcdonald|burger\s*king|subway|starbucks|kfc|pizza|pizzeria|sushi|bäckerei|baeckerei|bakery|restaurant|ristorante|bistro|cafe|café|bar|espresso|döner|doener|kebab|lieferando|uber\s*eats|wolt|domino|vapiano|dean\s*&\s*david|cinemaxx|kino|hans\s*im\s*glueck|five\s*guys|l_osteria|osteria)\b/i.test(d)
+    ) {
+      return { group: 'Food', item: 'Food and Chill', defaultSplit: 'SPLIT' };
+    }
+
+    // 3. Parking and Tolls (Car and Transportation -> Parking and Tolls, Split 50/50)
+    if (
+      /\b(paybyphone|easypark|parken|parkhaus|parkplatz|apcoa|contipark|q-park|ampido|parkopedia|maut|vignette|asfinag)\b/i.test(d)
+    ) {
+      return { group: 'Car and Transportation', item: 'Parking and Tolls', defaultSplit: 'SPLIT' };
+    }
+
+    // 4. EV Charging (Car and Transportation -> Charging, Split 50/50)
+    if (
+      /\b(ionity|enbw\s*mobility|supercharger|tesla\s*charging|fastned|allego|chargemap|e-charge|e\s*charge|ladestation|mobilityplus|maingau)\b/i.test(d)
+    ) {
+      return { group: 'Car and Transportation', item: 'Charging', defaultSplit: 'SPLIT' };
+    }
+
+    // 5. Fuel & Car Maintenance (Car and Transportation -> Maintenance, Split 50/50)
+    if (
+      /\b(shell|aral|esso|total\s*energies|total\s*tankstelle|jet\s*tankstelle|omv|avia|hem\s*tankstelle|tankstelle|tüv|dekra|autowerkstatt|atu|pitstop|carglass)\b/i.test(d)
+    ) {
+      return { group: 'Car and Transportation', item: 'Maintenance', defaultSplit: 'SPLIT' };
+    }
+
+    // 6. Attire and Personal Care (Lifestyle -> Attire and Personal Care, Default Owner / Self)
+    if (
+      /\b(dm-drogerie|dm\s*drogerie|rossmann|müller\s*drogerie|mueller\s*drogerie|sephora|douglas|zara|h&m|h\s*m|uniqlo|zalando|asos|c&a|peek\s*&\s*cloppenburg|breuninger|snipes|foot\s*locker|friseur|barber|hair|kosmetik|parfuemerie)\b/i.test(d)
+    ) {
+      return { group: 'Lifestyle', item: 'Attire and Personal Care', defaultSplit: 'SELF' };
+    }
+
+    // 7. Trips & Travel (Lifestyle -> Trips & Travel, Split 50/50)
+    if (
+      /\b(deutsche\s*bahn|db\s*fahrkarten|bahn\.de|lufthansa|ryanair|easyjet|eurowings|booking\.com|airbnb|flixbus|uber\s*trip|bolt\.eu|free\s*now|taxi|hotel|hostel|expedia|agoda|ferry)\b/i.test(d)
+    ) {
+      return { group: 'Lifestyle', item: 'Trips & Travel', defaultSplit: 'SPLIT' };
+    }
+
+    // 8. Rent & Utilities (Housing -> Rent and Utilities, Split 50/50)
+    if (
+      /\b(miete|rent|stadtwerke|vattenfall|eon|e\.on|strom|gas|wasser|fernwaerme|rundfunk|gezon|beitragsservice|telekom|vodafone|o2|1&1|unitymedia)\b/i.test(d)
+    ) {
       return { group: 'Housing', item: 'Rent and Utilities', defaultSplit: 'SPLIT' };
     }
-    if (d.includes('enpal') || d.includes('gehalt') || d.includes('salary') || d.includes('lohn')) {
-      return { group: 'Income', item: 'Salary / Income', defaultSplit: 'SELF', defaultOwner: this.service.personOne().name };
+
+    // 9. Gadgets and Tech Tools (Lifestyle -> Gadgets and Tech Tools, Self)
+    if (
+      /\b(apple\.com|apple\s*store|itunes|google\s*play|google\s*storage|google\s*workspace|microsoft|saturn|mediamarkt|cyberport|notebooksbilliger|github|chatgpt|openai|anthropic|claude|cursor\.com|jetbrains|adobe|steam|playstation|nintendo)\b/i.test(d)
+    ) {
+      return { group: 'Lifestyle', item: 'Gadgets and Tech Tools', defaultSplit: 'SELF' };
     }
-    if (d.includes('bosch')) {
-      return { group: 'Income', item: 'Salary / Income', defaultSplit: 'SELF', defaultOwner: this.service.personTwo().name };
+
+    // 10. Home Items & DIY (Housing -> Home Items, Split 50/50)
+    if (
+      /\b(ikea|bauhaus|hornbach|obi|toom|leroy\s*merlin|möbel|moebel|xxxlutz|poco|action|tedi|butlers|zarahome|depot|h&m\s*home|maisons\s*du\s*monde)\b/i.test(d)
+    ) {
+      return { group: 'Housing', item: 'Home Items', defaultSplit: 'SPLIT' };
+    }
+
+    // 11. Medical & Pharmacy (Medical -> Medical, Self)
+    if (
+      /\b(apotheke|pharmacy|docmorris|shop-apotheke|arzt|doctor|zahnarzt|dentist|praxis|doctolib|klinikum|hospital|labor|optiker|fielmann|misterspex)\b/i.test(d)
+    ) {
+      return { group: 'Medical', item: 'Medical', defaultSplit: 'SELF' };
+    }
+
+    // 12. Gym & Health Apps (Lifestyle -> Gym / Sports & Health Apps, Self)
+    if (
+      /\b(fitx|mcfit|fitness\s*first|clever\s*fit|john\s*reed|urban\s*sports|gym|fitnessstudio|strava|garmin|whoop|zwift|komoot|headspace|calm)\b/i.test(d)
+    ) {
+      return { group: 'Lifestyle', item: 'Gym', defaultSplit: 'SELF' };
+    }
+
+    // 13. Mobile Phone Plans (Lifestyle -> Mobile Phone Plans, Self)
+    if (
+      /\b(fraenk|congstar|alditalk|aldi\s*talk|winsim|simon\s*mobile|freenet|klarmobil|drillisch|lebara|lycamobile)\b/i.test(d)
+    ) {
+      return { group: 'Lifestyle', item: 'Mobile Phone Plans', defaultSplit: 'SELF' };
+    }
+
+    // 14. Reimbursements / Expensed Items / Loans (Lifestyle -> Reimbursements, Self)
+    if (
+      /\b(auslage|auslagen|spesen|spesenabrechnung|reimbursement|reimbursable|erstattung|rueckerstattung|rückerstattung)\b/i.test(d)
+    ) {
+      return { group: 'Lifestyle', item: 'Reimbursements', defaultSplit: 'SELF' };
+    }
+
+    // 15. Salary / Income (Income -> Salary)
+    if (
+      /\b(enpal|bosch|gehalt|salary|lohn|bezüge|bezuege|arbeitsentgelt|gutschrift\s*arbeitgeber)\b/i.test(d)
+    ) {
+      const p1 = this.service.personOne().name;
+      const p2 = this.service.personTwo().name;
+      const defaultOwner = d.includes('bosch') ? p2 : p1;
+      return { group: 'Income', item: 'Salary', defaultSplit: 'SELF', defaultOwner };
+    }
+
+    // =========================================================================
+    // LAYER 4: Match against existing configured Category Item names
+    // =========================================================================
+    for (const grp of this.service.categoryGroups()) {
+      for (const item of grp.items) {
+        const iname = item.name.toLowerCase();
+        const cleanItemName = iname.replace(/\[.*?\]/g, '').trim();
+
+        if (cleanItemName && cleanItemName.length > 3 && d.includes(cleanItemName)) {
+          let defaultSplit: SplitType = 'SELF';
+          if (
+            grp.name === 'Housing' ||
+            grp.name === 'Car and Transportation' ||
+            grp.name === 'Food' ||
+            iname.includes('split') ||
+            iname.includes('groceries') ||
+            iname.includes('utilities') ||
+            iname.includes('rent') ||
+            iname.includes('parking')
+          ) {
+            defaultSplit = 'SPLIT';
+          }
+          return {
+            group: grp.name,
+            item: item.name,
+            defaultSplit,
+            defaultOwner: item.defaultOwner
+          };
+        }
+      }
     }
 
     return {};

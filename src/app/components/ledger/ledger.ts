@@ -400,11 +400,65 @@ export class LedgerComponent {
       }
     }
 
+    const isReimbCategory = itemCategoryName.toLowerCase().includes('reimburse');
     this.service.updateTransaction(tx.id, {
       categoryGroup: parentGroupName || tx.categoryGroup,
-      categoryItem: itemCategoryName
+      categoryItem: itemCategoryName,
+      isReimbursable: isReimbCategory ? true : tx.isReimbursable,
+      reimbursementStatus: isReimbCategory ? (tx.reimbursementStatus || 'PENDING') : tx.reimbursementStatus
     });
     this.service.showToast(`Category updated to "${itemCategoryName}"`, 'success');
+  }
+
+  // Reimbursement Tracking Modal & Actions
+  public reimbursingTx = signal<Transaction | null>(null);
+  public reimburseStatus: 'PENDING' | 'REIMBURSED' = 'PENDING';
+  public reimburseCollectedBy = '';
+  public reimburseNote = '';
+
+  public openReimbursementModal(tx: Transaction): void {
+    this.reimbursingTx.set(tx);
+    this.reimburseStatus = tx.reimbursementStatus || 'PENDING';
+    this.reimburseCollectedBy = tx.reimbursedTo || tx.paidBy || this.service.personOne().name;
+    this.reimburseNote = tx.reimbursementNote || '';
+  }
+
+  public closeReimbursementModal(): void {
+    this.reimbursingTx.set(null);
+  }
+
+  public saveReimbursement(): void {
+    const tx = this.reimbursingTx();
+    if (!tx) return;
+
+    this.service.updateTransaction(tx.id, {
+      isReimbursable: true,
+      reimbursementStatus: this.reimburseStatus,
+      reimbursedTo: this.reimburseStatus === 'REIMBURSED' ? this.reimburseCollectedBy : undefined,
+      reimbursementNote: this.reimburseNote.trim() || undefined
+    });
+
+    this.closeReimbursementModal();
+    if (this.reimburseStatus === 'REIMBURSED') {
+      this.service.showToast('Reimbursement settled! Budget expense cleared.', 'success');
+    } else {
+      this.service.showToast('Marked as pending reimbursement', 'info');
+    }
+  }
+
+  public removeReimbursement(): void {
+    const tx = this.reimbursingTx();
+    if (!tx) return;
+
+    this.service.updateTransaction(tx.id, {
+      isReimbursable: false,
+      reimbursementStatus: undefined,
+      reimbursedTo: undefined,
+      reimbursementNote: undefined
+    });
+
+    this.closeReimbursementModal();
+    this.service.showToast('Reimbursement flag removed', 'info');
   }
 
   public openEditTxModal(tx: Transaction) {
