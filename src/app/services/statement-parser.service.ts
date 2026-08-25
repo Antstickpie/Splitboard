@@ -403,18 +403,13 @@ export class StatementParserService {
     let currentBlock: RawBlock | null = null;
 
     for (const line of rawLines) {
-      // 1. Check if line marks table headers or table end / footer notes
-      const isHeaderOrFooter =
-        /\b(booking\s+date|value\s+item|debit\s+credit|carry\s+forward|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement|balance|kontostand|rechnungsabschluss|interest|notes|objections|disclaimer|guarantee)\b/i.test(
+      // Skip repeated table column header lines
+      if (
+        /^\s*(?:booking\s+date|value\s+item|debit\s+credit|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement)\b/i.test(
           line
         ) ||
-        (line.length > 60 && (line.includes('. ') || line.includes('! ') || line.includes('? ')));
-
-      if (isHeaderOrFooter) {
-        if (currentBlock && currentBlock.lines.length > 0) {
-          blocks.push(currentBlock);
-          currentBlock = null;
-        }
+        /\b(?:booking\s+date\s+value\s+item|debit\s+credit)\b/i.test(line)
+      ) {
         continue;
       }
 
