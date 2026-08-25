@@ -373,7 +373,10 @@ export class StatementParserService {
       clean = withoutMethod;
     }
 
-    // 4. Remove leading/trailing symbols and compress whitespace
+    // 4. Strip any trailing disclaimer notes / footer text
+    clean = clean.split(/\b(?:important notes|please raise any objections|interest rate|rate \d+\s*%|cheques,? bills of exchange|closing balance|new balance|neuer kontostand|rechnungsabschluss|saldenbestätigung|deposit guarantee|einlagensicherung|information on deposit|gesetzliche einlagensicherung|hinweise zur rechnungslegung|allgemeine geschäftsbedingungen|disclaimer)\b/i)[0];
+
+    // 5. Remove leading/trailing symbols and compress whitespace
     clean = clean.replace(/^[-–—:,./\s]+|[-–—:,./\s]+$/g, '').replace(/\s+/g, ' ').trim();
     return this.service.fixMojibake(clean);
   }
@@ -425,7 +428,21 @@ export class StatementParserService {
     let currentBlock: RawBlock | null = null;
 
     for (const line of rawLines) {
-      // Skip metadata / table headers / carry forwards across multi-page statements
+      // 1. If line marks the end of transactions / footer disclaimers, finalize currentBlock and stop appending
+      if (
+        /\b(important notes|please raise any objections|interest rate|rate \d+\s*%|cheques,? bills of exchange|closing balance|new balance|neuer kontostand|rechnungsabschluss|saldenbestätigung|deposit guarantee|einlagensicherung|information on deposit|gesetzliche einlagensicherung|hinweise zur rechnungslegung|allgemeine geschäftsbedingungen|disclaimer)\b/i.test(
+          line
+        )
+      ) {
+        if (currentBlock && currentBlock.lines.length > 0) {
+          blocks.push(currentBlock);
+          currentBlock = null;
+        }
+        console.log('[StatementParser] Reached statement footer disclaimer boundary:', line);
+        continue;
+      }
+
+      // 2. Skip metadata / table headers / carry forwards across multi-page statements
       if (
         /\b(branch number|balance as at|opening balance|closing balance|old balance|new balance|alter kontostand|neuer kontostand|rechnungsabschluss|kontostand per|saldo per|page \d|seite \d|kontoauszug|booking\s+date|value\s+item|debit\s+credit|carry\s+forward|total\s+turnover)\b/i.test(
           line
