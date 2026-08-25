@@ -79,24 +79,37 @@ export class StatementParserService {
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
+          
+          // Sort items by Y (top to bottom) with 3.5px line tolerance, then X (left to right)
+          const items = (textContent.items as any[]).map((item) => ({
+            str: item.str || '',
+            x: item.transform ? item.transform[4] : 0,
+            y: item.transform ? item.transform[5] : 0
+          }));
+
+          items.sort((a, b) => {
+            if (Math.abs(a.y - b.y) <= 3.5) {
+              return a.x - b.x; // same line: left to right
+            }
+            return b.y - a.y; // top to bottom
+          });
+
           let lastY: number | undefined;
           let pageText = '';
 
-          for (const item of textContent.items as any[]) {
-            const str = item.str || '';
-            const y = item.transform ? Math.round(item.transform[5]) : undefined;
-            if (lastY !== undefined && y !== undefined && Math.abs(y - lastY) > 3) {
+          for (const item of items) {
+            if (lastY !== undefined && Math.abs(item.y - lastY) > 3.5) {
               pageText += '\n';
             } else if (pageText.length > 0 && !pageText.endsWith(' ') && !pageText.endsWith('\n')) {
               pageText += ' ';
             }
-            pageText += str;
-            if (y !== undefined) lastY = y;
+            pageText += item.str;
+            lastY = item.y;
           }
 
           fullText += '\n' + pageText;
         }
-        console.log(`[StatementParser] Parsed ${pdf.numPages} PDF pages via pdfjsLib.`);
+        console.log(`[StatementParser] Parsed ${pdf.numPages} PDF pages with Y/X coordinate sorting.`);
       }
     } catch (e) {
       console.warn('[StatementParser] pdfjsLib runtime parse failed:', e);
@@ -108,7 +121,7 @@ export class StatementParserService {
       fullText = this.extractRawPdfText(new Uint8Array(arrayBuffer));
     }
 
-    console.log('[StatementParser] === Extracted PDF Text ===\n' + fullText);
+    console.log('[StatementParser] === Extracted Multi-page PDF Text ===\n' + fullText);
 
     return this.extractTransactionsFromPdfText(fullText, bankName, defaultOwner, file.name);
   }
@@ -412,9 +425,9 @@ export class StatementParserService {
     let currentBlock: RawBlock | null = null;
 
     for (const line of rawLines) {
-      // Skip metadata / page headers
+      // Skip metadata / table headers / carry forwards across multi-page statements
       if (
-        /\b(branch number|balance as at|opening balance|closing balance|old balance|new balance|alter kontostand|neuer kontostand|rechnungsabschluss|kontostand per|saldo per|page \d|seite \d|kontoauszug)\b/i.test(
+        /\b(branch number|balance as at|opening balance|closing balance|old balance|new balance|alter kontostand|neuer kontostand|rechnungsabschluss|kontostand per|saldo per|page \d|seite \d|kontoauszug|booking\s+date|value\s+item|debit\s+credit|carry\s+forward|total\s+turnover)\b/i.test(
           line
         )
       ) {
