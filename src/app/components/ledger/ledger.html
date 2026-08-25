@@ -216,7 +216,7 @@
                 {{ tx.paidBy }}
               </span>
             </td>
-            <td style="font-weight: 500; max-width: 260px; text-overflow: ellipsis; overflow: hidden;">
+            <td style="font-weight: 500; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
               {{ tx.description }}
               <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem;">Cash Transfer</span>
               <span

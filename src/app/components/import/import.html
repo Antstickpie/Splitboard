@@ -202,7 +202,7 @@
           <tbody>
             <tr *ngFor="let tx of res.incomes">
               <td>{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500;">{{ tx.description }}</td>
+              <td style="font-weight: 500; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
               <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
               <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
@@ -249,7 +249,7 @@
           <tbody>
             <tr *ngFor="let tx of sortedTransactions()">
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500; max-width: 220px; text-overflow: ellipsis; overflow: hidden;">{{ tx.description }}</td>
+              <td style="font-weight: 500; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
               <td>
                 <span
@@ -371,7 +371,7 @@
               <tbody>
                 <tr *ngFor="let tx of g.items">
                   <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
-                  <td style="font-size: 0.78rem;">{{ tx.description }}</td>
+                  <td style="font-size: 0.78rem; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
                   <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                   <td class="font-mono" style="width: 90px; text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
                   <td style="width: 70px; text-align: center;">
@@ -439,7 +439,7 @@
               <tbody>
                 <tr *ngFor="let tx of g.items">
                   <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
-                  <td style="font-size: 0.78rem;">{{ tx.description }}</td>
+                  <td style="font-size: 0.78rem; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
                   <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                   <td class="font-mono" style="width: 90px; text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
                   <td style="width: 70px; text-align: center;">
