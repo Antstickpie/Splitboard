@@ -335,6 +335,36 @@ export class StatementParserService {
     };
   }
 
+  public cleanTransactionDescription(raw: string): string {
+    if (!raw) return '';
+    let clean = raw;
+
+    // 1. Remove common noise IDs, references, IBANs, BICs
+    clean = clean.replace(/\b(?:IBAN|BIC|EREF|MREF|CRED|KREF|KUNDENREFERENZ|MANDATSREFERENZ|GLÄUBIGER-ID|GLAEUBIGER-ID|END-TO-END-REF)[.:]?\s*[A-Z0-9\-+/]+/gi, '');
+    clean = clean.replace(/\b[A-Z]{2}\d{2}\s*(?:[A-Z0-9]{4}\s*){3,7}[A-Z0-9]{1,4}\b/g, ''); // Raw IBAN pattern
+    clean = clean.replace(/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/g, ''); // Raw BIC pattern
+
+    // 2. Remove terminal, card numbers, timestamps, and valuta tags
+    clean = clean.replace(/\b(?:TERMINAL|TA-NR|TERMID|T-ID)[.:]?\s*\d+/gi, '');
+    clean = clean.replace(/\*{3,}\d{2,6}/g, '');
+    clean = clean.replace(/\b\d{2}:\d{2}(?::\d{2})?\b/g, '');
+    clean = clean.replace(/\bVALUTA\s*\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?/gi, '');
+
+    // 3. Remove standard transaction method labels if merchant text exists
+    const withoutMethod = clean.replace(
+      /\b(SEPA-(?:Basis)?Lastschrift|Lastschrift|Direct debit|SEPA direct debit|SEPA-(?:Credit )?Transfer|Überweisung|Credit transfer|Kartenzahlung|Kartenverfügung|Card payment|Debit card payment|Girocard|Dauerauftrag|Standing order|Gutschrift|Gutschrift\s*Arbeitgeber|Auszahlung|Withdrawal)\b/gi,
+      ''
+    ).trim();
+
+    if (withoutMethod.length > 2 && /[a-zA-Z0-9]/.test(withoutMethod)) {
+      clean = withoutMethod;
+    }
+
+    // 4. Remove leading/trailing symbols and compress whitespace
+    clean = clean.replace(/^[-–—:,./\s]+|[-–—:,./\s]+$/g, '').replace(/\s+/g, ' ').trim();
+    return this.service.fixMojibake(clean);
+  }
+
   private extractTransactionsFromPdfText(
     text: string,
     bankName: string,
@@ -370,17 +400,21 @@ export class StatementParserService {
 
     // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
     const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
-    const lineTxRegex = new RegExp(
-      `^(${strictDatePattern})(?:\\s+${strictDatePattern})?\\s+(.+?)\\s+([+\\-]?\\s*\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2}\\s*[+\\-SH]?)\\s*(?:EUR|€|USD|\\$|GBP|£)?$`,
-      'i'
-    );
+    const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
+    const amountTokenRegex = /([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)/g;
 
-    for (let i = 0; i < rawLines.length; i++) {
-      const line = rawLines[i];
+    // Group lines into transaction blocks starting with a Date line
+    interface RawBlock {
+      dateStr: string;
+      lines: string[];
+    }
+    const blocks: RawBlock[] = [];
+    let currentBlock: RawBlock | null = null;
 
-      // Skip obvious metadata / header lines
+    for (const line of rawLines) {
+      // Skip metadata / page headers
       if (
-        /\b(branch number|balance as at|opening balance|closing balance|old balance|new balance|alter kontostand|neuer kontostand|rechnungsabschluss|kontostand per|saldo per|iban|bic|page \d|seite \d)\b/i.test(
+        /\b(branch number|balance as at|opening balance|closing balance|old balance|new balance|alter kontostand|neuer kontostand|rechnungsabschluss|kontostand per|saldo per|page \d|seite \d|kontoauszug)\b/i.test(
           line
         )
       ) {
@@ -388,168 +422,111 @@ export class StatementParserService {
         continue;
       }
 
-      const match = line.match(lineTxRegex);
-      if (match) {
-        let rawDate = match[1].trim();
-        const rawDesc = match[2].trim();
-        const rawAmt = match[3].trim();
-
-        // If date was only DD.MM. without year, append detected statement year
-        if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
-          rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
+      const dateMatch = line.match(startWithDateRegex);
+      if (dateMatch) {
+        if (currentBlock && currentBlock.lines.length > 0) {
+          blocks.push(currentBlock);
         }
-
-        const isoDate = this.normalizeDate(rawDate);
-        if (!isoDate) {
-          console.log('[StatementParser] Failed to parse date from line:', line);
-          continue;
-        }
-
-        let amount = this.parseAmount(rawAmt);
-        if (rawAmt.endsWith('S') || rawAmt.endsWith('-')) {
-          amount = -Math.abs(amount);
-        } else if (rawAmt.endsWith('H') || rawAmt.endsWith('+')) {
-          amount = Math.abs(amount);
-        }
-        if (amount === 0) continue;
-
-        let cleanDesc = rawDesc
-          .replace(/\*{3,}\d{2,6}/g, '')
-          .replace(/^[-–—]\s*/, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        cleanDesc = this.service.fixMojibake(cleanDesc);
-
-        if (!cleanDesc || cleanDesc === '-' || cleanDesc === '–' || !/[a-zA-Z0-9äöüÄÖÜß]/.test(cleanDesc)) {
-          continue;
-        }
-
-        const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
-        const isCharge = invertSigns ? amount > 0 : amount < 0;
-        const isIncomeOrPayment = !isCharge;
-
-        const tx: Transaction = {
-          id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
-          date: isoDate,
-          amount: Math.abs(amount),
-          type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
-          description: cleanDesc,
-          bank: detectedBank,
-          account: detectedBank,
-          paidBy: defaultOwner || this.service.personOne().name,
-          categoryGroup: group,
-          categoryItem: item,
-          splitType: defaultSplit || 'SELF',
-          splitPercentage: 50,
-          sourceFile: fileName,
-          createdAt: new Date().toISOString()
-        };
-
-        if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
-          excluded.push(tx);
-          console.log('[StatementParser] Excluded by rule:', cleanDesc);
-          continue;
-        }
-
-        const sig = this.service.getTransactionSignature(tx);
-        const dbCount = dbSigCounts.get(sig) || 0;
-        if (dbCount > 0) {
-          duplicates.push(tx);
-          dbSigCounts.set(sig, dbCount - 1);
-          console.log('[StatementParser] Duplicate found:', cleanDesc, tx.amount);
-        } else if (isIncomeOrPayment) {
-          incomes.push(tx);
-          console.log('[StatementParser] Parsed Income/Payment:', cleanDesc, tx.amount);
-        } else {
-          transactions.push(tx);
-          console.log('[StatementParser] Parsed Valid Expense:', cleanDesc, tx.amount);
-        }
+        currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
+      } else if (currentBlock) {
+        currentBlock.lines.push(line);
       }
     }
+    if (currentBlock && currentBlock.lines.length > 0) {
+      blocks.push(currentBlock);
+    }
 
-    // Fallback: If line regex found 0 items, run global multi-line regex with strict date pattern
-    if (transactions.length === 0 && incomes.length === 0) {
-      console.log('[StatementParser] Line regex found 0, running fallback multi-line regex...');
-      const fallbackRegex = new RegExp(
-        `(${strictDatePattern})(?:\\s+${strictDatePattern})?\\s+([A-Za-z0-9\\s\\-.,/&@äöüÄÖÜß#*+]+?)\\s+([+\\-]?\\s*\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2}\\s*[+\\-SH]?)\\s*(?:EUR|€|USD|\\$|GBP|£)?`,
-        'g'
-      );
-      let m: RegExpExecArray | null;
+    console.log(`[StatementParser] Grouped into ${blocks.length} transaction blocks.`);
 
-      while ((m = fallbackRegex.exec(text)) !== null) {
-        let rawDate = m[1].trim();
-        const rawDesc = m[2].trim();
-        const rawAmt = m[3].trim();
+    for (const block of blocks) {
+      let rawDate = block.dateStr;
+      if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
+        rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
+      }
+      const isoDate = this.normalizeDate(rawDate);
+      if (!isoDate) {
+        console.log('[StatementParser] Failed to normalize block date:', block.dateStr);
+        continue;
+      }
 
-        if (/\b(branch number|balance as at|opening balance|closing balance|alter kontostand|neuer kontostand|kontostand per)\b/i.test(rawDesc)) {
-          continue;
+      const fullBlockText = block.lines.join(' ');
+
+      // Find amounts in this block
+      const amtMatches = Array.from(fullBlockText.matchAll(amountTokenRegex));
+      if (amtMatches.length === 0) {
+        console.log('[StatementParser] No amount token found in block:', fullBlockText);
+        continue;
+      }
+
+      // Prefer amount token that has sign (+ / - / S / H) or the last valid amount
+      let chosenAmtStr = amtMatches[amtMatches.length - 1][1].trim();
+      for (const m of amtMatches) {
+        const token = m[1].trim();
+        if (token.includes('-') || token.includes('+') || token.endsWith('S') || token.endsWith('H')) {
+          chosenAmtStr = token;
+          break;
         }
+      }
 
-        if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
-          rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
-        }
+      let amount = this.parseAmount(chosenAmtStr);
+      if (chosenAmtStr.endsWith('S') || chosenAmtStr.endsWith('-')) {
+        amount = -Math.abs(amount);
+      } else if (chosenAmtStr.endsWith('H') || chosenAmtStr.endsWith('+')) {
+        amount = Math.abs(amount);
+      }
+      if (amount === 0) continue;
 
-        const isoDate = this.normalizeDate(rawDate);
-        if (!isoDate) continue;
+      // Clean description: remove dates, amount token, and currency symbols
+      let descCandidate = fullBlockText;
+      descCandidate = descCandidate.replace(new RegExp(strictDatePattern, 'g'), '');
+      descCandidate = descCandidate.replace(chosenAmtStr, '');
+      descCandidate = descCandidate.replace(/\b(?:EUR|€|USD|\$|GBP|£)\b/g, '');
 
-        let amount = this.parseAmount(rawAmt);
-        if (rawAmt.endsWith('S') || rawAmt.endsWith('-')) {
-          amount = -Math.abs(amount);
-        } else if (rawAmt.endsWith('H') || rawAmt.endsWith('+')) {
-          amount = Math.abs(amount);
-        }
-        if (amount === 0) continue;
+      const cleanDesc = this.cleanTransactionDescription(descCandidate);
+      if (!cleanDesc || cleanDesc.length < 2 || !/[a-zA-Z0-9]/.test(cleanDesc)) {
+        console.log('[StatementParser] Rejected empty/invalid description from block:', fullBlockText);
+        continue;
+      }
 
-        let cleanDesc = rawDesc
-          .replace(/\*{3,}\d{2,6}/g, '')
-          .replace(/^[-–—]\s*/, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        cleanDesc = this.service.fixMojibake(cleanDesc);
+      const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
+      const isCharge = invertSigns ? amount > 0 : amount < 0;
+      const isIncomeOrPayment = !isCharge;
 
-        if (!cleanDesc || cleanDesc === '-' || cleanDesc === '–' || !/[a-zA-Z0-9äöüÄÖÜß]/.test(cleanDesc)) {
-          continue;
-        }
-        if (/^(zeitraum|datum|saldo|kontostand|iban|bic|seite|belastung|rechnungsabschluss)\b/i.test(cleanDesc)) {
-          continue;
-        }
+      const tx: Transaction = {
+        id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
+        date: isoDate,
+        amount: Math.abs(amount),
+        type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
+        description: cleanDesc,
+        bank: detectedBank,
+        account: detectedBank,
+        paidBy: defaultOwner || this.service.personOne().name,
+        categoryGroup: group,
+        categoryItem: item,
+        splitType: defaultSplit || 'SELF',
+        splitPercentage: 50,
+        sourceFile: fileName,
+        createdAt: new Date().toISOString()
+      };
 
-        const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
-        const isCharge = invertSigns ? amount > 0 : amount < 0;
-        const isIncomeOrPayment = !isCharge;
+      if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
+        excluded.push(tx);
+        console.log('[StatementParser] Excluded by rule:', cleanDesc);
+        continue;
+      }
 
-        const tx: Transaction = {
-          id: 'tx-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
-          date: isoDate,
-          amount: Math.abs(amount),
-          type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
-          description: cleanDesc,
-          bank: detectedBank,
-          account: detectedBank,
-          paidBy: defaultOwner || this.service.personOne().name,
-          categoryGroup: group,
-          categoryItem: item,
-          splitType: defaultSplit || 'SELF',
-          splitPercentage: 50,
-          sourceFile: fileName,
-          createdAt: new Date().toISOString()
-        };
-
-        if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
-          excluded.push(tx);
-          continue;
-        }
-
-        const sig = this.service.getTransactionSignature(tx);
-        const dbCount = dbSigCounts.get(sig) || 0;
-        if (dbCount > 0) {
-          duplicates.push(tx);
-          dbSigCounts.set(sig, dbCount - 1);
-        } else if (isIncomeOrPayment) {
-          incomes.push(tx);
-        } else {
-          transactions.push(tx);
-        }
+      const sig = this.service.getTransactionSignature(tx);
+      const dbCount = dbSigCounts.get(sig) || 0;
+      if (dbCount > 0) {
+        duplicates.push(tx);
+        dbSigCounts.set(sig, dbCount - 1);
+        console.log('[StatementParser] Duplicate found:', cleanDesc, tx.amount);
+      } else if (isIncomeOrPayment) {
+        incomes.push(tx);
+        console.log('[StatementParser] Parsed Income/Payment:', cleanDesc, tx.amount);
+      } else {
+        transactions.push(tx);
+        console.log('[StatementParser] Parsed Valid Expense:', cleanDesc, tx.amount);
       }
     }
 
