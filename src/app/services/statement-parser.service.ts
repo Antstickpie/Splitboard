@@ -109,7 +109,6 @@ export class StatementParserService {
 
           fullText += '\n' + pageText;
         }
-        console.log(`[StatementParser] Parsed ${pdf.numPages} PDF pages with Y/X coordinate sorting.`);
       }
     } catch (e) {
       console.warn('[StatementParser] pdfjsLib runtime parse failed:', e);
@@ -117,11 +116,8 @@ export class StatementParserService {
 
     // Fallback: extract plain text / stream text from raw PDF bytes
     if (!fullText.trim()) {
-      console.log('[StatementParser] Using raw PDF byte extractor fallback.');
       fullText = this.extractRawPdfText(new Uint8Array(arrayBuffer));
     }
-
-    console.log('[StatementParser] === Extracted Multi-page PDF Text ===\n' + fullText);
 
     return this.extractTransactionsFromPdfText(fullText, bankName, defaultOwner, file.name);
   }
@@ -384,7 +380,6 @@ export class StatementParserService {
     defaultOwner: string,
     fileName: string
   ): ParsedStatementResult {
-    console.log('[StatementParser] === Processing PDF text for bank:', bankName, '===');
     const transactions: Transaction[] = [];
     const incomes: Transaction[] = [];
     const duplicates: Transaction[] = [];
@@ -405,11 +400,9 @@ export class StatementParserService {
     let fallbackYear = new Date().getFullYear().toString();
     const yearMatch = text.match(/\b(202\d)\b/);
     if (yearMatch) fallbackYear = yearMatch[1];
-    console.log('[StatementParser] Detected bank:', detectedBank, 'Fallback Year:', fallbackYear);
 
     // Line-by-line processing
     const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
-    console.log(`[StatementParser] Total raw lines in PDF: ${rawLines.length}`);
 
     // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
     const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
@@ -463,27 +456,19 @@ export class StatementParserService {
       blocks.push(currentBlock);
     }
 
-    console.log(`[StatementParser] Grouped into ${blocks.length} transaction blocks.`);
-
     for (const block of blocks) {
       let rawDate = block.dateStr;
       if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
         rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
       }
       const isoDate = this.normalizeDate(rawDate);
-      if (!isoDate) {
-        console.log('[StatementParser] Failed to normalize block date:', block.dateStr);
-        continue;
-      }
+      if (!isoDate) continue;
 
       const fullBlockText = block.lines.join(' ');
 
       // Find amounts in this block
       const amtMatches = Array.from(fullBlockText.matchAll(amountTokenRegex));
-      if (amtMatches.length === 0) {
-        console.log('[StatementParser] No amount token found in block:', fullBlockText);
-        continue;
-      }
+      if (amtMatches.length === 0) continue;
 
       // Prefer amount token that has sign (+ / - / S / H) or the last valid amount
       let chosenAmtStr = amtMatches[amtMatches.length - 1][1].trim();
@@ -511,7 +496,6 @@ export class StatementParserService {
 
       const cleanDesc = this.cleanTransactionDescription(descCandidate);
       if (!cleanDesc || cleanDesc.length < 2 || !/[a-zA-Z0-9]/.test(cleanDesc)) {
-        console.log('[StatementParser] Rejected empty description from block:', fullBlockText);
         continue;
       }
 
@@ -564,7 +548,6 @@ export class StatementParserService {
 
       if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
         excluded.push(tx);
-        console.log('[StatementParser] Excluded by rule:', cleanDesc);
         continue;
       }
 
@@ -573,13 +556,10 @@ export class StatementParserService {
       if (dbCount > 0) {
         duplicates.push(tx);
         dbSigCounts.set(sig, dbCount - 1);
-        console.log('[StatementParser] Duplicate found:', cleanDesc, tx.amount);
       } else if (isIncomeOrPayment) {
         incomes.push(tx);
-        console.log('[StatementParser] Parsed Income/Payment:', cleanDesc, tx.amount);
       } else {
         transactions.push(tx);
-        console.log('[StatementParser] Parsed Valid Expense:', cleanDesc, tx.amount);
       }
     }
 
@@ -587,10 +567,6 @@ export class StatementParserService {
     incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-    console.log(
-      `[StatementParser] Result -> ${transactions.length} expenses, ${incomes.length} incomes, ${duplicates.length} duplicates, ${excluded.length} excluded.`
-    );
 
     return {
       transactions,
