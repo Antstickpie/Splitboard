@@ -519,7 +519,33 @@ export class StatementParserService {
       }
 
       const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
-      const isCharge = invertSigns ? amount > 0 : amount < 0;
+
+      // Check for explicit income vs expense keywords in block
+      const isIncomeDesc =
+        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|erstattung|rückzahlung)\b/i.test(
+          cleanDesc
+        ) ||
+        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege)\b/i.test(fullBlockText);
+
+      const isExpenseDesc =
+        /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverfügung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|gebühr|gebuehr|fee|standing\s+order|dauerauftrag)\b/i.test(
+          fullBlockText
+        );
+
+      let isCharge = true;
+      if (chosenAmtStr.includes('-') || chosenAmtStr.endsWith('S')) {
+        isCharge = true;
+      } else if (chosenAmtStr.includes('+') || chosenAmtStr.endsWith('H')) {
+        isCharge = false;
+      } else if (isIncomeDesc && !isExpenseDesc) {
+        isCharge = false;
+      } else if (isExpenseDesc) {
+        isCharge = true;
+      } else {
+        // In bank PDF statements (Debit/Credit columns without negative signs), regular items are charges/expenses
+        isCharge = group !== 'Income';
+      }
+
       const isIncomeOrPayment = !isCharge;
 
       const tx: Transaction = {
