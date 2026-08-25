@@ -363,7 +363,7 @@ export class StatementParserService {
     clean = clean.replace(/\b\d{2}:\d{2}(?::\d{2})?\b/g, '');
     clean = clean.replace(/\bVALUTA\s*\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?/gi, '');
 
-    // 3. Remove standard transaction method labels if merchant text exists
+    // 3. Remove standard transaction method labels if longer merchant description exists
     const withoutMethod = clean.replace(
       /\b(SEPA-(?:Basis)?Lastschrift|Lastschrift|Direct debit|SEPA direct debit|SEPA-(?:Credit )?Transfer|Überweisung|Credit transfer|Kartenzahlung|Kartenverfügung|Card payment|Debit card payment|Girocard|Dauerauftrag|Standing order|Gutschrift|Gutschrift\s*Arbeitgeber|Auszahlung|Withdrawal)\b/gi,
       ''
@@ -373,12 +373,7 @@ export class StatementParserService {
       clean = withoutMethod;
     }
 
-    // 4. Strip any trailing disclaimer notes / footer text
-    clean = clean.split(
-      /\b(?:interest\s*rate|interest|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|closing\s*balance|new\s*balance|neuer\s*kontostand|rechnungsabschluss|saldenbestätigung|deposit\s*guarantee|einlagensicherung|information\s*on\s*deposit|gesetzliche\s*einlagensicherung|hinweise|allgemeine\s*geschäftsbedingungen|disclaimer|exempt\s*from\s*v|eligible\s*deposits|frankfurt\s*de1)\b/i
-    )[0];
-
-    // 5. Remove leading/trailing symbols and compress whitespace
+    // 4. Remove leading/trailing punctuation symbols and compress whitespace
     clean = clean.replace(/^[-–—:,./\s]+|[-–—:,./\s]+$/g, '').replace(/\s+/g, ' ').trim();
     return this.service.fixMojibake(clean);
   }
@@ -421,7 +416,9 @@ export class StatementParserService {
     const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
     const amountTokenRegex = /([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)/g;
 
-    // Group lines into transaction blocks starting with a Date line
+    // Structural table block grouping:
+    // A transaction block starts with a date and accepts at most 2 lines (date row + optional 1 sub-line).
+    // Subsequent non-date lines (paragraphs, footers, disclaimers) are naturally excluded.
     interface RawBlock {
       dateStr: string;
       lines: string[];
@@ -430,9 +427,9 @@ export class StatementParserService {
     let currentBlock: RawBlock | null = null;
 
     for (const line of rawLines) {
-      // 1. If line marks the end of transactions / footer disclaimers, finalize currentBlock and stop appending
+      // Skip common table header labels
       if (
-        /\b(interest\s*rate|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|closing\s*balance|new\s*balance|neuer\s*kontostand|rechnungsabschluss|saldenbestätigung|deposit\s*guarantee|einlagensicherung|information\s*on\s*deposit|gesetzliche\s*einlagensicherung|hinweise|allgemeine\s*geschäftsbedingungen|disclaimer|exempt\s*from|eligible\s*deposits)\b/i.test(
+        /\b(booking\s+date|value\s+item|debit\s+credit|carry\s+forward|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement)\b/i.test(
           line
         )
       ) {
@@ -440,17 +437,6 @@ export class StatementParserService {
           blocks.push(currentBlock);
           currentBlock = null;
         }
-        console.log('[StatementParser] Reached statement footer disclaimer boundary:', line);
-        continue;
-      }
-
-      // 2. Skip metadata / table headers / carry forwards across multi-page statements
-      if (
-        /\b(branch number|balance as at|opening balance|closing balance|old balance|new balance|alter kontostand|neuer kontostand|rechnungsabschluss|kontostand per|saldo per|page \d|seite \d|kontoauszug|booking\s+date|value\s+item|debit\s+credit|carry\s+forward|total\s+turnover)\b/i.test(
-          line
-        )
-      ) {
-        console.log('[StatementParser] Skipped metadata header line:', line);
         continue;
       }
 
@@ -461,7 +447,16 @@ export class StatementParserService {
         }
         currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
       } else if (currentBlock) {
-        currentBlock.lines.push(line);
+        // Only append line if current block has < 2 lines and line is a short table entry (< 12 words, not a full sentence)
+        const words = line.split(/\s+/).filter(Boolean);
+        const isSentence = line.includes('. ') || line.includes('! ') || line.includes('? ');
+        if (currentBlock.lines.length < 2 && words.length <= 12 && !isSentence) {
+          currentBlock.lines.push(line);
+        } else {
+          // Block reached structural boundary
+          blocks.push(currentBlock);
+          currentBlock = null;
+        }
       }
     }
     if (currentBlock && currentBlock.lines.length > 0) {
@@ -514,21 +509,9 @@ export class StatementParserService {
       descCandidate = descCandidate.replace(chosenAmtStr, '');
       descCandidate = descCandidate.replace(/\b(?:EUR|€|USD|\$|GBP|£)\b/g, '');
 
-      // Cut off any disclaimer / footer text that leaked into candidate description
-      descCandidate = descCandidate.split(
-        /\b(?:interest\s*rate|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|closing\s*balance|new\s*balance|neuer\s*kontostand|rechnungsabschluss|saldenbestätigung|deposit\s*guarantee|einlagensicherung|information\s*on\s*deposit|gesetzliche\s*einlagensicherung|hinweise|disclaimer|exempt\s*from|eligible\s*deposits)\b/i
-      )[0];
-
       const cleanDesc = this.cleanTransactionDescription(descCandidate);
-      if (
-        !cleanDesc ||
-        cleanDesc.length < 2 ||
-        !/[a-zA-Z0-9]/.test(cleanDesc) ||
-        /\b(interest\s*rate|important\s*notes|please\s*raise|cheques|bills\s*of\s*exchange|deposit\s*guarantee|einlagensicherung|eligible\s*deposits)\b/i.test(
-          cleanDesc
-        )
-      ) {
-        console.log('[StatementParser] Rejected empty/disclaimer description from block:', fullBlockText);
+      if (!cleanDesc || cleanDesc.length < 2 || !/[a-zA-Z0-9]/.test(cleanDesc)) {
+        console.log('[StatementParser] Rejected empty description from block:', fullBlockText);
         continue;
       }
 
