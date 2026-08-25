@@ -146,7 +146,7 @@ export class StatementParserService {
 
     const startIdx = mapping.hasHeader ? (mapping.headerRowIndex !== undefined ? mapping.headerRowIndex + 1 : 1) : 0;
 
-    // Smart Heuristic: If negative rows have repayment keywords OR positive rows are clear merchant charges
+    // Smart Heuristic: Only for credit cards where charges are positive and repayments negative
     if (!bankCfg || bankCfg.invertAmountSign === undefined) {
       let paymentInNegativeCount = 0;
       let merchantInPositiveCount = 0;
@@ -164,7 +164,7 @@ export class StatementParserService {
         
         if (amt < 0) {
           totalNegativeCount++;
-          if (rowDesc.includes('zahlung') || rowDesc.includes('überweisung erhalten') || rowDesc.includes('payment received') || rowDesc.includes('dank') || rowDesc.includes('gutschrift') || rowDesc.includes('lastschrift')) {
+          if (rowDesc.includes('zahlung erhalten') || rowDesc.includes('überweisung erhalten') || rowDesc.includes('payment received') || rowDesc.includes('besten dank')) {
             paymentInNegativeCount++;
           }
         } else {
@@ -202,11 +202,25 @@ export class StatementParserService {
 
       let desc = mapping.descIdx >= 0 ? (row[mapping.descIdx] || '').trim() : 'Transaction';
       if (mapping.descIdx2 !== undefined && mapping.descIdx2 >= 0 && row[mapping.descIdx2]) {
-        desc += ' ' + row[mapping.descIdx2].trim();
+        const secondary = row[mapping.descIdx2].trim();
+        if (secondary && secondary !== desc) {
+          desc += ' ' + secondary;
+        }
       }
 
       const rawAmt = mapping.amountIdx >= 0 ? (row[mapping.amountIdx] || '').trim() : '0';
-      const amount = this.parseAmount(rawAmt);
+      let amount = this.parseAmount(rawAmt);
+
+      // If separate Soll/Haben column exists (e.g. S = Soll / Debit, H = Haben / Credit)
+      if (mapping.sollHabenIdx !== undefined && mapping.sollHabenIdx >= 0 && row[mapping.sollHabenIdx]) {
+        const sh = row[mapping.sollHabenIdx].trim().toLowerCase();
+        if (sh === 's' || sh === 'soll' || sh === 'd' || sh === 'debit' || sh === 'belastung') {
+          amount = -Math.abs(amount);
+        } else if (sh === 'h' || sh === 'haben' || sh === 'c' || sh === 'credit' || sh === 'gutschrift') {
+          amount = Math.abs(amount);
+        }
+      }
+
       if (amount === 0) continue;
 
       const cleanDesc = this.service.fixMojibake(desc.replace(/\s+/g, ' ').trim());
@@ -301,7 +315,7 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
-      totalParsed: parsedRows.length - (mapping.hasHeader ? 1 : 0)
+      totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
     };
   }
 
@@ -333,11 +347,16 @@ export class StatementParserService {
       }
     }
 
-    // Matches German statement patterns: DD.MM.YYYY | DD/MM/YYYY text +/-amount EUR
-    const regex = /(\d{2}[./\-]\d{2}[./\-]\d{2,4})\s+([A-Za-z0-9\s\-.,/&@äöüÄÖÜß#*+]+?)\s+([+\-]?\s*\d{1,3}(?:\.\d{3})*,\d{2}|[+\-]?\s*\d+\.\d{2})\s*(?:EUR|€)?/g;
+    // Matches German statement patterns: DD.MM.YYYY (optional DD.MM.YYYY) text amount [+/-/S/H/EUR]
+    const regex = /(\d{2}[./\-]\d{2}(?:[./\-]\d{2,4})?)\s+(?:\d{2}[./\-]\d{2}(?:[./\-]\d{2,4})?\s+)?([A-Za-z0-9\s\-.,/&@äöüÄÖÜß#*+]+?)\s+([+\-]?\s*\d{1,3}(?:\.\d{3})*,\d{2}\s*[+\-SH]?|[+\-]?\s*\d+\.\d{2}\s*[+\-SH]?)\s*(?:EUR|€)?/g;
 
     let match: RegExpExecArray | null;
     let count = 0;
+
+    // Detect statement year from header if dates are DD.MM.
+    let fallbackYear = new Date().getFullYear().toString();
+    const yearMatch = text.match(/\b(202\d)\b/);
+    if (yearMatch) fallbackYear = yearMatch[1];
 
     while ((match = regex.exec(text)) !== null) {
       const matchIndex = match.index;
@@ -349,14 +368,24 @@ export class StatementParserService {
       }
 
       count++;
-      const rawDate = match[1];
+      let rawDate = match[1];
+      // If date was only DD.MM. without year, append detected statement year
+      if (/^\d{2}[./\-]\d{2}$/.test(rawDate.trim())) {
+        rawDate = rawDate.trim() + '.' + fallbackYear;
+      }
+
       const rawDesc = match[2].trim();
-      const rawAmt = match[3];
+      let rawAmt = match[3].trim();
 
       const isoDate = this.normalizeDate(rawDate);
       if (!isoDate) continue;
 
-      const amount = this.parseAmount(rawAmt);
+      let amount = this.parseAmount(rawAmt);
+      if (rawAmt.endsWith('S') || rawAmt.endsWith('-')) {
+        amount = -Math.abs(amount);
+      } else if (rawAmt.endsWith('H') || rawAmt.endsWith('+')) {
+        amount = Math.abs(amount);
+      }
       if (amount === 0) continue;
 
       // Strip masked card numbers like ************6925 and extra dashes
@@ -429,7 +458,7 @@ export class StatementParserService {
 
   private detectBank(selectedBank: string, fileName: string, text: string): string {
     const combined = (selectedBank + ' ' + fileName + ' ' + text.slice(0, 1000)).toLowerCase();
-    if (combined.includes('deutsche bank') || combined.includes('db')) return 'Deutsche Bank';
+    if (combined.includes('deutsche bank') || /\b(deutsche\s*bank|db\s*pbc|db\s*privat)\b/i.test(combined)) return 'Deutsche Bank';
     if (combined.includes('zinia') || combined.includes('amazon visa') || combined.includes('santander')) return 'Amazon Visa (Zinia)';
     if (combined.includes('amex') || combined.includes('american express')) return 'Amex';
     if (combined.includes('revolut') || combined.includes('-rev-') || combined.includes('rev_') || combined.includes('an-rev')) return 'Revolut';
@@ -443,30 +472,38 @@ export class StatementParserService {
     descIdx2?: number;
     amountIdx: number;
     currencyIdx?: number;
+    sollHabenIdx?: number;
     hasHeader: boolean;
     headerRowIndex?: number;
   } {
     if (rows.length === 0) return { dateIdx: 0, descIdx: 1, amountIdx: 2, hasHeader: true };
 
-    // Find actual header row (sometimes banks have metadata in first 2-5 rows)
-    let headerRowIdx = 0;
-    for (let r = 0; r < Math.min(6, rows.length); r++) {
-      const lineStr = rows[r].join(' ').toLowerCase();
-      if (
-        lineStr.includes('datum') ||
-        lineStr.includes('date') ||
-        lineStr.includes('buchungstag') ||
-        lineStr.includes('verwendungszweck') ||
-        lineStr.includes('betrag') ||
-        lineStr.includes('amount') ||
-        lineStr.includes('description') ||
-        lineStr.includes('started date')
-      ) {
-        headerRowIdx = r;
-        break;
+    // Find actual header row using scoring across all candidate rows in first 15 lines
+    let bestHeaderRowIdx = 0;
+    let maxHeaderScore = -1;
+
+    for (let r = 0; r < Math.min(15, rows.length); r++) {
+      const row = rows[r];
+      if (!row || row.length < 2) continue;
+
+      let score = 0;
+      for (const cell of row) {
+        const c = cell.toLowerCase().trim();
+        if (!c) continue;
+        if (c.includes('buchungstag') || c === 'datum' || c === 'date' || c === 'transaktion' || c.includes('started date') || c.includes('booking date')) score += 4;
+        if (c.includes('betrag') || c === 'amount' || c.includes('umsatz') || c === 'soll' || c === 'haben' || c === 'summe') score += 4;
+        if (c.includes('begünstigter') || c.includes('beguenstigter') || c.includes('auftraggeber') || c.includes('verwendungszweck') || c.includes('buchungstext') || c.includes('description') || c.includes('händler') || c.includes('empfänger') || c.includes('payee') || c.includes('text')) score += 4;
+        if (c.includes('wertstellung') || c.includes('valuta') || c.includes('iban') || c.includes('bic') || c.includes('währung') || c.includes('currency') || c.includes('kundenreferenz') || c.includes('mandatsreferenz') || c.includes('info')) score += 2;
+      }
+
+      if (score > maxHeaderScore) {
+        maxHeaderScore = score;
+        bestHeaderRowIdx = r;
       }
     }
 
+    const hasHeader = maxHeaderScore >= 4;
+    const headerRowIdx = hasHeader ? bestHeaderRowIdx : 0;
     const header = rows[headerRowIdx].map((h) => h.toLowerCase().trim());
     const genericCurrencyIdx = header.findIndex(
       (h) => h.includes('currency') || h.includes('währung') || h.includes('curr') || h.includes('devise')
@@ -481,6 +518,7 @@ export class StatementParserService {
     let descIdx = -1;
     let descIdx2: number | undefined = undefined;
     let amountIdx = -1;
+    let sollHabenIdx: number | undefined = undefined;
     let currencyIdx: number | undefined = genericCurrencyIdx >= 0 ? genericCurrencyIdx : undefined;
 
     if (bankConfig) {
@@ -505,28 +543,38 @@ export class StatementParserService {
 
     // Smart Fallback if bank config column was not found in header
     if (dateIdx === -1) {
-      dateIdx = header.findIndex((h) => h.includes('started date') || h.includes('completed date') || h.includes('transaktion') || h.includes('buchungstag') || h.includes('datum') || h.includes('date') || h.includes('buchung'));
+      dateIdx = header.findIndex((h) => h.includes('buchungstag') || h.includes('started date') || h.includes('completed date') || h.includes('transaktion') || h === 'datum' || h === 'date' || h.includes('booking date') || h.includes('buchung'));
     }
     if (descIdx === -1) {
-      descIdx = header.findIndex((h) => h.includes('description') || h.includes('beschreibung') || h.includes('händler') || h.includes('begünstigter') || h.includes('buchungstext') || h.includes('verwendungszweck') || h.includes('empfänger') || h.includes('payee') || h.includes('text') || h.includes('details'));
+      descIdx = header.findIndex((h) => h.includes('begünstigter') || h.includes('beguenstigter') || h.includes('auftraggeber') || h.includes('empfänger') || h.includes('händler') || h.includes('payee') || h.includes('description') || h.includes('beschreibung') || h.includes('buchungstext'));
+    }
+    if (descIdx === -1) {
+      descIdx = header.findIndex((h) => h.includes('verwendungszweck') || h.includes('text') || h.includes('details'));
     }
     if (descIdx2 === undefined) {
-      const secondaryDesc = header.findIndex((h) => (h.includes('verwendungszweck') || h.includes('auftraggeber') || h.includes('details')) && h !== header[descIdx]);
+      const secondaryDesc = header.findIndex((h, idx) => idx !== descIdx && (h.includes('verwendungszweck') || h.includes('auftraggeber') || h.includes('buchungstext') || h.includes('details') || h.includes('info')));
       if (secondaryDesc >= 0) descIdx2 = secondaryDesc;
     }
     if (amountIdx === -1) {
-      amountIdx = header.findIndex((h) => h.includes('amount') || h.includes('betrag') || h.includes('summe') || h.includes('soll') || h.includes('haben') || h.includes('wert'));
+      amountIdx = header.findIndex((h) => h.includes('betrag') || h === 'amount' || h.includes('umsatz') || h.includes('summe') || h.includes('soll') || h.includes('haben') || h.includes('wert'));
+    }
+
+    // Detect Soll/Haben column if separate
+    const shIdx = header.findIndex((h) => h.includes('soll/haben') || h === 's/h' || h === 'sh' || h.includes('haben/soll') || h === 'umsatzart');
+    if (shIdx >= 0 && shIdx !== amountIdx) {
+      sollHabenIdx = shIdx;
     }
 
     if (dateIdx === -1) dateIdx = 0;
-    if (descIdx === -1) descIdx = 1;
-    if (amountIdx === -1) amountIdx = rows[headerRowIdx].length - 1;
+    if (descIdx === -1) descIdx = Math.min(1, header.length - 1);
+    if (amountIdx === -1) amountIdx = header.length - 1;
 
     return {
       dateIdx,
       descIdx,
       descIdx2,
       amountIdx,
+      sollHabenIdx,
       currencyIdx,
       hasHeader: true,
       headerRowIndex: headerRowIdx
