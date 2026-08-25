@@ -348,32 +348,33 @@ export class StatementParserService {
     if (!raw) return '';
     let clean = raw;
 
-    // 1. Remove payment references, EREF, MREF, Creditor IDs, IBANs, BICs
-    clean = clean.replace(/\bPayment Reference\/E2E-Ref[.:]?\s*[A-Z0-9\-+/]*/gi, '');
-    clean = clean.replace(/\b(?:IBAN|BIC|EREF|MREF|CRED|KREF|KUNDENREFERENZ|MANDATSREFERENZ|GLÄUBIGER-ID|GLAEUBIGER-ID|END-TO-END-REF|E2E-REF)[.:]?\s*[A-Z0-9\-+/]+/gi, '');
-    clean = clean.replace(/\b[A-Z]{2}\d{2}\s*(?:[A-Z0-9]{4}\s*){3,7}[A-Z0-9]{1,4}\b/g, ''); // Raw IBAN pattern
-    clean = clean.replace(/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/g, ''); // Raw BIC pattern
+    // 1. Remove Payment Reference, E2E-Ref, E2E-, Mandate IDs, references safely
+    clean = clean.replace(/\bPayment\s+Reference(?:\/E2E-Ref|\/E2E-|\/E2E|\/Ref)?[.:-]?\s*/gi, ' ');
+    clean = clean.replace(/\b(?:EREF|MREF|CRED|KREF|KUNDENREFERENZ|MANDATSREFERENZ|GLÄUBIGER-ID|GLAEUBIGER-ID|END-TO-END-REF|E2E-REF|E2E-)[.:]?\s*[A-Z0-9\-+/]*/gi, ' ');
+    clean = clean.replace(/\b[A-Z]{2}\d{2}\s*(?:[A-Z0-9]{4}\s*){3,7}[A-Z0-9]{1,4}\b/g, ' '); // Raw IBAN pattern
+    clean = clean.replace(/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/g, ' '); // Raw BIC pattern
 
-    // 2. Remove terminal, card numbers, timestamps, and valuta tags
-    clean = clean.replace(/\b(?:TERMINAL|TA-NR|TERMID|T-ID)[.:]?\s*\d+/gi, '');
-    clean = clean.replace(/\*{3,}\d{2,6}/g, '');
-    clean = clean.replace(/\b\d{2}:\d{2}(?::\d{2})?\b/g, '');
-    clean = clean.replace(/\bVALUTA\s*\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?/gi, '');
-    clean = clean.replace(/\b\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\b/g, ''); // embedded date strings
+    // 2. Remove terminal, card numbers, timestamps, valuta, dates, isolated years
+    clean = clean.replace(/\b(?:TERMINAL|TA-NR|TERMID|T-ID)[.:]?\s*\d+/gi, ' ');
+    clean = clean.replace(/\*{3,}\d{2,6}/g, ' ');
+    clean = clean.replace(/\b\d{2}:\d{2}(?::\d{2})?\b/g, ' ');
+    clean = clean.replace(/\bVALUTA\s*\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?/gi, ' ');
+    clean = clean.replace(/\b\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\b/g, ' ');
+    clean = clean.replace(/\b202\d\b/g, ' ');
 
     // 3. Remove standard transaction method labels if longer merchant description exists
     const withoutMethod = clean.replace(
       /\b(SEPA-(?:Basis)?Lastschrift|Lastschrift|Direct debit|SEPA direct debit|SEPA-(?:Credit )?Transfer|Überweisung|Credit transfer|Kartenzahlung|Kartenverfügung|Card payment|Debit card payment|Girocard|Dauerauftrag|Standing order|SALA\s+Lohn\/Gehalt|Lohn\/Gehalt|Gutschrift|Gutschrift\s*Arbeitgeber|Auszahlung|Withdrawal)\b/gi,
-      ''
+      ' '
     ).trim();
 
     if (withoutMethod.length > 2 && /[a-zA-Z0-9]/.test(withoutMethod)) {
       clean = withoutMethod;
     }
 
-    // 4. Clean messy delimiters like .. or // inside names (e.g. "Revolut..3236.//Dublin/IE" -> "Revolut 3236 Dublin IE")
-    clean = clean.replace(/(\w)\.{2,}(\w)/g, '$1 $2');
-    clean = clean.replace(/\/\/+/g, ' ');
+    // 4. Clean messy delimiters like .. or // or multiple dots (e.g. "Revolut..3236.//Dublin/IE" -> "Revolut 3236 Dublin IE")
+    clean = clean.replace(/[./]{2,}/g, ' ');
+    clean = clean.replace(/\/{2,}/g, ' ');
 
     // 5. Remove leading/trailing punctuation symbols and compress whitespace
     clean = clean.replace(/^[-–—:,./\s]+|[-–—:,./\s]+$/g, '').replace(/\s+/g, ' ').trim();
@@ -498,11 +499,12 @@ export class StatementParserService {
       }
       if (amount === 0) continue;
 
-      // Clean description: remove dates, amount token, and currency symbols
+      // Clean description: remove dates, all amount tokens, and currency symbols
       let descCandidate = fullBlockText;
-      descCandidate = descCandidate.replace(new RegExp(strictDatePattern, 'g'), '');
-      descCandidate = descCandidate.replace(chosenAmtStr, '');
-      descCandidate = descCandidate.replace(/\b(?:EUR|€|USD|\$|GBP|£)\b/g, '');
+      descCandidate = descCandidate.replace(amountTokenRegex, ' ');
+      descCandidate = descCandidate.replace(new RegExp(strictDatePattern, 'g'), ' ');
+      descCandidate = descCandidate.replace(/\b202\d\b/g, ' ');
+      descCandidate = descCandidate.replace(/\b(?:EUR|€|USD|\$|GBP|£)\b/g, ' ');
 
       const cleanDesc = this.cleanTransactionDescription(descCandidate);
       if (!cleanDesc || cleanDesc.length < 2 || !/[a-zA-Z0-9]/.test(cleanDesc)) {
