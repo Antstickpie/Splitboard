@@ -97,12 +97,12 @@
 
       <!-- Category Group Cards (Only shown when month has transactions) -->
       <ng-container *ngIf="sidebarTransactions().length > 0">
-        <div class="everydollar-group-card glass-card" *ngFor="let grp of activeGroupSummaries()">
+        <div class="everydollar-group-card glass-card" *ngFor="let grp of activeGroupSummaries()" [style.border-color]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.4)' : null" [style.background]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.04)' : null">
           <!-- Group Header -->
           <div class="group-card-top">
             <div class="group-title-wrap">
               <span class="group-icon">{{ grp.icon }}</span>
-              <span class="group-name">{{ grp.name }}</span>
+              <span class="group-name" [style.color]="grp.id === 'grp-uncategorized' ? '#f59e0b' : null">{{ grp.name }}</span>
             </div>
 
             <div class="group-col-labels font-mono">

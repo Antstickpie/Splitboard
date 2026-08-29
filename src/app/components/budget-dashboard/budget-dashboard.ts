@@ -200,15 +200,34 @@ export class BudgetDashboardComponent {
 
     // Compute actuals per category (excluding cash transfers and reimbursed expenses)
     const actualsMap: Record<string, number> = {};
+    let uncategorizedTotal = 0;
+    const knownCategories = new Set<string>();
+
+    this.service.categoryGroups().forEach((g) => {
+      g.items.forEach((it) => knownCategories.add(it.name));
+    });
+
+    const otherCategoriesMap: Record<string, number> = {};
+
     txsInMonth.forEach((tx) => {
       if (tx.isCashTransfer) return;
       if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
-      if (tx.categoryItem) {
-        actualsMap[tx.categoryItem] = (actualsMap[tx.categoryItem] || 0) + (Number(tx.amount) || 0);
+      if (tx.type === 'INCOME') return;
+
+      const amt = Number(tx.amount) || 0;
+      if (amt <= 0) return;
+
+      const cat = (tx.categoryItem || '').trim();
+      if (!cat || cat.toLowerCase() === 'uncategorized') {
+        uncategorizedTotal += amt;
+      } else if (knownCategories.has(cat)) {
+        actualsMap[cat] = (actualsMap[cat] || 0) + amt;
+      } else {
+        otherCategoriesMap[cat] = (otherCategoriesMap[cat] || 0) + amt;
       }
     });
 
-    return this.service.categoryGroups().map((grp) => {
+    const summaries: CategoryGroupSummary[] = this.service.categoryGroups().map((grp) => {
       let groupActual = 0;
 
       const items = grp.items.map((item) => {
@@ -236,6 +255,56 @@ export class BudgetDashboardComponent {
         items
       };
     });
+
+    // If there are other custom categories not in predefined groups, add an Other Categories group
+    const otherEntries = Object.entries(otherCategoriesMap);
+    if (otherEntries.length > 0) {
+      let otherTotal = 0;
+      const otherItems = otherEntries.map(([name, actual], idx) => {
+        otherTotal += actual;
+        return {
+          id: 'other-cat-' + idx,
+          name,
+          planned: 0,
+          actual,
+          remaining: 0,
+          percentage: 0
+        };
+      });
+      summaries.push({
+        id: 'grp-other',
+        name: 'Other Categories',
+        icon: '🏷️',
+        plannedTotal: 0,
+        actualTotal: otherTotal,
+        remainingTotal: 0,
+        items: otherItems
+      });
+    }
+
+    // If there are uncategorized transactions, add Uncategorized Group
+    if (uncategorizedTotal > 0) {
+      summaries.push({
+        id: 'grp-uncategorized',
+        name: 'Uncategorized',
+        icon: '❓',
+        plannedTotal: 0,
+        actualTotal: uncategorizedTotal,
+        remainingTotal: 0,
+        items: [
+          {
+            id: 'item-uncategorized',
+            name: 'Needs Categorization',
+            planned: 0,
+            actual: uncategorizedTotal,
+            remaining: 0,
+            percentage: 0
+          }
+        ]
+      });
+    }
+
+    return summaries;
   });
 
   public activeGroupSummaries = computed(() => {
