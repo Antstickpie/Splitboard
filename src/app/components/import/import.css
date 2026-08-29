@@ -264,7 +264,7 @@
 
 .import-split-layout.has-pdf {
   display: grid;
-  grid-template-columns: minmax(360px, 45%) 1fr;
+  grid-template-columns: minmax(300px, 34%) minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
   margin-top: 0.8rem;
@@ -286,7 +286,7 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   position: sticky;
   top: 1rem;
-  height: 680px;
+  height: 640px;
   max-height: calc(100vh - 120px);
 }
 
@@ -351,6 +351,17 @@
 
 .import-table-pane {
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.import-table-pane .table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.import-table-pane table {
+  width: 100%;
+  border-collapse: collapse;
 }
