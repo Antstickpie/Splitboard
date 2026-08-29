@@ -341,16 +341,6 @@ export class StatementParserService {
     duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-    const detectedFromContent = this.detectBankFromContent(fileName, text);
-    const bankMismatch =
-      detectedFromContent &&
-      bankName &&
-      bankName !== 'Generic Bank' &&
-      bankName !== 'Auto-Detect' &&
-      detectedFromContent.toLowerCase() !== bankName.toLowerCase()
-        ? { detected: detectedFromContent, selected: bankName }
-        : undefined;
-
     return {
       transactions,
       incomes,
@@ -360,7 +350,6 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
-      bankMismatch,
       totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
     };
   }
@@ -612,18 +601,6 @@ export class StatementParserService {
       }
     }
 
-    // Keep natural document appearance order (matches Page 1 top to bottom on PDF)
-
-    const detectedFromContent = this.detectBankFromContent(fileName, text);
-    const bankMismatch =
-      detectedFromContent &&
-      bankName &&
-      bankName !== 'Generic Bank' &&
-      bankName !== 'Auto-Detect' &&
-      detectedFromContent.toLowerCase() !== bankName.toLowerCase()
-        ? { detected: detectedFromContent, selected: bankName }
-        : undefined;
-
     return {
       transactions,
       incomes,
@@ -633,69 +610,13 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
-      bankMismatch,
       totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
     };
   }
 
-  public detectBankFromContent(fileName: string, text: string): string | null {
-    const combined = (fileName + ' ' + text.slice(0, 3000)).toLowerCase();
-    const configs = this.service.bankConfigs();
-
-    const bankSignatures: { pattern: string[]; bankName: string }[] = [
-      { pattern: ['amazon visa', 'openbank', 'amazon card', 'zinia amazon', 'lbb amazon'], bankName: 'Amazon Visa' },
-      { pattern: ['deutsche bank', 'db pbc', 'max-moritz'], bankName: 'Deutsche Bank' },
-      { pattern: ['american express', 'amex', 'mitgliedschafts-nr'], bankName: 'Amex' },
-      { pattern: ['sparkasse', 'kreissparkasse', 'berliner sparkasse', 'stadtsparkasse'], bankName: 'Sparkasse' },
-      { pattern: ['n26', 'number26'], bankName: 'N26' },
-      { pattern: ['dkb', 'deutsche kreditbank'], bankName: 'DKB' },
-      { pattern: ['commerzbank', 'comdirect'], bankName: 'Commerzbank' },
-      { pattern: ['postbank'], bankName: 'Postbank' },
-      { pattern: ['targobank'], bankName: 'Targobank' },
-      { pattern: ['santander'], bankName: 'Santander' },
-      { pattern: ['trade republic', 'traderepublic'], bankName: 'Trade Republic' },
-      { pattern: ['scalable capital', 'scalable'], bankName: 'Scalable Capital' },
-      { pattern: ['consorsbank', 'consors'], bankName: 'Consorsbank' },
-      { pattern: ['c24 bank', 'c24'], bankName: 'C24 Bank' },
-      { pattern: ['volksbank', 'raiffeisenbank', 'vr bank', 'vrbank'], bankName: 'Volksbank' },
-      { pattern: ['sparda-bank', 'sparda bank', 'sparda'], bankName: 'Sparda-Bank' },
-      { pattern: ['hypovereinsbank', 'unicredit', 'hvb'], bankName: 'HypoVereinsbank' },
-      { pattern: ['hanseatic bank', 'genialcard'], bankName: 'Hanseatic Bank' },
-      { pattern: ['advanzia', 'gebührenfrei', 'gebuhrenfrei'], bankName: 'Advanzia' },
-      { pattern: ['miles & more', 'miles and more', 'lufthansa card'], bankName: 'Miles & More' },
-      { pattern: ['revolut'], bankName: 'Revolut' },
-      { pattern: ['ing-diba', 'ing diba', 'ing.de'], bankName: 'ING' },
-      { pattern: ['paypal'], bankName: 'PayPal' },
-      { pattern: ['barclays', 'barclaycard'], bankName: 'Barclays' },
-      { pattern: ['wise', 'transferwise'], bankName: 'Wise' }
-    ];
-
-    for (const sig of bankSignatures) {
-      if (sig.pattern.some((p) => combined.includes(p))) {
-        const found = configs.find(
-          (b) =>
-            b.name.toLowerCase() === sig.bankName.toLowerCase() ||
-            sig.pattern.some((p) => b.name.toLowerCase().includes(p))
-        );
-        return found ? found.name : sig.bankName;
-      }
-    }
-
-    for (const b of configs) {
-      if (b.name.length >= 3 && combined.includes(b.name.toLowerCase())) {
-        return b.name;
-      }
-    }
-
-    return null;
-  }
-
   private detectBank(selectedBank: string, fileName: string, text: string): string {
     if (selectedBank && selectedBank !== 'Generic Bank' && selectedBank !== 'Auto-Detect') return selectedBank;
-    const detected = this.detectBankFromContent(fileName, text);
-    if (detected) return detected;
-    const configs = this.service.bankConfigs();
-    return configs.length > 0 ? configs[0].name : 'Generic Bank';
+    return '';
   }
 
   private detectColumnMapping(rows: string[][], bank: string): {

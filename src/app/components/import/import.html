@@ -164,7 +164,7 @@
       </div>
 
       <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-        <!-- Bank Confirmation / Selection Dropdown -->
+        <!-- Bank Selection Dropdown (Required to Confirm) -->
         <div
           style="display: flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid;"
           [style.background]="selectedBank() ? 'rgba(255, 255, 255, 0.05)' : 'rgba(245, 158, 11, 0.1)'"
@@ -174,23 +174,12 @@
             [ngModel]="selectedBank()"
             (ngModelChange)="onBankChange($event)"
             class="styled-select"
-            style="padding: 0.15rem 0.4rem; font-size: 0.78rem; height: 28px; min-width: 170px;"
+            style="padding: 0.15rem 0.4rem; font-size: 0.78rem; height: 28px; min-width: 160px;"
             [style.borderColor]="selectedBank() ? 'var(--primary)' : '#f59e0b'">
-            <option value="">⚠️ Select Bank to Confirm...</option>
-            <option *ngIf="detectedBankSuggestion()" [value]="detectedBankSuggestion()">
-              ✨ Detected: {{ detectedBankSuggestion() }}
-            </option>
+            <option value="">⚠️ Select Bank Account...</option>
             <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-            <option *ngIf="isCustomBank(selectedBank())" [value]="selectedBank()">{{ selectedBank() }} (Custom)</option>
             <option value="Generic Bank">Generic Bank</option>
           </select>
-          <button
-            *ngIf="detectedBankSuggestion() && !selectedBank()"
-            class="btn btn-xs"
-            (click)="onBankChange(detectedBankSuggestion())"
-            style="background: #f59e0b; color: #000; font-weight: 700; font-size: 0.72rem; padding: 0.18rem 0.5rem; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap;">
-            ⚡ Confirm {{ detectedBankSuggestion() }}
-          </button>
         </div>
 
         <!-- Toggle PDF Side-by-Side Split View Button -->
