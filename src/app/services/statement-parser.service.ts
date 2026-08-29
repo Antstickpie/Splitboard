@@ -12,6 +12,7 @@ export interface ParsedStatementResult {
   duplicatesCount: number;
   excludedCount: number;
   bankName: string;
+  bankMismatch?: { detected: string; selected: string };
   totalParsed: number;
 }
 
@@ -340,6 +341,15 @@ export class StatementParserService {
     duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
+    const detectedFromContent = this.detectBankFromContent(fileName, text);
+    const bankMismatch =
+      detectedFromContent &&
+      bankName &&
+      bankName !== 'Generic Bank' &&
+      detectedFromContent.toLowerCase() !== bankName.toLowerCase()
+        ? { detected: detectedFromContent, selected: bankName }
+        : undefined;
+
     return {
       transactions,
       incomes,
@@ -349,6 +359,7 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
+      bankMismatch,
       totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
     };
   }
@@ -602,6 +613,15 @@ export class StatementParserService {
 
     // Keep natural document appearance order (matches Page 1 top to bottom on PDF)
 
+    const detectedFromContent = this.detectBankFromContent(fileName, text);
+    const bankMismatch =
+      detectedFromContent &&
+      bankName &&
+      bankName !== 'Generic Bank' &&
+      detectedFromContent.toLowerCase() !== bankName.toLowerCase()
+        ? { detected: detectedFromContent, selected: bankName }
+        : undefined;
+
     return {
       transactions,
       incomes,
@@ -611,28 +631,55 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       bankName: detectedBank,
+      bankMismatch,
       totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
     };
   }
 
-  private detectBank(selectedBank: string, fileName: string, text: string): string {
-    const combined = (selectedBank + ' ' + fileName + ' ' + text.slice(0, 1000)).toLowerCase();
+  public detectBankFromContent(fileName: string, text: string): string | null {
+    const combined = (fileName + ' ' + text.slice(0, 3000)).toLowerCase();
     const configs = this.service.bankConfigs();
 
-    // 1. Match against configured bank names and aliases
-    for (const b of configs) {
-      const bName = b.name.toLowerCase();
-      if (combined.includes(bName)) return b.name;
-      // Match by account number or card suffix if configured
-      if (b.accountNumber) {
-        const cleanAcc = b.accountNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (cleanAcc.length >= 4 && combined.includes(cleanAcc)) {
-          return b.name;
-        }
+    const bankSignatures: { pattern: string[]; bankName: string }[] = [
+      { pattern: ['deutsche bank', 'db pbc', 'max-moritz'], bankName: 'Deutsche Bank' },
+      { pattern: ['american express', 'amex', 'mitgliedschafts-nr'], bankName: 'Amex' },
+      { pattern: ['sparkasse', 'kreissparkasse', 'berliner sparkasse'], bankName: 'Sparkasse' },
+      { pattern: ['n26', 'number26'], bankName: 'N26' },
+      { pattern: ['dkb', 'deutsche kreditbank'], bankName: 'DKB' },
+      { pattern: ['commerzbank', 'comdirect'], bankName: 'Commerzbank' },
+      { pattern: ['revolut'], bankName: 'Revolut' },
+      { pattern: ['ing-diba', 'ing diba', 'ing.de'], bankName: 'ING' },
+      { pattern: ['paypal'], bankName: 'PayPal' },
+      { pattern: ['barclays', 'barclaycard'], bankName: 'Barclays' },
+      { pattern: ['wise', 'transferwise'], bankName: 'Wise' }
+    ];
+
+    for (const sig of bankSignatures) {
+      if (sig.pattern.some((p) => combined.includes(p))) {
+        const found = configs.find(
+          (b) =>
+            b.name.toLowerCase() === sig.bankName.toLowerCase() ||
+            sig.pattern.some((p) => b.name.toLowerCase().includes(p))
+        );
+        return found ? found.name : sig.bankName;
       }
     }
 
-    return selectedBank || (configs.length > 0 ? configs[0].name : 'Generic Bank');
+    for (const b of configs) {
+      if (b.name.length >= 3 && combined.includes(b.name.toLowerCase())) {
+        return b.name;
+      }
+    }
+
+    return null;
+  }
+
+  private detectBank(selectedBank: string, fileName: string, text: string): string {
+    if (selectedBank && selectedBank !== 'Generic Bank') return selectedBank;
+    const detected = this.detectBankFromContent(fileName, text);
+    if (detected) return detected;
+    const configs = this.service.bankConfigs();
+    return configs.length > 0 ? configs[0].name : 'Generic Bank';
   }
 
   private detectColumnMapping(rows: string[][], bank: string): {

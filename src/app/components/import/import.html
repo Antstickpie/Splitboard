@@ -268,6 +268,23 @@
 
       <!-- RIGHT PANE: Tabulated Splitboard Table & Controls -->
       <div class="import-table-pane">
+        <!-- Bank Mismatch Smart Warning Banner -->
+        <div
+          *ngIf="res.bankMismatch"
+          class="animate-fade-in"
+          style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 0.45rem 0.8rem; display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; margin-bottom: 0.6rem;">
+          <div style="font-size: 0.8rem; color: #fbbf24; display: flex; align-items: center; gap: 0.4rem;">
+            <span>⚠️</span>
+            <span>Statement looks like <strong>{{ res.bankMismatch.detected }}</strong>, but <strong>{{ res.bankMismatch.selected }}</strong> was selected.</span>
+          </div>
+          <button
+            class="btn btn-xs"
+            (click)="switchSelectedBank(res.bankMismatch.detected)"
+            style="white-space: nowrap; font-size: 0.72rem; padding: 0.2rem 0.55rem; background: #f59e0b; color: #000; font-weight: 700; border: none; cursor: pointer; border-radius: 4px;">
+            🔄 Switch to {{ res.bankMismatch.detected }}
+          </button>
+        </div>
+
         <!-- Preview Sub-Tabs: Valid, Incomes, Duplicates, Excluded -->
         <div class="preview-tabs-bar">
       <button

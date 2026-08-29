@@ -270,6 +270,20 @@ export class ImportComponent {
     this.selectedBank.set(bankName);
   }
 
+  public switchSelectedBank(newBank: string): void {
+    this.selectedBank.set(newBank);
+    const res = this.previewResult();
+    if (res) {
+      res.transactions.forEach((t) => (t.bank = newBank));
+      res.incomes.forEach((t) => (t.bank = newBank));
+      res.duplicates.forEach((t) => (t.bank = newBank));
+      res.excluded.forEach((t) => (t.bank = newBank));
+      res.bankMismatch = undefined;
+      this.previewResult.set({ ...res });
+    }
+    this.service.showToast(`Switched bank to ${newBank}`, 'success');
+  }
+
   // Quick Add Bank Directly from Import Page
   public isAddingBankInline = false;
   public newInlineBankName = '';
