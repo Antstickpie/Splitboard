@@ -78,6 +78,7 @@ export interface BankConfig {
   descColName2?: string;
   amountColName?: string;
   currencyColName?: string;
+  ignoreColName?: string; // Columns or keywords to ignore/strip e.g. 'Karte, Punkte'
   delimiter?: string;
   invertAmountSign?: boolean; // If true, + is expense/charge and - is repayment/credit (e.g. Amex)
 }

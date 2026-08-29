@@ -565,7 +565,7 @@
       </div>
 
       <!-- Advanced Column Mapping Fields -->
-      <div *ngIf="showAdvancedBankMapping" class="animate-fade-in" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; padding: 0.6rem; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+      <div *ngIf="showAdvancedBankMapping" class="animate-fade-in" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; padding: 0.6rem; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
         <div>
           <label class="input-label">Account / IBAN / Card #</label>
           <input type="text" [(ngModel)]="newBankAccountNo" placeholder="e.g. *6554 or DE89..." class="person-input" style="width: 100%;">
@@ -575,8 +575,12 @@
           <input type="text" [(ngModel)]="newBankDateCol" placeholder="e.g. Buchungstag, Date" class="person-input" style="width: 100%;">
         </div>
         <div>
-          <label class="input-label">Description Header</label>
-          <input type="text" [(ngModel)]="newBankDescCol" placeholder="e.g. Verwendungszweck, Text" class="person-input" style="width: 100%;">
+          <label class="input-label">Main Desc Header</label>
+          <input type="text" [(ngModel)]="newBankDescCol" placeholder="e.g. Händler, Begünstigter" class="person-input" style="width: 100%;">
+        </div>
+        <div>
+          <label class="input-label">Secondary Desc</label>
+          <input type="text" [(ngModel)]="newBankDescCol2" placeholder="e.g. Verwendungszweck" class="person-input" style="width: 100%;">
         </div>
         <div>
           <label class="input-label">Amount Header</label>
@@ -585,6 +589,10 @@
         <div>
           <label class="input-label">Currency Header</label>
           <input type="text" [(ngModel)]="newBankCurrencyCol" placeholder="e.g. Currency, Währung" class="person-input" style="width: 100%;">
+        </div>
+        <div>
+          <label class="input-label">Ignore / Strip Headers</label>
+          <input type="text" [(ngModel)]="newBankIgnoreCol" placeholder="e.g. Karte, Punkte" class="person-input" style="width: 100%;">
         </div>
         <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem;">
           <input type="checkbox" id="newBankInvert" [(ngModel)]="newBankInvertSign" style="cursor: pointer;">
@@ -621,6 +629,7 @@
                 <span *ngIf="b.dateColName || b.descColName || b.amountColName" class="badge badge-success" style="font-size: 0.68rem;">
                   Headers: {{ b.dateColName || 'Date' }} | {{ b.descColName || 'Desc' }} | {{ b.amountColName || 'Amt' }}
                 </span>
+                <span *ngIf="b.ignoreColName" class="badge badge-neutral" style="font-size: 0.65rem;">Ignore: {{ b.ignoreColName }}</span>
                 <span *ngIf="b.invertAmountSign" class="badge badge-warning" style="font-size: 0.65rem;">Invert Signs</span>
               </div>
               <div style="display: flex; justify-content: center; gap: 0.25rem;">
@@ -650,20 +659,24 @@
                   </select>
                 </div>
                 <div>
-                  <label class="input-label">Account # / IBAN</label>
-                  <input type="text" [(ngModel)]="editBankModel.accountNumber" placeholder="*6554" class="person-input" style="width: 100%;">
+                  <label class="input-label">Account # / IBAN / Card #</label>
+                  <input type="text" [(ngModel)]="editBankModel.accountNumber" placeholder="*6554 or *6925" class="person-input" style="width: 100%;">
                 </div>
               </div>
 
               <!-- Column Header Mappings in Edit Mode -->
-              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem;">
                 <div>
                   <label class="input-label">Date Column</label>
                   <input type="text" [(ngModel)]="editBankModel.dateColName" placeholder="Date" class="person-input" style="width: 100%; font-size: 0.74rem;">
                 </div>
                 <div>
-                  <label class="input-label">Desc Column</label>
+                  <label class="input-label">Main Desc</label>
                   <input type="text" [(ngModel)]="editBankModel.descColName" placeholder="Description" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+                <div>
+                  <label class="input-label">Secondary Desc</label>
+                  <input type="text" [(ngModel)]="editBankModel.descColName2" placeholder="e.g. Verwendungszweck" class="person-input" style="width: 100%; font-size: 0.74rem;">
                 </div>
                 <div>
                   <label class="input-label">Amount Column</label>
@@ -672,6 +685,10 @@
                 <div>
                   <label class="input-label">Currency Column</label>
                   <input type="text" [(ngModel)]="editBankModel.currencyColName" placeholder="Currency" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+                <div>
+                  <label class="input-label">Ignore / Strip Headers</label>
+                  <input type="text" [(ngModel)]="editBankModel.ignoreColName" placeholder="e.g. Karte, Punkte" class="person-input" style="width: 100%; font-size: 0.74rem;">
                 </div>
               </div>
 

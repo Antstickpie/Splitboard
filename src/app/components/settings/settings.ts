@@ -82,8 +82,10 @@ export class SettingsComponent {
   public newBankAccountNo = '';
   public newBankDateCol = '';
   public newBankDescCol = '';
+  public newBankDescCol2 = '';
   public newBankAmountCol = '';
   public newBankCurrencyCol = '';
+  public newBankIgnoreCol = '';
   public newBankInvertSign = false;
   public showAdvancedBankMapping = false;
 
@@ -102,16 +104,20 @@ export class SettingsComponent {
       accountNumber: this.newBankAccountNo.trim() || undefined,
       dateColName: this.newBankDateCol.trim() || undefined,
       descColName: this.newBankDescCol.trim() || undefined,
+      descColName2: this.newBankDescCol2.trim() || undefined,
       amountColName: this.newBankAmountCol.trim() || undefined,
       currencyColName: this.newBankCurrencyCol.trim() || undefined,
+      ignoreColName: this.newBankIgnoreCol.trim() || undefined,
       invertAmountSign: this.newBankInvertSign || undefined
     });
     this.newBankName = '';
     this.newBankAccountNo = '';
     this.newBankDateCol = '';
     this.newBankDescCol = '';
+    this.newBankDescCol2 = '';
     this.newBankAmountCol = '';
     this.newBankCurrencyCol = '';
+    this.newBankIgnoreCol = '';
     this.newBankInvertSign = false;
     this.showAdvancedBankMapping = false;
   }

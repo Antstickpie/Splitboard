@@ -472,6 +472,7 @@ export class TransactionService {
               descColName2: b.descColName2 || def.descColName2,
               amountColName: b.amountColName || def.amountColName,
               currencyColName: b.currencyColName || def.currencyColName,
+              ignoreColName: b.ignoreColName || def.ignoreColName,
               defaultCurrency: b.defaultCurrency || def.defaultCurrency,
               invertAmountSign: b.invertAmountSign !== undefined ? b.invertAmountSign : def.invertAmountSign
             };

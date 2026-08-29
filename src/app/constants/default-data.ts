@@ -10,8 +10,8 @@ export const DEFAULT_BANKS: BankConfig[] = [
     id: 'b1',
     name: 'Deutsche Bank',
     defaultCurrency: 'EUR',
-    dateColName: 'Buchungstag',
-    descColName: 'Begünstigter',
+    dateColName: 'Buchungstag, Datum',
+    descColName: 'Begünstigter, Empfänger',
     descColName2: 'Verwendungszweck',
     amountColName: 'Betrag'
   },
@@ -19,24 +19,25 @@ export const DEFAULT_BANKS: BankConfig[] = [
     id: 'b2',
     name: 'Amazon Visa (Zinia)',
     defaultCurrency: 'EUR',
-    dateColName: 'Transaktion',
-    descColName: 'Händler',
-    amountColName: 'Betrag'
+    dateColName: 'Transaktion, Datum',
+    descColName: 'Händler, Beschreibung',
+    amountColName: 'Betrag',
+    ignoreColName: 'Karte, Punkte'
   },
   {
     id: 'b3',
     name: 'Amex',
     defaultCurrency: 'EUR',
-    dateColName: 'Datum',
-    descColName: 'Beschreibung',
-    amountColName: 'Betrag',
+    dateColName: 'Datum, Date',
+    descColName: 'Beschreibung, Description',
+    amountColName: 'Betrag, Amount',
     invertAmountSign: true
   },
   {
     id: 'b4',
     name: 'Revolut',
     defaultCurrency: 'EUR',
-    dateColName: 'Started Date',
+    dateColName: 'Started Date, Date',
     descColName: 'Description',
     amountColName: 'Amount',
     currencyColName: 'Currency'
@@ -45,7 +46,7 @@ export const DEFAULT_BANKS: BankConfig[] = [
     id: 'b5',
     name: 'Commerzbank',
     defaultCurrency: 'EUR',
-    dateColName: 'Buchungstag',
+    dateColName: 'Buchungstag, Datum',
     descColName: 'Buchungstext',
     descColName2: 'Verwendungszweck',
     amountColName: 'Betrag'
@@ -54,10 +55,11 @@ export const DEFAULT_BANKS: BankConfig[] = [
     id: 'b6',
     name: 'HDFC Bank',
     defaultCurrency: 'INR',
-    dateColName: 'Date',
-    descColName: 'Narration',
+    dateColName: 'Date, Txn Date',
+    descColName: 'Narration, Particulars',
     descColName2: 'Chq./Ref.No.',
-    amountColName: 'Withdrawal Amt.'
+    amountColName: 'Withdrawal Amt., Debit Amt.',
+    ignoreColName: 'Closing Balance'
   }
 ];
 

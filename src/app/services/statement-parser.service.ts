@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { TransactionService } from './transaction.service';
-import { Transaction, SplitType } from '../models';
+import { Transaction, SplitType, BankConfig } from '../models';
 
 export interface ParsedStatementResult {
   transactions: Transaction[];
@@ -353,25 +353,41 @@ export class StatementParserService {
     };
   }
 
-  public cleanTransactionDescription(raw: string): string {
+  public cleanTransactionDescription(raw: string, bankCfg?: BankConfig): string {
     if (!raw) return '';
     let clean = raw;
 
-    // 1. Strip masked card numbers (e.g. "************6925", "**** **** **** 6925", "Karte: ************6925")
+    // 1. Strip user-configured Account # / IBAN / Card # (e.g. *6554, *6925)
+    if (bankCfg?.accountNumber) {
+      const accNum = bankCfg.accountNumber.replace(/[^a-zA-Z0-9]/g, '');
+      if (accNum.length >= 3) {
+        const accRegex = new RegExp(`(?:\\*{2,}|[a-zA-Z0-9]*)\\s*${accNum}\\b`, 'gi');
+        clean = clean.replace(accRegex, ' ');
+      }
+    }
+
+    // 2. Strip user-configured Ignore / Strip headers or keywords (e.g. 'Karte, Punkte')
+    if (bankCfg?.ignoreColName) {
+      const tokens = bankCfg.ignoreColName.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+      for (const tok of tokens) {
+        const tokRegex = new RegExp(`\\b${tok}\\b[:\\s]*`, 'gi');
+        clean = clean.replace(tokRegex, ' ');
+      }
+    }
+
+    // 3. Strip masked card numbers (e.g. "************6925", "**** **** **** 6925", "Karte: ************6925")
     clean = clean.replace(/\b(?:karte|card|konto|karten-?nr\.?)[:\s]*\*{3,}\d{2,6}\b/gi, ' ');
     clean = clean.replace(/(?:\*{3,}[\s-]*)+\d{2,6}\b/g, ' ');
     clean = clean.replace(/(?:\*{4}[\s-]*){1,3}\d{4}\b/g, ' ');
     clean = clean.replace(/\b\d{4}[ -]\*{4}[ -]\*{4}[ -]\d{4}\b/g, ' ');
     clean = clean.replace(/\b(?:karte|card)[:\s]+(?:\*{3,}|\d{4})\b/gi, ' ');
 
-    // 2. Strip credit card reward points column at end of line (e.g. "+2", "+ 2 Punkte", "+2 pts")
+    // 4. Strip credit card reward points column at end of line (e.g. "+2", "+ 2 Punkte", "+2 pts")
     clean = clean.replace(/(?:^|\s)[+\-]\d+\s*(?:punkte|points|pts)?\s*$/gi, ' ');
 
-    // 3. Clean duplicate dots/slashes
+    // 5. Clean duplicate dots/slashes, leftover dashes, spaces
     clean = clean.replace(/[./]{2,}/g, ' ');
-    // 4. Remove isolated dashes/hyphens left over from date column splitting
     clean = clean.replace(/(?:^|\s)[-–—]{1,3}(?=\s|$)/g, ' ');
-    // 5. Remove leading/trailing symbols, dashes, dots, spaces
     clean = clean.replace(/^[–—\-_:.,/\s]+|[–—\-_:.,/\s]+$/g, '');
     clean = clean.replace(/\s+/g, ' ').trim();
     return this.service.fixMojibake(clean);
@@ -494,7 +510,7 @@ export class StatementParserService {
       descCandidate = descCandidate.replace(/\b202\d\b/g, ' ');
       descCandidate = descCandidate.replace(/\b(?:EUR|€|USD|\$|GBP|£)\b/g, ' ');
 
-      const cleanDesc = this.cleanTransactionDescription(descCandidate);
+      const cleanDesc = this.cleanTransactionDescription(descCandidate, bankCfg);
       if (!cleanDesc || cleanDesc.length < 2 || !/[a-zA-Z0-9]/.test(cleanDesc)) {
         continue;
       }
@@ -542,6 +558,7 @@ export class StatementParserService {
         categoryItem: item,
         splitType: defaultSplit || 'SELF',
         splitPercentage: 50,
+        currency: bankCfg?.defaultCurrency || this.service.currency(),
         sourceFile: fileName,
         createdAt: new Date().toISOString()
       };
@@ -580,13 +597,22 @@ export class StatementParserService {
 
   private detectBank(selectedBank: string, fileName: string, text: string): string {
     const combined = (selectedBank + ' ' + fileName + ' ' + text.slice(0, 1000)).toLowerCase();
-    if (combined.includes('hdfc') || combined.includes('hdfc bank')) return 'HDFC Bank';
-    if (combined.includes('deutsche bank') || /\b(deutsche\s*bank|db\s*pbc|db\s*privat)\b/i.test(combined)) return 'Deutsche Bank';
-    if (combined.includes('zinia') || combined.includes('amazon visa') || combined.includes('santander')) return 'Amazon Visa (Zinia)';
-    if (combined.includes('amex') || combined.includes('american express')) return 'Amex';
-    if (combined.includes('revolut') || combined.includes('-rev-') || combined.includes('rev_') || combined.includes('an-rev')) return 'Revolut';
-    if (combined.includes('commerzbank') || combined.includes('commerz')) return 'Commerzbank';
-    return selectedBank || 'Generic Bank';
+    const configs = this.service.bankConfigs();
+
+    // 1. Match against configured bank names and aliases
+    for (const b of configs) {
+      const bName = b.name.toLowerCase();
+      if (combined.includes(bName)) return b.name;
+      // Match by account number or card suffix if configured
+      if (b.accountNumber) {
+        const cleanAcc = b.accountNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        if (cleanAcc.length >= 4 && combined.includes(cleanAcc)) {
+          return b.name;
+        }
+      }
+    }
+
+    return selectedBank || (configs.length > 0 ? configs[0].name : 'Generic Bank');
   }
 
   private detectColumnMapping(rows: string[][], bank: string): {
@@ -650,20 +676,25 @@ export class StatementParserService {
 
     if (bankConfig) {
       if (bankConfig.dateColName) {
-        dateIdx = header.findIndex((h) => h.includes(bankConfig.dateColName!.toLowerCase()));
+        const aliases = bankConfig.dateColName.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+        dateIdx = header.findIndex((h) => aliases.some((a) => h.includes(a)));
       }
       if (bankConfig.descColName) {
-        descIdx = header.findIndex((h) => h.includes(bankConfig.descColName!.toLowerCase()));
+        const aliases = bankConfig.descColName.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+        descIdx = header.findIndex((h) => aliases.some((a) => h.includes(a)));
       }
       if (bankConfig.descColName2) {
-        const d2 = header.findIndex((h) => h.includes(bankConfig.descColName2!.toLowerCase()));
+        const aliases = bankConfig.descColName2.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+        const d2 = header.findIndex((h) => aliases.some((a) => h.includes(a)));
         if (d2 >= 0 && d2 !== descIdx) descIdx2 = d2;
       }
       if (bankConfig.amountColName) {
-        amountIdx = header.findIndex((h) => h.includes(bankConfig.amountColName!.toLowerCase()));
+        const aliases = bankConfig.amountColName.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+        amountIdx = header.findIndex((h) => aliases.some((a) => h.includes(a)));
       }
       if (bankConfig.currencyColName) {
-        const cIdx = header.findIndex((h) => h.includes(bankConfig.currencyColName!.toLowerCase()));
+        const aliases = bankConfig.currencyColName.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+        const cIdx = header.findIndex((h) => aliases.some((a) => h.includes(a)));
         if (cIdx >= 0) currencyIdx = cIdx;
       }
     }
