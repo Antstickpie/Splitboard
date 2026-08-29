@@ -141,7 +141,10 @@
         </span>
       </div>
 
-      <div class="toolbar-actions">
+      <div class="toolbar-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <button class="btn btn-secondary btn-sm" (click)="service.switchTab('import')">
+          📥 Import Statements
+        </button>
         <button class="btn btn-primary btn-sm" (click)="openCashModal()">
           💵 + Log Cash / Transfer
         </button>

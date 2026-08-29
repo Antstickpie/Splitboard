@@ -21,11 +21,11 @@ import { TransactionService } from './services/transaction.service';
 })
 export class App {
   public service = inject(TransactionService);
-  public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
+  public activeTab = this.service.activeTab;
   public currentYear = new Date().getFullYear();
 
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings') {
-    this.activeTab.set(tab);
+    this.service.switchTab(tab);
   }
 
   public formatSyncTime(timestamp: number): string {

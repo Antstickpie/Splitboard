@@ -747,6 +747,30 @@ export class ImportComponent {
     this.service.showToast(`Loaded ${cloned.length} transactions into editor. Edit and click "Import" to save!`, 'info');
   }
 
+  public viewingBatch = signal<{ fileName: string; count: number; minDate: string; maxDate: string; totalAmount: number } | null>(null);
+
+  public openBatchModal(b: { fileName: string; count: number; minDate: string; maxDate: string; totalAmount: number }): void {
+    this.viewingBatch.set(b);
+  }
+
+  public closeBatchModal(): void {
+    this.viewingBatch.set(null);
+  }
+
+  public getBatchTransactions(fileName: string): Transaction[] {
+    return this.service.transactions().filter((t) => t.sourceFile === fileName);
+  }
+
+  public async editBatchFromModal(fileName: string): Promise<void> {
+    this.closeBatchModal();
+    await this.undoAndReopenBatch(fileName);
+  }
+
+  public async deleteBatchFromModal(fileName: string): Promise<void> {
+    this.closeBatchModal();
+    await this.service.undoImportBatch(fileName);
+  }
+
   public clearPreview() {
     this.previewResult.set(null);
     this.uploadedFileName.set('');
