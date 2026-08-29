@@ -8,15 +8,6 @@
       </div>
 
       <div class="nav-top-right">
-        <!-- Google Drive Sync Status -->
-        <div class="nav-sync" (click)="service.uploadToGoogleDrive()" title="Google Drive cloud sync status. Click to sync.">
-          <span [style.color]="service.isGoogleConnected() ? 'var(--success)' : 'var(--text-muted)'" class="sync-dot">●</span>
-          <span class="sync-text">
-            <span class="sync-label">Drive: </span>
-            <span class="sync-time">{{ service.isGoogleConnected() ? (service.lastGoogleSyncTime() ? formatSyncTime(service.lastGoogleSyncTime()!) : 'Connected') : 'Offline' }}</span>
-          </span>
-        </div>
-
         <!-- Theme Toggle Button -->
         <button
           (click)="service.toggleTheme()"
