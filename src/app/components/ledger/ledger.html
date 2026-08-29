@@ -349,10 +349,18 @@
       </div>
 
       <!-- Live Multi-Currency Conversion Info -->
-      <div *ngIf="cashCurrency !== service.currency() && cashAmount > 0" style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.76rem;">
-        <span style="color: var(--text-muted);">Converts to base: </span>
-        <strong style="color: var(--primary);">{{ service.formatCurrency(service.convertAmount(cashAmount, cashCurrency, service.currency())) }}</strong>
-        <span style="color: var(--text-muted); font-size: 0.7rem; margin-left: 0.4rem;">(Rate: 1 {{ service.currency() }} = {{ service.getExchangeRate(service.currency(), cashCurrency) }} {{ cashCurrency }})</span>
+      <div *ngIf="cashCurrency !== service.currency() && cashAmount > 0" style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.76rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.3rem;">
+        <div>
+          <span style="color: var(--text-muted);">Converts to base: </span>
+          <strong style="color: var(--primary);">{{ service.formatCurrency(service.convertAmount(cashAmount, cashCurrency, service.currency())) }}</strong>
+        </div>
+        <button
+          type="button"
+          (click)="openGoogleRate(service.currency(), cashCurrency)"
+          title="Open live rate on Google"
+          style="background: none; border: none; padding: 0; color: var(--primary); font-size: 0.7rem; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;">
+          (Rate: 1 {{ service.currency() }} = {{ service.getExchangeRate(service.currency(), cashCurrency) }} {{ cashCurrency }} ↗)
+        </button>
       </div>
 
       <div>

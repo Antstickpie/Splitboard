@@ -66,6 +66,11 @@ export class SettingsComponent {
     }
   }
 
+  public openGoogleRate(from: string, to: string): void {
+    const query = encodeURIComponent(`1 ${from} to ${to}`);
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+  }
+
   // Rule Engine Form
   public newRuleKeyword = '';
   public newRuleCategory = '';

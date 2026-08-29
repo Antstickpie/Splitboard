@@ -156,9 +156,15 @@
         <!-- Scrollable Rows Body (Scrollbar strictly below header) -->
         <div style="max-height: 135px; overflow-y: auto;">
           <div *ngFor="let pair of exchangeRatePairs()" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-            <span class="bold-ticker font-mono" style="font-weight: 700; color: var(--primary); font-size: 0.76rem;">
+            <button
+              type="button"
+              (click)="openGoogleRate(pair.from, pair.to)"
+              title="Open Google live rate: 1 {{ pair.from }} to {{ pair.to }}"
+              class="bold-ticker font-mono"
+              style="font-weight: 700; color: var(--primary); font-size: 0.76rem; background: none; border: none; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 0.25rem; text-decoration: underline; text-decoration-color: rgba(0, 229, 255, 0.3); text-underline-offset: 3px;">
               {{ pair.pairLabel }}
-            </span>
+              <span style="font-size: 0.65rem; opacity: 0.7;">↗</span>
+            </button>
             <div>
               <input 
                 *ngIf="isEditingRates()"
