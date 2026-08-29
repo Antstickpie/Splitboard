@@ -373,6 +373,7 @@
               <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">
                 Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}
               </th>
+              <th>Split</th>
               <th style="text-align: center;">Action</th>
             </tr>
           </thead>
@@ -406,6 +407,34 @@
                 </select>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td>
+                <div class="split-button-group">
+                  <button
+                    type="button"
+                    class="split-btn split-btn-5050"
+                    [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
+                    (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')"
+                    title="Split 50/50">
+                    50/50
+                  </button>
+                  <button
+                    type="button"
+                    class="split-btn split-btn-p1"
+                    [class.active]="getInlineSplitValue(tx) === '100_P1'"
+                    (click)="onInlineSplitButtonClick(tx, '100_P1')"
+                    [title]="'100% ' + service.personOne().name">
+                    {{ service.personOne().name }}
+                  </button>
+                  <button
+                    type="button"
+                    class="split-btn split-btn-p2"
+                    [class.active]="getInlineSplitValue(tx) === '100_P2'"
+                    (click)="onInlineSplitButtonClick(tx, '100_P2')"
+                    [title]="'100% ' + service.personTwo().name">
+                    {{ service.personTwo().name }}
+                  </button>
+                </div>
+              </td>
               <td style="text-align: center;">
                 <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
                   <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule from this transaction" style="padding: 0.2rem 0.45rem; font-size: 0.72rem; gap: 0.2rem;">
@@ -416,7 +445,7 @@
               </td>
             </tr>
             <tr *ngIf="res.transactions.length === 0">
-              <td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+              <td colspan="8" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
                 No new transactions to import. (Check the Duplicates or Excluded tabs above).
               </td>
             </tr>
