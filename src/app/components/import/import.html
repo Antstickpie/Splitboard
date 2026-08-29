@@ -10,35 +10,7 @@
       </button>
     </div>
 
-    <div class="config-grid" style="gap: 0.6rem;">
-      <div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem;">
-          <label class="input-label" style="margin: 0; font-size: 0.72rem;">Select Bank / Source</label>
-          <button class="btn btn-secondary btn-xs" (click)="isAddingBankInline = !isAddingBankInline" style="padding: 0.1rem 0.35rem; font-size: 0.65rem;">
-            {{ isAddingBankInline ? '✕ Close' : '+ Add Bank' }}
-          </button>
-        </div>
-        <select [ngModel]="selectedBank()" (ngModelChange)="onBankChange($event)" class="styled-select" *ngIf="!isAddingBankInline" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
-          <option value="Auto-Detect">✨ Auto-Detect Bank (Recommended)</option>
-          <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-          <option value="Generic Bank">Generic Bank</option>
-        </select>
-
-        <!-- Inline Quick Add Form -->
-        <div *ngIf="isAddingBankInline" class="animate-fade-in" style="display: flex; gap: 0.4rem; margin-top: 0.25rem;">
-          <input
-            type="text"
-            [(ngModel)]="newInlineBankName"
-            placeholder="Bank Name (e.g. Wise, Barclays)..."
-            class="person-input"
-            style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.8rem;"
-            (keydown.enter)="saveInlineBank()">
-          <button class="btn btn-primary btn-xs" (click)="saveInlineBank()" [disabled]="!newInlineBankName.trim()">
-            Save
-          </button>
-        </div>
-      </div>
-
+    <div class="config-grid" style="grid-template-columns: 1fr; max-width: 300px; margin-bottom: 0.2rem;">
       <div>
         <label class="input-label" style="margin-bottom: 0.2rem; font-size: 0.72rem;">Default Account Owner</label>
         <select [ngModel]="selectedOwner()" (ngModelChange)="selectedOwner.set($event)" class="styled-select" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
@@ -192,6 +164,20 @@
       </div>
 
       <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <!-- Bank Confirmation / Selection Dropdown -->
+        <div style="display: flex; align-items: center; gap: 0.35rem; background: rgba(255, 255, 255, 0.05); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.12);">
+          <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; margin: 0;">🏦 Bank:</label>
+          <select
+            [ngModel]="selectedBank()"
+            (ngModelChange)="onBankChange($event)"
+            class="styled-select"
+            style="padding: 0.15rem 0.4rem; font-size: 0.78rem; height: 28px; min-width: 140px;">
+            <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+            <option *ngIf="isCustomBank(selectedBank())" [value]="selectedBank()">{{ selectedBank() }} (Detected)</option>
+            <option value="Generic Bank">Generic Bank</option>
+          </select>
+        </div>
+
         <!-- Toggle PDF Side-by-Side Split View Button -->
         <button
           *ngIf="isPdfLoaded()"
@@ -269,22 +255,6 @@
 
       <!-- RIGHT PANE: Tabulated Splitboard Table & Controls -->
       <div class="import-table-pane">
-        <!-- Bank Mismatch Smart Warning Banner -->
-        <div
-          *ngIf="res.bankMismatch"
-          class="animate-fade-in"
-          style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 0.45rem 0.8rem; display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; margin-bottom: 0.6rem;">
-          <div style="font-size: 0.8rem; color: #fbbf24; display: flex; align-items: center; gap: 0.4rem;">
-            <span>⚠️</span>
-            <span>Statement looks like <strong>{{ res.bankMismatch.detected }}</strong>, but <strong>{{ res.bankMismatch.selected }}</strong> was selected.</span>
-          </div>
-          <button
-            class="btn btn-xs"
-            (click)="switchSelectedBank(res.bankMismatch.detected)"
-            style="white-space: nowrap; font-size: 0.72rem; padding: 0.2rem 0.55rem; background: #f59e0b; color: #000; font-weight: 700; border: none; cursor: pointer; border-radius: 4px;">
-            🔄 Switch to {{ res.bankMismatch.detected }}
-          </button>
-        </div>
 
         <!-- Preview Sub-Tabs: Valid, Incomes, Duplicates, Excluded -->
         <div class="preview-tabs-bar">

@@ -265,20 +265,21 @@ export class ImportComponent {
 
   public onBankChange(bankName: string): void {
     this.selectedBank.set(bankName);
-  }
-
-  public switchSelectedBank(newBank: string): void {
-    this.selectedBank.set(newBank);
     const res = this.previewResult();
     if (res) {
-      res.transactions.forEach((t) => (t.bank = newBank));
-      res.incomes.forEach((t) => (t.bank = newBank));
-      res.duplicates.forEach((t) => (t.bank = newBank));
-      res.excluded.forEach((t) => (t.bank = newBank));
+      res.transactions.forEach((t) => (t.bank = bankName));
+      res.incomes.forEach((t) => (t.bank = bankName));
+      res.duplicates.forEach((t) => (t.bank = bankName));
+      res.excluded.forEach((t) => (t.bank = bankName));
+      res.bankName = bankName;
       res.bankMismatch = undefined;
       this.previewResult.set({ ...res });
     }
-    this.service.showToast(`Switched bank to ${newBank}`, 'success');
+  }
+
+  public isCustomBank(name: string): boolean {
+    if (!name || name === 'Generic Bank' || name === 'Auto-Detect') return false;
+    return !this.service.bankConfigs().some((b) => b.name.toLowerCase() === name.toLowerCase());
   }
 
   // Quick Add Bank Directly from Import Page
@@ -324,7 +325,10 @@ export class ImportComponent {
     }
 
     try {
-      const res = await this.parser.parseFile(file, this.selectedBank(), this.selectedOwner());
+      const res = await this.parser.parseFile(file, 'Auto-Detect', this.selectedOwner());
+      if (res.bankName) {
+        this.selectedBank.set(res.bankName);
+      }
       this.previewResult.set(res);
       this.service.showToast(
         `Parsed ${res.transactions.length} expenses (${res.incomesCount} incomes/credits, ${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
@@ -499,10 +503,13 @@ export class ImportComponent {
     try {
       const res = this.parser.parseText(
         this.rawClipboardText,
-        this.selectedBank(),
+        'Auto-Detect',
         this.selectedOwner(),
         'Clipboard Paste'
       );
+      if (res.bankName) {
+        this.selectedBank.set(res.bankName);
+      }
       this.previewResult.set(res);
       this.service.showToast(
         `Parsed ${res.transactions.length} expenses (${res.incomesCount} incomes/credits, ${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
