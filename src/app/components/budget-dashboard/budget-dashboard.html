@@ -86,27 +86,29 @@
   <div class="everydollar-workspace">
     <!-- LEFT COLUMN: Spending Categories Breakdown -->
     <div class="everydollar-budget-col">
-      <!-- Empty State when no transactions in this month -->
-      <div *ngIf="sidebarTransactions().length === 0" class="glass-card" style="text-align: center; padding: 4rem 2rem;">
+      <!-- Empty State when no transactions or groups in this month -->
+      <div *ngIf="activeGroupSummaries().length === 0" class="glass-card" style="text-align: center; padding: 4rem 2rem;">
         <div style="font-size: 3rem; margin-bottom: 0.8rem;">📊</div>
-        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem;">No spending recorded for {{ service.formatMonth(selectedMonth()) }}</h3>
+        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem;">No spending or income recorded for {{ service.formatMonth(selectedMonth()) }}</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto; line-height: 1.5;">
-          No bank transactions or cash expenses have been logged for this month yet. Import statements in <strong>Import Statements</strong> or log cash in <strong>Transactions & Splitter</strong> to view live spending analytics.
+          No transactions logged for this month yet. Import statements or log cash to view analytics.
         </p>
       </div>
 
-      <!-- Category Group Cards (Only shown when month has transactions) -->
-      <ng-container *ngIf="sidebarTransactions().length > 0">
-        <div class="everydollar-group-card glass-card" *ngFor="let grp of activeGroupSummaries()" [style.border-color]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.4)' : null" [style.background]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.04)' : null">
+      <!-- Category Group Cards (Only shown when active groups exist) -->
+      <ng-container *ngIf="activeGroupSummaries().length > 0">
+        <div class="everydollar-group-card glass-card" *ngFor="let grp of activeGroupSummaries()"
+          [style.border-color]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.4)' : (grp.id === 'grp-income' ? 'rgba(16, 185, 129, 0.35)' : null)"
+          [style.background]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.04)' : (grp.id === 'grp-income' ? 'rgba(16, 185, 129, 0.04)' : null)">
           <!-- Group Header -->
           <div class="group-card-top">
             <div class="group-title-wrap">
               <span class="group-icon">{{ grp.icon }}</span>
-              <span class="group-name" [style.color]="grp.id === 'grp-uncategorized' ? '#f59e0b' : null">{{ grp.name }}</span>
+              <span class="group-name" [style.color]="grp.id === 'grp-uncategorized' ? '#f59e0b' : (grp.id === 'grp-income' ? '#10b981' : null)">{{ grp.name }}</span>
             </div>
 
             <div class="group-col-labels font-mono">
-              <span class="grp-total-badge">{{ service.formatCurrency(grp.actualTotal) }}</span>
+              <span class="grp-total-badge" [class.text-success]="grp.id === 'grp-income'">{{ service.formatCurrency(grp.actualTotal) }}</span>
             </div>
           </div>
 

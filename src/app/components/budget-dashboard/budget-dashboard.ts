@@ -64,6 +64,13 @@ export class BudgetDashboardComponent {
 
   public getItemTransactions(groupId: string, itemName: string): Transaction[] {
     const month = this.selectedMonth();
+
+    if (groupId === 'grp-income') {
+      return this.service.transactions().filter(
+        (tx) => tx.date && tx.date.startsWith(month) && tx.type === 'INCOME'
+      );
+    }
+
     const all = this.service.transactions().filter(
       (tx) => tx.date && tx.date.startsWith(month) && !tx.isCashTransfer && tx.type === 'EXPENSE'
     );
@@ -282,6 +289,20 @@ export class BudgetDashboardComponent {
       }
     });
 
+    // Collect income
+    const incomeMap: Record<string, number> = {};
+    let incomeTotal = 0;
+    txsInMonth.forEach((tx) => {
+      if (tx.type === 'INCOME') {
+        const amt = Number(tx.amount) || 0;
+        if (amt > 0) {
+          incomeTotal += amt;
+          const label = tx.categoryItem || tx.description || 'Income';
+          incomeMap[label] = (incomeMap[label] || 0) + amt;
+        }
+      }
+    });
+
     const summaries: CategoryGroupSummary[] = this.service.categoryGroups().map((grp) => {
       let groupActual = 0;
 
@@ -356,6 +377,27 @@ export class BudgetDashboardComponent {
             percentage: 0
           }
         ]
+      });
+    }
+
+    // If there are income transactions, prepend Income & Inflows group
+    if (incomeTotal > 0) {
+      const incomeItems = Object.entries(incomeMap).map(([name, actual], idx) => ({
+        id: 'inc-item-' + idx,
+        name,
+        planned: 0,
+        actual,
+        remaining: 0,
+        percentage: 0
+      }));
+      summaries.unshift({
+        id: 'grp-income',
+        name: 'Income & Inflows',
+        icon: '💵',
+        plannedTotal: 0,
+        actualTotal: incomeTotal,
+        remainingTotal: 0,
+        items: incomeItems
       });
     }
 
