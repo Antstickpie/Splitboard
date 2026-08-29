@@ -190,12 +190,15 @@
           </div>
         </div>
 
-        <div class="pdf-single-page-scrollable">
+        <div class="pdf-single-page-scrollable" (scroll)="onPdfScroll($event)">
           <div *ngIf="isRenderingPdf()" class="loading-spin-text" style="text-align: center; padding: 2rem;">
-            Rendering statement page...
+            Rendering statement pages...
           </div>
-          <div class="pdf-single-card">
-            <canvas id="pdf-single-canvas" class="pdf-single-canvas"></canvas>
+          <div
+            *ngFor="let pageNum of pdfPagesList()"
+            class="pdf-page-card"
+            [id]="'pdf-page-card-' + pageNum">
+            <canvas [id]="'pdf-canvas-' + pageNum" class="pdf-page-canvas"></canvas>
           </div>
         </div>
       </div>

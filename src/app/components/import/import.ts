@@ -344,6 +344,8 @@ export class ImportComponent {
       const pdf = await pdfLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
       this.pdfDocInstance = pdf;
       this.pdfPageCount.set(pdf.numPages);
+      const pages = Array.from({ length: pdf.numPages }, (_, i) => i + 1);
+      this.pdfPagesList.set(pages);
       this.currentPdfPage.set(1);
       this.isPdfLoaded.set(true);
       this.isPdfViewerOpen.set(true);
@@ -360,46 +362,46 @@ export class ImportComponent {
 
   public currentPdfPage = signal<number>(1);
 
-  public async renderCurrentPage(): Promise<void> {
+  public async renderAllPages(): Promise<void> {
     if (!this.pdfDocInstance) return;
-    const pageNum = this.currentPdfPage();
     const zoom = this.pdfZoom();
     const dpr = window.devicePixelRatio || 1;
 
-    const canvas = document.getElementById('pdf-single-canvas') as HTMLCanvasElement;
-    if (!canvas) return;
+    for (let pageNum = 1; pageNum <= this.pdfDocInstance.numPages; pageNum++) {
+      const canvas = document.getElementById('pdf-canvas-' + pageNum) as HTMLCanvasElement;
+      if (!canvas) continue;
 
-    try {
-      const page = await this.pdfDocInstance.getPage(pageNum);
-      const viewport = page.getViewport({ scale: zoom });
+      try {
+        const page = await this.pdfDocInstance.getPage(pageNum);
+        const viewport = page.getViewport({ scale: zoom });
 
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = Math.floor(viewport.width) + 'px';
-      canvas.style.height = Math.floor(viewport.height) + 'px';
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width = Math.floor(viewport.width) + 'px';
+        canvas.style.height = Math.floor(viewport.height) + 'px';
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const renderContext = {
-        canvasContext: ctx,
-        viewport: viewport
-      };
-      await page.render(renderContext).promise;
-    } catch (err) {
-      console.warn(`Error rendering page ${pageNum}:`, err);
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        await page.render(renderContext).promise;
+      } catch (err) {
+        console.warn(`Error rendering page ${pageNum}:`, err);
+      }
     }
   }
 
   public async fitPdfWidth(): Promise<void> {
     if (!this.pdfDocInstance) return;
     try {
-      const page = await this.pdfDocInstance.getPage(this.currentPdfPage());
+      const page = await this.pdfDocInstance.getPage(1);
       const baseViewport = page.getViewport({ scale: 1.0 });
       const scroller = document.querySelector('.pdf-single-page-scrollable') as HTMLElement;
       if (scroller && baseViewport.width > 0) {
-        // Leave room for margins and scrollbar
         const availableWidth = scroller.clientWidth - 40;
         if (availableWidth > 50) {
           const fitRatio = availableWidth / baseViewport.width;
@@ -414,27 +416,54 @@ export class ImportComponent {
     } catch {
       this.pdfZoom.set(0.70);
     }
-    this.renderCurrentPage();
+    this.renderAllPages();
+  }
+
+  public onPdfScroll(event: Event): void {
+    const scroller = event.target as HTMLElement;
+    if (!scroller || this.pdfPageCount() <= 1) return;
+
+    const scrollTop = scroller.scrollTop;
+    const cards = Array.from(scroller.querySelectorAll('.pdf-page-card')) as HTMLElement[];
+    let activePage = 1;
+    let minDistance = Infinity;
+
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const offsetTop = card.offsetTop - scroller.offsetTop;
+      const distance = Math.abs(scrollTop - offsetTop);
+      if (distance < minDistance) {
+        minDistance = distance;
+        activePage = i + 1;
+      }
+    }
+
+    if (this.currentPdfPage() !== activePage) {
+      this.currentPdfPage.set(activePage);
+    }
+  }
+
+  public scrollToPage(pageNum: number): void {
+    const targetPage = Math.max(1, Math.min(this.pdfPageCount(), pageNum));
+    this.currentPdfPage.set(targetPage);
+    const card = document.getElementById('pdf-page-card-' + targetPage);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   public prevPdfPage(): void {
-    if (this.currentPdfPage() > 1) {
-      this.currentPdfPage.update((p) => p - 1);
-      this.renderCurrentPage();
-    }
+    this.scrollToPage(this.currentPdfPage() - 1);
   }
 
   public nextPdfPage(): void {
-    if (this.currentPdfPage() < this.pdfPageCount()) {
-      this.currentPdfPage.update((p) => p + 1);
-      this.renderCurrentPage();
-    }
+    this.scrollToPage(this.currentPdfPage() + 1);
   }
 
   public zoomPdf(delta: number): void {
     const newZoom = Math.min(2.5, Math.max(0.3, this.pdfZoom() + delta));
     this.pdfZoom.set(Number(newZoom.toFixed(2)));
-    this.renderCurrentPage();
+    this.renderAllPages();
   }
 
   public resetPdfZoom(): void {
