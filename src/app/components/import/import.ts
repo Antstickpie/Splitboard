@@ -26,7 +26,7 @@ export class ImportComponent {
 
   @Output() public importCompleted = new EventEmitter<void>();
 
-  public selectedBank = signal<string>('Deutsche Bank');
+  public selectedBank = signal<string>('Auto-Detect');
   public selectedOwner = signal<string>('');
   public uploadedFileName = signal<string>('');
   public isParsing = signal<boolean>(false);
@@ -259,10 +259,7 @@ export class ImportComponent {
   }
 
   constructor() {
-    const firstBank = this.service.bankConfigs()[0];
-    if (firstBank) {
-      this.selectedBank.set(firstBank.name);
-    }
+    this.selectedBank.set('Auto-Detect');
     this.selectedOwner.set(this.service.personOne().name);
   }
 

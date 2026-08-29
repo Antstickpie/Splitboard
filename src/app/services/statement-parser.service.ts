@@ -346,6 +346,7 @@ export class StatementParserService {
       detectedFromContent &&
       bankName &&
       bankName !== 'Generic Bank' &&
+      bankName !== 'Auto-Detect' &&
       detectedFromContent.toLowerCase() !== bankName.toLowerCase()
         ? { detected: detectedFromContent, selected: bankName }
         : undefined;
@@ -618,6 +619,7 @@ export class StatementParserService {
       detectedFromContent &&
       bankName &&
       bankName !== 'Generic Bank' &&
+      bankName !== 'Auto-Detect' &&
       detectedFromContent.toLowerCase() !== bankName.toLowerCase()
         ? { detected: detectedFromContent, selected: bankName }
         : undefined;
@@ -641,12 +643,26 @@ export class StatementParserService {
     const configs = this.service.bankConfigs();
 
     const bankSignatures: { pattern: string[]; bankName: string }[] = [
+      { pattern: ['amazon visa', 'openbank', 'amazon card', 'zinia amazon', 'lbb amazon'], bankName: 'Amazon Visa' },
       { pattern: ['deutsche bank', 'db pbc', 'max-moritz'], bankName: 'Deutsche Bank' },
       { pattern: ['american express', 'amex', 'mitgliedschafts-nr'], bankName: 'Amex' },
-      { pattern: ['sparkasse', 'kreissparkasse', 'berliner sparkasse'], bankName: 'Sparkasse' },
+      { pattern: ['sparkasse', 'kreissparkasse', 'berliner sparkasse', 'stadtsparkasse'], bankName: 'Sparkasse' },
       { pattern: ['n26', 'number26'], bankName: 'N26' },
       { pattern: ['dkb', 'deutsche kreditbank'], bankName: 'DKB' },
       { pattern: ['commerzbank', 'comdirect'], bankName: 'Commerzbank' },
+      { pattern: ['postbank'], bankName: 'Postbank' },
+      { pattern: ['targobank'], bankName: 'Targobank' },
+      { pattern: ['santander'], bankName: 'Santander' },
+      { pattern: ['trade republic', 'traderepublic'], bankName: 'Trade Republic' },
+      { pattern: ['scalable capital', 'scalable'], bankName: 'Scalable Capital' },
+      { pattern: ['consorsbank', 'consors'], bankName: 'Consorsbank' },
+      { pattern: ['c24 bank', 'c24'], bankName: 'C24 Bank' },
+      { pattern: ['volksbank', 'raiffeisenbank', 'vr bank', 'vrbank'], bankName: 'Volksbank' },
+      { pattern: ['sparda-bank', 'sparda bank', 'sparda'], bankName: 'Sparda-Bank' },
+      { pattern: ['hypovereinsbank', 'unicredit', 'hvb'], bankName: 'HypoVereinsbank' },
+      { pattern: ['hanseatic bank', 'genialcard'], bankName: 'Hanseatic Bank' },
+      { pattern: ['advanzia', 'gebührenfrei', 'gebuhrenfrei'], bankName: 'Advanzia' },
+      { pattern: ['miles & more', 'miles and more', 'lufthansa card'], bankName: 'Miles & More' },
       { pattern: ['revolut'], bankName: 'Revolut' },
       { pattern: ['ing-diba', 'ing diba', 'ing.de'], bankName: 'ING' },
       { pattern: ['paypal'], bankName: 'PayPal' },
@@ -675,7 +691,7 @@ export class StatementParserService {
   }
 
   private detectBank(selectedBank: string, fileName: string, text: string): string {
-    if (selectedBank && selectedBank !== 'Generic Bank') return selectedBank;
+    if (selectedBank && selectedBank !== 'Generic Bank' && selectedBank !== 'Auto-Detect') return selectedBank;
     const detected = this.detectBankFromContent(fileName, text);
     if (detected) return detected;
     const configs = this.service.bankConfigs();

@@ -19,8 +19,9 @@
           </button>
         </div>
         <select [ngModel]="selectedBank()" (ngModelChange)="onBankChange($event)" class="styled-select" *ngIf="!isAddingBankInline" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+          <option value="Auto-Detect">✨ Auto-Detect Bank (Recommended)</option>
           <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-          <option value="Generic Bank">Generic Bank (CSV/PDF Auto-Detect)</option>
+          <option value="Generic Bank">Generic Bank</option>
         </select>
 
         <!-- Inline Quick Add Form -->
