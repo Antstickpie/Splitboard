@@ -1,20 +1,24 @@
-<div class="animate-fade-in import-container">
-  <div class="glass-card import-header">
-    <h2>📥 Import Bank Statements & Receipts</h2>
-    <p class="subtitle">Upload bank statements (PDF, CSV, XLSX) from Sparkasse, N26, DKB, Commerzbank, Revolut, etc. Transactions are automatically standardized and categorized.</p>
-  </div>
-
+<div class="animate-fade-in import-container" style="gap: 0.5rem;">
   <!-- Settings & Upload Area -->
-  <div class="glass-card import-config-card">
-    <div class="config-grid">
+  <div class="glass-card import-config-card" style="padding: 0.8rem 1rem; gap: 0.6rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.4rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+      <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
+        <span>📥</span> Import Bank Statement / Receipts
+      </div>
+      <button class="btn btn-secondary btn-xs" (click)="importCompleted.emit()" style="padding: 0.15rem 0.45rem; font-size: 0.72rem;">
+        ✕ Close
+      </button>
+    </div>
+
+    <div class="config-grid" style="gap: 0.6rem;">
       <div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-          <label class="input-label" style="margin: 0;">Select Bank / Source</label>
-          <button class="btn btn-secondary btn-xs" (click)="isAddingBankInline = !isAddingBankInline" style="padding: 0.1rem 0.4rem; font-size: 0.68rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem;">
+          <label class="input-label" style="margin: 0; font-size: 0.72rem;">Select Bank / Source</label>
+          <button class="btn btn-secondary btn-xs" (click)="isAddingBankInline = !isAddingBankInline" style="padding: 0.1rem 0.35rem; font-size: 0.65rem;">
             {{ isAddingBankInline ? '✕ Close' : '+ Add Bank' }}
           </button>
         </div>
-        <select [ngModel]="selectedBank()" (ngModelChange)="onBankChange($event)" class="styled-select" *ngIf="!isAddingBankInline">
+        <select [ngModel]="selectedBank()" (ngModelChange)="onBankChange($event)" class="styled-select" *ngIf="!isAddingBankInline" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
           <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
           <option value="Generic Bank">Generic Bank (CSV/PDF Auto-Detect)</option>
         </select>
@@ -26,7 +30,7 @@
             [(ngModel)]="newInlineBankName"
             placeholder="Bank Name (e.g. Wise, Barclays)..."
             class="person-input"
-            style="flex: 1;"
+            style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.8rem;"
             (keydown.enter)="saveInlineBank()">
           <button class="btn btn-primary btn-xs" (click)="saveInlineBank()" [disabled]="!newInlineBankName.trim()">
             Save
@@ -35,21 +39,21 @@
       </div>
 
       <div>
-        <label class="input-label">Default Account Owner</label>
-        <select [ngModel]="selectedOwner()" (ngModelChange)="selectedOwner.set($event)" class="styled-select">
+        <label class="input-label" style="margin-bottom: 0.2rem; font-size: 0.72rem;">Default Account Owner</label>
+        <select [ngModel]="selectedOwner()" (ngModelChange)="selectedOwner.set($event)" class="styled-select" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
           <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
         </select>
       </div>
     </div>
 
     <!-- Dropzone / File Upload -->
-    <div class="dropzone-box" (click)="fileInput.click()">
+    <div class="dropzone-box" (click)="fileInput.click()" style="padding: 1.2rem 1rem;">
       <input type="file" #fileInput (change)="onFileSelected($event)" accept=".pdf,.csv,.tsv,.xlsx,.xls,.txt" style="display: none;">
-      <div class="dropzone-icon">📄</div>
-      <div class="dropzone-title">
+      <div class="dropzone-icon" style="font-size: 1.8rem; margin-bottom: 0.2rem;">📄</div>
+      <div class="dropzone-title" style="font-size: 0.9rem; font-weight: 600;">
         {{ uploadedFileName() ? uploadedFileName() : 'Click or Drop Bank Statement File Here' }}
       </div>
-      <div class="dropzone-subtitle">
+      <div class="dropzone-subtitle" style="font-size: 0.75rem; color: var(--text-muted);">
         Supports PDF statements, CSV exports, Excel sheets (.xlsx)
       </div>
       <div *ngIf="isParsing()" class="loading-spin-text">
