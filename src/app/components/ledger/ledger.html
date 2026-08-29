@@ -43,153 +43,143 @@
     </div>
   </div>
 
-  <!-- Unified Sleek Toolbar -->
-  <div class="glass-card ledger-toolbar">
-    <!-- LEFT: Month Selector & Navigation -->
-    <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-      <!-- EveryDollar Custom Month Trigger & Popover -->
-      <div class="everydollar-month-container" style="position: relative;">
-        <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
-          <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
-          <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
-        </button>
-
-        <!-- Month Picker Popover Grid -->
-        <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
-          <div class="popover-year-bar">
-            <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
-            <span class="popover-year-text">{{ pickerYear() }}</span>
-            <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
-          </div>
-
-          <div class="popover-months-grid">
-            <button
-              *ngFor="let m of monthsList; let idx = index"
-              class="month-cell-btn"
-              [class.selected]="service.selectedMonth() !== 'ALL' && isMonthSelected(idx)"
-              [class.has-data]="hasMonthData(idx)"
-              (click)="selectMonth(idx)">
-              {{ m }}
-            </button>
-          </div>
-
-          <div class="popover-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08);">
-            <button class="btn btn-secondary btn-xs" (click)="showAllMonths()" [class.active]="service.selectedMonth() === 'ALL'">
-              All Months
-            </button>
-            <button class="btn-today" (click)="goToCurrentMonth()">
-              This month
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Month Navigation Arrows -->
-      <div class="month-nav-btns" style="display: flex; gap: 0.25rem;">
-        <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
-        <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
-      </div>
-
-      <!-- Today Button -->
-      <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.selectedMonth() !== service.getCurrentMonthString()">
-        Today
-      </button>
-
-      <!-- Past / Future Badge -->
-      <span class="past-month-badge" *ngIf="isPastMonth()">⏱ Past month</span>
-      <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25);" *ngIf="isFutureMonth()">🔮 Future</span>
-    </div>
-
-    <!-- MIDDLE: Quick Search & Filter Toggle -->
-    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; max-width: 440px; min-width: 220px;">
-      <div style="position: relative; width: 100%;">
-        <input
-          type="text"
-          placeholder="🔍 Search transactions..."
-          [ngModel]="service.searchQuery()"
-          (ngModelChange)="service.searchQuery.set($event)"
-          class="search-input"
-          style="width: 100%; padding-right: 2rem; font-size: 0.82rem; height: 34px;">
-        <button
-          *ngIf="service.searchQuery()"
-          (click)="service.searchQuery.set('')"
-          style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem;">
-          ✕
-        </button>
-      </div>
-
-      <button
-        class="btn btn-secondary btn-sm"
-        (click)="isFiltersOpen.set(!isFiltersOpen())"
-        [class.btn-primary]="hasActiveFilters()"
-        title="Toggle filters"
-        style="height: 34px; white-space: nowrap; font-size: 0.78rem;">
-        ⚙ Filters <span *ngIf="hasActiveFilters()">●</span>
-      </button>
-    </div>
-
-    <!-- RIGHT: Action Buttons -->
-    <div class="toolbar-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-      <button
-        class="btn btn-sm"
-        [class.btn-primary]="isImportOpen()"
-        [class.btn-secondary]="!isImportOpen()"
-        (click)="toggleImport()"
-        style="height: 34px; font-size: 0.8rem;">
-        📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import / Split Statement ▼' }}
-      </button>
-      <button class="btn btn-secondary btn-sm" (click)="openCashModal()" style="height: 34px; font-size: 0.8rem;">
-        💵 + Log Cash / Transfer
-      </button>
-    </div>
+  <!-- Embedded Statement Importer & Splitter Section -->
+  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 1.2rem;">
+    <app-import></app-import>
   </div>
 
   <!-- Collapsible Filters Drawer -->
-  <div class="glass-card animate-fade-in" *ngIf="isFiltersOpen()" style="margin-top: 0.6rem; padding: 0.75rem 1rem; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2);">
-    <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select" style="font-size: 0.78rem;">
+  <div class="glass-card animate-fade-in" *ngIf="isFiltersOpen()" style="margin-bottom: 0.8rem; padding: 0.6rem 0.8rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.25);">
+    <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
       <option value="ALL">All Payers</option>
       <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
     </select>
 
-    <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select" style="font-size: 0.78rem;">
+    <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
       <option value="ALL">All Banks</option>
       <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
       <option value="Cash">Cash</option>
     </select>
 
-    <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select" style="font-size: 0.78rem;">
+    <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
       <option value="ALL">All Splits</option>
       <option value="SELF">Self Only</option>
       <option value="OTHER">For Other</option>
       <option value="SPLIT">Split</option>
     </select>
 
-    <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select" style="font-size: 0.78rem;">
+    <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
       <option value="ALL">All Categories</option>
       <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
         <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
       </optgroup>
     </select>
 
-    <button class="btn btn-secondary btn-xs" (click)="resetFilters()" *ngIf="hasActiveFilters()" style="font-size: 0.75rem;">
+    <button class="btn btn-secondary btn-xs" (click)="resetFilters()" *ngIf="hasActiveFilters()" style="font-size: 0.72rem;">
       Reset Filters
     </button>
   </div>
 
-  <!-- Embedded Statement Importer & Splitter Section -->
-  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 1.2rem;">
-    <app-import></app-import>
-  </div>
-
-  <!-- Transactions Table -->
+  <!-- Transactions Table Card with Integrated Header Controls -->
   <div class="glass-card ledger-table-card">
-    <div class="table-header-info">
-      <h3 style="margin: 0;">
-        Transactions Ledger ({{ service.filteredTransactions().length }})
-        <span *ngIf="service.searchQuery()" style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted); margin-left: 0.4rem;">
-          matching "{{ service.searchQuery() }}"
-        </span>
-      </h3>
+    <div class="table-header-info" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+      <!-- LEFT: Month Selector & Navigation -->
+      <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.4rem;">
+        <!-- EveryDollar Custom Month Trigger & Popover -->
+        <div class="everydollar-month-container" style="position: relative;">
+          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()" style="font-size: 0.88rem; padding: 0.25rem 0.5rem;">
+            <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
+            <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
+          </button>
+
+          <!-- Month Picker Popover Grid -->
+          <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
+            <div class="popover-year-bar">
+              <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+              <span class="popover-year-text">{{ pickerYear() }}</span>
+              <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+            </div>
+
+            <div class="popover-months-grid">
+              <button
+                *ngFor="let m of monthsList; let idx = index"
+                class="month-cell-btn"
+                [class.selected]="service.selectedMonth() !== 'ALL' && isMonthSelected(idx)"
+                [class.has-data]="hasMonthData(idx)"
+                (click)="selectMonth(idx)">
+                {{ m }}
+              </button>
+            </div>
+
+            <div class="popover-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08);">
+              <button class="btn btn-secondary btn-xs" (click)="showAllMonths()" [class.active]="service.selectedMonth() === 'ALL'">
+                All Months
+              </button>
+              <button class="btn-today" (click)="goToCurrentMonth()">
+                This month
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Month Navigation Arrows -->
+        <div class="month-nav-btns" style="display: flex; gap: 0.2rem;">
+          <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
+          <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
+        </div>
+
+        <!-- Today Button -->
+        <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.selectedMonth() !== service.getCurrentMonthString()" style="font-size: 0.72rem; padding: 0.15rem 0.4rem;">
+          Today
+        </button>
+
+        <!-- Past / Future Badge -->
+        <span class="past-month-badge" *ngIf="isPastMonth()" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">⏱ Past</span>
+        <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="isFutureMonth()">🔮 Future</span>
+      </div>
+
+      <!-- MIDDLE: Quick Search & Filter Toggle -->
+      <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1; max-width: 360px; min-width: 180px;">
+        <div style="position: relative; width: 100%;">
+          <input
+            type="text"
+            placeholder="🔍 Search ledger..."
+            [ngModel]="service.searchQuery()"
+            (ngModelChange)="service.searchQuery.set($event)"
+            class="search-input"
+            style="width: 100%; padding: 0.25rem 1.6rem 0.25rem 0.6rem; font-size: 0.78rem; height: 30px;">
+          <button
+            *ngIf="service.searchQuery()"
+            (click)="service.searchQuery.set('')"
+            style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75rem;">
+            ✕
+          </button>
+        </div>
+
+        <button
+          class="btn btn-secondary btn-xs"
+          (click)="isFiltersOpen.set(!isFiltersOpen())"
+          [class.btn-primary]="hasActiveFilters()"
+          title="Toggle filters"
+          style="height: 30px; white-space: nowrap; font-size: 0.75rem; padding: 0 0.5rem;">
+          ⚙ Filters <span *ngIf="hasActiveFilters()">●</span>
+        </button>
+      </div>
+
+      <!-- RIGHT: Action Buttons -->
+      <div class="toolbar-actions" style="display: flex; gap: 0.4rem; align-items: center;">
+        <button
+          class="btn btn-xs"
+          [class.btn-primary]="isImportOpen()"
+          [class.btn-secondary]="!isImportOpen()"
+          (click)="toggleImport()"
+          style="height: 30px; font-size: 0.76rem; padding: 0 0.6rem;">
+          📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import Statement ▼' }}
+        </button>
+        <button class="btn btn-secondary btn-xs" (click)="openCashModal()" style="height: 30px; font-size: 0.76rem; padding: 0 0.6rem;">
+          💵 + Cash
+        </button>
+      </div>
     </div>
 
     <div class="table-container ledger-table-wrapper">
