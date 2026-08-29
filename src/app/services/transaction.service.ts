@@ -190,7 +190,11 @@ export class TransactionService {
           const matchBank = (tx.bank || '').toLowerCase().includes(q);
           const matchNote = (tx.note || '').toLowerCase().includes(q);
           const matchCat = (tx.categoryItem || '').toLowerCase().includes(q);
-          if (!matchDesc && !matchBank && !matchNote && !matchCat) return false;
+          const matchGroup = (tx.categoryGroup || '').toLowerCase().includes(q);
+          const matchOwner = (tx.paidBy || '').toLowerCase().includes(q);
+          const matchAmount = String(tx.amount || '').includes(q);
+          const matchSplit = (tx.splitType || '').toLowerCase().includes(q);
+          if (!matchDesc && !matchBank && !matchNote && !matchCat && !matchGroup && !matchOwner && !matchAmount && !matchSplit) return false;
         }
         return true;
       })

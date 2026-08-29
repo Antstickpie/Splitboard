@@ -184,7 +184,12 @@
   <!-- Transactions Table -->
   <div class="glass-card ledger-table-card">
     <div class="table-header-info">
-      <h3 style="margin: 0;">Transactions Ledger ({{ service.filteredTransactions().length }})</h3>
+      <h3 style="margin: 0;">
+        Transactions Ledger ({{ service.filteredTransactions().length }})
+        <span *ngIf="service.searchQuery()" style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted); margin-left: 0.4rem;">
+          matching "{{ service.searchQuery() }}"
+        </span>
+      </h3>
     </div>
 
     <div class="table-container ledger-table-wrapper">
@@ -298,7 +303,13 @@
           </tr>
           <tr *ngIf="service.filteredTransactions().length === 0">
             <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-              No transactions found. Import a bank statement or log a cash spend to get started!
+              <div *ngIf="service.searchQuery() || hasActiveFilters()">
+                No transactions match current search/filter.
+                <button class="btn btn-secondary btn-xs" (click)="resetFilters()" style="margin-left: 0.5rem;">Clear Filters</button>
+              </div>
+              <div *ngIf="!service.searchQuery() && !hasActiveFilters()">
+                No transactions found for this period. Import a bank statement or log a cash spend to get started!
+              </div>
             </td>
           </tr>
         </tbody>
