@@ -162,6 +162,7 @@
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-muted); text-align: left;">
                       <th style="padding: 0.25rem 0.4rem;">Date</th>
                       <th style="padding: 0.25rem 0.4rem;">Description</th>
+                      <th style="padding: 0.25rem 0.4rem;">Category</th>
                       <th style="padding: 0.25rem 0.4rem;">Paid By</th>
                       <th style="padding: 0.25rem 0.4rem;">Split</th>
                       <th style="padding: 0.25rem 0.4rem; text-align: right;">Amount</th>
@@ -173,6 +174,17 @@
                       <td style="padding: 0.3rem 0.4rem; font-weight: 500; color: var(--text-main);">
                         {{ tx.description }}
                         <span *ngIf="tx.bank" style="font-size: 0.65rem; color: var(--text-muted); margin-left: 0.25rem;">({{ tx.bank }})</span>
+                      </td>
+                      <td style="padding: 0.25rem 0.4rem;" (click)="$event.stopPropagation()">
+                        <select
+                          [ngModel]="tx.categoryItem || ''"
+                          (ngModelChange)="onInlineCategoryChange(tx, $event)"
+                          style="font-size: 0.72rem; padding: 0.15rem 0.3rem; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; color: var(--text-main); max-width: 140px;">
+                          <option value="">❓ Uncategorized</option>
+                          <optgroup *ngFor="let cg of service.categoryGroups()" [label]="(cg.icon || '📁') + ' ' + cg.name">
+                            <option *ngFor="let ci of cg.items" [value]="ci.name">{{ ci.name }}</option>
+                          </optgroup>
+                        </select>
                       </td>
                       <td style="padding: 0.3rem 0.4rem;">
                         <span class="badge" [class.badge-info]="tx.paidBy === service.personOne().name" [class.badge-warning]="tx.paidBy === service.personTwo().name" style="font-size: 0.65rem;">

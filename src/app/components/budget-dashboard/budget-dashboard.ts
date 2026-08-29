@@ -78,6 +78,34 @@ export class BudgetDashboardComponent {
     return all.filter((tx) => (tx.categoryItem || '').trim() === itemName);
   }
 
+  public onInlineCategoryChange(tx: Transaction, itemCategoryName: string): void {
+    if (!itemCategoryName) {
+      this.service.updateTransaction(tx.id, {
+        categoryGroup: undefined,
+        categoryItem: undefined
+      });
+      this.service.showToast('Transaction uncategorized', 'info');
+      return;
+    }
+
+    let parentGroupName: string | undefined;
+    for (const grp of this.service.categoryGroups()) {
+      if (grp.items.some((i) => i.name === itemCategoryName)) {
+        parentGroupName = grp.name;
+        break;
+      }
+    }
+
+    const isReimbCategory = itemCategoryName.toLowerCase().includes('reimburse');
+    this.service.updateTransaction(tx.id, {
+      categoryGroup: parentGroupName || tx.categoryGroup,
+      categoryItem: itemCategoryName,
+      isReimbursable: isReimbCategory ? true : tx.isReimbursable,
+      reimbursementStatus: isReimbCategory ? (tx.reimbursementStatus || 'PENDING') : tx.reimbursementStatus
+    });
+    this.service.showToast(`Updated to "${itemCategoryName}"`, 'success');
+  }
+
   public isPastMonth = computed(() => {
     return this.selectedMonth() < this.service.getCurrentMonthString();
   });
