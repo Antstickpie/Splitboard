@@ -240,3 +240,111 @@
   color: #f3f4f6;
   font-size: 0.8rem;
 }
+
+/* Side-by-Side Live PDF Viewer & Split Layout */
+.import-split-layout {
+  display: block;
+  width: 100%;
+}
+
+.import-split-layout.has-pdf {
+  display: grid;
+  grid-template-columns: minmax(360px, 45%) 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 0.8rem;
+}
+
+@media (max-width: 1100px) {
+  .import-split-layout.has-pdf {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pdf-viewer-pane {
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 120px);
+}
+
+.pdf-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.pdf-viewer-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pdf-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pdf-canvas-scroller {
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  min-height: 350px;
+  max-height: calc(100vh - 180px);
+}
+
+.pdf-page-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.pdf-page-card-header {
+  width: 100%;
+  padding: 0.25rem 0.6rem;
+  background: #1f2937;
+  color: #9ca3af;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-align: right;
+  letter-spacing: 0.02em;
+}
+
+.pdf-page-canvas-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #ffffff;
+  padding: 2px;
+}
+
+.pdf-page-canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.import-table-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}

@@ -36,6 +36,16 @@ export class ImportComponent {
   public sortColumn = signal<'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem'>('date');
   public sortAsc = signal<boolean>(false);
 
+  // Side-by-Side Live PDF Viewer State
+  public isPdfLoaded = signal<boolean>(false);
+  public isPdfViewerOpen = signal<boolean>(true);
+  public pdfZoom = signal<number>(1.0);
+  public pdfPageCount = signal<number>(0);
+  public pdfPagesList = signal<number[]>([]);
+  public isRenderingPdf = signal<boolean>(false);
+  private pdfDocInstance: any = null;
+  private pdfArrayBuffer: ArrayBuffer | null = null;
+
   public sortedTransactions = computed(() => {
     const res = this.previewResult();
     if (!res || !res.transactions) return [];
@@ -279,6 +289,23 @@ export class ImportComponent {
     this.isParsing.set(true);
     this.previewTab.set('valid');
 
+    // If PDF, prepare live rendering
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if (isPdf) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        this.pdfArrayBuffer = arrayBuffer;
+        await this.renderPdfDoc(arrayBuffer);
+      } catch (err) {
+        console.warn('PDF pre-render notice:', err);
+      }
+    } else {
+      this.isPdfLoaded.set(false);
+      this.pdfDocInstance = null;
+      this.pdfArrayBuffer = null;
+      this.pdfPagesList.set([]);
+    }
+
     try {
       const res = await this.parser.parseFile(file, this.selectedBank(), this.selectedOwner());
       this.previewResult.set(res);
@@ -291,6 +318,91 @@ export class ImportComponent {
     } finally {
       this.isParsing.set(false);
       input.value = '';
+    }
+  }
+
+  public async renderPdfDoc(arrayBuffer: ArrayBuffer): Promise<void> {
+    try {
+      this.isRenderingPdf.set(true);
+      let pdfLib = (window as any).pdfjsLib;
+      if (!pdfLib) {
+        try {
+          pdfLib = await (new Function('return import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs")'))();
+          if (pdfLib?.GlobalWorkerOptions && !pdfLib.GlobalWorkerOptions.workerSrc) {
+            pdfLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!pdfLib) return;
+
+      const pdf = await pdfLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
+      this.pdfDocInstance = pdf;
+      this.pdfPageCount.set(pdf.numPages);
+      const pages = Array.from({ length: pdf.numPages }, (_, i) => i + 1);
+      this.pdfPagesList.set(pages);
+      this.isPdfLoaded.set(true);
+      this.isPdfViewerOpen.set(true);
+
+      setTimeout(() => {
+        this.renderAllPages();
+      }, 100);
+    } catch (e) {
+      console.warn('PDF document load error:', e);
+    } finally {
+      this.isRenderingPdf.set(false);
+    }
+  }
+
+  public async renderAllPages(): Promise<void> {
+    if (!this.pdfDocInstance) return;
+    const zoom = this.pdfZoom();
+    const dpr = window.devicePixelRatio || 1;
+
+    for (let pageNum = 1; pageNum <= this.pdfDocInstance.numPages; pageNum++) {
+      const canvas = document.getElementById('pdf-canvas-' + pageNum) as HTMLCanvasElement;
+      if (!canvas) continue;
+
+      try {
+        const page = await this.pdfDocInstance.getPage(pageNum);
+        const viewport = page.getViewport({ scale: zoom * 1.15 });
+
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width = Math.floor(viewport.width) + 'px';
+        canvas.style.height = Math.floor(viewport.height) + 'px';
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        await page.render(renderContext).promise;
+      } catch (err) {
+        console.warn(`Error rendering page ${pageNum}:`, err);
+      }
+    }
+  }
+
+  public zoomPdf(delta: number): void {
+    const newZoom = Math.min(2.5, Math.max(0.6, this.pdfZoom() + delta));
+    this.pdfZoom.set(Number(newZoom.toFixed(2)));
+    this.renderAllPages();
+  }
+
+  public resetPdfZoom(): void {
+    this.pdfZoom.set(1.0);
+    this.renderAllPages();
+  }
+
+  public togglePdfViewer(): void {
+    this.isPdfViewerOpen.set(!this.isPdfViewerOpen());
+    if (this.isPdfViewerOpen()) {
+      setTimeout(() => this.renderAllPages(), 100);
     }
   }
 
@@ -526,5 +638,9 @@ export class ImportComponent {
     this.previewResult.set(null);
     this.uploadedFileName.set('');
     this.rawClipboardText = '';
+    this.isPdfLoaded.set(false);
+    this.pdfDocInstance = null;
+    this.pdfArrayBuffer = null;
+    this.pdfPagesList.set([]);
   }
 }

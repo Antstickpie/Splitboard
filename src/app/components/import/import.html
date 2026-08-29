@@ -115,14 +115,31 @@
   <div class="glass-card preview-card animate-fade-in" *ngIf="previewResult() as res">
     <div class="preview-header">
       <div>
-        <h3>Statement Preview ({{ res.transactions.length }} ready to import)</h3>
-        <span class="subtitle" style="margin: 0;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <h3 style="margin: 0;">Statement Preview ({{ res.transactions.length }} ready to import)</h3>
+          <span *ngIf="isPdfLoaded()" class="badge badge-info" style="font-size: 0.72rem; padding: 0.15rem 0.5rem; background: rgba(0, 229, 255, 0.12); color: var(--primary);">
+            📄 PDF Inspector
+          </span>
+        </div>
+        <span class="subtitle" style="margin: 0.2rem 0 0 0;">
           {{ res.duplicatesCount > 0 ? res.duplicatesCount + ' duplicates' : '0 duplicates' }},
           {{ res.excludedCount > 0 ? res.excludedCount + ' excluded by bank rules' : '0 excluded' }}
         </span>
       </div>
 
-      <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <!-- Toggle PDF Side-by-Side Split View Button -->
+        <button
+          *ngIf="isPdfLoaded()"
+          class="btn btn-secondary btn-sm"
+          (click)="togglePdfViewer()"
+          [style.background]="isPdfViewerOpen() ? 'rgba(0, 229, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)'"
+          [style.borderColor]="isPdfViewerOpen() ? 'var(--primary)' : 'rgba(255, 255, 255, 0.15)'"
+          [style.color]="isPdfViewerOpen() ? 'var(--primary)' : 'var(--text-main)'"
+          style="font-size: 0.78rem;">
+          {{ isPdfViewerOpen() ? '◧ Hide PDF' : '◫ Show PDF (Side-by-Side)' }}
+        </button>
+
         <button
           class="btn btn-secondary btn-sm"
           (click)="invertPreviewSigns()"
@@ -137,8 +154,43 @@
       </div>
     </div>
 
-    <!-- Preview Sub-Tabs: Valid, Incomes, Duplicates, Excluded -->
-    <div class="preview-tabs-bar">
+    <!-- Main Dual-Pane Side-by-Side Split Layout -->
+    <div class="import-split-layout" [class.has-pdf]="isPdfViewerOpen() && isPdfLoaded()">
+      
+      <!-- LEFT PANE: Real Visual PDF Document Viewer -->
+      <div *ngIf="isPdfViewerOpen() && isPdfLoaded()" class="pdf-viewer-pane animate-fade-in">
+        <div class="pdf-viewer-header">
+          <div class="pdf-viewer-title">
+            <span style="font-size: 1rem;">📄</span>
+            <span class="font-medium" style="max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8rem;" [title]="uploadedFileName()">{{ uploadedFileName() }}</span>
+            <span class="badge badge-neutral" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">{{ pdfPageCount() }} {{ pdfPageCount() === 1 ? 'page' : 'pages' }}</span>
+          </div>
+
+          <div class="pdf-zoom-controls">
+            <button class="btn btn-secondary btn-xs" (click)="zoomPdf(-0.15)" title="Zoom Out" style="padding: 0.2rem 0.45rem; font-size: 0.75rem;">-</button>
+            <span class="font-mono text-xs" style="min-width: 38px; text-align: center; font-size: 0.72rem;">{{ (pdfZoom() * 100).toFixed(0) }}%</span>
+            <button class="btn btn-secondary btn-xs" (click)="zoomPdf(0.15)" title="Zoom In" style="padding: 0.2rem 0.45rem; font-size: 0.75rem;">+</button>
+            <button class="btn btn-secondary btn-xs" (click)="resetPdfZoom()" title="Reset Zoom" style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">Fit</button>
+          </div>
+        </div>
+
+        <div class="pdf-canvas-scroller">
+          <div *ngIf="isRenderingPdf()" class="loading-spin-text" style="text-align: center; padding: 2rem;">
+            Rendering statement pages...
+          </div>
+          <div *ngFor="let pageNum of pdfPagesList()" class="pdf-page-card" [id]="'pdf-page-card-' + pageNum">
+            <div class="pdf-page-card-header">Page {{ pageNum }} of {{ pdfPageCount() }}</div>
+            <div class="pdf-page-canvas-wrapper">
+              <canvas [id]="'pdf-canvas-' + pageNum" class="pdf-page-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANE: Tabulated Splitboard Table & Controls -->
+      <div class="import-table-pane">
+        <!-- Preview Sub-Tabs: Valid, Incomes, Duplicates, Excluded -->
+        <div class="preview-tabs-bar">
       <button
         class="preview-tab-btn"
         [class.active]="previewTab() === 'valid'"
@@ -459,6 +511,8 @@
       </div>
     </div>
   </div>
+</div>
+</div>
 
   <!-- Quick Rule Creator Modal -->
   <div class="modal-backdrop-overlay animate-fade-in" *ngIf="showRuleModal()" (click)="closeRuleModal()">
