@@ -357,11 +357,21 @@ export class StatementParserService {
     if (!raw) return '';
     let clean = raw;
 
-    // Clean duplicate dots/slashes
+    // 1. Strip masked card numbers (e.g. "************6925", "**** **** **** 6925", "Karte: ************6925")
+    clean = clean.replace(/\b(?:karte|card|konto|karten-?nr\.?)[:\s]*\*{3,}\d{2,6}\b/gi, ' ');
+    clean = clean.replace(/(?:\*{3,}[\s-]*)+\d{2,6}\b/g, ' ');
+    clean = clean.replace(/(?:\*{4}[\s-]*){1,3}\d{4}\b/g, ' ');
+    clean = clean.replace(/\b\d{4}[ -]\*{4}[ -]\*{4}[ -]\d{4}\b/g, ' ');
+    clean = clean.replace(/\b(?:karte|card)[:\s]+(?:\*{3,}|\d{4})\b/gi, ' ');
+
+    // 2. Strip credit card reward points column at end of line (e.g. "+2", "+ 2 Punkte", "+2 pts")
+    clean = clean.replace(/(?:^|\s)[+\-]\d+\s*(?:punkte|points|pts)?\s*$/gi, ' ');
+
+    // 3. Clean duplicate dots/slashes
     clean = clean.replace(/[./]{2,}/g, ' ');
-    // Remove isolated dashes/hyphens left over from date column splitting
+    // 4. Remove isolated dashes/hyphens left over from date column splitting
     clean = clean.replace(/(?:^|\s)[-–—]{1,3}(?=\s|$)/g, ' ');
-    // Remove leading/trailing symbols, dashes, dots, spaces
+    // 5. Remove leading/trailing symbols, dashes, dots, spaces
     clean = clean.replace(/^[–—\-_:.,/\s]+|[–—\-_:.,/\s]+$/g, '');
     clean = clean.replace(/\s+/g, ' ').trim();
     return this.service.fixMojibake(clean);
