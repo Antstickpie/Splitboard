@@ -68,25 +68,28 @@ export class BudgetDashboardComponent {
 
   public getItemTransactions(groupId: string, itemName: string): Transaction[] {
     const month = this.selectedMonth();
-
-    if (groupId === 'grp-income') {
-      return this.service.transactions().filter(
-        (tx) => tx.date && tx.date.startsWith(month) && tx.type === 'INCOME'
-      );
-    }
-
-    const all = this.service.transactions().filter(
-      (tx) => tx.date && tx.date.startsWith(month) && tx.type !== 'INCOME'
+    const monthTxs = this.service.transactions().filter(
+      (tx) => tx.date && tx.date.startsWith(month)
     );
 
     if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
-      return all.filter((tx) => {
+      return monthTxs.filter((tx) => {
+        if (tx.type === 'INCOME') return false;
         const cat = (tx.categoryItem || '').trim().toLowerCase();
         return !cat || cat === 'uncategorized';
       });
     }
 
-    return all.filter((tx) => (tx.categoryItem || '').trim() === itemName);
+    const isIncomeTarget = groupId === 'grp-income' || itemName.toLowerCase().includes('income') || itemName.toLowerCase() === 'salary';
+
+    return monthTxs.filter((tx) => {
+      const cat = (tx.categoryItem || '').trim();
+      if (cat.toLowerCase() === itemName.toLowerCase()) return true;
+      if (isIncomeTarget && (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income'))) {
+        return true;
+      }
+      return false;
+    });
   }
 
   public onInlineCategoryChange(tx: Transaction, itemCategoryName: string): void {
@@ -107,8 +110,11 @@ export class BudgetDashboardComponent {
       }
     }
 
+    const isIncomeGroup = (parentGroupName || '').toLowerCase().includes('income');
     const isReimbCategory = itemCategoryName.toLowerCase().includes('reimburse');
+
     this.service.updateTransaction(tx.id, {
+      type: isIncomeGroup ? 'INCOME' : (tx.type === 'INCOME' ? 'EXPENSE' : tx.type),
       categoryGroup: parentGroupName || tx.categoryGroup,
       categoryItem: itemCategoryName,
       isReimbursable: isReimbCategory ? true : tx.isReimbursable,

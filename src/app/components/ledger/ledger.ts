@@ -411,8 +411,10 @@ export class LedgerComponent {
       }
     }
 
+    const isIncomeGroup = (parentGroupName || '').toLowerCase().includes('income');
     const isReimbCategory = itemCategoryName.toLowerCase().includes('reimburse');
     this.service.updateTransaction(tx.id, {
+      type: isIncomeGroup ? 'INCOME' : (tx.type === 'INCOME' ? 'EXPENSE' : tx.type),
       categoryGroup: parentGroupName || tx.categoryGroup,
       categoryItem: itemCategoryName,
       isReimbursable: isReimbCategory ? true : tx.isReimbursable,
