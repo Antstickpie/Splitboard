@@ -51,6 +51,33 @@ export class BudgetDashboardComponent {
   public activeAddingGroupId = signal<string | null>(null);
   public newCategoryItemName = signal<string>('');
 
+  public expandedItemKey = signal<string | null>(null);
+
+  public toggleItemExpand(groupId: string, itemName: string): void {
+    const key = `${groupId}::${itemName}`;
+    if (this.expandedItemKey() === key) {
+      this.expandedItemKey.set(null);
+    } else {
+      this.expandedItemKey.set(key);
+    }
+  }
+
+  public getItemTransactions(groupId: string, itemName: string): Transaction[] {
+    const month = this.selectedMonth();
+    const all = this.service.transactions().filter(
+      (tx) => tx.date && tx.date.startsWith(month) && !tx.isCashTransfer && tx.type === 'EXPENSE'
+    );
+
+    if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
+      return all.filter((tx) => {
+        const cat = (tx.categoryItem || '').trim().toLowerCase();
+        return !cat || cat === 'uncategorized';
+      });
+    }
+
+    return all.filter((tx) => (tx.categoryItem || '').trim() === itemName);
+  }
+
   public isPastMonth = computed(() => {
     return this.selectedMonth() < this.service.getCurrentMonthString();
   });
@@ -294,7 +321,7 @@ export class BudgetDashboardComponent {
         items: [
           {
             id: 'item-uncategorized',
-            name: 'Needs Categorization',
+            name: 'Uncategorized',
             planned: 0,
             actual: uncategorizedTotal,
             remaining: 0,
