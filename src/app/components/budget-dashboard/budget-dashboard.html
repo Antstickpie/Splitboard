@@ -165,7 +165,7 @@
                       <th style="padding: 0.25rem 0.4rem;">Date</th>
                       <th style="padding: 0.25rem 0.4rem;">Description</th>
                       <th style="padding: 0.25rem 0.4rem;">Category</th>
-                      <th style="padding: 0.25rem 0.4rem;">Paid By</th>
+                      <th style="padding: 0.25rem 0.4rem; white-space: nowrap;">Paid By / Owner</th>
                       <th style="padding: 0.25rem 0.4rem;">Split</th>
                       <th style="padding: 0.25rem 0.4rem; text-align: right;">Amount</th>
                     </tr>
@@ -188,13 +188,26 @@
                           </optgroup>
                         </select>
                       </td>
-                      <td style="padding: 0.3rem 0.4rem;">
-                        <span class="badge" [class.badge-info]="tx.paidBy === service.personOne().name" [class.badge-warning]="tx.paidBy === service.personTwo().name" style="font-size: 0.65rem;">
+                      <td style="padding: 0.3rem 0.4rem;" (click)="$event.stopPropagation()">
+                        <span
+                          class="badge"
+                          [class.badge-info]="tx.paidBy === service.personOne().name"
+                          [class.badge-warning]="tx.paidBy === service.personTwo().name"
+                          (click)="toggleTxOwner(tx)"
+                          title="Click to toggle owner"
+                          style="font-size: 0.65rem; cursor: pointer; user-select: none;">
                           {{ tx.paidBy }}
                         </span>
                       </td>
-                      <td style="padding: 0.3rem 0.4rem;">
-                        <span class="badge" [class.badge-success]="tx.splitType === 'SPLIT'" [class.badge-neutral]="tx.splitType === 'SELF'" [class.badge-danger]="tx.splitType === 'OTHER'" style="font-size: 0.65rem;">
+                      <td style="padding: 0.3rem 0.4rem;" (click)="$event.stopPropagation()">
+                        <span
+                          class="badge"
+                          [class.badge-success]="tx.splitType === 'SPLIT'"
+                          [class.badge-neutral]="tx.splitType === 'SELF'"
+                          [class.badge-danger]="tx.splitType === 'OTHER'"
+                          (click)="cycleTxSplit(tx)"
+                          title="Click to toggle split (SELF / SPLIT / OTHER)"
+                          style="font-size: 0.65rem; cursor: pointer; user-select: none;">
                           {{ tx.splitType }}
                         </span>
                       </td>

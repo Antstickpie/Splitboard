@@ -2,7 +2,7 @@ import { Component, inject, computed, signal, HostListener, ElementRef } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
-import { CategoryGroup, CategoryItem, Transaction } from '../../models';
+import { CategoryGroup, CategoryItem, Transaction, SplitType } from '../../models';
 
 interface CategoryGroupSummary {
   id: string;
@@ -121,6 +121,22 @@ export class BudgetDashboardComponent {
       reimbursementStatus: isReimbCategory ? (tx.reimbursementStatus || 'PENDING') : tx.reimbursementStatus
     });
     this.service.showToast(`Updated to "${itemCategoryName}"`, 'success');
+  }
+
+  public toggleTxOwner(tx: Transaction): void {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    const newOwner = tx.paidBy === p1 ? p2 : p1;
+    this.service.updateTransaction(tx.id, { paidBy: newOwner });
+    this.service.showToast(`Owner changed to ${newOwner}`, 'info');
+  }
+
+  public cycleTxSplit(tx: Transaction): void {
+    const splits: SplitType[] = ['SELF', 'SPLIT', 'OTHER'];
+    const currentIdx = splits.indexOf(tx.splitType || 'SPLIT');
+    const nextSplit = splits[(currentIdx + 1) % splits.length];
+    this.service.updateTransaction(tx.id, { splitType: nextSplit });
+    this.service.showToast(`Split set to ${nextSplit}`, 'info');
   }
 
   public isPastMonth = computed(() => {
