@@ -706,6 +706,47 @@ export class ImportComponent {
     this.clearPreview();
   }
 
+  public async undoAndReopenBatch(fileName: string): Promise<void> {
+    const batchTxns = this.service.transactions().filter((t) => t.sourceFile === fileName);
+    if (batchTxns.length === 0) return;
+
+    const ok = await this.service.showConfirm(
+      'Re-open Statement for Editing',
+      `Re-open ${batchTxns.length} transactions from "${fileName}" into the preview table with all your configured categories and splits?\n\nThey will be staged in the editor so you can review, edit, and click "Import" to save again.`
+    );
+    if (!ok) return;
+
+    // 1. Temporarily remove from DB ledger so they are ready to be re-saved without duplicating
+    this.service.transactions.update((curr) => curr.filter((t) => t.sourceFile !== fileName));
+
+    // 2. Clone transactions back into previewResult with all configured categories & splits intact
+    const cloned = batchTxns.map((t) => ({ ...t }));
+    const bankName = cloned[0]?.bank || 'Generic Bank';
+
+    this.uploadedFileName.set(fileName);
+    this.selectedBank.set(bankName);
+    this.previewResult.set({
+      transactions: cloned,
+      incomes: [],
+      duplicates: [],
+      excluded: [],
+      incomesCount: 0,
+      duplicatesCount: 0,
+      excludedCount: 0,
+      bankName: bankName,
+      totalParsed: cloned.length
+    });
+
+    this.previewTab.set('valid');
+    this.sortColumn.set('original');
+
+    setTimeout(() => {
+      document.querySelector('.preview-card')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+
+    this.service.showToast(`Loaded ${cloned.length} transactions into editor. Edit and click "Import" to save!`, 'info');
+  }
+
   public clearPreview() {
     this.previewResult.set(null);
     this.uploadedFileName.set('');

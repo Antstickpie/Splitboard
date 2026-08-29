@@ -101,12 +101,21 @@
           </div>
         </div>
 
-        <button
-          class="btn btn-secondary btn-xs"
-          (click)="service.undoImportBatch(b.fileName)"
-          style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); font-size: 0.74rem;">
-          ↩ Undo Import (Delete {{ b.count }} Rows)
-        </button>
+        <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+          <button
+            class="btn btn-primary btn-xs"
+            (click)="undoAndReopenBatch(b.fileName)"
+            style="font-size: 0.74rem;">
+            ✏️ Undo & Re-Edit ({{ b.count }} Rows)
+          </button>
+          <button
+            class="btn btn-secondary btn-xs"
+            (click)="service.undoImportBatch(b.fileName)"
+            style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); font-size: 0.74rem;"
+            title="Delete this batch permanently from ledger">
+            ✕ Delete
+          </button>
+        </div>
       </div>
     </div>
   </div>
