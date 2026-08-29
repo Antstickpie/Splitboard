@@ -60,6 +60,13 @@ export class LedgerComponent {
     );
   });
 
+  public totalMonthTxs = computed(() => {
+    const m = this.service.selectedMonth();
+    return this.service.transactions().filter(
+      (tx) => m === 'ALL' || (tx.date && tx.date.startsWith(m))
+    ).length;
+  });
+
   public resetFilters(): void {
     this.service.filterOwner.set('ALL');
     this.service.filterBank.set('ALL');

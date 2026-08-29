@@ -48,46 +48,18 @@
     <app-import></app-import>
   </div>
 
-  <!-- Collapsible Filters Drawer -->
-  <div class="glass-card animate-fade-in" *ngIf="isFiltersOpen()" style="margin-bottom: 0.8rem; padding: 0.6rem 0.8rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.25);">
-    <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-      <option value="ALL">All Payers</option>
-      <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
-    </select>
-
-    <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-      <option value="ALL">All Banks</option>
-      <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-      <option value="Cash">Cash</option>
-    </select>
-
-    <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-      <option value="ALL">All Splits</option>
-      <option value="SELF">Self Only</option>
-      <option value="OTHER">For Other</option>
-      <option value="SPLIT">Split</option>
-    </select>
-
-    <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-      <option value="ALL">All Categories</option>
-      <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
-        <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
-      </optgroup>
-    </select>
-
-    <button class="btn btn-secondary btn-xs" (click)="resetFilters()" *ngIf="hasActiveFilters()" style="font-size: 0.72rem;">
-      Reset Filters
-    </button>
-  </div>
-
   <!-- Transactions Table Card with Integrated Header Controls -->
   <div class="glass-card ledger-table-card">
     <div class="table-header-info" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
-      <!-- LEFT: Month Selector & Navigation -->
-      <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.4rem;">
+      <!-- LEFT: Title & Month Navigation -->
+      <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+        <h3 style="margin: 0; font-size: 0.92rem; font-weight: 700; color: var(--text-main); white-space: nowrap;">
+          Transactions ({{ service.filteredTransactions().length }}<span *ngIf="service.searchQuery()" style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ totalMonthTxs() }}</span>)
+        </h3>
+
         <!-- EveryDollar Custom Month Trigger & Popover -->
         <div class="everydollar-month-container" style="position: relative;">
-          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()" style="font-size: 0.88rem; padding: 0.25rem 0.5rem;">
+          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()" style="font-size: 0.82rem; padding: 0.2rem 0.45rem;">
             <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
             <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
           </button>
@@ -138,16 +110,16 @@
         <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="isFutureMonth()">🔮 Future</span>
       </div>
 
-      <!-- MIDDLE: Quick Search & Filter Toggle -->
-      <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1; max-width: 360px; min-width: 180px;">
-        <div style="position: relative; width: 100%;">
+      <!-- RIGHT: Quick Search, Filter & Action Buttons -->
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <div style="position: relative; width: 190px;">
           <input
             type="text"
-            placeholder="🔍 Search ledger..."
+            placeholder="🔍 Search..."
             [ngModel]="service.searchQuery()"
             (ngModelChange)="service.searchQuery.set($event)"
             class="search-input"
-            style="width: 100%; padding: 0.25rem 1.6rem 0.25rem 0.6rem; font-size: 0.78rem; height: 30px;">
+            style="width: 100%; padding: 0.2rem 1.6rem 0.2rem 0.5rem; font-size: 0.78rem; height: 28px;">
           <button
             *ngIf="service.searchQuery()"
             (click)="service.searchQuery.set('')"
@@ -161,25 +133,54 @@
           (click)="isFiltersOpen.set(!isFiltersOpen())"
           [class.btn-primary]="hasActiveFilters()"
           title="Toggle filters"
-          style="height: 30px; white-space: nowrap; font-size: 0.75rem; padding: 0 0.5rem;">
+          style="height: 28px; white-space: nowrap; font-size: 0.75rem; padding: 0 0.5rem;">
           ⚙ Filters <span *ngIf="hasActiveFilters()">●</span>
         </button>
-      </div>
 
-      <!-- RIGHT: Action Buttons -->
-      <div class="toolbar-actions" style="display: flex; gap: 0.4rem; align-items: center;">
         <button
           class="btn btn-xs"
           [class.btn-primary]="isImportOpen()"
           [class.btn-secondary]="!isImportOpen()"
           (click)="toggleImport()"
-          style="height: 30px; font-size: 0.76rem; padding: 0 0.6rem;">
+          style="height: 28px; font-size: 0.76rem; padding: 0 0.55rem;">
           📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import Statement ▼' }}
         </button>
-        <button class="btn btn-secondary btn-xs" (click)="openCashModal()" style="height: 30px; font-size: 0.76rem; padding: 0 0.6rem;">
+        <button class="btn btn-secondary btn-xs" (click)="openCashModal()" style="height: 28px; font-size: 0.76rem; padding: 0 0.55rem;">
           💵 + Cash
         </button>
       </div>
+    </div>
+
+    <!-- Collapsible Filters Drawer Inside Table Card -->
+    <div class="animate-fade-in" *ngIf="isFiltersOpen()" style="padding: 0.6rem 0.8rem; margin-top: 0.4rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; background: rgba(255,255,255,0.03); border-radius: 6px;">
+      <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+        <option value="ALL">All Payers</option>
+        <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+      </select>
+
+      <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+        <option value="ALL">All Banks</option>
+        <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+        <option value="Cash">Cash</option>
+      </select>
+
+      <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+        <option value="ALL">All Splits</option>
+        <option value="SELF">Self Only</option>
+        <option value="OTHER">For Other</option>
+        <option value="SPLIT">Split</option>
+      </select>
+
+      <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+        <option value="ALL">All Categories</option>
+        <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+          <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-secondary btn-xs" (click)="resetFilters()" *ngIf="hasActiveFilters()" style="font-size: 0.72rem;">
+        Reset Filters
+      </button>
     </div>
 
     <div class="table-container ledger-table-wrapper">
