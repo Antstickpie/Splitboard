@@ -264,13 +264,14 @@
 .pdf-viewer-pane {
   display: flex;
   flex-direction: column;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   position: sticky;
   top: 1rem;
+  height: 680px;
   max-height: calc(100vh - 120px);
 }
 
@@ -278,16 +279,28 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.6rem 0.8rem;
-  background: rgba(0, 0, 0, 0.3);
+  padding: 0.55rem 0.8rem;
+  background: rgba(0, 0, 0, 0.45);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(8px);
+  z-index: 2;
 }
 
-.pdf-viewer-title {
+.pdf-page-nav {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pdf-page-nav .nav-btn {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  font-weight: bold;
 }
 
 .pdf-zoom-controls {
@@ -296,51 +309,29 @@
   gap: 0.35rem;
 }
 
-.pdf-canvas-scroller {
-  overflow-y: auto;
-  overflow-x: auto;
+.pdf-single-page-scrollable {
+  flex: 1;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
   padding: 0.8rem;
   display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  min-height: 350px;
-  max-height: calc(100vh - 180px);
-}
-
-.pdf-page-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #ffffff;
-  border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
-}
-
-.pdf-page-card-header {
-  width: 100%;
-  padding: 0.25rem 0.6rem;
-  background: #1f2937;
-  color: #9ca3af;
-  font-size: 0.65rem;
-  font-weight: 600;
-  text-align: right;
-  letter-spacing: 0.02em;
-}
-
-.pdf-page-canvas-wrapper {
-  display: flex;
   justify-content: center;
-  align-items: center;
-  background: #ffffff;
-  padding: 2px;
+  align-items: flex-start;
+  background: rgba(0, 0, 0, 0.35);
+  min-height: 0;
 }
 
-.pdf-page-canvas {
+.pdf-single-card {
+  display: inline-block;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  margin: auto;
+  line-height: 0;
+}
+
+.pdf-single-canvas {
   display: block;
-  max-width: 100%;
 }
 
 .import-table-pane {

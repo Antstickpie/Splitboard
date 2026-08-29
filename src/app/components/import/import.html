@@ -157,15 +157,31 @@
     <!-- Main Dual-Pane Side-by-Side Split Layout -->
     <div class="import-split-layout" [class.has-pdf]="isPdfViewerOpen() && isPdfLoaded()">
       
-      <!-- LEFT PANE: Real Visual PDF Document Viewer -->
+      <!-- LEFT PANE: Real Visual PDF Document Viewer (Single Page + Scrollable) -->
       <div *ngIf="isPdfViewerOpen() && isPdfLoaded()" class="pdf-viewer-pane animate-fade-in">
         <div class="pdf-viewer-header">
-          <div class="pdf-viewer-title">
-            <span style="font-size: 1rem;">📄</span>
-            <span class="font-medium" style="max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8rem;" [title]="uploadedFileName()">{{ uploadedFileName() }}</span>
-            <span class="badge badge-neutral" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">{{ pdfPageCount() }} {{ pdfPageCount() === 1 ? 'page' : 'pages' }}</span>
+          <!-- Page Navigation -->
+          <div class="pdf-page-nav">
+            <button
+              class="btn btn-secondary btn-xs nav-btn"
+              [disabled]="currentPdfPage() <= 1"
+              (click)="prevPdfPage()"
+              title="Previous Page">
+              ‹
+            </button>
+            <span class="font-mono text-xs" style="font-weight: 600; color: var(--text-main); font-size: 0.76rem;">
+              Page {{ currentPdfPage() }} / {{ pdfPageCount() }}
+            </span>
+            <button
+              class="btn btn-secondary btn-xs nav-btn"
+              [disabled]="currentPdfPage() >= pdfPageCount()"
+              (click)="nextPdfPage()"
+              title="Next Page">
+              ›
+            </button>
           </div>
 
+          <!-- Zoom Controls -->
           <div class="pdf-zoom-controls">
             <button class="btn btn-secondary btn-xs" (click)="zoomPdf(-0.15)" title="Zoom Out" style="padding: 0.2rem 0.45rem; font-size: 0.75rem;">-</button>
             <span class="font-mono text-xs" style="min-width: 38px; text-align: center; font-size: 0.72rem;">{{ (pdfZoom() * 100).toFixed(0) }}%</span>
@@ -174,15 +190,12 @@
           </div>
         </div>
 
-        <div class="pdf-canvas-scroller">
+        <div class="pdf-single-page-scrollable">
           <div *ngIf="isRenderingPdf()" class="loading-spin-text" style="text-align: center; padding: 2rem;">
-            Rendering statement pages...
+            Rendering statement page...
           </div>
-          <div *ngFor="let pageNum of pdfPagesList()" class="pdf-page-card" [id]="'pdf-page-card-' + pageNum">
-            <div class="pdf-page-card-header">Page {{ pageNum }} of {{ pdfPageCount() }}</div>
-            <div class="pdf-page-canvas-wrapper">
-              <canvas [id]="'pdf-canvas-' + pageNum" class="pdf-page-canvas"></canvas>
-            </div>
+          <div class="pdf-single-card">
+            <canvas id="pdf-single-canvas" class="pdf-single-canvas"></canvas>
           </div>
         </div>
       </div>

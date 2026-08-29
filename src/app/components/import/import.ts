@@ -340,13 +340,12 @@ export class ImportComponent {
       const pdf = await pdfLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
       this.pdfDocInstance = pdf;
       this.pdfPageCount.set(pdf.numPages);
-      const pages = Array.from({ length: pdf.numPages }, (_, i) => i + 1);
-      this.pdfPagesList.set(pages);
+      this.currentPdfPage.set(1);
       this.isPdfLoaded.set(true);
       this.isPdfViewerOpen.set(true);
 
       setTimeout(() => {
-        this.renderAllPages();
+        this.renderCurrentPage();
       }, 100);
     } catch (e) {
       console.warn('PDF document load error:', e);
@@ -355,54 +354,69 @@ export class ImportComponent {
     }
   }
 
-  public async renderAllPages(): Promise<void> {
+  public currentPdfPage = signal<number>(1);
+
+  public async renderCurrentPage(): Promise<void> {
     if (!this.pdfDocInstance) return;
+    const pageNum = this.currentPdfPage();
     const zoom = this.pdfZoom();
     const dpr = window.devicePixelRatio || 1;
 
-    for (let pageNum = 1; pageNum <= this.pdfDocInstance.numPages; pageNum++) {
-      const canvas = document.getElementById('pdf-canvas-' + pageNum) as HTMLCanvasElement;
-      if (!canvas) continue;
+    const canvas = document.getElementById('pdf-single-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
 
-      try {
-        const page = await this.pdfDocInstance.getPage(pageNum);
-        const viewport = page.getViewport({ scale: zoom * 1.15 });
+    try {
+      const page = await this.pdfDocInstance.getPage(pageNum);
+      const viewport = page.getViewport({ scale: zoom * 1.25 });
 
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-        canvas.style.width = Math.floor(viewport.width) + 'px';
-        canvas.style.height = Math.floor(viewport.height) + 'px';
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = Math.floor(viewport.width) + 'px';
+      canvas.style.height = Math.floor(viewport.height) + 'px';
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        const renderContext = {
-          canvasContext: ctx,
-          viewport: viewport
-        };
-        await page.render(renderContext).promise;
-      } catch (err) {
-        console.warn(`Error rendering page ${pageNum}:`, err);
-      }
+      const renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+      };
+      await page.render(renderContext).promise;
+    } catch (err) {
+      console.warn(`Error rendering page ${pageNum}:`, err);
+    }
+  }
+
+  public prevPdfPage(): void {
+    if (this.currentPdfPage() > 1) {
+      this.currentPdfPage.update((p) => p - 1);
+      this.renderCurrentPage();
+    }
+  }
+
+  public nextPdfPage(): void {
+    if (this.currentPdfPage() < this.pdfPageCount()) {
+      this.currentPdfPage.update((p) => p + 1);
+      this.renderCurrentPage();
     }
   }
 
   public zoomPdf(delta: number): void {
-    const newZoom = Math.min(2.5, Math.max(0.6, this.pdfZoom() + delta));
+    const newZoom = Math.min(2.5, Math.max(0.5, this.pdfZoom() + delta));
     this.pdfZoom.set(Number(newZoom.toFixed(2)));
-    this.renderAllPages();
+    this.renderCurrentPage();
   }
 
   public resetPdfZoom(): void {
     this.pdfZoom.set(1.0);
-    this.renderAllPages();
+    this.renderCurrentPage();
   }
 
   public togglePdfViewer(): void {
     this.isPdfViewerOpen.set(!this.isPdfViewerOpen());
     if (this.isPdfViewerOpen()) {
-      setTimeout(() => this.renderAllPages(), 100);
+      setTimeout(() => this.renderCurrentPage(), 100);
     }
   }
 
