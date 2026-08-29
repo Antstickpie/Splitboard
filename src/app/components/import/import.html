@@ -112,7 +112,7 @@
   </div>
 
   <!-- Preview Card -->
-  <div class="glass-card preview-card animate-fade-in" *ngIf="previewResult() as res">
+  <div class="glass-card preview-card animate-fade-in" [class.full-width-preview]="isPdfLoaded() && isPdfViewerOpen()" *ngIf="previewResult() as res">
     <div class="preview-header">
       <div>
         <div style="display: flex; align-items: center; gap: 0.6rem;">

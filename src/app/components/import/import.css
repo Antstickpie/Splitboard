@@ -83,6 +83,21 @@
   resize: vertical;
 }
 
+.preview-card {
+  transition: all 0.25s ease;
+}
+
+.preview-card.full-width-preview {
+  width: 96vw;
+  max-width: 96vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -48vw;
+  margin-right: -48vw;
+  box-sizing: border-box;
+}
+
 .preview-header {
   display: flex;
   justify-content: space-between;
