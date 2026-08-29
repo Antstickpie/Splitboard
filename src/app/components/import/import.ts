@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -23,6 +23,8 @@ export interface TransactionGroup {
 export class ImportComponent {
   public service = inject(TransactionService);
   private parser = inject(StatementParserService);
+
+  @Output() public importCompleted = new EventEmitter<void>();
 
   public selectedBank = signal<string>('Deutsche Bank');
   public selectedOwner = signal<string>('');
@@ -704,6 +706,7 @@ export class ImportComponent {
     }
 
     this.clearPreview();
+    this.importCompleted.emit();
   }
 
   public async undoAndReopenBatch(fileName: string): Promise<void> {
