@@ -36,9 +36,13 @@ export class BudgetDashboardComponent {
   public service = inject(TransactionService);
   public Math = Math;
 
-  public selectedMonth = signal<string>(this.service.getCurrentMonthString());
+  public selectedMonth = signal<string>(
+    this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth()
+  );
   public isMonthPickerOpen = signal<boolean>(false);
-  public pickerYear = signal<number>(new Date().getFullYear());
+  public pickerYear = signal<number>(
+    parseInt((this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth()).split('-')[0], 10)
+  );
   public monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   // EveryDollar Sidebar State
@@ -72,7 +76,7 @@ export class BudgetDashboardComponent {
     }
 
     const all = this.service.transactions().filter(
-      (tx) => tx.date && tx.date.startsWith(month) && !tx.isCashTransfer && tx.type === 'EXPENSE'
+      (tx) => tx.date && tx.date.startsWith(month) && tx.type !== 'INCOME'
     );
 
     if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
@@ -272,7 +276,6 @@ export class BudgetDashboardComponent {
     const otherCategoriesMap: Record<string, number> = {};
 
     txsInMonth.forEach((tx) => {
-      if (tx.isCashTransfer) return;
       if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
       if (tx.type === 'INCOME') return;
 
@@ -418,7 +421,7 @@ export class BudgetDashboardComponent {
       if (amt <= 0) return;
       if (tx.type === 'INCOME') {
         totalIncomeActual += amt;
-      } else if (tx.type === 'EXPENSE' && !tx.isCashTransfer) {
+      } else if (tx.type === 'EXPENSE') {
         if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
         totalExpenseActual += amt;
       }
