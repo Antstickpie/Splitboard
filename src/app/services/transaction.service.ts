@@ -473,6 +473,8 @@ export class TransactionService {
               amountColName: b.amountColName || def.amountColName,
               currencyColName: b.currencyColName || def.currencyColName,
               ignoreColName: b.ignoreColName || def.ignoreColName,
+              tableEndMarker: b.tableEndMarker || def.tableEndMarker,
+              maxDescLines: b.maxDescLines || def.maxDescLines,
               defaultCurrency: b.defaultCurrency || def.defaultCurrency,
               invertAmountSign: b.invertAmountSign !== undefined ? b.invertAmountSign : def.invertAmountSign
             };

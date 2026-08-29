@@ -86,6 +86,8 @@ export class SettingsComponent {
   public newBankAmountCol = '';
   public newBankCurrencyCol = '';
   public newBankIgnoreCol = '';
+  public newBankTableEndMarker = '';
+  public newBankMaxLines = 3;
   public newBankInvertSign = false;
   public showAdvancedBankMapping = false;
 
@@ -108,6 +110,8 @@ export class SettingsComponent {
       amountColName: this.newBankAmountCol.trim() || undefined,
       currencyColName: this.newBankCurrencyCol.trim() || undefined,
       ignoreColName: this.newBankIgnoreCol.trim() || undefined,
+      tableEndMarker: this.newBankTableEndMarker.trim() || undefined,
+      maxDescLines: this.newBankMaxLines || undefined,
       invertAmountSign: this.newBankInvertSign || undefined
     });
     this.newBankName = '';
@@ -118,6 +122,8 @@ export class SettingsComponent {
     this.newBankAmountCol = '';
     this.newBankCurrencyCol = '';
     this.newBankIgnoreCol = '';
+    this.newBankTableEndMarker = '';
+    this.newBankMaxLines = 3;
     this.newBankInvertSign = false;
     this.showAdvancedBankMapping = false;
   }

@@ -420,6 +420,12 @@ export class StatementParserService {
     const yearMatch = text.match(/\b(202\d)\b/);
     if (yearMatch) fallbackYear = yearMatch[1];
 
+    // User configured stop markers & max description lines per block
+    const stopMarkers = bankCfg?.tableEndMarker
+      ? bankCfg.tableEndMarker.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+      : ['endsaldo', 'alter kontostand', 'neuer kontostand', 'closing balance', 'statement summary', 'gesamtbetrag', 'neuer saldo'];
+    const maxLines = bankCfg?.maxDescLines || 3;
+
     // Line-by-line processing
     const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
 
@@ -438,6 +444,17 @@ export class StatementParserService {
     let currentBlock: RawBlock | null = null;
 
     for (const line of rawLines) {
+      const lowerLine = line.toLowerCase();
+
+      // Check if line hits a table stop marker (footer, balance summary, or legal terms boundary)
+      if (stopMarkers.some((marker) => lowerLine.includes(marker))) {
+        if (currentBlock && currentBlock.lines.length > 0) {
+          blocks.push(currentBlock);
+          currentBlock = null;
+        }
+        continue;
+      }
+
       // Skip repeated table column header lines
       if (
         /^\s*(?:booking\s+date|value\s+item|debit\s+credit|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement)\b/i.test(
@@ -455,15 +472,18 @@ export class StatementParserService {
         }
         currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
       } else if (currentBlock) {
-        // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
-        const yearWrapMatch = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
-        if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
-          currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]$/, '') + '-' + yearWrapMatch[1];
-          if (yearWrapMatch[2]) {
-            currentBlock.lines.push(yearWrapMatch[2]);
+        // Enforce maxDescLines limit on secondary lines captured
+        if (currentBlock.lines.length < maxLines) {
+          // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
+          const yearWrapMatch = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
+          if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
+            currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]$/, '') + '-' + yearWrapMatch[1];
+            if (yearWrapMatch[2]) {
+              currentBlock.lines.push(yearWrapMatch[2]);
+            }
+          } else {
+            currentBlock.lines.push(line);
           }
-        } else {
-          currentBlock.lines.push(line);
         }
       }
     }

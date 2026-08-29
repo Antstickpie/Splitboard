@@ -594,6 +594,14 @@
           <label class="input-label">Ignore / Strip Headers</label>
           <input type="text" [(ngModel)]="newBankIgnoreCol" placeholder="e.g. Karte, Punkte" class="person-input" style="width: 100%;">
         </div>
+        <div>
+          <label class="input-label">Table End / Stop Words</label>
+          <input type="text" [(ngModel)]="newBankTableEndMarker" placeholder="e.g. Endsaldo, Closing Balance" class="person-input" style="width: 100%;">
+        </div>
+        <div>
+          <label class="input-label">Max Lines / Row</label>
+          <input type="number" [(ngModel)]="newBankMaxLines" min="1" max="10" class="person-input" style="width: 100%;">
+        </div>
         <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem;">
           <input type="checkbox" id="newBankInvert" [(ngModel)]="newBankInvertSign" style="cursor: pointer;">
           <label for="newBankInvert" class="input-label" style="margin: 0; cursor: pointer; text-transform: none;">
@@ -629,6 +637,7 @@
                 <span *ngIf="b.dateColName || b.descColName || b.amountColName" class="badge badge-success" style="font-size: 0.68rem;">
                   Headers: {{ b.dateColName || 'Date' }} | {{ b.descColName || 'Desc' }} | {{ b.amountColName || 'Amt' }}
                 </span>
+                <span *ngIf="b.tableEndMarker" class="badge badge-neutral" style="font-size: 0.65rem;">Stop: {{ b.tableEndMarker }}</span>
                 <span *ngIf="b.ignoreColName" class="badge badge-neutral" style="font-size: 0.65rem;">Ignore: {{ b.ignoreColName }}</span>
                 <span *ngIf="b.invertAmountSign" class="badge badge-warning" style="font-size: 0.65rem;">Invert Signs</span>
               </div>
@@ -687,8 +696,16 @@
                   <input type="text" [(ngModel)]="editBankModel.currencyColName" placeholder="Currency" class="person-input" style="width: 100%; font-size: 0.74rem;">
                 </div>
                 <div>
-                  <label class="input-label">Ignore / Strip Headers</label>
+                  <label class="input-label">Ignore / Strip</label>
                   <input type="text" [(ngModel)]="editBankModel.ignoreColName" placeholder="e.g. Karte, Punkte" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+                <div>
+                  <label class="input-label">Table End / Stop</label>
+                  <input type="text" [(ngModel)]="editBankModel.tableEndMarker" placeholder="e.g. Endsaldo, Saldo" class="person-input" style="width: 100%; font-size: 0.74rem;">
+                </div>
+                <div>
+                  <label class="input-label">Max Lines</label>
+                  <input type="number" [(ngModel)]="editBankModel.maxDescLines" min="1" max="10" class="person-input" style="width: 100%; font-size: 0.74rem;">
                 </div>
               </div>
 

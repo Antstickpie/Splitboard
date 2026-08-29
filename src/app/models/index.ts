@@ -79,6 +79,8 @@ export interface BankConfig {
   amountColName?: string;
   currencyColName?: string;
   ignoreColName?: string; // Columns or keywords to ignore/strip e.g. 'Karte, Punkte'
+  tableEndMarker?: string; // Stop words that end transaction table e.g. 'Endsaldo, Closing Balance'
+  maxDescLines?: number; // Max lines per transaction (default 2 or 3)
   delimiter?: string;
   invertAmountSign?: boolean; // If true, + is expense/charge and - is repayment/credit (e.g. Amex)
 }

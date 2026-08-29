@@ -13,7 +13,9 @@ export const DEFAULT_BANKS: BankConfig[] = [
     dateColName: 'Buchungstag, Datum',
     descColName: 'Begünstigter, Empfänger',
     descColName2: 'Verwendungszweck',
-    amountColName: 'Betrag'
+    amountColName: 'Betrag',
+    tableEndMarker: 'Alter Kontostand, Neuer Kontostand, Endsaldo, Kontostand, Rechnungsabschluss',
+    maxDescLines: 3
   },
   {
     id: 'b2',
@@ -22,7 +24,9 @@ export const DEFAULT_BANKS: BankConfig[] = [
     dateColName: 'Transaktion, Datum',
     descColName: 'Händler, Beschreibung',
     amountColName: 'Betrag',
-    ignoreColName: 'Karte, Punkte'
+    ignoreColName: 'Karte, Punkte',
+    tableEndMarker: 'Gesamtbetrag, Neuer Saldo, Abrechnungssaldo, Zusätzliche Informationen, Neuer Kontostand',
+    maxDescLines: 2
   },
   {
     id: 'b3',
@@ -31,7 +35,9 @@ export const DEFAULT_BANKS: BankConfig[] = [
     dateColName: 'Datum, Date',
     descColName: 'Beschreibung, Description',
     amountColName: 'Betrag, Amount',
-    invertAmountSign: true
+    invertAmountSign: true,
+    tableEndMarker: 'Gesamtsaldo, Neuer Saldo, Total, Closing Balance, Abrechnungssaldo',
+    maxDescLines: 2
   },
   {
     id: 'b4',
@@ -40,7 +46,9 @@ export const DEFAULT_BANKS: BankConfig[] = [
     dateColName: 'Started Date, Date',
     descColName: 'Description',
     amountColName: 'Amount',
-    currencyColName: 'Currency'
+    currencyColName: 'Currency',
+    tableEndMarker: 'Balance, Closing Balance, Statement, Summary',
+    maxDescLines: 2
   },
   {
     id: 'b5',
@@ -49,7 +57,9 @@ export const DEFAULT_BANKS: BankConfig[] = [
     dateColName: 'Buchungstag, Datum',
     descColName: 'Buchungstext',
     descColName2: 'Verwendungszweck',
-    amountColName: 'Betrag'
+    amountColName: 'Betrag',
+    tableEndMarker: 'Alter Kontostand, Neuer Kontostand, Endsaldo, Kontostand, Abschluss',
+    maxDescLines: 3
   },
   {
     id: 'b6',
@@ -59,7 +69,9 @@ export const DEFAULT_BANKS: BankConfig[] = [
     descColName: 'Narration, Particulars',
     descColName2: 'Chq./Ref.No.',
     amountColName: 'Withdrawal Amt., Debit Amt.',
-    ignoreColName: 'Closing Balance'
+    ignoreColName: 'Closing Balance',
+    tableEndMarker: 'Closing Balance, Statement Summary, Total, Opening Balance',
+    maxDescLines: 2
   }
 ];
 
