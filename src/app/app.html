@@ -44,15 +44,15 @@
       <nav class="nav-tabs">
         <button
           class="nav-tab-btn"
-          [class.active]="activeTab() === 'ledger'"
-          (click)="switchTab('ledger')">
-          <span class="tab-icon">💳</span> <span class="tab-label">Transactions & Splitter</span>
-        </button>
-        <button
-          class="nav-tab-btn"
           [class.active]="activeTab() === 'dashboard'"
           (click)="switchTab('dashboard')">
           <span class="tab-icon">📊</span> <span class="tab-label">Spending & Analytics</span>
+        </button>
+        <button
+          class="nav-tab-btn"
+          [class.active]="activeTab() === 'ledger'"
+          (click)="switchTab('ledger')">
+          <span class="tab-icon">💳</span> <span class="tab-label">Transactions & Splitter</span>
         </button>
         <button
           class="nav-tab-btn"

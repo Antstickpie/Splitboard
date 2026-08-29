@@ -91,7 +91,7 @@ export class TransactionService {
   public bankConfigs = signal<BankConfig[]>(DEFAULT_BANKS);
   public rules = signal<CategoryRule[]>(DEFAULT_RULES);
   public excludeRules = signal<ExcludeRule[]>(DEFAULT_EXCLUDE_RULES);
-  public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('ledger');
+  public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
 
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings'): void {
     this.activeTab.set(tab);
