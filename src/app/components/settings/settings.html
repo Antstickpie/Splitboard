@@ -127,7 +127,12 @@
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.3rem;">
         <div class="box-header">
           <h3 style="margin: 0;">💱 Currency Rates</h3>
-          <p class="subtitle" style="margin: 0.1rem 0 0 0;">Live rates for cash.</p>
+          <p class="subtitle" style="margin: 0.1rem 0 0 0;">
+            <span *ngIf="service.lastRatesRefresh()" style="color: var(--text-muted);">
+              Last fetched: <strong style="color: var(--text-main);">{{ formatRefreshTime(service.lastRatesRefresh()!) }}</strong>
+            </span>
+            <span *ngIf="!service.lastRatesRefresh()">Live rates for cash.</span>
+          </p>
         </div>
         <div style="display: flex; gap: 0.3rem;">
           <button 

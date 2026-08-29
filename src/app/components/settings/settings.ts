@@ -71,6 +71,16 @@ export class SettingsComponent {
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   }
 
+  public formatRefreshTime(timestamp: number): string {
+    const diff = Date.now() - timestamp;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
   // Rule Engine Form
   public newRuleKeyword = '';
   public newRuleCategory = '';

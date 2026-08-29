@@ -392,6 +392,7 @@ export class TransactionService {
           numberFormat: this.numberFormat(),
           visibleCurrencies: this.visibleCurrencies(),
           exchangeRates: this.exchangeRates(),
+          lastRatesRefresh: this.lastRatesRefresh(),
           autoSyncDrive: this.autoSyncGoogleDrive(),
           googleFileName: this.googleFileName(),
           theme: this.theme()
@@ -529,6 +530,7 @@ export class TransactionService {
           this.visibleCurrencies.set(data.settings.visibleCurrencies);
         }
         if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
+        if (data.settings.lastRatesRefresh) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
         if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
         if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
         if (data.settings.theme) this.theme.set(data.settings.theme);

@@ -118,6 +118,7 @@ export interface AppDataBackup {
     numberFormat?: string; // '1,234.56' | '1.234,56' | '1 234.56' | '1 234,56'
     visibleCurrencies?: string[];
     exchangeRates?: Record<string, number>;
+    lastRatesRefresh?: number | null;
     autoSyncDrive: boolean;
     googleFileName: string;
     theme: 'dark' | 'light';
