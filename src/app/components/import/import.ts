@@ -33,8 +33,8 @@ export class ImportComponent {
   public previewResult = signal<ParsedStatementResult | null>(null);
   public previewTab = signal<'valid' | 'incomes' | 'duplicates' | 'excluded'>('valid');
 
-  public sortColumn = signal<'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem'>('date');
-  public sortAsc = signal<boolean>(false);
+  public sortColumn = signal<'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem' | 'original'>('original');
+  public sortAsc = signal<boolean>(true);
 
   // Side-by-Side Live PDF Viewer State
   public isPdfLoaded = signal<boolean>(false);
@@ -50,6 +50,9 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res || !res.transactions) return [];
     const col = this.sortColumn();
+    if (col === 'original') {
+      return [...res.transactions];
+    }
     const asc = this.sortAsc();
     return [...res.transactions].sort((a, b) => {
       let valA: any = a[col] ?? '';
@@ -288,6 +291,7 @@ export class ImportComponent {
     this.uploadedFileName.set(file.name);
     this.isParsing.set(true);
     this.previewTab.set('valid');
+    this.sortColumn.set('original');
 
     // If PDF, prepare live rendering
     const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
@@ -424,6 +428,7 @@ export class ImportComponent {
     if (!this.rawClipboardText.trim()) return;
     this.isParsing.set(true);
     this.previewTab.set('valid');
+    this.sortColumn.set('original');
 
     try {
       const res = this.parser.parseText(

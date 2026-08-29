@@ -553,10 +553,7 @@ export class StatementParserService {
       }
     }
 
-    transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    // Keep natural document appearance order (matches Page 1 top to bottom on PDF)
 
     return {
       transactions,
