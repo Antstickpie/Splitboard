@@ -165,17 +165,32 @@
 
       <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         <!-- Bank Confirmation / Selection Dropdown -->
-        <div style="display: flex; align-items: center; gap: 0.35rem; background: rgba(255, 255, 255, 0.05); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.12);">
-          <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; margin: 0;">🏦 Bank:</label>
+        <div
+          style="display: flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid;"
+          [style.background]="selectedBank() ? 'rgba(255, 255, 255, 0.05)' : 'rgba(245, 158, 11, 0.1)'"
+          [style.borderColor]="selectedBank() ? 'rgba(0, 229, 255, 0.3)' : '#f59e0b'">
+          <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); white-space: nowrap; margin: 0;">🏦 Bank:</label>
           <select
             [ngModel]="selectedBank()"
             (ngModelChange)="onBankChange($event)"
             class="styled-select"
-            style="padding: 0.15rem 0.4rem; font-size: 0.78rem; height: 28px; min-width: 140px;">
+            style="padding: 0.15rem 0.4rem; font-size: 0.78rem; height: 28px; min-width: 170px;"
+            [style.borderColor]="selectedBank() ? 'var(--primary)' : '#f59e0b'">
+            <option value="">⚠️ Select Bank to Confirm...</option>
+            <option *ngIf="detectedBankSuggestion()" [value]="detectedBankSuggestion()">
+              ✨ Detected: {{ detectedBankSuggestion() }}
+            </option>
             <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-            <option *ngIf="isCustomBank(selectedBank())" [value]="selectedBank()">{{ selectedBank() }} (Detected)</option>
+            <option *ngIf="isCustomBank(selectedBank())" [value]="selectedBank()">{{ selectedBank() }} (Custom)</option>
             <option value="Generic Bank">Generic Bank</option>
           </select>
+          <button
+            *ngIf="detectedBankSuggestion() && !selectedBank()"
+            class="btn btn-xs"
+            (click)="onBankChange(detectedBankSuggestion())"
+            style="background: #f59e0b; color: #000; font-weight: 700; font-size: 0.72rem; padding: 0.18rem 0.5rem; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap;">
+            ⚡ Confirm {{ detectedBankSuggestion() }}
+          </button>
         </div>
 
         <!-- Toggle PDF Side-by-Side Split View Button -->
@@ -198,7 +213,11 @@
           ⇄ Invert Signs (+/-)
         </button>
         <button class="btn btn-secondary btn-sm" (click)="clearPreview()">Cancel</button>
-        <button class="btn btn-primary btn-sm" (click)="commitImport()" [disabled]="res.transactions.length === 0">
+        <button
+          class="btn btn-primary btn-sm"
+          (click)="commitImport()"
+          [disabled]="res.transactions.length === 0 || !selectedBank()"
+          [title]="!selectedBank() ? 'Please select or confirm Bank before importing' : 'Import transactions'">
           ✓ Confirm & Import {{ res.transactions.length }} Rows
         </button>
       </div>
@@ -369,7 +388,12 @@
             <tr *ngFor="let tx of sortedTransactions()">
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
-              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+              <td>
+                <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
+                <span *ngIf="!tx.bank" style="font-size: 0.72rem; color: #fbbf24; background: rgba(245, 158, 11, 0.12); padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px dashed #f59e0b; white-space: nowrap;">
+                  ⚠️ Select Bank
+                </span>
+              </td>
               <td>
                 <span
                   class="badge"

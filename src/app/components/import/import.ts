@@ -26,7 +26,8 @@ export class ImportComponent {
 
   @Output() public importCompleted = new EventEmitter<void>();
 
-  public selectedBank = signal<string>('Auto-Detect');
+  public selectedBank = signal<string>('');
+  public detectedBankSuggestion = signal<string>('');
   public selectedOwner = signal<string>('');
   public uploadedFileName = signal<string>('');
   public isParsing = signal<boolean>(false);
@@ -259,7 +260,8 @@ export class ImportComponent {
   }
 
   constructor() {
-    this.selectedBank.set('Auto-Detect');
+    this.selectedBank.set('');
+    this.detectedBankSuggestion.set('');
     this.selectedOwner.set(this.service.personOne().name);
   }
 
@@ -292,7 +294,7 @@ export class ImportComponent {
     this.service.addBankConfig({
       name
     });
-    this.selectedBank.set(name);
+    this.onBankChange(name);
     this.newInlineBankName = '';
     this.isAddingBankInline = false;
   }
@@ -326,12 +328,18 @@ export class ImportComponent {
 
     try {
       const res = await this.parser.parseFile(file, 'Auto-Detect', this.selectedOwner());
-      if (res.bankName) {
-        this.selectedBank.set(res.bankName);
-      }
+      const guessed = res.bankName && res.bankName !== 'Generic Bank' && res.bankName !== 'Auto-Detect' ? res.bankName : '';
+      this.detectedBankSuggestion.set(guessed);
+      this.selectedBank.set('');
+      // Keep rows blank until user confirms bank!
+      res.transactions.forEach((t) => (t.bank = ''));
+      res.incomes.forEach((t) => (t.bank = ''));
+      res.duplicates.forEach((t) => (t.bank = ''));
+      res.excluded.forEach((t) => (t.bank = ''));
+      res.bankName = '';
       this.previewResult.set(res);
       this.service.showToast(
-        `Parsed ${res.transactions.length} expenses (${res.incomesCount} incomes/credits, ${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
+        `Parsed ${res.transactions.length} expenses. Confirm or select bank to import!`,
         'info'
       );
     } catch (e: any) {
@@ -507,12 +515,17 @@ export class ImportComponent {
         this.selectedOwner(),
         'Clipboard Paste'
       );
-      if (res.bankName) {
-        this.selectedBank.set(res.bankName);
-      }
+      const guessed = res.bankName && res.bankName !== 'Generic Bank' && res.bankName !== 'Auto-Detect' ? res.bankName : '';
+      this.detectedBankSuggestion.set(guessed);
+      this.selectedBank.set('');
+      res.transactions.forEach((t) => (t.bank = ''));
+      res.incomes.forEach((t) => (t.bank = ''));
+      res.duplicates.forEach((t) => (t.bank = ''));
+      res.excluded.forEach((t) => (t.bank = ''));
+      res.bankName = '';
       this.previewResult.set(res);
       this.service.showToast(
-        `Parsed ${res.transactions.length} expenses (${res.incomesCount} incomes/credits, ${res.duplicatesCount} duplicates, ${res.excludedCount} excluded)`,
+        `Parsed ${res.transactions.length} expenses. Confirm or select bank to import!`,
         'info'
       );
     } catch (e: any) {
@@ -795,6 +808,8 @@ export class ImportComponent {
   public clearPreview() {
     this.previewResult.set(null);
     this.uploadedFileName.set('');
+    this.selectedBank.set('');
+    this.detectedBankSuggestion.set('');
     this.rawClipboardText = '';
     this.isPdfLoaded.set(false);
     this.pdfDocInstance = null;
