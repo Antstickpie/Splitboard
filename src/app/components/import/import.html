@@ -314,7 +314,7 @@
           <tbody>
             <tr *ngFor="let tx of sortedTransactions()">
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
+              <td style="font-weight: 500; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
               <td>
                 <span

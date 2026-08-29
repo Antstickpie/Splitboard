@@ -6,6 +6,12 @@
   flex-direction: column;
   min-height: 100vh;
   gap: 1.25rem;
+  transition: max-width 0.2s ease;
+}
+
+.app-frame.full-width-layout {
+  max-width: 98vw;
+  padding: 1rem 1.25rem;
 }
 
 /* Navbar */
