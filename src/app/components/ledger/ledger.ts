@@ -3,17 +3,23 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
 import { Transaction, SplitType, SplitMode } from '../../models';
+import { ImportComponent } from '../import/import';
 
 @Component({
   selector: 'app-ledger',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImportComponent],
   templateUrl: './ledger.html',
   styleUrl: './ledger.css'
 })
 export class LedgerComponent {
   public service = inject(TransactionService);
   private elementRef = inject(ElementRef);
+  public isImportOpen = signal<boolean>(false);
+
+  public toggleImport(): void {
+    this.isImportOpen.set(!this.isImportOpen());
+  }
 
   public isPastMonth = computed(() => {
     const sm = this.service.selectedMonth();

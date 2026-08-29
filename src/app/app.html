@@ -44,21 +44,15 @@
       <nav class="nav-tabs">
         <button
           class="nav-tab-btn"
-          [class.active]="activeTab() === 'dashboard'"
-          (click)="switchTab('dashboard')">
-          <span class="tab-icon">📊</span> <span class="tab-label">Spending & Analytics</span>
-        </button>
-        <button
-          class="nav-tab-btn"
           [class.active]="activeTab() === 'ledger'"
           (click)="switchTab('ledger')">
           <span class="tab-icon">💳</span> <span class="tab-label">Transactions & Splitter</span>
         </button>
         <button
           class="nav-tab-btn"
-          [class.active]="activeTab() === 'import'"
-          (click)="switchTab('import')">
-          <span class="tab-icon">📥</span> <span class="tab-label">Import Statements</span>
+          [class.active]="activeTab() === 'dashboard'"
+          (click)="switchTab('dashboard')">
+          <span class="tab-icon">📊</span> <span class="tab-label">Spending & Analytics</span>
         </button>
         <button
           class="nav-tab-btn"
@@ -74,7 +68,6 @@
   <main class="app-main-content">
     <app-ledger *ngIf="activeTab() === 'ledger'"></app-ledger>
     <app-budget-dashboard *ngIf="activeTab() === 'dashboard'"></app-budget-dashboard>
-    <app-import *ngIf="activeTab() === 'import'"></app-import>
     <app-settings *ngIf="activeTab() === 'settings'"></app-settings>
   </main>
 

@@ -142,10 +142,14 @@
       </div>
 
       <div class="toolbar-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-        <button class="btn btn-secondary btn-sm" (click)="service.switchTab('import')">
-          📥 Import Statements
+        <button
+          class="btn btn-sm"
+          [class.btn-primary]="isImportOpen()"
+          [class.btn-secondary]="!isImportOpen()"
+          (click)="toggleImport()">
+          📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import / Split Statement ▼' }}
         </button>
-        <button class="btn btn-primary btn-sm" (click)="openCashModal()">
+        <button class="btn btn-secondary btn-sm" (click)="openCashModal()">
           💵 + Log Cash / Transfer
         </button>
       </div>
@@ -185,6 +189,11 @@
         </optgroup>
       </select>
     </div>
+  </div>
+
+  <!-- Embedded Statement Importer & Splitter Section -->
+  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 1.2rem;">
+    <app-import></app-import>
   </div>
 
   <!-- Transactions Table -->

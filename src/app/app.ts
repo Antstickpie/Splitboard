@@ -13,7 +13,6 @@ import { TransactionService } from './services/transaction.service';
     CommonModule,
     LedgerComponent,
     BudgetDashboardComponent,
-    ImportComponent,
     SettingsComponent
   ],
   templateUrl: './app.html',
