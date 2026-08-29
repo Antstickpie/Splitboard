@@ -349,7 +349,7 @@ export class ImportComponent {
       this.isPdfViewerOpen.set(true);
 
       setTimeout(() => {
-        this.renderCurrentPage();
+        this.fitPdfWidth();
       }, 100);
     } catch (e) {
       console.warn('PDF document load error:', e);
@@ -371,7 +371,7 @@ export class ImportComponent {
 
     try {
       const page = await this.pdfDocInstance.getPage(pageNum);
-      const viewport = page.getViewport({ scale: zoom * 1.25 });
+      const viewport = page.getViewport({ scale: zoom });
 
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
@@ -392,6 +392,31 @@ export class ImportComponent {
     }
   }
 
+  public async fitPdfWidth(): Promise<void> {
+    if (!this.pdfDocInstance) return;
+    try {
+      const page = await this.pdfDocInstance.getPage(this.currentPdfPage());
+      const baseViewport = page.getViewport({ scale: 1.0 });
+      const scroller = document.querySelector('.pdf-single-page-scrollable') as HTMLElement;
+      if (scroller && baseViewport.width > 0) {
+        // Leave room for margins and scrollbar
+        const availableWidth = scroller.clientWidth - 40;
+        if (availableWidth > 50) {
+          const fitRatio = availableWidth / baseViewport.width;
+          const cleanZoom = Math.min(2.0, Math.max(0.3, fitRatio));
+          this.pdfZoom.set(Number(cleanZoom.toFixed(2)));
+        } else {
+          this.pdfZoom.set(0.70);
+        }
+      } else {
+        this.pdfZoom.set(0.70);
+      }
+    } catch {
+      this.pdfZoom.set(0.70);
+    }
+    this.renderCurrentPage();
+  }
+
   public prevPdfPage(): void {
     if (this.currentPdfPage() > 1) {
       this.currentPdfPage.update((p) => p - 1);
@@ -407,20 +432,19 @@ export class ImportComponent {
   }
 
   public zoomPdf(delta: number): void {
-    const newZoom = Math.min(2.5, Math.max(0.5, this.pdfZoom() + delta));
+    const newZoom = Math.min(2.5, Math.max(0.3, this.pdfZoom() + delta));
     this.pdfZoom.set(Number(newZoom.toFixed(2)));
     this.renderCurrentPage();
   }
 
   public resetPdfZoom(): void {
-    this.pdfZoom.set(1.0);
-    this.renderCurrentPage();
+    this.fitPdfWidth();
   }
 
   public togglePdfViewer(): void {
     this.isPdfViewerOpen.set(!this.isPdfViewerOpen());
     if (this.isPdfViewerOpen()) {
-      setTimeout(() => this.renderCurrentPage(), 100);
+      setTimeout(() => this.fitPdfWidth(), 100);
     }
   }
 
