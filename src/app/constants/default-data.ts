@@ -49,6 +49,15 @@ export const DEFAULT_BANKS: BankConfig[] = [
     descColName: 'Buchungstext',
     descColName2: 'Verwendungszweck',
     amountColName: 'Betrag'
+  },
+  {
+    id: 'b6',
+    name: 'HDFC Bank',
+    defaultCurrency: 'INR',
+    dateColName: 'Date',
+    descColName: 'Narration',
+    descColName2: 'Chq./Ref.No.',
+    amountColName: 'Withdrawal Amt.'
   }
 ];
 

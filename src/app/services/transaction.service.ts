@@ -478,6 +478,12 @@ export class TransactionService {
           }
           return b;
         });
+        // Automatically append any newly introduced DEFAULT_BANKS (like HDFC Bank)
+        for (const def of DEFAULT_BANKS) {
+          if (!merged.some((b) => b.name.toLowerCase() === def.name.toLowerCase())) {
+            merged.push(def);
+          }
+        }
         this.bankConfigs.set(merged.length > 0 ? merged : DEFAULT_BANKS);
       } else {
         this.bankConfigs.set(DEFAULT_BANKS);
