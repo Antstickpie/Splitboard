@@ -4,191 +4,176 @@
     <div class="settlement-hero-header">
       <div class="settlement-status-badge">
         <span class="status-dot" [class.settled]="service.monthSettlement().isSettled">●</span>
-        <span class="status-title" *ngIf="service.monthSettlement().isSettled">All Settled Up</span>
+        <span class="status-title" *ngIf="service.monthSettlement().isSettled">All Settled Up 🎉</span>
         <span class="status-title" *ngIf="!service.monthSettlement().isSettled">
           <strong>{{ service.monthSettlement().debtorName }}</strong> owes <strong>{{ service.monthSettlement().creditorName }}</strong>
         </span>
       </div>
-      <div class="settlement-main-amount">
+      <div class="settlement-main-amount font-mono">
         {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
       </div>
-      <button class="btn btn-secondary btn-sm settlement-breakdown-btn" (click)="isSettlementExpanded.set(!isSettlementExpanded())">
-        {{ isSettlementExpanded() ? 'Hide Breakdown ▲' : 'View Split Breakdown ▼' }}
-      </button>
+      <div class="settlement-actions-wrap" *ngIf="!service.monthSettlement().isSettled">
+        <button
+          class="btn btn-primary btn-sm"
+          (click)="recordSettlement()"
+          title="Log a settlement payment to balance accounts"
+          style="font-weight: 600;">
+          💸 Record Settle Up
+        </button>
+      </div>
     </div>
 
     <!-- Quick Month Metrics -->
     <div class="metrics-grid settlement-metrics">
       <div class="metric-card">
         <div class="label">{{ service.personOne().name }} Paid</div>
-        <div class="value">{{ service.formatCurrency(service.monthSettlement().personAPaid) }}</div>
+        <div class="value font-mono">{{ service.formatCurrency(service.monthSettlement().personAPaid) }}</div>
         <div class="sub-value">Share: {{ service.formatCurrency(service.monthSettlement().personAShare) }}</div>
       </div>
       <div class="metric-card">
         <div class="label">{{ service.personTwo().name }} Paid</div>
-        <div class="value">{{ service.formatCurrency(service.monthSettlement().personBPaid) }}</div>
+        <div class="value font-mono">{{ service.formatCurrency(service.monthSettlement().personBPaid) }}</div>
         <div class="sub-value">Share: {{ service.formatCurrency(service.monthSettlement().personBShare) }}</div>
       </div>
       <div class="metric-card">
-        <div class="label">Total Processed</div>
-        <div class="value">{{ service.formatCurrency(service.monthSettlement().personAPaid + service.monthSettlement().personBPaid) }}</div>
-        <div class="sub-value">{{ service.filteredTransactions().length }} transactions</div>
-      </div>
-    </div>
-
-    <!-- Expanded Itemized Breakdown Drawer -->
-    <div class="settlement-breakdown-drawer animate-fade-in" *ngIf="isSettlementExpanded()">
-      <h4 style="margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-main);">Itemized Split Breakdown</h4>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Paid By</th>
-              <th>Total</th>
-              <th>Split Type</th>
-              <th>{{ service.personOne().name }}'s Share</th>
-              <th>{{ service.personTwo().name }}'s Share</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of service.monthSettlement().itemizedDetails">
-              <td>{{ service.formatDate(item.date) }}</td>
-              <td style="font-weight: 500;">{{ item.description }}</td>
-              <td>
-                <span class="badge" [class.badge-info]="item.paidBy === service.personOne().name" [class.badge-warning]="item.paidBy === service.personTwo().name">
-                  {{ item.paidBy }}
-                </span>
-              </td>
-              <td class="font-mono">{{ service.formatCurrency(item.amount) }}</td>
-              <td>
-                <span class="badge" [class.badge-neutral]="item.splitType === 'SELF'" [class.badge-danger]="item.splitType === 'OTHER'" [class.badge-success]="item.splitType === 'SPLIT'">
-                  {{ item.splitType }}
-                </span>
-              </td>
-              <td class="font-mono">{{ service.formatCurrency(item.personAShare) }}</td>
-              <td class="font-mono">{{ service.formatCurrency(item.personBShare) }}</td>
-            </tr>
-            <tr *ngIf="service.monthSettlement().itemizedDetails.length === 0">
-              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1rem;">No transactions to settle for this period.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="label">Shared Expenses</div>
+        <div class="value font-mono">{{ service.formatCurrency(service.monthSettlement().personAShare + service.monthSettlement().personBShare) }}</div>
+        <div class="sub-value">{{ service.filteredTransactions().length }} transactions in view</div>
       </div>
     </div>
   </div>
 
-  <!-- Controls & Filter Toolbar -->
-  <div class="glass-card ledger-toolbar">
-    <!-- Row 1: Month Selector & Quick Action Buttons -->
-    <div class="toolbar-top-row">
-      <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-        <!-- EveryDollar Custom Month Trigger & Popover -->
-        <div class="everydollar-month-container" style="position: relative;">
-          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
-            <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
-            <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
-          </button>
+  <!-- Unified Sleek Toolbar -->
+  <div class="glass-card ledger-toolbar" style="padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+    <!-- LEFT: Month Selector & Navigation -->
+    <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+      <!-- EveryDollar Custom Month Trigger & Popover -->
+      <div class="everydollar-month-container" style="position: relative;">
+        <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
+          <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
+          <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
+        </button>
 
-          <!-- Month Picker Popover Grid -->
-          <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
-            <div class="popover-year-bar">
-              <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
-              <span class="popover-year-text">{{ pickerYear() }}</span>
-              <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
-            </div>
+        <!-- Month Picker Popover Grid -->
+        <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
+          <div class="popover-year-bar">
+            <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+            <span class="popover-year-text">{{ pickerYear() }}</span>
+            <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+          </div>
 
-            <div class="popover-months-grid">
-              <button
-                *ngFor="let m of monthsList; let idx = index"
-                class="month-cell-btn"
-                [class.selected]="service.selectedMonth() !== 'ALL' && isMonthSelected(idx)"
-                [class.has-data]="hasMonthData(idx)"
-                (click)="selectMonth(idx)">
-                {{ m }}
-              </button>
-            </div>
+          <div class="popover-months-grid">
+            <button
+              *ngFor="let m of monthsList; let idx = index"
+              class="month-cell-btn"
+              [class.selected]="service.selectedMonth() !== 'ALL' && isMonthSelected(idx)"
+              [class.has-data]="hasMonthData(idx)"
+              (click)="selectMonth(idx)">
+              {{ m }}
+            </button>
+          </div>
 
-            <div class="popover-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08);">
-              <button class="btn btn-secondary btn-xs" (click)="showAllMonths()" [class.active]="service.selectedMonth() === 'ALL'">
-                All Months
-              </button>
-              <button class="btn-today" (click)="goToCurrentMonth()">
-                This month
-              </button>
-            </div>
+          <div class="popover-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08);">
+            <button class="btn btn-secondary btn-xs" (click)="showAllMonths()" [class.active]="service.selectedMonth() === 'ALL'">
+              All Months
+            </button>
+            <button class="btn-today" (click)="goToCurrentMonth()">
+              This month
+            </button>
           </div>
         </div>
-
-        <!-- Month Navigation Arrows -->
-        <div class="month-nav-btns" style="display: flex; gap: 0.25rem;">
-          <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
-          <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
-        </div>
-
-        <!-- Today Button -->
-        <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.selectedMonth() !== service.getCurrentMonthString()">
-          Today
-        </button>
-
-        <!-- Past / Future Badge (Directly Beside Navigation) -->
-        <span class="past-month-badge" *ngIf="isPastMonth()">
-          ⏱ Past month
-        </span>
-        <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25);" *ngIf="isFutureMonth()">
-          🔮 Future
-        </span>
       </div>
 
-      <div class="toolbar-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+      <!-- Month Navigation Arrows -->
+      <div class="month-nav-btns" style="display: flex; gap: 0.25rem;">
+        <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
+        <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
+      </div>
+
+      <!-- Today Button -->
+      <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.selectedMonth() !== service.getCurrentMonthString()">
+        Today
+      </button>
+
+      <!-- Past / Future Badge -->
+      <span class="past-month-badge" *ngIf="isPastMonth()">⏱ Past month</span>
+      <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25);" *ngIf="isFutureMonth()">🔮 Future</span>
+    </div>
+
+    <!-- MIDDLE: Quick Search & Filter Toggle -->
+    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; max-width: 440px; min-width: 220px;">
+      <div style="position: relative; width: 100%;">
+        <input
+          type="text"
+          placeholder="🔍 Search transactions..."
+          [ngModel]="service.searchQuery()"
+          (ngModelChange)="service.searchQuery.set($event)"
+          class="search-input"
+          style="width: 100%; padding-right: 2rem; font-size: 0.82rem; height: 34px;">
         <button
-          class="btn btn-sm"
-          [class.btn-primary]="isImportOpen()"
-          [class.btn-secondary]="!isImportOpen()"
-          (click)="toggleImport()">
-          📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import / Split Statement ▼' }}
-        </button>
-        <button class="btn btn-secondary btn-sm" (click)="openCashModal()">
-          💵 + Log Cash / Transfer
+          *ngIf="service.searchQuery()"
+          (click)="service.searchQuery.set('')"
+          style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem;">
+          ✕
         </button>
       </div>
+
+      <button
+        class="btn btn-secondary btn-sm"
+        (click)="isFiltersOpen.set(!isFiltersOpen())"
+        [class.btn-primary]="hasActiveFilters()"
+        title="Toggle filters"
+        style="height: 34px; white-space: nowrap; font-size: 0.78rem;">
+        ⚙ Filters <span *ngIf="hasActiveFilters()">●</span>
+      </button>
     </div>
 
-    <!-- Row 2: Search and Category/Bank Filters -->
-    <div class="toolbar-filters-row">
-      <input
-        type="text"
-        placeholder="Search description, bank, note..."
-        [ngModel]="service.searchQuery()"
-        (ngModelChange)="service.searchQuery.set($event)"
-        class="search-input">
-
-      <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select">
-        <option value="ALL">All Payers</option>
-        <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
-      </select>
-
-      <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select">
-        <option value="ALL">All Banks</option>
-        <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-        <option value="Cash">Cash</option>
-      </select>
-
-      <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select">
-        <option value="ALL">All Splits</option>
-        <option value="SELF">Self Only</option>
-        <option value="OTHER">For Other</option>
-        <option value="SPLIT">Split</option>
-      </select>
-
-      <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select">
-        <option value="ALL">All Categories</option>
-        <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
-          <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
-        </optgroup>
-      </select>
+    <!-- RIGHT: Action Buttons -->
+    <div class="toolbar-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+      <button
+        class="btn btn-sm"
+        [class.btn-primary]="isImportOpen()"
+        [class.btn-secondary]="!isImportOpen()"
+        (click)="toggleImport()"
+        style="height: 34px; font-size: 0.8rem;">
+        📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import / Split Statement ▼' }}
+      </button>
+      <button class="btn btn-secondary btn-sm" (click)="openCashModal()" style="height: 34px; font-size: 0.8rem;">
+        💵 + Log Cash / Transfer
+      </button>
     </div>
+  </div>
+
+  <!-- Collapsible Filters Drawer -->
+  <div class="glass-card animate-fade-in" *ngIf="isFiltersOpen()" style="margin-top: 0.6rem; padding: 0.75rem 1rem; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2);">
+    <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select" style="font-size: 0.78rem;">
+      <option value="ALL">All Payers</option>
+      <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+    </select>
+
+    <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select" style="font-size: 0.78rem;">
+      <option value="ALL">All Banks</option>
+      <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+      <option value="Cash">Cash</option>
+    </select>
+
+    <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select" style="font-size: 0.78rem;">
+      <option value="ALL">All Splits</option>
+      <option value="SELF">Self Only</option>
+      <option value="OTHER">For Other</option>
+      <option value="SPLIT">Split</option>
+    </select>
+
+    <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select" style="font-size: 0.78rem;">
+      <option value="ALL">All Categories</option>
+      <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+        <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
+      </optgroup>
+    </select>
+
+    <button class="btn btn-secondary btn-xs" (click)="resetFilters()" *ngIf="hasActiveFilters()" style="font-size: 0.75rem;">
+      Reset Filters
+    </button>
   </div>
 
   <!-- Embedded Statement Importer & Splitter Section -->

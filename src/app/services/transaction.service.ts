@@ -217,8 +217,9 @@ export class TransactionService {
     const itemized: SettlementSummary['itemizedDetails'] = [];
 
     relevantTxs.forEach((tx) => {
+      if (tx.type === 'INCOME') return;
       const amount = Number(tx.amount) || 0;
-      if (amount <= 0 && tx.type !== 'EXPENSE') return;
+      if (amount <= 0) return;
 
       const isP1 = tx.paidBy === p1;
       const isP2 = tx.paidBy === p2;

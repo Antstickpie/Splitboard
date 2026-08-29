@@ -49,6 +49,48 @@ export class LedgerComponent {
   // Settlement breakdown drawer toggle
   public isSettlementExpanded = signal(false);
 
+  // Quick filters collapsible
+  public isFiltersOpen = signal(false);
+  public hasActiveFilters = computed(() => {
+    return (
+      this.service.filterOwner() !== 'ALL' ||
+      this.service.filterBank() !== 'ALL' ||
+      this.service.filterSplitType() !== 'ALL' ||
+      this.service.filterCategory() !== 'ALL'
+    );
+  });
+
+  public resetFilters(): void {
+    this.service.filterOwner.set('ALL');
+    this.service.filterBank.set('ALL');
+    this.service.filterSplitType.set('ALL');
+    this.service.filterCategory.set('ALL');
+    this.service.searchQuery.set('');
+  }
+
+  public recordSettlement(): void {
+    const s = this.service.monthSettlement();
+    if (s.isSettled || s.netOwedAmount <= 0) return;
+
+    const month = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
+    const date = `${month}-28`;
+
+    this.service.addTransaction({
+      id: crypto.randomUUID(),
+      date,
+      amount: s.netOwedAmount,
+      description: `Settlement: ${s.debtorName} paid ${s.creditorName}`,
+      paidBy: s.debtorName,
+      bank: 'Cash',
+      splitType: 'SELF',
+      isCashTransfer: true,
+      transferTo: s.creditorName,
+      type: 'EXPENSE'
+    });
+
+    this.service.showToast(`Settlement of ${this.service.formatCurrency(s.netOwedAmount)} recorded!`, 'success');
+  }
+
   // Quick Cash / Transfer modal
   public isCashModalOpen = signal(false);
   public cashDate = new Date().toISOString().slice(0, 10);
