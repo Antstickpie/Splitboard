@@ -375,29 +375,16 @@
         </div>
       </div>
 
-      <!-- Category Rules Search & Bank Filter Toolbar -->
+      <!-- Category Rules Search Toolbar -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; background: rgba(255, 255, 255, 0.03); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06);">
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
-          <div style="display: flex; align-items: center; gap: 0.35rem;">
-            <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin: 0; white-space: nowrap;">Filter Bank:</label>
-            <select
-              [ngModel]="categoryRuleFilterBank()"
-              (ngModelChange)="categoryRuleFilterBank.set($event)"
-              class="settings-select"
-              style="padding: 0.15rem 0.4rem; font-size: 0.76rem; height: 26px; width: 130px;">
-              <option value="All">All Banks</option>
-              <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-            </select>
-          </div>
-          <div style="flex: 1; min-width: 160px; max-width: 260px;">
-            <input
-              type="text"
-              [ngModel]="categoryRuleSearch()"
-              (ngModelChange)="categoryRuleSearch.set($event)"
-              placeholder="🔍 Search category rules..."
-              class="person-input"
-              style="width: 100%; padding: 0.15rem 0.5rem; font-size: 0.76rem; height: 26px;">
-          </div>
+        <div style="flex: 1; min-width: 180px; max-width: 320px;">
+          <input
+            type="text"
+            [ngModel]="categoryRuleSearch()"
+            (ngModelChange)="categoryRuleSearch.set($event)"
+            placeholder="🔍 Search category rules by keyword or category..."
+            class="person-input"
+            style="width: 100%; padding: 0.15rem 0.5rem; font-size: 0.76rem; height: 26px;">
         </div>
         <div style="font-size: 0.72rem; color: var(--text-muted);">
           Showing {{ filteredCategoryRules().length }} of {{ service.rules().length }} rules

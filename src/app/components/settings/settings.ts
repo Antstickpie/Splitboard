@@ -246,22 +246,19 @@ export class SettingsComponent {
     });
   });
 
-  // Category Rules Filter & Search
-  public categoryRuleFilterBank = signal<string>('All');
+  // Category Rules Search
   public categoryRuleSearch = signal<string>('');
 
   public filteredCategoryRules = computed(() => {
-    const bankFilter = this.categoryRuleFilterBank().toLowerCase();
     const query = this.categoryRuleSearch().toLowerCase().trim();
+    if (!query) return this.service.rules();
 
     return this.service.rules().filter((rule) => {
-      const ruleBank = (rule.bank || 'All').toLowerCase();
-      const matchesBank = bankFilter === 'all' || ruleBank === bankFilter || ruleBank.includes(bankFilter);
-      const matchesQuery =
-        !query ||
+      return (
         (rule.keyword && rule.keyword.toLowerCase().includes(query)) ||
-        (rule.categoryItem && rule.categoryItem.toLowerCase().includes(query));
-      return matchesBank && matchesQuery;
+        (rule.categoryItem && rule.categoryItem.toLowerCase().includes(query)) ||
+        (rule.categoryGroup && rule.categoryGroup.toLowerCase().includes(query))
+      );
     });
   });
 
