@@ -388,6 +388,7 @@
                 Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}
               </th>
               <th>Split</th>
+              <th>💬 Note</th>
               <th style="text-align: center;">Action</th>
             </tr>
           </thead>
@@ -454,6 +455,14 @@
                   </button>
                 </div>
               </td>
+              <td>
+                <input
+                  type="text"
+                  [(ngModel)]="tx.note"
+                  placeholder="💬 Add note..."
+                  class="inline-note-input"
+                  title="Add comment before importing" />
+              </td>
               <td style="text-align: center;">
                 <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
                   <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule from this transaction" style="padding: 0.2rem 0.45rem; font-size: 0.72rem; gap: 0.2rem;">
@@ -464,7 +473,7 @@
               </td>
             </tr>
             <tr *ngIf="res.transactions.length === 0">
-              <td colspan="8" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+              <td colspan="9" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
                 No new transactions to import. (Check the Duplicates or Excluded tabs above).
               </td>
             </tr>
@@ -559,6 +568,7 @@
                     <th>Category</th>
                     <th style="text-align: right;">Amount</th>
                     <th>Split</th>
+                    <th>💬 Note</th>
                     <th style="text-align: center;">Action</th>
                   </tr>
                 </thead>
@@ -619,6 +629,14 @@
                         </button>
                       </div>
                     </td>
+                    <td>
+                      <input
+                        type="text"
+                        [(ngModel)]="tx.note"
+                        placeholder="💬 Add note..."
+                        class="inline-note-input"
+                        title="Add comment before importing" />
+                    </td>
                     <td style="text-align: center;">
                       <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                     </td>
@@ -644,6 +662,7 @@
                 <th>Category</th>
                 <th style="text-align: right;">Amount</th>
                 <th>Split</th>
+                <th>💬 Note</th>
                 <th style="text-align: center;">Actions</th>
               </tr>
             </thead>
@@ -704,6 +723,14 @@
                       {{ service.personTwo().name }}
                     </button>
                   </div>
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    [(ngModel)]="tx.note"
+                    placeholder="💬 Add note..."
+                    class="inline-note-input"
+                    title="Add comment before importing" />
                 </td>
                 <td style="text-align: center; white-space: nowrap;">
                   <div style="display: flex; justify-content: center; gap: 0.25rem;">

@@ -256,6 +256,23 @@
   font-size: 0.8rem;
 }
 
+.inline-note-input {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  border-radius: 4px;
+  width: 110px;
+  transition: all 0.2s ease;
+}
+
+.inline-note-input:hover, .inline-note-input:focus {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-main);
+}
+
 /* Side-by-Side Live PDF Viewer & Split Layout */
 .import-split-layout {
   display: block;

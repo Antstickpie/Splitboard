@@ -279,9 +279,14 @@
                   ⚙
                 </button>
               </div>
-            </td>
-            <td style="font-size: 0.78rem; color: var(--text-muted); max-width: 150px; text-overflow: ellipsis; overflow: hidden;">
-              {{ tx.note || '—' }}
+            <td>
+              <input
+                type="text"
+                [ngModel]="tx.note || ''"
+                (ngModelChange)="onInlineNoteChange(tx, $event)"
+                placeholder="💬 Add note..."
+                class="inline-note-input"
+                title="Click to add/edit comment" />
             </td>
             <td style="text-align: center;">
               <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
