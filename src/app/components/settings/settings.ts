@@ -82,6 +82,7 @@ export class SettingsComponent {
   }
 
   // Rule Engine Form
+  public newRuleBank = 'All';
   public newRuleKeyword = '';
   public newRuleCategory = '';
   public newRuleSplitType: 'SELF' | 'OTHER' | 'SPLIT' = 'SPLIT';
@@ -221,9 +222,11 @@ export class SettingsComponent {
       categoryItem: this.newRuleCategory,
       categoryGroup: group,
       splitType: this.newRuleSplitType,
-      paidBy: this.newRuleOwner || undefined
+      paidBy: this.newRuleOwner || undefined,
+      bank: this.newRuleBank || 'All'
     });
     this.newRuleKeyword = '';
+    this.newRuleBank = 'All';
   }
 
   public deleteRule(id: string) {

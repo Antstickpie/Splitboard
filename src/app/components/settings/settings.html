@@ -333,6 +333,14 @@
           <span>➕</span> Add New Categorization Rule:
         </div>
         <div class="rule-add-form" style="margin: 0; align-items: flex-end;">
+          <div style="width: 130px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Apply to Bank</label>
+            <select [(ngModel)]="newRuleBank" class="settings-select" style="width: 100%; height: 30px;">
+              <option value="All">All Banks</option>
+              <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+            </select>
+          </div>
+
           <div style="flex: 1 1 180px;">
             <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Keyword (contains)</label>
             <input
@@ -400,7 +408,8 @@
       <!-- Active Rules List (Fixed header, scroll strictly below) -->
       <div style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row (No scrollbar on header) -->
-        <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+        <div style="display: grid; grid-template-columns: 120px 1.5fr 1.3fr 110px 100px 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+          <span>Target Bank</span>
           <span>Keyword Contains</span>
           <span>Assigned Category</span>
           <span>Split Mode</span>
@@ -414,11 +423,9 @@
             <!-- Normal Row Display -->
             <div
               *ngIf="editingRuleId() !== r.id"
-              style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-              <div>
-                <code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code>
-                <span *ngIf="r.bank && r.bank !== 'All'" class="badge badge-neutral" style="margin-left: 0.4rem; font-size: 0.65rem;">{{ r.bank }}</span>
-              </div>
+              style="display: grid; grid-template-columns: 120px 1.5fr 1.3fr 110px 100px 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+              <div><span class="badge badge-neutral">{{ r.bank || 'All Banks' }}</span></div>
+              <div><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></div>
               <div><span class="badge badge-warning">{{ r.categoryItem }}</span></div>
               <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
               <div>
