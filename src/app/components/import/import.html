@@ -182,21 +182,6 @@
           </select>
         </div>
 
-        <!-- Group by Description Toggle in Action Bar -->
-        <label
-          class="btn btn-secondary btn-sm"
-          style="display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; user-select: none; font-size: 0.78rem; font-weight: 600; padding: 0 0.6rem; height: 30px;"
-          [style.background]="isGroupByDescription() ? 'rgba(0, 229, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)'"
-          [style.borderColor]="isGroupByDescription() ? 'var(--primary)' : 'rgba(255, 255, 255, 0.15)'"
-          [style.color]="isGroupByDescription() ? 'var(--primary)' : 'var(--text-main)'">
-          <input
-            type="checkbox"
-            [ngModel]="isGroupByDescription()"
-            (ngModelChange)="isGroupByDescription.set($event)"
-            style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--primary);">
-          <span>📑 Group Description</span>
-        </label>
-
         <!-- Toggle PDF Side-by-Side Split View Button -->
         <button
           *ngIf="isPdfLoaded()"
@@ -383,23 +368,8 @@
 
     <!-- TAB 1: Valid Transactions Ready to Import -->
     <div *ngIf="previewTab() === 'valid'">
-      <!-- Grouping & Controls Bar -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; margin-bottom: 0.4rem; padding: 0.35rem 0.6rem; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 0.5rem;">
-        <label style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; font-weight: 600; color: var(--text-main); cursor: pointer; user-select: none;">
-          <input
-            type="checkbox"
-            [ngModel]="isGroupByDescription()"
-            (ngModelChange)="isGroupByDescription.set($event)"
-            style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary);">
-          <span>📑 Group by Description</span>
-        </label>
-        <div *ngIf="isGroupByDescription()" style="font-size: 0.74rem; color: var(--text-muted);">
-          {{ descriptionGroups().length }} unique description groups
-        </div>
-      </div>
-
       <!-- VIEW A: Flat Table with Column Sorting (When unchecked) -->
-      <div class="table-container" *ngIf="!isGroupByDescription()" style="max-height: 580px; overflow-y: auto; width: 100%;">
+      <div class="table-container" *ngIf="!isGroupByDescription()" style="max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
         <table>
           <thead>
             <tr>
