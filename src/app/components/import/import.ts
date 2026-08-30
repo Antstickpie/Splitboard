@@ -278,15 +278,49 @@ export class ImportComponent {
   public onBankChange(bankName: string): void {
     this.selectedBank.set(bankName);
     const res = this.previewResult();
-    if (res) {
-      res.transactions.forEach((t) => (t.bank = bankName));
-      res.incomes.forEach((t) => (t.bank = bankName));
-      res.duplicates.forEach((t) => (t.bank = bankName));
-      res.excluded.forEach((t) => (t.bank = bankName));
-      res.bankName = bankName;
-      res.bankMismatch = undefined;
-      this.previewResult.set({ ...res });
+    if (!res) return;
+
+    // Combine transactions and excluded to dynamically re-evaluate against new bank's rules
+    const allExpenses = [...res.transactions, ...res.excluded];
+    const newTransactions: Transaction[] = [];
+    const newExcluded: Transaction[] = [];
+    const activeRules = this.service.rules();
+
+    for (const t of allExpenses) {
+      t.bank = bankName;
+      if (this.service.isTransactionExcluded(t.description, bankName)) {
+        newExcluded.push(t);
+      } else {
+        // Apply matching category & split rules for this bank
+        const desc = (t.description || '').toLowerCase();
+        const lowerBank = (bankName || '').toLowerCase();
+        const matched = activeRules.find((r) => {
+          const ruleBank = (r.bank || 'All').toLowerCase();
+          const matchesBank = ruleBank === 'all' || !lowerBank || lowerBank.includes(ruleBank) || ruleBank.includes(lowerBank);
+          const rawKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+          return Boolean(matchesBank && rawKw && desc.includes(rawKw));
+        });
+
+        if (matched) {
+          t.categoryItem = matched.categoryItem;
+          t.categoryGroup = matched.categoryGroup || t.categoryGroup;
+          t.splitType = matched.splitType || t.splitType;
+          t.splitPercentage = matched.splitPercentage !== undefined ? matched.splitPercentage : t.splitPercentage;
+          if (matched.paidBy) t.paidBy = matched.paidBy;
+        }
+
+        newTransactions.push(t);
+      }
     }
+
+    res.transactions = newTransactions;
+    res.excluded = newExcluded;
+    res.excludedCount = newExcluded.length;
+    res.incomes.forEach((t) => (t.bank = bankName));
+    res.duplicates.forEach((t) => (t.bank = bankName));
+    res.bankName = bankName;
+    res.bankMismatch = undefined;
+    this.previewResult.set({ ...res });
   }
 
   public isCustomBank(name: string): boolean {

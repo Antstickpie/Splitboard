@@ -628,9 +628,10 @@ export class TransactionService {
     const lowerBank = (bank || '').toLowerCase();
     return this.excludeRules().some((rule) => {
       const ruleBank = (rule.bank || 'All').toLowerCase();
-      const matchesBank = ruleBank === 'all' || ruleBank === lowerBank || lowerBank.includes(ruleBank);
-      const matchesKeyword = rule.keyword && lowerDesc.includes(rule.keyword.toLowerCase());
-      return matchesBank && matchesKeyword;
+      const matchesBank = ruleBank === 'all' || (lowerBank && (ruleBank === lowerBank || lowerBank.includes(ruleBank) || ruleBank.includes(lowerBank)));
+      const rawKw = (rule.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      const matchesKeyword = Boolean(rawKw && lowerDesc.includes(rawKw));
+      return Boolean(matchesBank && matchesKeyword);
     });
   }
 
