@@ -266,7 +266,7 @@ export class SettingsComponent {
   });
 
   // Existing Rule Conflict / Overlap Detection
-  public getExistingExcludeRuleWarning(keyword: string, bank: string): string | null {
+  public getExistingExcludeRuleWarning(keyword: string, bank: string): { type: 'exclude' | 'category'; rule: any; message: string } | null {
     const raw = (keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
     if (!raw || raw.length < 2) return null;
 
@@ -275,8 +275,12 @@ export class SettingsComponent {
       return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
     });
     if (existingExclude) {
-      const b = existingExclude.bank || 'All Banks';
-      return `Existing Exclude Rule found: "${existingExclude.keyword}" for [${b}]`;
+      const b = (!existingExclude.bank || existingExclude.bank === 'All') ? 'All Banks' : existingExclude.bank;
+      return {
+        type: 'exclude',
+        rule: existingExclude,
+        message: `Existing Exclude Rule found: "${existingExclude.keyword}" for [${b}]`
+      };
     }
 
     const existingCat = this.service.rules().find((r) => {
@@ -284,14 +288,18 @@ export class SettingsComponent {
       return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
     });
     if (existingCat) {
-      const b = existingCat.bank || 'All Banks';
-      return `Note: Category rule also exists: "${existingCat.keyword}" (${existingCat.categoryItem}) for [${b}]`;
+      const b = (!existingCat.bank || existingCat.bank === 'All') ? 'All Banks' : existingCat.bank;
+      return {
+        type: 'category',
+        rule: existingCat,
+        message: `Note: Category rule also exists: "${existingCat.keyword}" (${existingCat.categoryItem}) for [${b}]`
+      };
     }
 
     return null;
   }
 
-  public getExistingCategoryRuleWarning(keyword: string): string | null {
+  public getExistingCategoryRuleWarning(keyword: string): { type: 'category' | 'exclude'; rule: any; message: string } | null {
     const raw = (keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
     if (!raw || raw.length < 2) return null;
 
@@ -300,8 +308,12 @@ export class SettingsComponent {
       return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
     });
     if (existingCat) {
-      const b = existingCat.bank || 'All Banks';
-      return `Existing Category Rule found: "${existingCat.keyword}" → ${existingCat.categoryItem} (${existingCat.splitType || 'SPLIT'}) for [${b}]`;
+      const b = (!existingCat.bank || existingCat.bank === 'All') ? 'All Banks' : existingCat.bank;
+      return {
+        type: 'category',
+        rule: existingCat,
+        message: `Existing Category Rule found: "${existingCat.keyword}" → ${existingCat.categoryItem} (${existingCat.splitType || 'SPLIT'}) for [${b}]`
+      };
     }
 
     const existingExclude = this.service.excludeRules().find((r) => {
@@ -309,8 +321,12 @@ export class SettingsComponent {
       return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
     });
     if (existingExclude) {
-      const b = existingExclude.bank || 'All Banks';
-      return `Note: Keyword is currently on the Exclude List for [${b}] ("${existingExclude.keyword}")`;
+      const b = (!existingExclude.bank || existingExclude.bank === 'All') ? 'All Banks' : existingExclude.bank;
+      return {
+        type: 'exclude',
+        rule: existingExclude,
+        message: `Note: Keyword is currently on the Exclude List for [${b}] ("${existingExclude.keyword}")`
+      };
     }
 
     return null;

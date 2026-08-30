@@ -383,9 +383,25 @@
         </div>
 
         <!-- Live Rule Conflict / Overlap Notice -->
-        <div *ngIf="getExistingCategoryRuleWarning(newRuleKeyword) as warn" class="animate-fade-in" style="margin-top: 0.5rem; padding: 0.35rem 0.6rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; font-size: 0.74rem; color: #fbbf24; display: flex; align-items: center; gap: 0.4rem;">
-          <span>ℹ️</span>
-          <span>{{ warn }}</span>
+        <div *ngIf="getExistingCategoryRuleWarning(newRuleKeyword) as warn" class="animate-fade-in" style="margin-top: 0.5rem; padding: 0.4rem 0.6rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; font-size: 0.74rem; color: #fbbf24; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span>ℹ️</span>
+            <span>{{ warn.message }}</span>
+          </div>
+          <button
+            *ngIf="warn.type === 'category'"
+            class="btn btn-secondary btn-xs"
+            (click)="startEditRule(warn.rule)"
+            style="padding: 0.2rem 0.5rem; font-size: 0.72rem; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+            ✏️ Edit This Rule
+          </button>
+          <button
+            *ngIf="warn.type === 'exclude'"
+            class="btn btn-secondary btn-xs"
+            (click)="startEditExcludeRule(warn.rule)"
+            style="padding: 0.2rem 0.5rem; font-size: 0.72rem; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+            ✏️ Edit Exclude Rule
+          </button>
         </div>
       </div>
 
@@ -537,9 +553,25 @@
         </div>
 
         <!-- Live Exclude Rule Conflict / Overlap Notice -->
-        <div *ngIf="getExistingExcludeRuleWarning(newExcludeKeyword, newExcludeBank) as warn" class="animate-fade-in" style="margin-top: 0.5rem; padding: 0.35rem 0.6rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; font-size: 0.74rem; color: #fbbf24; display: flex; align-items: center; gap: 0.4rem;">
-          <span>ℹ️</span>
-          <span>{{ warn }}</span>
+        <div *ngIf="getExistingExcludeRuleWarning(newExcludeKeyword, newExcludeBank) as warn" class="animate-fade-in" style="margin-top: 0.5rem; padding: 0.4rem 0.6rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; font-size: 0.74rem; color: #fbbf24; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span>ℹ️</span>
+            <span>{{ warn.message }}</span>
+          </div>
+          <button
+            *ngIf="warn.type === 'exclude'"
+            class="btn btn-secondary btn-xs"
+            (click)="startEditExcludeRule(warn.rule)"
+            style="padding: 0.2rem 0.5rem; font-size: 0.72rem; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+            ✏️ Edit Exclude Rule
+          </button>
+          <button
+            *ngIf="warn.type === 'category'"
+            class="btn btn-secondary btn-xs"
+            (click)="startEditRule(warn.rule)"
+            style="padding: 0.2rem 0.5rem; font-size: 0.72rem; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+            ✏️ Edit Category Rule
+          </button>
         </div>
       </div>
 

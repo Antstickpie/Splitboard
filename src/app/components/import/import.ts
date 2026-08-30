@@ -97,8 +97,10 @@ export class ImportComponent {
   public ruleCategory = '';
   public ruleSplitType: SplitType = 'SELF';
   public rulePaidBy = '';
+  public editingExistingRuleId: string | null = null;
 
   public openRuleModal(tx: Transaction): void {
+    this.editingExistingRuleId = null;
     this.ruleTargetTx.set(tx);
     this.ruleKeyword = tx.description || '';
     this.ruleBank = tx.bank || 'All';
@@ -112,9 +114,10 @@ export class ImportComponent {
   public closeRuleModal(): void {
     this.showRuleModal.set(false);
     this.ruleTargetTx.set(null);
+    this.editingExistingRuleId = null;
   }
 
-  public getExistingRuleInfoForModal(): { type: 'category' | 'exclude'; message: string } | null {
+  public getExistingRuleInfoForModal(): { type: 'category' | 'exclude'; rule: any; message: string } | null {
     const raw = (this.ruleKeyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
     if (!raw || raw.length < 2) return null;
 
@@ -123,9 +126,10 @@ export class ImportComponent {
       return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
     });
     if (matchedCat) {
-      const b = matchedCat.bank || 'All Banks';
+      const b = (!matchedCat.bank || matchedCat.bank === 'All') ? 'All Banks' : matchedCat.bank;
       return {
         type: 'category',
+        rule: matchedCat,
         message: `Category rule already exists: "${matchedCat.keyword}" → ${matchedCat.categoryItem} (${matchedCat.splitType || 'SPLIT'}) for [${b}]`
       };
     }
@@ -135,9 +139,10 @@ export class ImportComponent {
       return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
     });
     if (matchedExclude) {
-      const b = matchedExclude.bank || 'All Banks';
+      const b = (!matchedExclude.bank || matchedExclude.bank === 'All') ? 'All Banks' : matchedExclude.bank;
       return {
         type: 'exclude',
+        rule: matchedExclude,
         message: `Exclude rule already exists: "${matchedExclude.keyword}" for [${b}]`
       };
     }
@@ -145,12 +150,33 @@ export class ImportComponent {
     return null;
   }
 
+  public loadExistingRuleIntoModal(info: { type: 'category' | 'exclude'; rule: any; message: string }): void {
+    this.editingExistingRuleId = info.rule.id;
+    this.ruleType.set(info.type === 'category' ? 'categorize' : 'exclude');
+    this.ruleKeyword = info.rule.keyword;
+    this.ruleBank = info.rule.bank || 'All';
+    if (info.type === 'category') {
+      this.ruleCategory = info.rule.categoryItem || '';
+      this.ruleSplitType = info.rule.splitType || 'SPLIT';
+      this.rulePaidBy = info.rule.paidBy || '';
+    }
+    this.service.showToast('Loaded existing rule for editing!', 'info');
+  }
+
   public saveRuleFromModal(): void {
     const keyword = this.ruleKeyword.trim();
     if (!keyword) return;
 
     if (this.ruleType() === 'exclude') {
-      this.service.addExcludeRule(this.ruleBank, keyword);
+      if (this.editingExistingRuleId) {
+        this.service.updateExcludeRule({
+          id: this.editingExistingRuleId,
+          bank: this.ruleBank,
+          keyword
+        });
+      } else {
+        this.service.addExcludeRule(this.ruleBank, keyword);
+      }
       // Re-evaluate preview: move matching transactions to excluded
       const res = this.previewResult();
       if (res) {
@@ -183,14 +209,26 @@ export class ImportComponent {
         }
       }
 
-      this.service.addRule({
-        keyword,
-        categoryItem: this.ruleCategory || 'Uncategorized',
-        categoryGroup: catGroup,
-        splitType: this.ruleSplitType,
-        paidBy: this.rulePaidBy,
-        bank: this.ruleBank
-      });
+      if (this.editingExistingRuleId) {
+        this.service.updateRule({
+          id: this.editingExistingRuleId,
+          keyword,
+          categoryItem: this.ruleCategory || 'Uncategorized',
+          categoryGroup: catGroup,
+          splitType: this.ruleSplitType,
+          paidBy: this.rulePaidBy,
+          bank: this.ruleBank
+        });
+      } else {
+        this.service.addRule({
+          keyword,
+          categoryItem: this.ruleCategory || 'Uncategorized',
+          categoryGroup: catGroup,
+          splitType: this.ruleSplitType,
+          paidBy: this.rulePaidBy,
+          bank: this.ruleBank
+        });
+      }
 
       // Re-evaluate preview: update matching transactions
       const res = this.previewResult();
