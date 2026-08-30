@@ -320,46 +320,92 @@
     </div>
 
     <div class="glass-card rules-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
         <p class="subtitle" style="margin: 0;">Auto-assign categories and split behavior based on merchant keyword match.</p>
         <button class="btn btn-secondary btn-xs" (click)="reapplyRules()" title="Re-evaluate all rules on existing transactions">
           ↻ Re-apply Rules
         </button>
       </div>
 
-      <!-- Quick Add Rule Form -->
-      <div class="rule-add-form">
-        <input
-          type="text"
-          [(ngModel)]="newRuleKeyword"
-          placeholder="If description contains (e.g. Netflix, Shell, DM)..."
-          class="person-input"
-          style="flex: 1 1 200px;">
+      <!-- Add New Category Rule Card -->
+      <div style="background: rgba(0, 229, 255, 0.03); border: 1px dashed rgba(0, 229, 255, 0.25); border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.8rem;">
+        <div style="font-size: 0.76rem; font-weight: 700; color: var(--primary); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.35rem;">
+          <span>➕</span> Add New Categorization Rule:
+        </div>
+        <div class="rule-add-form" style="margin: 0; align-items: flex-end;">
+          <div style="flex: 1 1 180px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Keyword (contains)</label>
+            <input
+              type="text"
+              [(ngModel)]="newRuleKeyword"
+              placeholder="e.g. Netflix, Shell, DM..."
+              class="person-input"
+              style="width: 100%; height: 30px;">
+          </div>
 
-        <select [(ngModel)]="newRuleCategory" class="settings-select" style="flex: 1 1 180px;">
-          <optgroup *ngFor="let g of service.categoryGroups()" [label]="g.name">
-            <option *ngFor="let itm of g.items" [value]="itm.name">{{ itm.name }}</option>
-          </optgroup>
-        </select>
+          <div style="flex: 1 1 160px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Assigned Category</label>
+            <select [(ngModel)]="newRuleCategory" class="settings-select" style="width: 100%; height: 30px;">
+              <optgroup *ngFor="let g of service.categoryGroups()" [label]="g.name">
+                <option *ngFor="let itm of g.items" [value]="itm.name">{{ itm.name }}</option>
+              </optgroup>
+            </select>
+          </div>
 
-        <select [(ngModel)]="newRuleSplitType" class="settings-select" style="width: 110px;">
-          <option value="SPLIT">Split 50/50</option>
-          <option value="SELF">Self Only</option>
-          <option value="OTHER">Other Only</option>
-        </select>
+          <div style="width: 110px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Split Mode</label>
+            <select [(ngModel)]="newRuleSplitType" class="settings-select" style="width: 100%; height: 30px;">
+              <option value="SPLIT">Split 50/50</option>
+              <option value="SELF">Self Only</option>
+              <option value="OTHER">Other Only</option>
+            </select>
+          </div>
 
-        <select [(ngModel)]="newRuleOwner" class="settings-select" style="width: 110px;">
-          <option value="">Any Payer</option>
-          <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
-        </select>
+          <div style="width: 110px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Default Payer</label>
+            <select [(ngModel)]="newRuleOwner" class="settings-select" style="width: 100%; height: 30px;">
+              <option value="">Any Payer</option>
+              <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+            </select>
+          </div>
 
-        <button class="btn btn-primary btn-xs" (click)="addRule()" [disabled]="!newRuleKeyword.trim()">
-          + Add Rule
-        </button>
+          <button class="btn btn-primary btn-sm" (click)="addRule()" [disabled]="!newRuleKeyword.trim()" style="height: 30px; font-size: 0.76rem;">
+            + Add Rule
+          </button>
+        </div>
+      </div>
+
+      <!-- Category Rules Search & Bank Filter Toolbar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; background: rgba(255, 255, 255, 0.03); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06);">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin: 0; white-space: nowrap;">Filter Bank:</label>
+            <select
+              [ngModel]="categoryRuleFilterBank()"
+              (ngModelChange)="categoryRuleFilterBank.set($event)"
+              class="settings-select"
+              style="padding: 0.15rem 0.4rem; font-size: 0.76rem; height: 26px; width: 130px;">
+              <option value="All">All Banks</option>
+              <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 160px; max-width: 260px;">
+            <input
+              type="text"
+              [ngModel]="categoryRuleSearch()"
+              (ngModelChange)="categoryRuleSearch.set($event)"
+              placeholder="🔍 Search category rules..."
+              class="person-input"
+              style="width: 100%; padding: 0.15rem 0.5rem; font-size: 0.76rem; height: 26px;">
+          </div>
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-muted);">
+          Showing {{ filteredCategoryRules().length }} of {{ service.rules().length }} rules
+        </div>
       </div>
 
       <!-- Active Rules List (Fixed header, scroll strictly below) -->
-      <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+      <div style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row (No scrollbar on header) -->
         <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Keyword Contains</span>
@@ -371,7 +417,7 @@
 
         <!-- Scrollable Rows Body (Scrollbar strictly below header) -->
         <div style="max-height: 220px; overflow-y: auto;">
-          <div *ngFor="let r of service.rules()">
+          <div *ngFor="let r of filteredCategoryRules()">
             <!-- Normal Row Display -->
             <div
               *ngIf="editingRuleId() !== r.id"
@@ -440,8 +486,8 @@
               </div>
             </div>
           </div>
-          <div *ngIf="service.rules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
-            No rules configured yet.
+          <div *ngIf="filteredCategoryRules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
+            No rules match the current search/filter.
           </div>
         </div>
       </div>
@@ -460,28 +506,68 @@
         Transactions matching these keywords for specific banks (or all banks) are automatically ignored during statement import (e.g. daily interest payments, internal transfers).
       </p>
 
-      <!-- Add New Exclude Rule Form -->
-      <div class="rule-add-form">
-        <select [(ngModel)]="newExcludeBank" class="settings-select" style="width: 160px;">
-          <option value="All">All Banks</option>
-          <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
-        </select>
+      <!-- Add New Exclude Rule Card -->
+      <div style="background: rgba(239, 68, 68, 0.04); border: 1px dashed rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.8rem;">
+        <div style="font-size: 0.76rem; font-weight: 700; color: #f87171; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.35rem;">
+          <span>➕</span> Add New Exclude Rule:
+        </div>
+        <div class="rule-add-form" style="margin: 0; align-items: flex-end;">
+          <div style="width: 150px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Apply to Bank</label>
+            <select [(ngModel)]="newExcludeBank" class="settings-select" style="width: 100%; height: 30px;">
+              <option value="All">All Banks</option>
+              <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+            </select>
+          </div>
 
-        <input
-          type="text"
-          [(ngModel)]="newExcludeKeyword"
-          placeholder="Keyword to ignore (e.g. Daily Interest, Zinsgutschrift)..."
-          class="person-input"
-          style="flex: 1; min-width: 220px;"
-          (keydown.enter)="addExcludeRule()">
+          <div style="flex: 1; min-width: 220px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Keyword to Ignore</label>
+            <input
+              type="text"
+              [(ngModel)]="newExcludeKeyword"
+              placeholder="e.g. Daily Interest, Zinsgutschrift, Instant Access..."
+              class="person-input"
+              style="width: 100%; height: 30px;"
+              (keydown.enter)="addExcludeRule()">
+          </div>
 
-        <button class="btn btn-primary btn-xs" (click)="addExcludeRule()" [disabled]="!newExcludeKeyword.trim()">
-          + Add Exclude Rule
-        </button>
+          <button class="btn btn-primary btn-sm" (click)="addExcludeRule()" [disabled]="!newExcludeKeyword.trim()" style="height: 30px; font-size: 0.76rem;">
+            + Add Exclude Rule
+          </button>
+        </div>
+      </div>
+
+      <!-- Exclude Rules Search & Bank Filter Toolbar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; background: rgba(255, 255, 255, 0.03); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06);">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin: 0; white-space: nowrap;">Filter Bank:</label>
+            <select
+              [ngModel]="excludeRuleFilterBank()"
+              (ngModelChange)="excludeRuleFilterBank.set($event)"
+              class="settings-select"
+              style="padding: 0.15rem 0.4rem; font-size: 0.76rem; height: 26px; width: 130px;">
+              <option value="All">All Banks</option>
+              <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 160px; max-width: 260px;">
+            <input
+              type="text"
+              [ngModel]="excludeRuleSearch()"
+              (ngModelChange)="excludeRuleSearch.set($event)"
+              placeholder="🔍 Search exclusion rules..."
+              class="person-input"
+              style="width: 100%; padding: 0.15rem 0.5rem; font-size: 0.76rem; height: 26px;">
+          </div>
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-muted);">
+          Showing {{ filteredExcludeRules().length }} of {{ service.excludeRules().length }} rules
+        </div>
       </div>
 
       <!-- Active Exclude Rules List (Fixed header, scroll strictly below) -->
-      <div style="margin-top: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+      <div style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row -->
         <div style="display: grid; grid-template-columns: 140px 1fr 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Target Bank</span>
@@ -491,7 +577,7 @@
 
         <!-- Scrollable Rows Body -->
         <div style="max-height: 200px; overflow-y: auto;">
-          <div *ngFor="let r of service.excludeRules()">
+          <div *ngFor="let r of filteredExcludeRules()">
             <!-- Normal Row Display -->
             <div
               *ngIf="editingExcludeRuleId() !== r.id"
@@ -528,8 +614,8 @@
               </div>
             </div>
           </div>
-          <div *ngIf="service.excludeRules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
-            No exclusion rules configured.
+          <div *ngIf="filteredExcludeRules().length === 0" style="text-align: center; color: var(--text-muted); padding: 1rem; font-size: 0.82rem;">
+            No exclusion rules match the current search/filter.
           </div>
         </div>
       </div>

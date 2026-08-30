@@ -230,6 +230,41 @@ export class SettingsComponent {
     this.service.deleteRule(id);
   }
 
+  // Exclude Rules Filter & Search
+  public excludeRuleFilterBank = signal<string>('All');
+  public excludeRuleSearch = signal<string>('');
+
+  public filteredExcludeRules = computed(() => {
+    const bankFilter = this.excludeRuleFilterBank().toLowerCase();
+    const query = this.excludeRuleSearch().toLowerCase().trim();
+
+    return this.service.excludeRules().filter((rule) => {
+      const ruleBank = (rule.bank || 'All').toLowerCase();
+      const matchesBank = bankFilter === 'all' || ruleBank === bankFilter || ruleBank.includes(bankFilter);
+      const matchesQuery = !query || (rule.keyword && rule.keyword.toLowerCase().includes(query));
+      return matchesBank && matchesQuery;
+    });
+  });
+
+  // Category Rules Filter & Search
+  public categoryRuleFilterBank = signal<string>('All');
+  public categoryRuleSearch = signal<string>('');
+
+  public filteredCategoryRules = computed(() => {
+    const bankFilter = this.categoryRuleFilterBank().toLowerCase();
+    const query = this.categoryRuleSearch().toLowerCase().trim();
+
+    return this.service.rules().filter((rule) => {
+      const ruleBank = (rule.bank || 'All').toLowerCase();
+      const matchesBank = bankFilter === 'all' || ruleBank === bankFilter || ruleBank.includes(bankFilter);
+      const matchesQuery =
+        !query ||
+        (rule.keyword && rule.keyword.toLowerCase().includes(query)) ||
+        (rule.categoryItem && rule.categoryItem.toLowerCase().includes(query));
+      return matchesBank && matchesQuery;
+    });
+  });
+
   // Exclude Rule Edit State
   public editingExcludeRuleId = signal<string | null>(null);
   public editExcludeRuleModel: ExcludeRule | null = null;
