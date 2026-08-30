@@ -213,7 +213,7 @@ export class ImportComponent {
         this.service.updateRule({
           id: this.editingExistingRuleId,
           keyword,
-          categoryItem: this.ruleCategory || 'Uncategorized',
+          categoryItem: this.ruleCategory || '',
           categoryGroup: catGroup,
           splitType: this.ruleSplitType,
           paidBy: this.rulePaidBy,
@@ -222,7 +222,7 @@ export class ImportComponent {
       } else {
         this.service.addRule({
           keyword,
-          categoryItem: this.ruleCategory || 'Uncategorized',
+          categoryItem: this.ruleCategory || '',
           categoryGroup: catGroup,
           splitType: this.ruleSplitType,
           paidBy: this.rulePaidBy,

@@ -416,7 +416,7 @@
               </td>
               <td>
                 <select
-                  [ngModel]="tx.categoryItem || ''"
+                  [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
                   (ngModelChange)="onRowCategoryChange(tx, $event)"
                   class="inline-category-select">
                   <option value="">📁 Uncategorized</option>
@@ -500,11 +500,11 @@
 
               <!-- Bulk Category -->
               <select
-                [ngModel]="grp.categoryItem || ''"
+                [ngModel]="(!grp.categoryItem || grp.categoryItem === 'Uncategorized') ? '' : grp.categoryItem"
                 (ngModelChange)="onGroupCategoryChange(grp, $event)"
                 class="inline-category-select"
                 style="font-size: 0.75rem; max-width: 160px;">
-                <option value="">📁 {{ grp.categoryItem ? grp.categoryItem : 'Set Category for All...' }}</option>
+                <option value="">📁 {{ (grp.categoryItem && grp.categoryItem !== 'Uncategorized') ? grp.categoryItem : 'Set Category for All...' }}</option>
                 <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
                   <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
                 </optgroup>
@@ -580,7 +580,7 @@
                   </td>
                   <td>
                     <select
-                      [ngModel]="tx.categoryItem || ''"
+                      [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
                       (ngModelChange)="onRowCategoryChange(tx, $event)"
                       class="inline-category-select"
                       style="font-size: 0.74rem;">

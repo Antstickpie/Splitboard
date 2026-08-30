@@ -226,7 +226,7 @@
             </td>
             <td>
               <select
-                [ngModel]="tx.categoryItem || ''"
+                [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
                 (ngModelChange)="onInlineCategoryChange(tx, $event)"
                 class="inline-category-select">
                 <option value="">📁 Uncategorized</option>
