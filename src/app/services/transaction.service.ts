@@ -969,9 +969,14 @@ export class TransactionService {
       transactions: this.transactions(),
       monthlyBudgets: this.monthlyBudgets(),
       bankConfigs: this.bankConfigs(),
+      rules: this.rules(),
+      excludeRules: this.excludeRules(),
       settings: {
         currency: this.currency(),
         dateFormat: this.dateFormat(),
+        visibleCurrencies: this.visibleCurrencies(),
+        exchangeRates: this.exchangeRates(),
+        lastRatesRefresh: this.lastRatesRefresh(),
         autoSyncDrive: this.autoSyncGoogleDrive(),
         googleFileName: this.googleFileName(),
         theme: this.theme()
@@ -997,9 +1002,14 @@ export class TransactionService {
       if (data.transactions) this.transactions.set(data.transactions);
       if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
       if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
+      if (data.rules) this.rules.set(data.rules);
+      if (data.excludeRules) this.excludeRules.set(data.excludeRules);
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.visibleCurrencies) this.visibleCurrencies.set(data.settings.visibleCurrencies);
+        if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
+        if (data.settings.lastRatesRefresh !== undefined) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
         if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
         if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
         if (data.settings.theme) {
@@ -1064,9 +1074,14 @@ export class TransactionService {
         transactions: this.transactions(),
         monthlyBudgets: this.monthlyBudgets(),
         bankConfigs: this.bankConfigs(),
+        rules: this.rules(),
+        excludeRules: this.excludeRules(),
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
+          visibleCurrencies: this.visibleCurrencies(),
+          exchangeRates: this.exchangeRates(),
+          lastRatesRefresh: this.lastRatesRefresh(),
           autoSyncDrive: this.autoSyncGoogleDrive(),
           googleFileName: this.googleFileName(),
           theme: this.theme()
@@ -1139,9 +1154,14 @@ export class TransactionService {
       if (data.transactions) this.transactions.set(data.transactions);
       if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
       if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
+      if (data.rules) this.rules.set(data.rules);
+      if (data.excludeRules) this.excludeRules.set(data.excludeRules);
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.visibleCurrencies) this.visibleCurrencies.set(data.settings.visibleCurrencies);
+        if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
+        if (data.settings.lastRatesRefresh !== undefined) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
         if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
         if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
         if (data.settings.theme) {
