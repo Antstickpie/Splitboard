@@ -821,6 +821,11 @@
           <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; display: block;">
             Transactions containing this keyword will trigger the rule.
           </span>
+          <!-- Live Notice If Matching Rule Already Exists -->
+          <div *ngIf="getExistingRuleInfoForModal() as info" class="animate-fade-in" style="margin-top: 0.4rem; padding: 0.35rem 0.6rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; font-size: 0.74rem; color: #fbbf24; display: flex; align-items: center; gap: 0.4rem;">
+            <span>ℹ️</span>
+            <span>{{ info.message }}</span>
+          </div>
         </div>
 
         <!-- Bank Scope -->

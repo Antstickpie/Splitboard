@@ -114,6 +114,37 @@ export class ImportComponent {
     this.ruleTargetTx.set(null);
   }
 
+  public getExistingRuleInfoForModal(): { type: 'category' | 'exclude'; message: string } | null {
+    const raw = (this.ruleKeyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+    if (!raw || raw.length < 2) return null;
+
+    const matchedCat = this.service.rules().find((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+    });
+    if (matchedCat) {
+      const b = matchedCat.bank || 'All Banks';
+      return {
+        type: 'category',
+        message: `Category rule already exists: "${matchedCat.keyword}" → ${matchedCat.categoryItem} (${matchedCat.splitType || 'SPLIT'}) for [${b}]`
+      };
+    }
+
+    const matchedExclude = this.service.excludeRules().find((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+    });
+    if (matchedExclude) {
+      const b = matchedExclude.bank || 'All Banks';
+      return {
+        type: 'exclude',
+        message: `Exclude rule already exists: "${matchedExclude.keyword}" for [${b}]`
+      };
+    }
+
+    return null;
+  }
+
   public saveRuleFromModal(): void {
     const keyword = this.ruleKeyword.trim();
     if (!keyword) return;

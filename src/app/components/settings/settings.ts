@@ -262,6 +262,57 @@ export class SettingsComponent {
     });
   });
 
+  // Existing Rule Conflict / Overlap Detection
+  public getExistingExcludeRuleWarning(keyword: string, bank: string): string | null {
+    const raw = (keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+    if (!raw || raw.length < 2) return null;
+
+    const existingExclude = this.service.excludeRules().find((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+    });
+    if (existingExclude) {
+      const b = existingExclude.bank || 'All Banks';
+      return `Existing Exclude Rule found: "${existingExclude.keyword}" for [${b}]`;
+    }
+
+    const existingCat = this.service.rules().find((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+    });
+    if (existingCat) {
+      const b = existingCat.bank || 'All Banks';
+      return `Note: Category rule also exists: "${existingCat.keyword}" (${existingCat.categoryItem}) for [${b}]`;
+    }
+
+    return null;
+  }
+
+  public getExistingCategoryRuleWarning(keyword: string): string | null {
+    const raw = (keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+    if (!raw || raw.length < 2) return null;
+
+    const existingCat = this.service.rules().find((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+    });
+    if (existingCat) {
+      const b = existingCat.bank || 'All Banks';
+      return `Existing Category Rule found: "${existingCat.keyword}" → ${existingCat.categoryItem} (${existingCat.splitType || 'SPLIT'}) for [${b}]`;
+    }
+
+    const existingExclude = this.service.excludeRules().find((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+    });
+    if (existingExclude) {
+      const b = existingExclude.bank || 'All Banks';
+      return `Note: Keyword is currently on the Exclude List for [${b}] ("${existingExclude.keyword}")`;
+    }
+
+    return null;
+  }
+
   // Exclude Rule Edit State
   public editingExcludeRuleId = signal<string | null>(null);
   public editExcludeRuleModel: ExcludeRule | null = null;
