@@ -123,7 +123,25 @@ export class ImportComponent {
   public rawClipboardText = '';
 
   public previewResult = signal<ParsedStatementResult | null>(null);
-  public previewTab = signal<'valid' | 'incomes' | 'duplicates' | 'excluded'>('valid');
+  public previewTab = signal<'valid' | 'review' | 'incomes' | 'duplicates' | 'excluded'>('valid');
+
+  public reviewTransactions = computed(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return [];
+    return res.transactions.filter((t) => t.isUnderReview);
+  });
+
+  public toggleTxDone(tx: Transaction): void {
+    tx.isDone = !tx.isDone;
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+  }
+
+  public toggleTxReview(tx: Transaction): void {
+    tx.isUnderReview = !tx.isUnderReview;
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+  }
 
   public sortColumn = signal<'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem' | 'original'>('original');
   public sortAsc = signal<boolean>(true);

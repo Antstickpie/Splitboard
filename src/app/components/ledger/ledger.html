@@ -153,6 +153,49 @@
 
     <!-- Collapsible Filters Drawer Inside Table Card -->
     <div class="animate-fade-in" *ngIf="isFiltersOpen()" style="padding: 0.6rem 0.8rem; margin-top: 0.4rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; background: rgba(255,255,255,0.03); border-radius: 6px;">
+      <!-- Status Filter Buttons -->
+      <div style="display: flex; gap: 0.25rem; align-items: center;">
+        <button
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="service.filterStatus() === 'ALL'"
+          [class.btn-secondary]="service.filterStatus() !== 'ALL'"
+          (click)="service.filterStatus.set('ALL')"
+          style="font-size: 0.72rem; padding: 0.2rem 0.45rem;">
+          All
+        </button>
+        <button
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="service.filterStatus() === 'PENDING'"
+          [class.btn-secondary]="service.filterStatus() !== 'PENDING'"
+          (click)="service.filterStatus.set('PENDING')"
+          title="Focus on remaining unverified transactions"
+          style="font-size: 0.72rem; padding: 0.2rem 0.45rem;">
+          ⏳ Remaining
+        </button>
+        <button
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="service.filterStatus() === 'REVIEW'"
+          [class.btn-secondary]="service.filterStatus() !== 'REVIEW'"
+          (click)="service.filterStatus.set('REVIEW')"
+          title="Transactions flagged for review"
+          style="font-size: 0.72rem; padding: 0.2rem 0.45rem; color: #fbbf24;">
+          🔍 Review ({{ service.reviewTransactionsForSelectedMonth().length }})
+        </button>
+        <button
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="service.filterStatus() === 'DONE'"
+          [class.btn-secondary]="service.filterStatus() !== 'DONE'"
+          (click)="service.filterStatus.set('DONE')"
+          title="Transactions marked as done"
+          style="font-size: 0.72rem; padding: 0.2rem 0.45rem;">
+          ✓ Done
+        </button>
+      </div>
+
       <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
         <option value="ALL">All Payers</option>
         <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
@@ -183,10 +226,36 @@
       </button>
     </div>
 
+    <!-- Month Highlight Banner: Needs Review -->
+    <div *ngIf="service.reviewTransactionsForSelectedMonth().length > 0" class="glass-card animate-fade-in" style="margin-top: 0.65rem; padding: 0.65rem 0.95rem; background: rgba(245, 158, 11, 0.09); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem;">
+        <span style="font-size: 1.2rem;">🔍</span>
+        <div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: #fbbf24;">
+            {{ service.reviewTransactionsForSelectedMonth().length }} Transaction{{ service.reviewTransactionsForSelectedMonth().length > 1 ? 's' : '' }} Flagged for Review
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted);">
+            Items requiring partner discussion or clarification for this month.
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.4rem;">
+        <button
+          class="btn btn-xs"
+          [class.btn-primary]="service.filterStatus() === 'REVIEW'"
+          [class.btn-secondary]="service.filterStatus() !== 'REVIEW'"
+          (click)="service.filterStatus.set(service.filterStatus() === 'REVIEW' ? 'ALL' : 'REVIEW')"
+          style="font-size: 0.73rem; padding: 0.25rem 0.6rem; color: #fbbf24; border-color: rgba(245,158,11,0.4);">
+          {{ service.filterStatus() === 'REVIEW' ? 'Showing Review Only ✕' : 'Filter Review Items 🔍' }}
+        </button>
+      </div>
+    </div>
+
     <div class="table-container ledger-table-wrapper">
       <table>
         <thead>
           <tr>
+            <th style="width: 38px; text-align: center;" title="Mark Done">Done</th>
             <th>Date</th>
             <th>Bank / Account</th>
             <th>Paid By / Owner</th>
@@ -199,7 +268,24 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let tx of service.filteredTransactions()">
+          <tr
+            *ngFor="let tx of service.filteredTransactions()"
+            [class.tx-row-done]="tx.isDone"
+            [class.tx-row-review]="tx.isUnderReview">
+            <!-- Done Checkbox Column -->
+            <td style="text-align: center; vertical-align: middle;">
+              <button
+                type="button"
+                class="btn btn-xs"
+                [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
+                [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
+                (click)="service.toggleTransactionDone(tx.id)"
+                [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
+                style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; border-radius: 50%; cursor: pointer;">
+                {{ tx.isDone ? '✓' : '○' }}
+              </button>
+            </td>
             <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
             <td>
               <span class="badge badge-neutral">{{ tx.bank }}</span>
@@ -210,7 +296,10 @@
               </span>
             </td>
             <td style="font-weight: 500; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
-              {{ tx.description }}
+              <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+              <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600;">
+                🔍 Review
+              </span>
               <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem;">Cash Transfer</span>
               <span
                 *ngIf="tx.isReimbursable"
@@ -279,6 +368,7 @@
                   ⚙
                 </button>
               </div>
+            </td>
             <td>
               <input
                 type="text"
@@ -290,6 +380,16 @@
             </td>
             <td style="text-align: center;">
               <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
+                <button
+                  class="btn btn-xs"
+                  [style.color]="tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
+                  [style.background]="tx.isUnderReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)'"
+                  [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
+                  (click)="service.toggleTransactionReview(tx.id)"
+                  [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'"
+                  style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
+                  {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
+                </button>
                 <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
                   ✏ Edit
                 </button>
@@ -298,7 +398,7 @@
             </td>
           </tr>
           <tr *ngIf="service.filteredTransactions().length === 0">
-            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+            <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 2rem;">
               <div *ngIf="service.searchQuery() || hasActiveFilters()">
                 No transactions match current search/filter.
                 <button class="btn btn-secondary btn-xs" (click)="resetFilters()" style="margin-left: 0.5rem;">Clear Filters</button>

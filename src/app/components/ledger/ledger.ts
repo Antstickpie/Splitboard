@@ -80,7 +80,8 @@ export class LedgerComponent {
       this.service.filterOwner() !== 'ALL' ||
       this.service.filterBank() !== 'ALL' ||
       this.service.filterSplitType() !== 'ALL' ||
-      this.service.filterCategory() !== 'ALL'
+      this.service.filterCategory() !== 'ALL' ||
+      this.service.filterStatus() !== 'ALL'
     );
   });
 
@@ -96,6 +97,7 @@ export class LedgerComponent {
     this.service.filterBank.set('ALL');
     this.service.filterSplitType.set('ALL');
     this.service.filterCategory.set('ALL');
+    this.service.filterStatus.set('ALL');
     this.service.searchQuery.set('');
   }
 

@@ -119,6 +119,7 @@ export class TransactionService {
   public filterOwner = signal<string>('ALL');
   public filterSplitType = signal<string>('ALL');
   public filterCategory = signal<string>('ALL');
+  public filterStatus = signal<'ALL' | 'REVIEW' | 'PENDING' | 'DONE'>('ALL');
 
   // Google Drive State
   public isGoogleConnected = signal<boolean>(false);
@@ -131,6 +132,13 @@ export class TransactionService {
   // Computed Values
   public personOne = computed(() => this.persons()[0] || { id: 'p1', name: 'Person 1' });
   public personTwo = computed(() => this.persons()[1] || { id: 'p2', name: 'Person 2' });
+
+  public reviewTransactionsForSelectedMonth = computed(() => {
+    const m = this.selectedMonth();
+    return this.transactions().filter(
+      (tx) => (m === 'ALL' || (tx.date && tx.date.startsWith(m))) && tx.isUnderReview
+    );
+  });
 
   public availableMonths = computed(() => {
     const months = new Set<string>();
@@ -161,6 +169,7 @@ export class TransactionService {
     const owner = this.filterOwner();
     const split = this.filterSplitType();
     const cat = this.filterCategory();
+    const status = this.filterStatus();
 
     return this.transactions()
       .filter((tx) => {
@@ -169,6 +178,9 @@ export class TransactionService {
         if (owner !== 'ALL' && tx.paidBy !== owner) return false;
         if (split !== 'ALL' && tx.splitType !== split) return false;
         if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) return false;
+        if (status === 'REVIEW' && !tx.isUnderReview) return false;
+        if (status === 'PENDING' && tx.isDone) return false;
+        if (status === 'DONE' && !tx.isDone) return false;
         if (q) {
           const matchDesc = (tx.description || '').toLowerCase().includes(q);
           const matchBank = (tx.bank || '').toLowerCase().includes(q);
@@ -685,6 +697,36 @@ export class TransactionService {
     this.transactions.update((curr) =>
       curr.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
     );
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public toggleTransactionReview(id: string): void {
+    let nowReview = false;
+    this.transactions.update((curr) =>
+      curr.map((tx) => {
+        if (tx.id === id) {
+          nowReview = !tx.isUnderReview;
+          return { ...tx, isUnderReview: nowReview };
+        }
+        return tx;
+      })
+    );
+    this.showToast(nowReview ? '🔍 Flagged for review' : '✓ Review resolved', nowReview ? 'info' : 'success');
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public toggleTransactionDone(id: string): void {
+    let nowDone = false;
+    this.transactions.update((curr) =>
+      curr.map((tx) => {
+        if (tx.id === id) {
+          nowDone = !tx.isDone;
+          return { ...tx, isDone: nowDone };
+        }
+        return tx;
+      })
+    );
+    this.showToast(nowDone ? '✓ Marked as Done' : '↩ Unmarked Done', 'info');
     this.triggerAutoSyncIfEnabled();
   }
 

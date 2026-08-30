@@ -56,6 +56,10 @@ export interface Transaction {
   reimbursementStatus?: 'PENDING' | 'REIMBURSED';
   reimbursedTo?: string; // Person who collected the repayment
   reimbursementNote?: string; // e.g. "Work trip", "Dave dinner", "Insurance"
+
+  // Review & Workflow status
+  isUnderReview?: boolean; // Flagged for review / discussion
+  isDone?: boolean; // Marked as verified / done (grays out row)
   
   note?: string;
   sourceFile?: string;
