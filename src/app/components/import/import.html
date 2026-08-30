@@ -886,4 +886,51 @@
       </div>
     </div>
   </div>
+
+  <!-- Modal: Mandatory Bank Selection Immediately Upon Upload -->
+  <div class="modal-overlay animate-fade-in" *ngIf="showBankSelectModal()" (click)="closeBankSelectModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="modal-card glass-card" (click)="$event.stopPropagation()" style="max-width: 480px; width: 100%; background: var(--bg-card, #131722); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 12px; padding: 1.4rem; box-shadow: 0 20px 50px rgba(0,0,0,0.7);">
+      
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.3rem;">🏦</span>
+            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">Select Bank Account</h3>
+          </div>
+          <p style="margin: 0.25rem 0 0 0; font-size: 0.76rem; color: var(--text-muted);">
+            Statement: <strong style="color: var(--primary);">{{ uploadedFileName() }}</strong>
+          </p>
+        </div>
+        <button class="btn-icon-remove" (click)="closeBankSelectModal()" style="font-size: 1.1rem; cursor: pointer; background: transparent; border: none; color: var(--text-muted);">✕</button>
+      </div>
+
+      <p style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 0.8rem;">
+        Choose the bank to immediately apply its specific rules, exclusions, and column formats:
+      </p>
+
+      <!-- 1-Click Bank Buttons Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
+        <button
+          *ngFor="let b of service.bankConfigs()"
+          class="btn btn-secondary"
+          (click)="selectBankAndParse(b.name)"
+          style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.85rem; font-weight: 600; text-align: left; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+          <span style="font-size: 1.1rem;">🏦</span>
+          <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ b.name }}</span>
+        </button>
+
+        <button
+          class="btn btn-secondary"
+          (click)="selectBankAndParse('Generic Bank')"
+          style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.85rem; font-weight: 600; text-align: left; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+          <span style="font-size: 1.1rem;">🌐</span>
+          <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Generic Bank</span>
+        </button>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-secondary btn-xs" (click)="closeBankSelectModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>

@@ -374,54 +374,104 @@ export class ImportComponent {
     this.isAddingBankInline = false;
   }
 
-  public async onFileSelected(event: Event) {
+  // Immediate Bank Selection Dialog on Upload
+  public showBankSelectModal = signal<boolean>(false);
+  public pendingFile: File | null = null;
+  public pendingText: string | null = null;
+
+  public onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
 
     const file = input.files[0];
+    this.pendingFile = file;
+    this.pendingText = null;
     this.uploadedFileName.set(file.name);
+    this.showBankSelectModal.set(true);
+    input.value = '';
+  }
+
+  public parseClipboardText() {
+    if (!this.rawClipboardText.trim()) return;
+    this.pendingText = this.rawClipboardText;
+    this.pendingFile = null;
+    this.uploadedFileName.set('Clipboard Paste');
+    this.showBankSelectModal.set(true);
+  }
+
+  public closeBankSelectModal(): void {
+    this.showBankSelectModal.set(false);
+    this.pendingFile = null;
+    this.pendingText = null;
+  }
+
+  public async selectBankAndParse(bankName: string): Promise<void> {
+    this.showBankSelectModal.set(false);
+    this.selectedBank.set(bankName);
     this.isParsing.set(true);
     this.previewTab.set('valid');
     this.sortColumn.set('original');
 
-    // If PDF, prepare live rendering
-    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
-    if (isPdf) {
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        this.pdfArrayBuffer = arrayBuffer;
-        await this.renderPdfDoc(arrayBuffer);
-      } catch (err) {
-        console.warn('PDF pre-render notice:', err);
+    if (this.pendingFile) {
+      const file = this.pendingFile;
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+      if (isPdf) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          this.pdfArrayBuffer = arrayBuffer;
+          await this.renderPdfDoc(arrayBuffer);
+        } catch (err) {
+          console.warn('PDF pre-render notice:', err);
+        }
+      } else {
+        this.isPdfLoaded.set(false);
+        this.pdfDocInstance = null;
+        this.pdfArrayBuffer = null;
+        this.pdfPagesList.set([]);
       }
-    } else {
-      this.isPdfLoaded.set(false);
-      this.pdfDocInstance = null;
-      this.pdfArrayBuffer = null;
-      this.pdfPagesList.set([]);
-    }
 
-    try {
-      const res = await this.parser.parseFile(file, 'Auto-Detect', this.selectedOwner());
-      const guessed = res.bankName && res.bankName !== 'Generic Bank' && res.bankName !== 'Auto-Detect' ? res.bankName : '';
-      this.detectedBankSuggestion.set(guessed);
-      this.selectedBank.set('');
-      // Keep rows blank until user confirms bank!
-      res.transactions.forEach((t) => (t.bank = ''));
-      res.incomes.forEach((t) => (t.bank = ''));
-      res.duplicates.forEach((t) => (t.bank = ''));
-      res.excluded.forEach((t) => (t.bank = ''));
-      res.bankName = '';
-      this.previewResult.set(res);
-      this.service.showToast(
-        `Parsed ${res.transactions.length} expenses. Confirm or select bank to import!`,
-        'info'
-      );
-    } catch (e: any) {
-      this.service.showToast('Error parsing file: ' + e.message, 'error');
-    } finally {
-      this.isParsing.set(false);
-      input.value = '';
+      try {
+        const res = await this.parser.parseFile(file, bankName, this.selectedOwner());
+        res.bankName = bankName;
+        res.transactions.forEach((t) => (t.bank = bankName));
+        res.incomes.forEach((t) => (t.bank = bankName));
+        res.duplicates.forEach((t) => (t.bank = bankName));
+        res.excluded.forEach((t) => (t.bank = bankName));
+        this.previewResult.set(res);
+        this.service.showToast(
+          `Parsed ${res.transactions.length} expenses for ${bankName}!`,
+          'success'
+        );
+      } catch (e: any) {
+        this.service.showToast('Error parsing file: ' + e.message, 'error');
+      } finally {
+        this.isParsing.set(false);
+        this.pendingFile = null;
+      }
+    } else if (this.pendingText) {
+      try {
+        const res = this.parser.parseText(
+          this.pendingText,
+          bankName,
+          this.selectedOwner(),
+          'Clipboard Paste'
+        );
+        res.bankName = bankName;
+        res.transactions.forEach((t) => (t.bank = bankName));
+        res.incomes.forEach((t) => (t.bank = bankName));
+        res.duplicates.forEach((t) => (t.bank = bankName));
+        res.excluded.forEach((t) => (t.bank = bankName));
+        this.previewResult.set(res);
+        this.service.showToast(
+          `Parsed ${res.transactions.length} expenses for ${bankName}!`,
+          'success'
+        );
+      } catch (e: any) {
+        this.service.showToast('Error parsing text: ' + e.message, 'error');
+      } finally {
+        this.isParsing.set(false);
+        this.pendingText = null;
+      }
     }
   }
 
@@ -574,39 +624,6 @@ export class ImportComponent {
     this.isPdfViewerOpen.set(!this.isPdfViewerOpen());
     if (this.isPdfViewerOpen()) {
       setTimeout(() => this.fitPdfWidth(), 100);
-    }
-  }
-
-  public parseClipboardText() {
-    if (!this.rawClipboardText.trim()) return;
-    this.isParsing.set(true);
-    this.previewTab.set('valid');
-    this.sortColumn.set('original');
-
-    try {
-      const res = this.parser.parseText(
-        this.rawClipboardText,
-        'Auto-Detect',
-        this.selectedOwner(),
-        'Clipboard Paste'
-      );
-      const guessed = res.bankName && res.bankName !== 'Generic Bank' && res.bankName !== 'Auto-Detect' ? res.bankName : '';
-      this.detectedBankSuggestion.set(guessed);
-      this.selectedBank.set('');
-      res.transactions.forEach((t) => (t.bank = ''));
-      res.incomes.forEach((t) => (t.bank = ''));
-      res.duplicates.forEach((t) => (t.bank = ''));
-      res.excluded.forEach((t) => (t.bank = ''));
-      res.bankName = '';
-      this.previewResult.set(res);
-      this.service.showToast(
-        `Parsed ${res.transactions.length} expenses. Confirm or select bank to import!`,
-        'info'
-      );
-    } catch (e: any) {
-      this.service.showToast('Error parsing text: ' + e.message, 'error');
-    } finally {
-      this.isParsing.set(false);
     }
   }
 
