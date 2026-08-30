@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, Output, EventEmitter } from '@angular/core';
+import { Component, inject, signal, computed, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -35,6 +35,22 @@ export class ImportComponent {
   private parser = inject(StatementParserService);
 
   @Output() public importCompleted = new EventEmitter<void>();
+
+  @HostListener('window:keydown.escape')
+  public onEscapeKey(): void {
+    if (this.showBankSelectModal()) {
+      this.closeBankSelectModal();
+      return;
+    }
+    if (this.showRuleModal()) {
+      this.closeRuleModal();
+      return;
+    }
+    if (this.viewingBatch()) {
+      this.closeBatchModal();
+      return;
+    }
+  }
 
   public selectedBank = signal<string>('');
   public detectedBankSuggestion = signal<string>('');

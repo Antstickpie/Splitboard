@@ -1,4 +1,4 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LedgerComponent } from './components/ledger/ledger';
 import { BudgetDashboardComponent } from './components/budget-dashboard/budget-dashboard';
@@ -22,6 +22,21 @@ export class App {
   public service = inject(TransactionService);
   public activeTab = this.service.activeTab;
   public currentYear = new Date().getFullYear();
+
+  @HostListener('window:keydown.escape')
+  public onGlobalEscape(): void {
+    const confirm = this.service.confirmModal();
+    if (confirm) {
+      confirm.resolve(false);
+      this.service.confirmModal.set(null);
+      return;
+    }
+    const alert = this.service.alertModal();
+    if (alert) {
+      alert.resolve();
+      this.service.alertModal.set(null);
+    }
+  }
 
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings') {
     this.service.switchTab(tab);

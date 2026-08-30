@@ -46,6 +46,30 @@ export class LedgerComponent {
     }
   }
 
+  @HostListener('window:keydown.escape')
+  public onEscapeKey(): void {
+    if (this.reimbursingTx()) {
+      this.closeReimbursementModal();
+      return;
+    }
+    if (this.editingTx()) {
+      this.editingTx.set(null);
+      return;
+    }
+    if (this.activeCustomSplitTx()) {
+      this.activeCustomSplitTx.set(null);
+      return;
+    }
+    if (this.isCashModalOpen()) {
+      this.isCashModalOpen.set(false);
+      return;
+    }
+    if (this.isMonthPickerOpen()) {
+      this.isMonthPickerOpen.set(false);
+      return;
+    }
+  }
+
   // Settlement breakdown drawer toggle
   public isSettlementExpanded = signal(false);
 
