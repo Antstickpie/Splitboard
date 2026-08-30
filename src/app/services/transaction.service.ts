@@ -58,23 +58,7 @@ export interface SettlementSummary {
   }[];
 }
 
-export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [
-  // Global Exclusions
-  { id: 'ex-1', bank: 'All', keyword: 'Daily Interest' },
-  { id: 'ex-2', bank: 'All', keyword: 'Interest Payment' },
-  { id: 'ex-3', bank: 'All', keyword: 'Net Interest Paid' },
-  { id: 'ex-4', bank: 'All', keyword: 'Zinsgutschrift' },
-  { id: 'ex-5', bank: 'All', keyword: 'Tagesgeld Zinsen' },
-
-  // Revolut Specific Exclusions
-  { id: 'ex-rev-1', bank: 'Revolut', keyword: 'Instant Access Savings' },
-  { id: 'ex-rev-2', bank: 'Revolut', keyword: 'Exchanged to' },
-  { id: 'ex-rev-3', bank: 'Revolut', keyword: 'Google Pay top-up' },
-  { id: 'ex-rev-4', bank: 'Revolut', keyword: 'Top Up' },
-  { id: 'ex-rev-5', bank: 'Revolut', keyword: 'Payment from' },
-  { id: 'ex-rev-6', bank: 'Revolut', keyword: 'To investment account' },
-  { id: 'ex-rev-7', bank: 'Revolut', keyword: 'To Me Commerzbank' }
-];
+export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [];
 
 @Injectable({
   providedIn: 'root'
@@ -502,30 +486,13 @@ export class TransactionService {
       } else {
         this.bankConfigs.set(DEFAULT_BANKS);
       }
-      if (data.rules && data.rules.length > 0) {
-        const cleanedRules = data.rules.map((r) => {
-          if (r.categoryItem === 'Car Charging') return { ...r, categoryItem: 'Charging' };
-          if (r.categoryItem === 'Car Maintenance') return { ...r, categoryItem: 'Maintenance' };
-          if (r.categoryItem === 'Salary / Income') return { ...r, categoryItem: 'Salary' };
-          if (r.categoryItem === 'Dining Out and Food Chill') return { ...r, categoryItem: 'Food and Chill' };
-          if (r.categoryItem === 'Medical and Pharmacy') return { ...r, categoryItem: 'Medical' };
-          return r;
-        });
-        this.rules.set(cleanedRules);
+      if (data.rules !== undefined) {
+        this.rules.set(data.rules);
       }
-      if (data.excludeRules && data.excludeRules.length > 0) {
-        const existingKeywords = new Set(data.excludeRules.map((r) => `${r.bank.toLowerCase()}_${r.keyword.toLowerCase()}`));
-        const merged = [...data.excludeRules];
-        for (const def of DEFAULT_EXCLUDE_RULES) {
-          const key = `${def.bank.toLowerCase()}_${def.keyword.toLowerCase()}`;
-          if (!existingKeywords.has(key)) {
-            merged.push(def);
-            existingKeywords.add(key);
-          }
-        }
-        this.excludeRules.set(merged);
+      if (data.excludeRules !== undefined) {
+        this.excludeRules.set(data.excludeRules);
       } else {
-        this.excludeRules.set(DEFAULT_EXCLUDE_RULES);
+        this.excludeRules.set([]);
       }
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
