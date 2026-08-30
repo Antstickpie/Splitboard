@@ -351,7 +351,23 @@
 
     <!-- TAB 1: Valid Transactions Ready to Import -->
     <div *ngIf="previewTab() === 'valid'">
-      <div class="table-container" style="max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
+      <!-- Grouping & Controls Bar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; margin-bottom: 0.4rem; padding: 0.35rem 0.6rem; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 0.5rem;">
+        <label style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; font-weight: 600; color: var(--text-main); cursor: pointer; user-select: none;">
+          <input
+            type="checkbox"
+            [ngModel]="isGroupByDescription()"
+            (ngModelChange)="isGroupByDescription.set($event)"
+            style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary);">
+          <span>📑 Group by Description</span>
+        </label>
+        <div *ngIf="isGroupByDescription()" style="font-size: 0.74rem; color: var(--text-muted);">
+          {{ descriptionGroups().length }} unique description groups
+        </div>
+      </div>
+
+      <!-- VIEW A: Flat Table with Column Sorting (When unchecked) -->
+      <div class="table-container" *ngIf="!isGroupByDescription()" style="max-height: 580px; overflow-y: auto; width: 100%;">
         <table>
           <thead>
             <tr>
@@ -452,6 +468,164 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- VIEW B: Grouped by Description (When checked) -->
+      <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 580px; overflow-y: auto; width: 100%;">
+        <div *ngFor="let grp of descriptionGroups()" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <!-- Group Summary Row -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
+              <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
+              <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [title]="grp.description">{{ grp.description }}</div>
+              <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ grp.count }} {{ grp.count === 1 ? 'item' : 'items' }}</span>
+              <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);">{{ service.formatCurrency(grp.totalAmount) }}</span>
+            </div>
+
+            <!-- Group Bulk Controls -->
+            <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+              <!-- Bulk Owner -->
+              <span
+                class="badge"
+                (click)="toggleGroupOwner(grp)"
+                style="cursor: pointer; font-weight: 600; font-size: 0.72rem; padding: 0.2rem 0.45rem; user-select: none;"
+                [style.color]="grp.owner === service.personOne().name ? 'var(--primary)' : (grp.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-muted)')"
+                [style.background]="grp.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (grp.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)')"
+                [style.border]="'1px solid ' + (grp.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.3)' : (grp.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255, 255, 255, 0.15)'))"
+                [title]="'Set all ' + grp.count + ' items to other owner'">
+                👤 {{ grp.owner || 'Mixed' }}
+              </span>
+
+              <!-- Bulk Category -->
+              <select
+                [ngModel]="grp.categoryItem || ''"
+                (ngModelChange)="onGroupCategoryChange(grp, $event)"
+                class="inline-category-select"
+                style="font-size: 0.75rem; max-width: 160px;">
+                <option value="">📁 {{ grp.categoryItem ? grp.categoryItem : 'Set Category for All...' }}</option>
+                <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
+                  <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
+                </optgroup>
+              </select>
+
+              <!-- Bulk Split -->
+              <div class="split-button-group">
+                <button
+                  type="button"
+                  class="split-btn split-btn-5050"
+                  [class.active]="grp.splitType === 'SPLIT'"
+                  (click)="onGroupSplitChange(grp, 'SPLIT_5050')"
+                  title="Set all to Split 50/50">
+                  50/50
+                </button>
+                <button
+                  type="button"
+                  class="split-btn split-btn-p1"
+                  [class.active]="grp.splitType === 'SELF' && grp.owner === service.personOne().name"
+                  (click)="onGroupSplitChange(grp, '100_P1')"
+                  [title]="'Set all 100% ' + service.personOne().name">
+                  {{ service.personOne().name }}
+                </button>
+                <button
+                  type="button"
+                  class="split-btn split-btn-p2"
+                  [class.active]="grp.splitType === 'SELF' && grp.owner === service.personTwo().name"
+                  (click)="onGroupSplitChange(grp, '100_P2')"
+                  [title]="'Set all 100% ' + service.personTwo().name">
+                  {{ service.personTwo().name }}
+                </button>
+              </div>
+
+              <button class="btn btn-secondary btn-xs" (click)="openRuleModal(grp.items[0])" title="Create rule from this description" style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
+                ⚡ Rule
+              </button>
+              <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Skip all items in this group">✕</button>
+            </div>
+          </div>
+
+          <!-- Expanded Item List -->
+          <div *ngIf="isDescriptionGroupExpanded(grp.description)" class="animate-fade-in" style="margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+            <table style="width: 100%; font-size: 0.78rem;">
+              <thead>
+                <tr style="opacity: 0.7; font-size: 0.72rem;">
+                  <th>Date</th>
+                  <th>Bank</th>
+                  <th>Owner</th>
+                  <th>Category</th>
+                  <th style="text-align: right;">Amount</th>
+                  <th>Split</th>
+                  <th style="text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let tx of grp.items">
+                  <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+                  <td>
+                    <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
+                    <span *ngIf="!tx.bank" style="font-size: 0.7rem; color: #fbbf24; background: rgba(245, 158, 11, 0.12); padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px dashed #f59e0b; white-space: nowrap;">
+                      ⚠️ Select Bank
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      class="badge"
+                      (click)="toggleTxOwner(tx)"
+                      style="cursor: pointer; font-size: 0.7rem; padding: 0.15rem 0.4rem;"
+                      [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                      [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : 'rgba(139, 92, 246, 0.12)'">
+                      👤 {{ tx.paidBy }}
+                    </span>
+                  </td>
+                  <td>
+                    <select
+                      [ngModel]="tx.categoryItem || ''"
+                      (ngModelChange)="onRowCategoryChange(tx, $event)"
+                      class="inline-category-select"
+                      style="font-size: 0.74rem;">
+                      <option value="">📁 Uncategorized</option>
+                      <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
+                        <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
+                      </optgroup>
+                    </select>
+                  </td>
+                  <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td>
+                    <div class="split-button-group">
+                      <button
+                        type="button"
+                        class="split-btn split-btn-5050"
+                        [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
+                        (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')">
+                        50/50
+                      </button>
+                      <button
+                        type="button"
+                        class="split-btn split-btn-p1"
+                        [class.active]="getInlineSplitValue(tx) === '100_P1'"
+                        (click)="onInlineSplitButtonClick(tx, '100_P1')">
+                        {{ service.personOne().name }}
+                      </button>
+                      <button
+                        type="button"
+                        class="split-btn split-btn-p2"
+                        [class.active]="getInlineSplitValue(tx) === '100_P2'"
+                        (click)="onInlineSplitButtonClick(tx, '100_P2')">
+                        {{ service.personTwo().name }}
+                      </button>
+                    </div>
+                  </td>
+                  <td style="text-align: center;">
+                    <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div *ngIf="descriptionGroups().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+          No transactions to display.
+        </div>
       </div>
     </div>
 

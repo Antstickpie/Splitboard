@@ -13,6 +13,16 @@ export interface TransactionGroup {
   items: Transaction[];
 }
 
+export interface DescriptionGroup {
+  description: string;
+  count: number;
+  totalAmount: number;
+  items: Transaction[];
+  categoryItem?: string;
+  splitType?: SplitType;
+  owner?: string;
+}
+
 @Component({
   selector: 'app-import',
   standalone: true,
@@ -595,6 +605,98 @@ export class ImportComponent {
       excludedCount: Math.max(0, res.excludedCount - 1)
     });
     this.service.showToast('Included transaction in import list', 'success');
+  }
+
+  // Description Grouping for Valid Transactions
+  public isGroupByDescription = signal<boolean>(false);
+  public expandedDescriptionGroups = signal<Set<string>>(new Set());
+
+  public toggleDescriptionGroup(desc: string): void {
+    this.expandedDescriptionGroups.update((set) => {
+      const next = new Set(set);
+      if (next.has(desc)) next.delete(desc);
+      else next.add(desc);
+      return next;
+    });
+  }
+
+  public isDescriptionGroupExpanded(desc: string): boolean {
+    // If not explicitly toggled, default to expanded so user sees items immediately
+    return !this.expandedDescriptionGroups().has(desc);
+  }
+
+  public descriptionGroups = computed<DescriptionGroup[]>(() => {
+    const txs = this.sortedTransactions();
+    const map = new Map<string, Transaction[]>();
+
+    for (const tx of txs) {
+      const key = (tx.description || 'Unspecified').trim();
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(tx);
+    }
+
+    const groups: DescriptionGroup[] = [];
+    for (const [description, items] of map.entries()) {
+      const totalAmount = items.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      const firstCat = items[0]?.categoryItem;
+      const allSameCat = items.every((t) => t.categoryItem === firstCat);
+
+      const firstSplit = items[0]?.splitType;
+      const allSameSplit = items.every((t) => t.splitType === firstSplit);
+
+      const firstOwner = items[0]?.paidBy;
+      const allSameOwner = items.every((t) => t.paidBy === firstOwner);
+
+      groups.push({
+        description,
+        count: items.length,
+        totalAmount,
+        categoryItem: allSameCat ? firstCat : undefined,
+        splitType: allSameSplit ? firstSplit : undefined,
+        owner: allSameOwner ? firstOwner : undefined,
+        items
+      });
+    }
+
+    return groups.sort((a, b) => b.count - a.count || b.totalAmount - a.totalAmount);
+  });
+
+  public onGroupCategoryChange(group: DescriptionGroup, newCategory: string): void {
+    group.items.forEach((tx) => {
+      this.onRowCategoryChange(tx, newCategory);
+    });
+    this.service.showToast(`Updated category for all ${group.count} "${group.description}" items`, 'success');
+  }
+
+  public onGroupSplitChange(group: DescriptionGroup, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
+    group.items.forEach((tx) => {
+      this.onInlineSplitButtonClick(tx, choice);
+    });
+    this.service.showToast(`Updated split for all ${group.count} "${group.description}" items`, 'success');
+  }
+
+  public toggleGroupOwner(group: DescriptionGroup): void {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    const currentOwner = group.items[0]?.paidBy || p1;
+    const newOwner = currentOwner === p1 ? p2 : p1;
+    group.items.forEach((tx) => {
+      tx.paidBy = newOwner;
+    });
+    this.service.showToast(`Owner set to ${newOwner} for all ${group.count} items`, 'info');
+  }
+
+  public removeGroupTransactions(group: DescriptionGroup): void {
+    const ids = new Set(group.items.map((t) => t.id));
+    const res = this.previewResult();
+    if (!res) return;
+    this.previewResult.set({
+      ...res,
+      transactions: res.transactions.filter((t) => !ids.has(t.id))
+    });
+    this.service.showToast(`Skipped ${group.count} items`, 'info');
   }
 
   // Smart Grouping for Excluded & Duplicate Transactions
