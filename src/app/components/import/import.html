@@ -862,9 +862,9 @@
             <div>
               <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Split Mode</label>
               <select [(ngModel)]="ruleSplitType" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
-                <option value="SELF">SELF (100% Owner)</option>
-                <option value="SPLIT">SPLIT (50/50)</option>
-                <option value="OTHER">OTHER (100% Partner)</option>
+                <option value="SPLIT">Split 50/50</option>
+                <option value="SELF">100% {{ rulePaidBy || service.personOne().name }}</option>
+                <option value="OTHER">100% {{ (rulePaidBy || service.personOne().name) === service.personOne().name ? service.personTwo().name : service.personOne().name }}</option>
               </select>
             </div>
             <div>

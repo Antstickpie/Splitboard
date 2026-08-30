@@ -352,12 +352,12 @@
             </select>
           </div>
 
-          <div style="width: 110px;">
+          <div style="width: 140px;">
             <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Split Mode</label>
             <select [(ngModel)]="newRuleSplitType" class="settings-select" style="width: 100%; height: 30px;">
               <option value="SPLIT">Split 50/50</option>
-              <option value="SELF">Self Only</option>
-              <option value="OTHER">Other Only</option>
+              <option value="SELF">100% {{ newRuleOwner || service.personOne().name }}</option>
+              <option value="OTHER">100% {{ (newRuleOwner || service.personOne().name) === service.personOne().name ? service.personTwo().name : service.personOne().name }}</option>
             </select>
           </div>
 
@@ -436,7 +436,7 @@
               *ngIf="editingRuleId() === r.id && editRuleModel"
               class="animate-fade-in"
               style="padding: 0.6rem 0.8rem; background: rgba(0, 229, 255, 0.04); border-bottom: 1px solid rgba(0, 229, 255, 0.2);">
-              <div style="display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 110px 110px; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <div style="display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 140px 110px; gap: 0.5rem; margin-bottom: 0.5rem;">
                 <div>
                   <label class="input-label">Keyword</label>
                   <input type="text" [(ngModel)]="editRuleModel.keyword" class="person-input" style="width: 100%;">
@@ -459,9 +459,9 @@
                 <div>
                   <label class="input-label">Split Mode</label>
                   <select [(ngModel)]="editRuleModel.splitType" class="settings-select" style="width: 100%;">
-                    <option value="SELF">SELF</option>
-                    <option value="SPLIT">SPLIT</option>
-                    <option value="OTHER">OTHER</option>
+                    <option value="SPLIT">Split 50/50</option>
+                    <option value="SELF">100% {{ editRuleModel.paidBy || service.personOne().name }}</option>
+                    <option value="OTHER">100% {{ (editRuleModel.paidBy || service.personOne().name) === service.personOne().name ? service.personTwo().name : service.personOne().name }}</option>
                   </select>
                 </div>
                 <div>
