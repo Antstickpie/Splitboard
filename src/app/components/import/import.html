@@ -201,6 +201,13 @@
           style="font-size: 0.78rem;">
           ⇄ Invert Signs (+/-)
         </button>
+        <button
+          class="btn btn-secondary btn-sm"
+          (click)="openAddCategoryModal(undefined, 'toolbar')"
+          title="Create a new heading or sub-category on the fly"
+          style="font-size: 0.78rem;">
+          ➕ Add Category
+        </button>
         <button class="btn btn-secondary btn-sm" (click)="clearPreview()">Cancel</button>
         <button
           class="btn btn-primary btn-sm"
@@ -421,6 +428,7 @@
                   (ngModelChange)="onRowCategoryChange(tx, $event)"
                   class="inline-category-select">
                   <option value="">📁 Uncategorized</option>
+                  <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
                   <optgroup *ngFor="let grp of service.categoryGroups()" [label]="(grp.icon || '📁') + ' ' + grp.name">
                     <option *ngFor="let item of grp.items" [value]="item.name">{{ item.name }}</option>
                   </optgroup>
@@ -517,6 +525,7 @@
                   class="inline-category-select"
                   style="font-size: 0.75rem; max-width: 160px;">
                   <option value="">📁 {{ (grp.categoryItem && grp.categoryItem !== 'Uncategorized') ? grp.categoryItem : 'Set Category for All...' }}</option>
+                  <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
                   <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
                     <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
                   </optgroup>
@@ -598,6 +607,7 @@
                         class="inline-category-select"
                         style="font-size: 0.74rem;">
                         <option value="">📁 Uncategorized</option>
+                        <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
                         <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
                           <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
                         </optgroup>
@@ -693,6 +703,7 @@
                     class="inline-category-select"
                     style="font-size: 0.74rem;">
                     <option value="">📁 Uncategorized</option>
+                    <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
                     <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
                       <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
                     </optgroup>
@@ -978,10 +989,24 @@
         <ng-container *ngIf="ruleType() === 'categorize'">
           <!-- Category Item -->
           <div>
-            <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Assign Category</label>
-            <select [(ngModel)]="ruleCategory" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+              <label style="font-size: 0.76rem; color: var(--text-muted); margin: 0;">Assign Category</label>
+              <button
+                type="button"
+                class="btn btn-secondary btn-xs"
+                (click)="openAddCategoryModal(undefined, 'rule')"
+                style="font-size: 0.7rem; padding: 0.15rem 0.45rem;">
+                ➕ New Category
+              </button>
+            </div>
+            <select
+              [ngModel]="ruleCategory"
+              (ngModelChange)="$event === '__ADD_NEW__' ? openAddCategoryModal(undefined, 'rule') : ruleCategory = $event"
+              class="styled-select"
+              style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
               <option value="">-- Choose Category --</option>
-              <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+              <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
+              <optgroup *ngFor="let grp of service.categoryGroups()" [label]="(grp.icon || '📁') + ' ' + grp.name">
                 <option *ngFor="let item of grp.items" [value]="item.name">
                   {{ item.name }}
                 </option>
@@ -1062,6 +1087,131 @@
 
       <div style="display: flex; justify-content: flex-end;">
         <button class="btn btn-secondary btn-xs" (click)="closeBankSelectModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Quick Add Category (Heading & Sub-Category) -->
+  <div class="modal-backdrop-overlay animate-fade-in" *ngIf="showAddCategoryModal()" (click)="closeAddCategoryModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 10001; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()" style="max-width: 480px; width: 100%;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">📁</span>
+          <h3 style="margin: 0; font-size: 1.05rem;">Add New Category</h3>
+        </div>
+        <button class="btn-icon-remove" (click)="closeAddCategoryModal()" style="font-size: 1rem; cursor: pointer; background: transparent; border: none; color: var(--text-muted);">✕</button>
+      </div>
+
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.9rem; padding: 0.8rem 0;">
+        
+        <!-- Heading / Group Selection Type -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">Category Heading / Group</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.6rem;">
+            <button
+              type="button"
+              class="btn btn-xs"
+              [class.btn-primary]="newCatMode() === 'existing'"
+              [class.btn-secondary]="newCatMode() !== 'existing'"
+              (click)="newCatMode.set('existing')"
+              [disabled]="service.categoryGroups().length === 0"
+              style="padding: 0.45rem;">
+              📁 Existing Heading
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs"
+              [class.btn-primary]="newCatMode() === 'new_heading'"
+              [class.btn-secondary]="newCatMode() !== 'new_heading'"
+              (click)="newCatMode.set('new_heading')"
+              style="padding: 0.45rem;">
+              ➕ Create New Heading
+            </button>
+          </div>
+
+          <!-- Existing Heading Dropdown -->
+          <div *ngIf="newCatMode() === 'existing'">
+            <select
+              [ngModel]="newCatSelectedGroupId()"
+              (ngModelChange)="newCatSelectedGroupId.set($event)"
+              class="styled-select"
+              style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+              <option *ngFor="let grp of service.categoryGroups()" [value]="grp.id">
+                {{ (grp.icon || '📁') }} {{ grp.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- New Heading Fields -->
+          <div *ngIf="newCatMode() === 'new_heading'" class="animate-fade-in" style="display: flex; flex-direction: column; gap: 0.55rem;">
+            <div>
+              <label style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Heading Name</label>
+              <input
+                type="text"
+                [ngModel]="newCatHeadingName()"
+                (ngModelChange)="newCatHeadingName.set($event)"
+                placeholder="e.g. Subscriptions, Pet Care, Education"
+                class="styled-select"
+                style="width: 100%; box-sizing: border-box; font-size: 0.85rem;" />
+            </div>
+            <div>
+              <label style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Heading Icon</label>
+              <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                <button
+                  type="button"
+                  *ngFor="let ic of ['📁', '🛒', '🍔', '🚗', '⚡', '🏠', '✈️', '🎮', '💊', '🐶', '🎁', '💻', '🏋️', '📚']"
+                  class="btn btn-secondary btn-xs"
+                  [style.border-color]="newCatHeadingIcon() === ic ? 'var(--primary)' : 'rgba(255,255,255,0.1)'"
+                  [style.background]="newCatHeadingIcon() === ic ? 'rgba(0, 229, 255, 0.15)' : 'rgba(255,255,255,0.03)'"
+                  (click)="newCatHeadingIcon.set(ic)"
+                  style="font-size: 1rem; padding: 0.25rem 0.45rem;">
+                  {{ ic }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-Category Name Input -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">
+            Sub-Category Name <span style="color: var(--danger);">*</span>
+          </label>
+          <input
+            type="text"
+            [ngModel]="newCatSubName()"
+            (ngModelChange)="newCatSubName.set($event)"
+            (keydown.enter)="saveNewCategory()"
+            placeholder="e.g. Netflix, Vet Bills, Groceries, Pharmacy"
+            class="styled-select"
+            style="width: 100%; box-sizing: border-box; font-size: 0.85rem;" />
+        </div>
+
+        <!-- Planned Monthly Default (Optional) -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">
+            Planned Monthly Budget Default (€) <span style="font-size: 0.7rem; color: var(--text-muted);">(Optional)</span>
+          </label>
+          <input
+            type="number"
+            step="10"
+            [ngModel]="newCatPlannedDefault()"
+            (ngModelChange)="newCatPlannedDefault.set($event)"
+            placeholder="0.00"
+            class="styled-select"
+            style="width: 100%; box-sizing: border-box; font-size: 0.85rem;" />
+        </div>
+
+      </div>
+
+      <div class="modal-actions" style="margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.8rem;">
+        <button class="btn btn-secondary btn-sm" (click)="closeAddCategoryModal()">Cancel</button>
+        <button
+          class="btn btn-primary btn-sm"
+          (click)="saveNewCategory()"
+          [disabled]="!newCatSubName().trim() || (newCatMode() === 'new_heading' && !newCatHeadingName().trim())">
+          ✓ Create & Use Category
+        </button>
       </div>
     </div>
   </div>

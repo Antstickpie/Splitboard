@@ -36,8 +36,71 @@ export class ImportComponent {
 
   @Output() public importCompleted = new EventEmitter<void>();
 
+  // Add Category Modal State
+  public showAddCategoryModal = signal<boolean>(false);
+  public newCatMode = signal<'existing' | 'new_heading'>('existing');
+  public newCatSelectedGroupId = signal<string>('');
+  public newCatHeadingName = signal<string>('');
+  public newCatHeadingIcon = signal<string>('📁');
+  public newCatSubName = signal<string>('');
+  public newCatPlannedDefault = signal<number>(0);
+  public newCatTargetTx: Transaction | null = null;
+  public newCatTargetGroup: DescriptionGroup | null = null;
+  public newCatTargetContext: 'row' | 'group' | 'rule' | 'toolbar' = 'toolbar';
+
+  public openAddCategoryModal(targetTx?: Transaction, context: 'row' | 'group' | 'rule' | 'toolbar' = 'toolbar', targetGroup?: DescriptionGroup): void {
+    this.newCatTargetTx = targetTx || null;
+    this.newCatTargetGroup = targetGroup || null;
+    this.newCatTargetContext = context;
+    const groups = this.service.categoryGroups();
+    this.newCatMode.set(groups.length > 0 ? 'existing' : 'new_heading');
+    this.newCatSelectedGroupId.set(groups.length > 0 ? groups[0].id : '');
+    this.newCatHeadingName.set('');
+    this.newCatHeadingIcon.set('📁');
+    this.newCatSubName.set('');
+    this.newCatPlannedDefault.set(0);
+    this.showAddCategoryModal.set(true);
+  }
+
+  public closeAddCategoryModal(): void {
+    this.showAddCategoryModal.set(false);
+    this.newCatTargetTx = null;
+    this.newCatTargetGroup = null;
+  }
+
+  public saveNewCategory(): void {
+    const subName = this.newCatSubName().trim();
+    if (!subName) return;
+
+    let groupId = this.newCatSelectedGroupId();
+
+    if (this.newCatMode() === 'new_heading') {
+      const headingName = this.newCatHeadingName().trim();
+      if (!headingName) return;
+      groupId = this.service.addCategoryGroup(headingName, this.newCatHeadingIcon() || '📁');
+    }
+
+    if (!groupId) return;
+
+    this.service.addCategoryItem(groupId, subName, this.newCatPlannedDefault());
+
+    if (this.newCatTargetContext === 'row' && this.newCatTargetTx) {
+      this.onRowCategoryChange(this.newCatTargetTx, subName);
+    } else if (this.newCatTargetContext === 'group' && this.newCatTargetGroup) {
+      this.onGroupCategoryChange(this.newCatTargetGroup, subName);
+    } else if (this.newCatTargetContext === 'rule') {
+      this.ruleCategory = subName;
+    }
+
+    this.closeAddCategoryModal();
+  }
+
   @HostListener('window:keydown.escape')
   public onEscapeKey(): void {
+    if (this.showAddCategoryModal()) {
+      this.closeAddCategoryModal();
+      return;
+    }
     if (this.showBankSelectModal()) {
       this.closeBankSelectModal();
       return;
@@ -295,6 +358,10 @@ export class ImportComponent {
   }
 
   public onRowCategoryChange(tx: Transaction, newCategory: string): void {
+    if (newCategory === '__ADD_NEW__') {
+      this.openAddCategoryModal(tx, 'row');
+      return;
+    }
     tx.categoryItem = newCategory;
     for (const grp of this.service.categoryGroups()) {
       if (grp.items.some((i) => i.name === newCategory)) {
@@ -807,6 +874,10 @@ export class ImportComponent {
   });
 
   public onGroupCategoryChange(group: DescriptionGroup, newCategory: string): void {
+    if (newCategory === '__ADD_NEW__') {
+      this.openAddCategoryModal(group.items[0], 'group', group);
+      return;
+    }
     group.items.forEach((tx) => {
       this.onRowCategoryChange(tx, newCategory);
     });

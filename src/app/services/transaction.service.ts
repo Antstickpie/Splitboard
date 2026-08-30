@@ -764,10 +764,11 @@ export class TransactionService {
   }
 
   // Category Operations
-  public addCategoryGroup(name: string, icon = '📁'): void {
+  public addCategoryGroup(name: string, icon = '📁'): string {
     const id = 'grp-' + Math.random().toString(36).substr(2, 6);
     this.categoryGroups.update((curr) => [...curr, { id, name, icon, items: [] }]);
     this.showToast(`Category Group "${name}" created`, 'success');
+    return id;
   }
 
   public addCategoryItem(groupId: string, name: string, plannedDefault = 0, defaultOwner?: string): void {
