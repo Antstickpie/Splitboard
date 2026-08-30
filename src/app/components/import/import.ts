@@ -759,6 +759,8 @@ export class ImportComponent {
 
     const groups: DescriptionGroup[] = [];
     for (const [description, items] of map.entries()) {
+      if (items.length < 2) continue; // Only group when at least 2 items exist!
+
       const totalAmount = items.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
       const firstCat = items[0]?.categoryItem;
       const allSameCat = items.every((t) => t.categoryItem === firstCat);
@@ -781,6 +783,11 @@ export class ImportComponent {
     }
 
     return groups.sort((a, b) => b.count - a.count || b.totalAmount - a.totalAmount);
+  });
+
+  public singleTransactions = computed<Transaction[]>(() => {
+    const multiDescriptions = new Set(this.descriptionGroups().map((g) => g.description));
+    return this.sortedTransactions().filter((t) => !multiDescriptions.has((t.description || 'Unspecified').trim()));
   });
 
   public onGroupCategoryChange(group: DescriptionGroup, newCategory: string): void {
