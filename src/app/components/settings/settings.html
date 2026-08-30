@@ -424,7 +424,7 @@
             <div
               *ngIf="editingRuleId() !== r.id"
               style="display: grid; grid-template-columns: 120px 1.5fr 1.3fr 110px 100px 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-              <div><span class="badge badge-neutral">{{ r.bank || 'All Banks' }}</span></div>
+              <div><span class="badge badge-neutral">{{ (!r.bank || r.bank === 'All' || r.bank === 'all') ? 'All Banks' : r.bank }}</span></div>
               <div><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></div>
               <div><span class="badge badge-warning">{{ r.categoryItem }}</span></div>
               <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
@@ -588,7 +588,7 @@
             <div
               *ngIf="editingExcludeRuleId() !== r.id"
               style="display: grid; grid-template-columns: 140px 1fr 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-              <div><span class="badge badge-neutral">{{ r.bank || 'All Banks' }}</span></div>
+              <div><span class="badge badge-neutral">{{ (!r.bank || r.bank === 'All' || r.bank === 'all') ? 'All Banks' : r.bank }}</span></div>
               <div><code style="color: #f87171; font-weight: 600;">"{{ r.keyword }}"</code></div>
               <div style="display: flex; justify-content: center; gap: 0.25rem;">
                 <button class="btn-icon-action" style="width: 24px; height: 24px; font-size: 0.75rem; background: rgba(255,255,255,0.06); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" (click)="startEditExcludeRule(r)" title="Edit exclude rule">✏️</button>
