@@ -577,7 +577,7 @@
                   <button
                     type="button"
                     class="split-btn split-btn-5050"
-                    [class.active]="grp.splitType === 'SPLIT'"
+                    [class.active]="getGroupSplitValue(grp) === 'SPLIT_5050'"
                     (click)="onGroupSplitChange(grp, 'SPLIT_5050')"
                     title="Set all to Split 50/50">
                     50/50
@@ -585,7 +585,7 @@
                   <button
                     type="button"
                     class="split-btn split-btn-p1"
-                    [class.active]="grp.splitType === 'SELF' && grp.owner === service.personOne().name"
+                    [class.active]="getGroupSplitValue(grp) === '100_P1'"
                     (click)="onGroupSplitChange(grp, '100_P1')"
                     [title]="'Set all 100% ' + service.personOne().name">
                     {{ service.personOne().name }}
@@ -593,7 +593,7 @@
                   <button
                     type="button"
                     class="split-btn split-btn-p2"
-                    [class.active]="grp.splitType === 'SELF' && grp.owner === service.personTwo().name"
+                    [class.active]="getGroupSplitValue(grp) === '100_P2'"
                     (click)="onGroupSplitChange(grp, '100_P2')"
                     [title]="'Set all 100% ' + service.personTwo().name">
                     {{ service.personTwo().name }}

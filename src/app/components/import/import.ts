@@ -902,10 +902,19 @@ export class ImportComponent {
     this.service.showToast(`Updated category for all ${group.count} "${group.description}" items`, 'success');
   }
 
+  public getGroupSplitValue(group: DescriptionGroup): 'SPLIT_5050' | '100_P1' | '100_P2' | 'MIXED' {
+    if (!group.items || group.items.length === 0) return 'SPLIT_5050';
+    const firstVal = this.getInlineSplitValue(group.items[0]);
+    const allSame = group.items.every((tx) => this.getInlineSplitValue(tx) === firstVal);
+    return allSame ? firstVal : 'MIXED';
+  }
+
   public onGroupSplitChange(group: DescriptionGroup, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
     group.items.forEach((tx) => {
       this.onInlineSplitButtonClick(tx, choice);
     });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
     this.service.showToast(`Updated split for all ${group.count} "${group.description}" items`, 'success');
   }
 
@@ -917,6 +926,8 @@ export class ImportComponent {
     group.items.forEach((tx) => {
       tx.paidBy = newOwner;
     });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
     this.service.showToast(`Owner set to ${newOwner} for all ${group.count} items`, 'info');
   }
 
