@@ -162,9 +162,12 @@ export class LedgerComponent {
   public customSplitP2Amount = 0;
   public customSplitPercentage = 50;
 
-  // EveryDollar Month Picker Popover State
+  // EveryDollar Month / Year / Date Range Picker Popover State
   public isMonthPickerOpen = signal<boolean>(false);
+  public pickerTab = signal<'MONTH' | 'YEAR' | 'RANGE'>('MONTH');
   public pickerYear = signal<number>(new Date().getFullYear());
+  public customRangeStart = signal<string>('');
+  public customRangeEnd = signal<string>('');
   public monthsList = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -323,6 +326,28 @@ export class LedgerComponent {
     this.service.showToast('Entry logged successfully', 'success');
   }
 
+  public getEffectiveDateRangeLabel(): string {
+    const mode = this.service.dateFilterMode();
+    if (mode === 'ALL') return 'All Time';
+    if (mode === 'MONTH') {
+      return this.service.selectedMonth() === 'ALL'
+        ? 'All Months'
+        : this.service.formatMonth(this.service.selectedMonth());
+    }
+    if (mode === 'YEAR') {
+      return `Full Year ${this.service.selectedYear()}`;
+    }
+    if (mode === 'RANGE') {
+      const s = this.service.dateRangeStart();
+      const e = this.service.dateRangeEnd();
+      if (s && e) return `${s} → ${e}`;
+      if (s) return `From ${s}`;
+      if (e) return `Until ${e}`;
+      return 'Custom Range';
+    }
+    return 'All Time';
+  }
+
   public toggleMonthPicker(): void {
     const curr = this.service.selectedMonth();
     if (curr !== 'ALL') {
@@ -344,23 +369,69 @@ export class LedgerComponent {
 
   public selectMonth(monthIdx: number): void {
     const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    this.service.dateFilterMode.set('MONTH');
     this.service.selectedMonth.set(mStr);
     this.isMonthPickerOpen.set(false);
   }
 
+  public selectYearFilter(year: string): void {
+    this.service.dateFilterMode.set('YEAR');
+    this.service.selectedYear.set(year);
+    this.isMonthPickerOpen.set(false);
+  }
+
+  public applyCustomRange(startVal?: string, endVal?: string): void {
+    const s = startVal !== undefined ? startVal : this.customRangeStart();
+    const e = endVal !== undefined ? endVal : this.customRangeEnd();
+    this.service.dateRangeStart.set(s);
+    this.service.dateRangeEnd.set(e);
+    this.service.dateFilterMode.set('RANGE');
+    this.isMonthPickerOpen.set(false);
+  }
+
+  public applyPresetRange(preset: 'L12M' | 'L2Y' | 'YTD' | 'ALL'): void {
+    const d = new Date();
+    const todayStr = d.toISOString().slice(0, 10);
+    if (preset === 'ALL') {
+      this.showAllMonths();
+      return;
+    }
+    if (preset === 'YTD') {
+      const start = `${d.getFullYear()}-01-01`;
+      this.customRangeStart.set(start);
+      this.customRangeEnd.set(todayStr);
+      this.applyCustomRange(start, todayStr);
+    } else if (preset === 'L12M') {
+      const past = new Date(d.getFullYear() - 1, d.getMonth(), d.getDate());
+      const start = past.toISOString().slice(0, 10);
+      this.customRangeStart.set(start);
+      this.customRangeEnd.set(todayStr);
+      this.applyCustomRange(start, todayStr);
+    } else if (preset === 'L2Y') {
+      const past = new Date(d.getFullYear() - 2, d.getMonth(), d.getDate());
+      const start = past.toISOString().slice(0, 10);
+      this.customRangeStart.set(start);
+      this.customRangeEnd.set(todayStr);
+      this.applyCustomRange(start, todayStr);
+    }
+  }
+
   public showAllMonths(): void {
+    this.service.dateFilterMode.set('ALL');
     this.service.selectedMonth.set('ALL');
     this.isMonthPickerOpen.set(false);
   }
 
   public goToCurrentMonth(): void {
     const today = this.service.getCurrentMonthString();
+    this.service.dateFilterMode.set('MONTH');
     this.service.selectedMonth.set(today);
     this.pickerYear.set(new Date().getFullYear());
     this.isMonthPickerOpen.set(false);
   }
 
   public isMonthSelected(monthIdx: number): boolean {
+    if (this.service.dateFilterMode() !== 'MONTH') return false;
     const mStr = `${this.pickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
     return this.service.selectedMonth() === mStr;
   }
@@ -371,6 +442,7 @@ export class LedgerComponent {
   }
 
   public prevMonth(): void {
+    this.service.dateFilterMode.set('MONTH');
     const curr = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
     const [y, m] = curr.split('-').map(Number);
     const d = new Date(y, m - 2, 1);
@@ -380,6 +452,7 @@ export class LedgerComponent {
   }
 
   public nextMonth(): void {
+    this.service.dateFilterMode.set('MONTH');
     const curr = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
     const [y, m] = curr.split('-').map(Number);
     const d = new Date(y, m, 1);

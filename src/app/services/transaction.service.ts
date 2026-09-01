@@ -121,6 +121,12 @@ export class TransactionService {
   public filterCategory = signal<string>('ALL');
   public filterStatus = signal<'ALL' | 'REVIEW' | 'PENDING' | 'DONE'>('ALL');
 
+  // Date Range Modes (Single Month, Full Year, Custom Multi-Year Range, All Time)
+  public dateFilterMode = signal<'MONTH' | 'YEAR' | 'RANGE' | 'ALL'>('MONTH');
+  public selectedYear = signal<string>(String(new Date().getFullYear()));
+  public dateRangeStart = signal<string>('');
+  public dateRangeEnd = signal<string>('');
+
   // Google Drive State
   public isGoogleConnected = signal<boolean>(false);
   public isGoogleSyncing = signal<boolean>(false);
@@ -133,11 +139,47 @@ export class TransactionService {
   public personOne = computed(() => this.persons()[0] || { id: 'p1', name: 'Person 1' });
   public personTwo = computed(() => this.persons()[1] || { id: 'p2', name: 'Person 2' });
 
+  public isDateInActiveRange(txDate: string): boolean {
+    if (!txDate) return false;
+    const mode = this.dateFilterMode();
+    if (mode === 'ALL') return true;
+    if (mode === 'MONTH') {
+      const m = this.selectedMonth();
+      return m === 'ALL' || txDate.startsWith(m);
+    }
+    if (mode === 'YEAR') {
+      const y = this.selectedYear();
+      return txDate.startsWith(y);
+    }
+    if (mode === 'RANGE') {
+      const start = this.dateRangeStart();
+      const end = this.dateRangeEnd();
+      const d = txDate.slice(0, 10);
+      if (start && d < start) return false;
+      if (end && d > end) return false;
+      return true;
+    }
+    return true;
+  }
+
   public reviewTransactionsForSelectedMonth = computed(() => {
-    const m = this.selectedMonth();
     return this.transactions().filter(
-      (tx) => (m === 'ALL' || (tx.date && tx.date.startsWith(m))) && tx.isUnderReview
+      (tx) => this.isDateInActiveRange(tx.date) && tx.isUnderReview
     );
+  });
+
+  public availableYears = computed(() => {
+    const years = new Set<string>();
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear - 5; y <= currentYear + 2; y++) {
+      years.add(String(y));
+    }
+    this.transactions().forEach((tx) => {
+      if (tx.date && tx.date.length >= 4) {
+        years.add(tx.date.substring(0, 4));
+      }
+    });
+    return Array.from(years).sort().reverse();
   });
 
   public availableMonths = computed(() => {
@@ -163,7 +205,6 @@ export class TransactionService {
   });
 
   public filteredTransactions = computed(() => {
-    const m = this.selectedMonth();
     const q = this.searchQuery().toLowerCase().trim();
     const bank = this.filterBank();
     const owner = this.filterOwner();
@@ -173,7 +214,7 @@ export class TransactionService {
 
     return this.transactions()
       .filter((tx) => {
-        if (m !== 'ALL' && !tx.date.startsWith(m)) return false;
+        if (!this.isDateInActiveRange(tx.date)) return false;
         if (bank !== 'ALL' && tx.bank !== bank) return false;
         if (owner !== 'ALL' && tx.paidBy !== owner) return false;
         if (split !== 'ALL' && tx.splitType !== split) return false;
@@ -197,11 +238,10 @@ export class TransactionService {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   });
 
-  // Current Month Settlement Calculation
+  // Current Range Settlement Calculation
   public monthSettlement = computed<SettlementSummary>(() => {
     const p1 = this.personOne().name;
     const p2 = this.personTwo().name;
-    const month = this.selectedMonth();
 
     let p1Paid = 0;
     let p2Paid = 0;
@@ -210,9 +250,7 @@ export class TransactionService {
     let p1OwesP2 = 0;
     let p2OwesP1 = 0;
 
-    const relevantTxs = this.transactions().filter(
-      (tx) => month === 'ALL' || tx.date.startsWith(month)
-    );
+    const relevantTxs = this.transactions().filter((tx) => this.isDateInActiveRange(tx.date));
 
     const itemized: SettlementSummary['itemizedDetails'] = [];
 

@@ -57,35 +57,136 @@
           Transactions ({{ service.filteredTransactions().length }}<span *ngIf="service.searchQuery()" style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ totalMonthTxs() }}</span>)
         </h3>
 
-        <!-- EveryDollar Custom Month Trigger & Popover -->
+        <!-- Custom Month / Year / Date Range Trigger & Popover -->
         <div class="everydollar-month-container" style="position: relative;">
           <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()" style="font-size: 0.82rem; padding: 0.2rem 0.45rem;">
-            <span class="month-title-text">{{ service.selectedMonth() === 'ALL' ? 'All Months' : service.formatMonth(service.selectedMonth()) }}</span>
+            <span class="month-title-text">{{ getEffectiveDateRangeLabel() }}</span>
             <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
           </button>
 
-          <!-- Month Picker Popover Grid -->
-          <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
-            <div class="popover-year-bar">
-              <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
-              <span class="popover-year-text">{{ pickerYear() }}</span>
-              <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
-            </div>
-
-            <div class="popover-months-grid">
+          <!-- Date Picker Popover Grid with Tabs -->
+          <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()" style="width: 310px;">
+            <!-- Picker Mode Tabs -->
+            <div style="display: flex; gap: 0.25rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
               <button
-                *ngFor="let m of monthsList; let idx = index"
-                class="month-cell-btn"
-                [class.selected]="service.selectedMonth() !== 'ALL' && isMonthSelected(idx)"
-                [class.has-data]="hasMonthData(idx)"
-                (click)="selectMonth(idx)">
-                {{ m }}
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="pickerTab() === 'MONTH'"
+                [class.btn-secondary]="pickerTab() !== 'MONTH'"
+                (click)="pickerTab.set('MONTH')"
+                style="font-size: 0.72rem; padding: 0.2rem 0.4rem; flex: 1;">
+                📅 Month
+              </button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="pickerTab() === 'YEAR'"
+                [class.btn-secondary]="pickerTab() !== 'YEAR'"
+                (click)="pickerTab.set('YEAR')"
+                style="font-size: 0.72rem; padding: 0.2rem 0.4rem; flex: 1;">
+                🗓️ Year
+              </button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="pickerTab() === 'RANGE'"
+                [class.btn-secondary]="pickerTab() !== 'RANGE'"
+                (click)="pickerTab.set('RANGE')"
+                style="font-size: 0.72rem; padding: 0.2rem 0.4rem; flex: 1.2;">
+                ⏳ Multi-Year
               </button>
             </div>
 
-            <div class="popover-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08);">
-              <button class="btn btn-secondary btn-xs" (click)="showAllMonths()" [class.active]="service.selectedMonth() === 'ALL'">
-                All Months
+            <!-- TAB 1: Single Month Selection -->
+            <div *ngIf="pickerTab() === 'MONTH'">
+              <div class="popover-year-bar" style="margin-bottom: 0.75rem;">
+                <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+                <span class="popover-year-text">{{ pickerYear() }}</span>
+                <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+              </div>
+
+              <div class="popover-months-grid" style="margin-bottom: 0.75rem;">
+                <button
+                  *ngFor="let m of monthsList; let idx = index"
+                  class="month-cell-btn"
+                  [class.selected]="service.dateFilterMode() === 'MONTH' && service.selectedMonth() !== 'ALL' && isMonthSelected(idx)"
+                  [class.has-data]="hasMonthData(idx)"
+                  (click)="selectMonth(idx)">
+                  {{ m }}
+                </button>
+              </div>
+            </div>
+
+            <!-- TAB 2: Full Year Selection (Multi-Month / Single Year) -->
+            <div *ngIf="pickerTab() === 'YEAR'" class="animate-fade-in" style="margin-bottom: 0.75rem;">
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-align: center;">
+                Select a full year to view all 12 months:
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem;">
+                <button
+                  *ngFor="let y of service.availableYears()"
+                  type="button"
+                  class="month-cell-btn"
+                  [class.selected]="service.dateFilterMode() === 'YEAR' && service.selectedYear() === y"
+                  (click)="selectYearFilter(y)"
+                  style="font-weight: 700; padding: 0.6rem 0.2rem;">
+                  {{ y }}
+                </button>
+              </div>
+            </div>
+
+            <!-- TAB 3: Multi-Year / Custom Date Range -->
+            <div *ngIf="pickerTab() === 'RANGE'" class="animate-fade-in" style="margin-bottom: 0.75rem;">
+              <div style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                Choose start & end dates:
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.6rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;">
+                  <label style="font-size: 0.72rem; color: var(--text-muted); width: 45px;">From:</label>
+                  <input
+                    type="date"
+                    [ngModel]="customRangeStart() || service.dateRangeStart()"
+                    (ngModelChange)="customRangeStart.set($event)"
+                    class="styled-input"
+                    style="font-size: 0.76rem; padding: 0.25rem 0.4rem; flex: 1; height: 28px;">
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;">
+                  <label style="font-size: 0.72rem; color: var(--text-muted); width: 45px;">To:</label>
+                  <input
+                    type="date"
+                    [ngModel]="customRangeEnd() || service.dateRangeEnd()"
+                    (ngModelChange)="customRangeEnd.set($event)"
+                    class="styled-input"
+                    style="font-size: 0.76rem; padding: 0.25rem 0.4rem; flex: 1; height: 28px;">
+                </div>
+              </div>
+
+              <!-- Quick Presets -->
+              <div style="display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 0.6rem;">
+                <button class="btn btn-secondary btn-xs" (click)="applyPresetRange('YTD')" style="font-size: 0.68rem; padding: 0.15rem 0.35rem;">
+                  Year to Date
+                </button>
+                <button class="btn btn-secondary btn-xs" (click)="applyPresetRange('L12M')" style="font-size: 0.68rem; padding: 0.15rem 0.35rem;">
+                  Last 12 Mos
+                </button>
+                <button class="btn btn-secondary btn-xs" (click)="applyPresetRange('L2Y')" style="font-size: 0.68rem; padding: 0.15rem 0.35rem;">
+                  Last 2 Years
+                </button>
+              </div>
+
+              <button
+                type="button"
+                class="btn btn-primary btn-xs"
+                (click)="applyCustomRange()"
+                style="width: 100%; font-size: 0.75rem; padding: 0.3rem;">
+                ✓ Apply Date Range
+              </button>
+            </div>
+
+            <!-- Popover Footer -->
+            <div class="popover-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.08);">
+              <button class="btn btn-secondary btn-xs" (click)="showAllMonths()" [class.active]="service.dateFilterMode() === 'ALL'">
+                All Time
               </button>
               <button class="btn-today" (click)="goToCurrentMonth()">
                 This month
@@ -94,20 +195,21 @@
           </div>
         </div>
 
-        <!-- Month Navigation Arrows -->
-        <div class="month-nav-btns" style="display: flex; gap: 0.2rem;">
+        <!-- Month Navigation Arrows (Active in single month mode) -->
+        <div class="month-nav-btns" style="display: flex; gap: 0.2rem;" *ngIf="service.dateFilterMode() === 'MONTH'">
           <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
           <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
         </div>
 
         <!-- Today Button -->
-        <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.selectedMonth() !== service.getCurrentMonthString()" style="font-size: 0.72rem; padding: 0.15rem 0.4rem;">
+        <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.dateFilterMode() !== 'MONTH' || service.selectedMonth() !== service.getCurrentMonthString()" style="font-size: 0.72rem; padding: 0.15rem 0.4rem;">
           Today
         </button>
 
         <!-- Past / Future Badge -->
-        <span class="past-month-badge" *ngIf="isPastMonth()" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">⏱ Past</span>
-        <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="isFutureMonth()">🔮 Future</span>
+        <span class="past-month-badge" *ngIf="service.dateFilterMode() === 'MONTH' && isPastMonth()" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">⏱ Past</span>
+        <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="service.dateFilterMode() === 'MONTH' && isFutureMonth()">🔮 Future</span>
+        <span class="past-month-badge" style="background: rgba(0, 229, 255, 0.12); color: var(--primary); border-color: rgba(0, 229, 255, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="service.dateFilterMode() === 'RANGE' || service.dateFilterMode() === 'YEAR'">🗓️ Multi-Period</span>
       </div>
 
       <!-- RIGHT: Quick Search, Status Pills, Filter & Action Buttons -->
