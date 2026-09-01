@@ -110,9 +110,53 @@
         <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="isFutureMonth()">🔮 Future</span>
       </div>
 
-      <!-- RIGHT: Quick Search, Filter & Action Buttons -->
-      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-        <div style="position: relative; width: 190px;">
+      <!-- RIGHT: Quick Search, Status Pills, Filter & Action Buttons -->
+      <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+        <!-- Quick Status Filter Pills -->
+        <div style="display: flex; gap: 0.2rem; align-items: center; background: rgba(255, 255, 255, 0.04); padding: 2px 4px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08);">
+          <button
+            type="button"
+            class="btn btn-xs"
+            [class.btn-primary]="service.filterStatus() === 'ALL'"
+            [class.btn-secondary]="service.filterStatus() !== 'ALL'"
+            (click)="service.filterStatus.set('ALL')"
+            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;">
+            All
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs"
+            [class.btn-primary]="service.filterStatus() === 'PENDING'"
+            [class.btn-secondary]="service.filterStatus() !== 'PENDING'"
+            (click)="service.filterStatus.set('PENDING')"
+            title="Focus on remaining unverified transactions"
+            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;">
+            ⏳ Remaining
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs"
+            [class.btn-primary]="service.filterStatus() === 'REVIEW'"
+            [class.btn-secondary]="service.filterStatus() !== 'REVIEW'"
+            (click)="service.filterStatus.set('REVIEW')"
+            title="Transactions flagged for review"
+            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;"
+            [style.color]="service.reviewTransactionsForSelectedMonth().length > 0 ? '#fbbf24' : 'inherit'">
+            🔍 Review ({{ service.reviewTransactionsForSelectedMonth().length }})
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs"
+            [class.btn-primary]="service.filterStatus() === 'DONE'"
+            [class.btn-secondary]="service.filterStatus() !== 'DONE'"
+            (click)="service.filterStatus.set('DONE')"
+            title="Transactions marked as done"
+            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;">
+            ✓ Done
+          </button>
+        </div>
+
+        <div style="position: relative; width: 170px;">
           <input
             type="text"
             placeholder="🔍 Search..."
@@ -134,7 +178,7 @@
           [class.btn-primary]="hasActiveFilters()"
           title="Toggle filters"
           style="height: 28px; white-space: nowrap; font-size: 0.75rem; padding: 0 0.5rem;">
-          ⚙ Filters <span *ngIf="hasActiveFilters()">●</span>
+          ⚙ More Filters <span *ngIf="hasActiveFilters()">●</span>
         </button>
 
         <button
