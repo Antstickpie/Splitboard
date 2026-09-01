@@ -1,4 +1,4 @@
-<div class="cat-select-container" [class.open]="isOpen()" (keydown)="onKeyDown($event)">
+<div class="cat-select-container" (keydown)="onKeyDown($event)">
   <!-- Trigger Button -->
   <button
     #triggerBtn
@@ -13,11 +13,14 @@
     <span class="cat-chevron">{{ isOpen() ? '▲' : '▼' }}</span>
   </button>
 
-  <!-- Searchable Dropdown Popover -->
+  <!-- Body-Portaled Searchable Dropdown Popover (Never clipped!) -->
   <div
+    #dropdownPopover
     class="cat-dropdown-popover animate-fade-in"
-    [class.open-upwards]="openUpwards()"
     *ngIf="isOpen()"
+    [style.top.px]="popoverTop()"
+    [style.left.px]="popoverLeft()"
+    [style.width.px]="popoverWidth()"
     (click)="$event.stopPropagation()">
     <!-- Sticky Search Input Box -->
     <div class="cat-search-box">

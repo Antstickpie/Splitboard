@@ -8,7 +8,8 @@ import {
   computed,
   ElementRef,
   ViewChild,
-  HostListener
+  HostListener,
+  OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -22,7 +23,7 @@ import { CategoryGroup } from '../../models';
   templateUrl: './category-select.html',
   styleUrls: ['./category-select.css']
 })
-export class CategorySelectComponent {
+export class CategorySelectComponent implements OnDestroy {
   public service = inject(TransactionService);
   private elementRef = inject(ElementRef);
 
@@ -37,11 +38,15 @@ export class CategorySelectComponent {
 
   @ViewChild('triggerBtn') triggerBtnRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('dropdownPopover') dropdownPopoverRef?: ElementRef<HTMLDivElement>;
 
   public isOpen = signal<boolean>(false);
-  public openUpwards = signal<boolean>(false);
   public searchQuery = signal<string>('');
   public highlightedIndex = signal<number>(0);
+
+  public popoverTop = signal<number>(0);
+  public popoverLeft = signal<number>(0);
+  public popoverWidth = signal<number>(240);
 
   // Filtered Category Groups based on search query
   public filteredGroups = computed(() => {
@@ -106,25 +111,51 @@ export class CategorySelectComponent {
     return `📁 ${val}`;
   }
 
+  public updatePopoverPosition(): void {
+    if (!this.triggerBtnRef?.nativeElement) return;
+    const rect = this.triggerBtnRef.nativeElement.getBoundingClientRect();
+    const dropdownHeight = 260;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const width = Math.max(250, rect.width);
+
+    let top = rect.bottom + 4;
+    if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+      top = rect.top - dropdownHeight - 4;
+    }
+
+    let left = rect.left;
+    if (left + width > window.innerWidth - 10) {
+      left = window.innerWidth - width - 10;
+    }
+    if (left < 10) left = 10;
+
+    this.popoverTop.set(Math.round(top));
+    this.popoverLeft.set(Math.round(left));
+    this.popoverWidth.set(Math.round(width));
+  }
+
   public openDropdown(event?: MouseEvent): void {
     if (event) event.stopPropagation();
     this.searchQuery.set('');
     this.highlightedIndex.set(0);
-
-    if (this.triggerBtnRef?.nativeElement) {
-      const rect = this.triggerBtnRef.nativeElement.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      this.openUpwards.set(spaceBelow < 280 && rect.top > 280);
-    }
-
+    this.updatePopoverPosition();
     this.isOpen.set(true);
 
     setTimeout(() => {
-      this.searchInputRef?.nativeElement?.focus();
-    }, 40);
+      if (this.dropdownPopoverRef?.nativeElement) {
+        if (this.dropdownPopoverRef.nativeElement.parentNode !== document.body) {
+          document.body.appendChild(this.dropdownPopoverRef.nativeElement);
+        }
+        this.updatePopoverPosition();
+        this.searchInputRef?.nativeElement?.focus();
+      }
+    }, 0);
   }
 
   public closeDropdown(): void {
+    if (this.dropdownPopoverRef?.nativeElement?.parentNode === document.body) {
+      document.body.removeChild(this.dropdownPopoverRef.nativeElement);
+    }
     this.isOpen.set(false);
     this.searchQuery.set('');
   }
@@ -183,8 +214,30 @@ export class CategorySelectComponent {
   @HostListener('document:click', ['$event'])
   public onDocumentClick(event: MouseEvent): void {
     const target = event.target as Node;
-    if (!this.elementRef.nativeElement.contains(target)) {
+    const clickedInsideComponent = this.elementRef.nativeElement.contains(target);
+    const clickedInsidePopover = this.dropdownPopoverRef?.nativeElement?.contains(target);
+    if (!clickedInsideComponent && !clickedInsidePopover) {
       this.closeDropdown();
+    }
+  }
+
+  @HostListener('window:resize')
+  public onWindowResize(): void {
+    if (this.isOpen()) {
+      this.updatePopoverPosition();
+    }
+  }
+
+  @HostListener('window:scroll', ['$event'])
+  public onWindowScroll(): void {
+    if (this.isOpen()) {
+      this.updatePopoverPosition();
+    }
+  }
+
+  public ngOnDestroy(): void {
+    if (this.dropdownPopoverRef?.nativeElement?.parentNode === document.body) {
+      document.body.removeChild(this.dropdownPopoverRef.nativeElement);
     }
   }
 }
