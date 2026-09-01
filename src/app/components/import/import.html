@@ -600,6 +600,20 @@
                   </button>
                 </div>
 
+                <!-- Bulk Done -->
+                <button
+                  type="button"
+                  class="btn btn-xs"
+                  [style.color]="isGroupDone(grp) ? '#10b981' : 'var(--text-muted)'"
+                  [style.background]="isGroupDone(grp) ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                  [style.border]="isGroupDone(grp) ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                  (click)="toggleGroupDone(grp)"
+                  [title]="isGroupDone(grp) ? 'All marked done (click to unmark all)' : 'Mark all items in this group as done (gray out)'"
+                  style="padding: 0.18rem 0.45rem; font-size: 0.72rem; font-weight: 600;">
+                  {{ isGroupDone(grp) ? '✓ Done' : '○ Done' }}
+                </button>
+
+                <!-- Bulk Review -->
                 <button
                   class="btn btn-xs"
                   [style.color]="isGroupUnderReview(grp) ? '#fbbf24' : 'var(--text-muted)'"
