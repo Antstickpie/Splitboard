@@ -1,0 +1,101 @@
+<div class="cat-select-container" (keydown)="onKeyDown($event)">
+  <!-- Trigger Button -->
+  <button
+    type="button"
+    class="cat-select-trigger"
+    [class.compact]="compact"
+    [class.open]="isOpen()"
+    (click)="toggleDropdown($event)"
+    [title]="displayLabel()"
+    [style.minWidth]="minWidth">
+    <span class="cat-label-text">{{ displayLabel() }}</span>
+    <span class="cat-chevron">{{ isOpen() ? '▲' : '▼' }}</span>
+  </button>
+
+  <!-- Searchable Dropdown Popover -->
+  <div class="cat-dropdown-popover animate-fade-in" *ngIf="isOpen()" (click)="$event.stopPropagation()">
+    <!-- Sticky Search Input Box -->
+    <div class="cat-search-box">
+      <span class="cat-search-icon">🔍</span>
+      <input
+        #searchInput
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event); highlightedIndex.set(0)"
+        placeholder="Type to search category..."
+        class="cat-search-input"
+        autocomplete="off" />
+      <button
+        *ngIf="searchQuery()"
+        type="button"
+        class="cat-search-clear"
+        (click)="searchQuery.set(''); searchInput.focus()">
+        ✕
+      </button>
+    </div>
+
+    <!-- Scrollable Options List -->
+    <div class="cat-options-scroll">
+      <!-- Special Action: Add New Category -->
+      <button
+        *ngIf="allowAddNew"
+        type="button"
+        class="cat-option-btn add-new-btn"
+        [class.highlighted]="flattenedSelectableItems()[highlightedIndex()]?.type === 'add_new'"
+        (click)="selectItem('__ADD_NEW__')">
+        <span class="option-icon">➕</span>
+        <span class="option-name" style="font-weight: 700; color: var(--primary);">Add New Category...</span>
+      </button>
+
+      <!-- Option: Uncategorized -->
+      <button
+        type="button"
+        class="cat-option-btn uncat-btn"
+        [class.selected]="!value || value === 'Uncategorized'"
+        [class.highlighted]="flattenedSelectableItems()[highlightedIndex()]?.type === 'uncat'"
+        (click)="selectItem('')">
+        <span class="option-icon">📁</span>
+        <span class="option-name">Uncategorized</span>
+        <span class="check-mark" *ngIf="!value || value === 'Uncategorized'">✓</span>
+      </button>
+
+      <div class="cat-divider" *ngIf="filteredGroups().length > 0"></div>
+
+      <!-- Category Groups -->
+      <div *ngFor="let grp of filteredGroups()" class="cat-group-section">
+        <div class="cat-group-header">
+          <span class="grp-icon">{{ grp.icon || '📁' }}</span>
+          <span class="grp-title">{{ grp.name }}</span>
+        </div>
+
+        <div class="cat-group-items">
+          <button
+            *ngFor="let item of grp.items"
+            type="button"
+            class="cat-option-btn item-btn"
+            [class.selected]="value === item.name"
+            [class.highlighted]="flattenedSelectableItems()[highlightedIndex()]?.name === item.name"
+            (click)="selectItem(item.name)">
+            <span class="option-name">{{ item.name }}</span>
+            <span class="check-mark" *ngIf="value === item.name">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="filteredGroups().length === 0 && searchQuery()" class="cat-empty-msg">
+        <div style="margin-bottom: 0.4rem; color: var(--text-muted); font-size: 0.74rem;">
+          No matching categories for "{{ searchQuery() }}"
+        </div>
+        <button
+          *ngIf="allowAddNew"
+          type="button"
+          class="btn btn-primary btn-xs"
+          (click)="selectItem('__ADD_NEW__')"
+          style="width: 100%; font-size: 0.72rem; padding: 0.25rem;">
+          ➕ Create "{{ searchQuery() }}"
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

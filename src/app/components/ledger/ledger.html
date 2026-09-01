@@ -414,15 +414,10 @@
               </span>
             </td>
             <td>
-              <select
-                [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
-                (ngModelChange)="onInlineCategoryChange(tx, $event)"
-                class="inline-category-select">
-                <option value="">📁 Uncategorized</option>
-                <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.icon + ' ' + grp.name">
-                  <option *ngFor="let item of grp.items" [value]="item.name">{{ item.name }}</option>
-                </optgroup>
-              </select>
+              <app-category-select
+                [value]="tx.categoryItem || ''"
+                (valueChange)="onInlineCategoryChange(tx, $event)">
+              </app-category-select>
             </td>
             <td class="font-mono" style="text-align: right; font-weight: 700; font-size: 0.88rem;" [class.text-success]="tx.type === 'INCOME'">
               <div>{{ service.formatCurrency(tx.amount) }}</div>

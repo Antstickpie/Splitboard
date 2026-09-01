@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
 import { Transaction, SplitType, SplitMode } from '../../models';
 import { ImportComponent } from '../import/import';
+import { CategorySelectComponent } from '../category-select/category-select';
 
 @Component({
   selector: 'app-ledger',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImportComponent],
+  imports: [CommonModule, FormsModule, ImportComponent, CategorySelectComponent],
   templateUrl: './ledger.html',
   styleUrl: './ledger.css'
 })

@@ -1,0 +1,228 @@
+.cat-select-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.cat-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-main);
+  padding: 0.22rem 0.5rem;
+  font-size: 0.76rem;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.cat-select-trigger:hover, .cat-select-trigger.open {
+  background: rgba(0, 229, 255, 0.08);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.cat-select-trigger.compact {
+  padding: 0.15rem 0.35rem;
+  font-size: 0.73rem;
+  border-radius: 4px;
+}
+
+.cat-label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.cat-chevron {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Dropdown Popover */
+.cat-dropdown-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10000;
+  width: 250px;
+  background: #0d121d;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 229, 255, 0.3);
+  overflow: hidden;
+  animation: fadeInDown 0.12s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Search Box */
+.cat-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cat-search-icon {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cat-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  padding: 0;
+  width: 100%;
+}
+
+.cat-search-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.cat-search-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.cat-search-clear:hover {
+  color: var(--text-main);
+}
+
+/* Options Scroll Container */
+.cat-options-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cat-option-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.3rem 0.45rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-main);
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  user-select: none;
+}
+
+.cat-option-btn:hover, .cat-option-btn.highlighted {
+  background: rgba(0, 229, 255, 0.1);
+  border-color: rgba(0, 229, 255, 0.25);
+  color: #ffffff;
+}
+
+.cat-option-btn.selected {
+  background: rgba(0, 229, 255, 0.18);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.cat-option-btn .option-icon {
+  margin-right: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.cat-option-btn .option-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-option-btn .check-mark {
+  color: var(--primary);
+  font-weight: bold;
+  font-size: 0.76rem;
+  margin-left: 0.4rem;
+}
+
+.add-new-btn {
+  border: 1px dashed rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.05);
+  margin-bottom: 0.2rem;
+}
+
+.add-new-btn:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--primary);
+}
+
+.cat-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 0.25rem 0;
+}
+
+/* Category Groups */
+.cat-group-section {
+  margin-bottom: 0.3rem;
+}
+
+.cat-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.4rem 0.15rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cat-group-header .grp-icon {
+  font-size: 0.78rem;
+}
+
+.cat-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-left: 0.5rem;
+}
+
+.cat-empty-msg {
+  text-align: center;
+  padding: 0.75rem 0.4rem;
+}

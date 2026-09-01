@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
 import { StatementParserService, ParsedStatementResult } from '../../services/statement-parser.service';
 import { Transaction, SplitType } from '../../models';
+import { CategorySelectComponent } from '../category-select/category-select';
 
 export interface TransactionGroup {
   id: string;
@@ -26,7 +27,7 @@ export interface DescriptionGroup {
 @Component({
   selector: 'app-import',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CategorySelectComponent],
   templateUrl: './import.html',
   styleUrl: './import.css'
 })

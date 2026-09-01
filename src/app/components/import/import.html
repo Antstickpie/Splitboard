@@ -454,16 +454,11 @@
                 </span>
               </td>
               <td>
-                <select
-                  [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
-                  (ngModelChange)="onRowCategoryChange(tx, $event)"
-                  class="inline-category-select">
-                  <option value="">📁 Uncategorized</option>
-                  <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
-                  <optgroup *ngFor="let grp of service.categoryGroups()" [label]="(grp.icon || '📁') + ' ' + grp.name">
-                    <option *ngFor="let item of grp.items" [value]="item.name">{{ item.name }}</option>
-                  </optgroup>
-                </select>
+                <app-category-select
+                  [value]="tx.categoryItem || ''"
+                  (valueChange)="onRowCategoryChange(tx, $event)"
+                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                </app-category-select>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
               <td>
@@ -560,17 +555,14 @@
                 </span>
 
                 <!-- Bulk Category -->
-                <select
-                  [ngModel]="(!grp.categoryItem || grp.categoryItem === 'Uncategorized') ? '' : grp.categoryItem"
-                  (ngModelChange)="onGroupCategoryChange(grp, $event)"
-                  class="inline-category-select"
-                  style="font-size: 0.75rem; max-width: 160px;">
-                  <option value="">📁 {{ (grp.categoryItem && grp.categoryItem !== 'Uncategorized') ? grp.categoryItem : 'Set Category for All...' }}</option>
-                  <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
-                  <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
-                    <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
-                  </optgroup>
-                </select>
+                <div style="max-width: 175px;">
+                  <app-category-select
+                    [value]="grp.categoryItem || ''"
+                    placeholder="📁 Set Category..."
+                    (valueChange)="onGroupCategoryChange(grp, $event)"
+                    (addNewRequested)="openAddCategoryModal(grp.items[0], 'group', grp)">
+                  </app-category-select>
+                </div>
 
                 <!-- Bulk Split -->
                 <div class="split-button-group">
@@ -683,17 +675,12 @@
                       </span>
                     </td>
                     <td>
-                      <select
-                        [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
-                        (ngModelChange)="onRowCategoryChange(tx, $event)"
-                        class="inline-category-select"
-                        style="font-size: 0.74rem;">
-                        <option value="">📁 Uncategorized</option>
-                        <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
-                        <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
-                          <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
-                        </optgroup>
-                      </select>
+                      <app-category-select
+                        [value]="tx.categoryItem || ''"
+                        [compact]="true"
+                        (valueChange)="onRowCategoryChange(tx, $event)"
+                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                      </app-category-select>
                     </td>
                     <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
                     <td>
@@ -813,17 +800,12 @@
                   </span>
                 </td>
                 <td>
-                  <select
-                    [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
-                    (ngModelChange)="onRowCategoryChange(tx, $event)"
-                    class="inline-category-select"
-                    style="font-size: 0.74rem;">
-                    <option value="">📁 Uncategorized</option>
-                    <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
-                    <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
-                      <option *ngFor="let item of g.items" [value]="item.name">{{ item.name }}</option>
-                    </optgroup>
-                  </select>
+                  <app-category-select
+                    [value]="tx.categoryItem || ''"
+                    [compact]="true"
+                    (valueChange)="onRowCategoryChange(tx, $event)"
+                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                  </app-category-select>
                 </td>
                 <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
                 <td>
@@ -956,16 +938,11 @@
                 </span>
               </td>
               <td>
-                <select
-                  [ngModel]="(!tx.categoryItem || tx.categoryItem === 'Uncategorized') ? '' : tx.categoryItem"
-                  (ngModelChange)="onRowCategoryChange(tx, $event)"
-                  class="inline-category-select">
-                  <option value="">📁 Uncategorized</option>
-                  <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
-                  <optgroup *ngFor="let grp of service.categoryGroups()" [label]="(grp.icon || '📁') + ' ' + grp.name">
-                    <option *ngFor="let item of grp.items" [value]="item.name">{{ item.name }}</option>
-                  </optgroup>
-                </select>
+                <app-category-select
+                  [value]="tx.categoryItem || ''"
+                  (valueChange)="onRowCategoryChange(tx, $event)"
+                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                </app-category-select>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
               <td>
