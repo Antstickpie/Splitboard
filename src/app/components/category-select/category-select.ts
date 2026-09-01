@@ -96,7 +96,7 @@ export class CategorySelectComponent {
     return list;
   });
 
-  public displayLabel = computed(() => {
+  public get displayLabel(): string {
     const val = this.value;
     if (!val || val === 'Uncategorized') {
       return this.placeholder;
@@ -108,7 +108,7 @@ export class CategorySelectComponent {
       }
     }
     return `📁 ${val}`;
-  });
+  }
 
   public updatePopoverPosition(): void {
     if (!this.triggerBtnRef?.nativeElement) return;

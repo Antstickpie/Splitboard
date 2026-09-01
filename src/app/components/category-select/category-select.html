@@ -7,9 +7,9 @@
     [class.compact]="compact"
     [class.open]="isOpen()"
     (click)="toggleDropdown($event)"
-    [title]="displayLabel()"
+    [title]="displayLabel"
     [style.minWidth]="minWidth">
-    <span class="cat-label-text">{{ displayLabel() }}</span>
+    <span class="cat-label-text">{{ displayLabel }}</span>
     <span class="cat-chevron">{{ isOpen() ? '▲' : '▼' }}</span>
   </button>
 
