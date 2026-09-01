@@ -228,7 +228,7 @@ export class CategorySelectComponent implements OnDestroy {
     }
   }
 
-  @HostListener('window:scroll', ['$event'])
+  @HostListener('window:scroll')
   public onWindowScroll(): void {
     if (this.isOpen()) {
       this.updatePopoverPosition();
