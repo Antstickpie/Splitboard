@@ -212,51 +212,21 @@
         <span class="past-month-badge" style="background: rgba(0, 229, 255, 0.12); color: var(--primary); border-color: rgba(0, 229, 255, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="service.dateFilterMode() === 'RANGE' || service.dateFilterMode() === 'YEAR'">🗓️ Multi-Period</span>
       </div>
 
-      <!-- RIGHT: Quick Search, Status Pills, Filter & Action Buttons -->
-      <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-        <!-- Quick Status Filter Pills -->
-        <div style="display: flex; gap: 0.2rem; align-items: center; background: rgba(255, 255, 255, 0.04); padding: 2px 4px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08);">
-          <button
-            type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="service.filterStatus() === 'ALL'"
-            [class.btn-secondary]="service.filterStatus() !== 'ALL'"
-            (click)="service.filterStatus.set('ALL')"
-            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;">
-            All
-          </button>
-          <button
-            type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="service.filterStatus() === 'PENDING'"
-            [class.btn-secondary]="service.filterStatus() !== 'PENDING'"
-            (click)="service.filterStatus.set('PENDING')"
-            title="Focus on remaining unverified transactions"
-            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;">
-            ⏳ Remaining
-          </button>
-          <button
-            type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="service.filterStatus() === 'REVIEW'"
-            [class.btn-secondary]="service.filterStatus() !== 'REVIEW'"
-            (click)="service.filterStatus.set('REVIEW')"
-            title="Transactions flagged for review"
-            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;"
-            [style.color]="service.reviewTransactionsForSelectedMonth().length > 0 ? '#fbbf24' : 'inherit'">
-            🔍 Review ({{ service.reviewTransactionsForSelectedMonth().length }})
-          </button>
-          <button
-            type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="service.filterStatus() === 'DONE'"
-            [class.btn-secondary]="service.filterStatus() !== 'DONE'"
-            (click)="service.filterStatus.set('DONE')"
-            title="Transactions marked as done"
-            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; height: 24px;">
-            ✓ Done
-          </button>
-        </div>
+      <!-- RIGHT: Quick Search, Review Filter, More Filters & Actions -->
+      <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+        <!-- In Review Quick Toggle Filter -->
+        <button
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="service.filterStatus() === 'REVIEW'"
+          [class.btn-secondary]="service.filterStatus() !== 'REVIEW'"
+          (click)="service.filterStatus.set(service.filterStatus() === 'REVIEW' ? 'ALL' : 'REVIEW')"
+          title="Filter to transactions flagged for review"
+          style="font-size: 0.74rem; padding: 0.2rem 0.55rem; height: 28px; white-space: nowrap;"
+          [style.color]="service.reviewTransactionsForSelectedMonth().length > 0 ? '#fbbf24' : 'inherit'"
+          [style.borderColor]="service.reviewTransactionsForSelectedMonth().length > 0 ? 'rgba(245, 158, 11, 0.4)' : 'inherit'">
+          🔍 In Review ({{ service.reviewTransactionsForSelectedMonth().length }})
+        </button>
 
         <div style="position: relative; width: 170px;">
           <input
@@ -401,7 +371,6 @@
       <table>
         <thead>
           <tr>
-            <th style="width: 38px; text-align: center;" title="Mark Done">Done</th>
             <th>Date</th>
             <th>Bank / Account</th>
             <th>Paid By / Owner</th>
@@ -416,22 +385,7 @@
         <tbody>
           <tr
             *ngFor="let tx of service.filteredTransactions()"
-            [class.tx-row-done]="tx.isDone"
             [class.tx-row-review]="tx.isUnderReview">
-            <!-- Done Checkbox Column -->
-            <td style="text-align: center; vertical-align: middle;">
-              <button
-                type="button"
-                class="btn btn-xs"
-                [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
-                [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
-                (click)="service.toggleTransactionDone(tx.id)"
-                [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
-                style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; border-radius: 50%; cursor: pointer;">
-                {{ tx.isDone ? '✓' : '○' }}
-              </button>
-            </td>
             <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
             <td>
               <span class="badge badge-neutral">{{ tx.bank }}</span>
@@ -442,7 +396,7 @@
               </span>
             </td>
             <td style="font-weight: 500; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
-              <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+              <span>{{ tx.description }}</span>
               <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600;">
                 🔍 Review
               </span>
@@ -544,7 +498,7 @@
             </td>
           </tr>
           <tr *ngIf="service.filteredTransactions().length === 0">
-            <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">
               <div *ngIf="service.searchQuery() || hasActiveFilters()">
                 No transactions match current search/filter.
                 <button class="btn btn-secondary btn-xs" (click)="resetFilters()" style="margin-left: 0.5rem;">Clear Filters</button>
