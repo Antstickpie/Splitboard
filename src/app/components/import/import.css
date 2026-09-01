@@ -403,3 +403,13 @@
   width: 100%;
   border-collapse: collapse;
 }
+
+.import-table-pane table td,
+.import-table-pane table th {
+  overflow: visible !important;
+}
+
+.import-table-pane table tr:has(.cat-select-container.open) {
+  position: relative;
+  z-index: 1000;
+}

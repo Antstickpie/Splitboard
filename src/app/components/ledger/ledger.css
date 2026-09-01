@@ -535,3 +535,13 @@
   color: #f3f4f6;
   font-size: 0.8rem;
 }
+
+.ledger-table-wrapper table td,
+.ledger-table-wrapper table th {
+  overflow: visible !important;
+}
+
+.ledger-table-wrapper table tr:has(.cat-select-container.open) {
+  position: relative;
+  z-index: 1000;
+}
