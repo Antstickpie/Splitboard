@@ -35,11 +35,17 @@ export class CategorySelectComponent {
   @Output() valueChange = new EventEmitter<string>();
   @Output() addNewRequested = new EventEmitter<void>();
 
+  @ViewChild('triggerBtn') triggerBtnRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('dropdownPopover') dropdownPopoverRef?: ElementRef<HTMLDivElement>;
 
   public isOpen = signal<boolean>(false);
   public searchQuery = signal<string>('');
   public highlightedIndex = signal<number>(0);
+
+  public popoverTop = signal<number>(0);
+  public popoverLeft = signal<number>(0);
+  public popoverWidth = signal<number>(240);
 
   // Filtered Category Groups based on search query
   public filteredGroups = computed(() => {
@@ -104,15 +110,42 @@ export class CategorySelectComponent {
     return `📁 ${val}`;
   });
 
+  public updatePopoverPosition(): void {
+    if (!this.triggerBtnRef?.nativeElement) return;
+    const rect = this.triggerBtnRef.nativeElement.getBoundingClientRect();
+    const dropdownHeight = 260;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const width = Math.max(240, rect.width);
+
+    let top = rect.bottom + 4;
+    // If not enough room below, open above
+    if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+      top = rect.top - dropdownHeight - 4;
+    }
+
+    let left = rect.left;
+    // Don't overflow right edge of viewport
+    if (left + width > window.innerWidth - 10) {
+      left = window.innerWidth - width - 10;
+    }
+    if (left < 10) left = 10;
+
+    this.popoverTop.set(top);
+    this.popoverLeft.set(left);
+    this.popoverWidth.set(width);
+  }
+
   public openDropdown(event?: MouseEvent): void {
     if (event) event.stopPropagation();
     this.searchQuery.set('');
     this.highlightedIndex.set(0);
+    this.updatePopoverPosition();
     this.isOpen.set(true);
 
     setTimeout(() => {
+      this.updatePopoverPosition();
       this.searchInputRef?.nativeElement?.focus();
-    }, 50);
+    }, 30);
   }
 
   public closeDropdown(): void {
@@ -173,8 +206,20 @@ export class CategorySelectComponent {
 
   @HostListener('document:click', ['$event'])
   public onDocumentClick(event: MouseEvent): void {
-    if (!this.elementRef.nativeElement.contains(event.target)) {
+    const target = event.target as Node;
+    if (
+      !this.elementRef.nativeElement.contains(target) &&
+      !this.dropdownPopoverRef?.nativeElement?.contains(target)
+    ) {
       this.closeDropdown();
+    }
+  }
+
+  @HostListener('window:resize')
+  @HostListener('window:scroll', ['$event'])
+  public onWindowScrollOrResize(): void {
+    if (this.isOpen()) {
+      this.updatePopoverPosition();
     }
   }
 }
