@@ -883,7 +883,7 @@ export class ImportComponent {
       });
     }
 
-    return groups.sort((a, b) => b.count - a.count || b.totalAmount - a.totalAmount);
+    return groups;
   });
 
   public singleTransactions = computed<Transaction[]>(() => {
