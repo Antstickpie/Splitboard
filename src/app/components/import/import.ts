@@ -931,6 +931,48 @@ export class ImportComponent {
     this.service.showToast(`Owner set to ${newOwner} for all ${group.count} items`, 'info');
   }
 
+  public isGroupUnderReview(group: DescriptionGroup): boolean {
+    if (!group.items || group.items.length === 0) return false;
+    return group.items.every((tx) => tx.isUnderReview);
+  }
+
+  public toggleGroupReview(group: DescriptionGroup): void {
+    const allReviewed = this.isGroupUnderReview(group);
+    const targetState = !allReviewed;
+    group.items.forEach((tx) => {
+      tx.isUnderReview = targetState;
+    });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.service.showToast(
+      targetState
+        ? `🔍 Flagged all ${group.count} "${group.description}" items for review`
+        : `✓ Resolved review for all ${group.count} "${group.description}" items`,
+      'info'
+    );
+  }
+
+  public isGroupDone(group: DescriptionGroup): boolean {
+    if (!group.items || group.items.length === 0) return false;
+    return group.items.every((tx) => tx.isDone);
+  }
+
+  public toggleGroupDone(group: DescriptionGroup): void {
+    const allDone = this.isGroupDone(group);
+    const targetState = !allDone;
+    group.items.forEach((tx) => {
+      tx.isDone = targetState;
+    });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.service.showToast(
+      targetState
+        ? `✓ Marked all ${group.count} "${group.description}" items as done`
+        : `↩ Unmarked done for all ${group.count} "${group.description}" items`,
+      'info'
+    );
+  }
+
   public removeGroupTransactions(group: DescriptionGroup): void {
     const ids = new Set(group.items.map((t) => t.id));
     const res = this.previewResult();

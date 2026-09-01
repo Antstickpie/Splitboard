@@ -600,6 +600,16 @@
                   </button>
                 </div>
 
+                <button
+                  class="btn btn-xs"
+                  [style.color]="isGroupUnderReview(grp) ? '#fbbf24' : 'var(--text-muted)'"
+                  [style.background]="isGroupUnderReview(grp) ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)'"
+                  [style.border]="isGroupUnderReview(grp) ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)'"
+                  (click)="toggleGroupReview(grp)"
+                  [title]="isGroupUnderReview(grp) ? 'All items in review (click to resolve all)' : 'Mark all items in this group for review'"
+                  style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
+                  {{ isGroupUnderReview(grp) ? '🔍 Reviewing' : '🔍 Review' }}
+                </button>
                 <button class="btn btn-secondary btn-xs" (click)="openRuleModal(grp.items[0])" title="Create rule from this description" style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
                   ⚡ Rule
                 </button>
@@ -714,8 +724,8 @@
                           [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
                           (click)="toggleTxReview(tx)"
                           [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'"
-                          style="padding: 0.15rem 0.35rem; font-size: 0.68rem;">
-                          {{ tx.isUnderReview ? '🔍' : '🔍' }}
+                          style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
+                          {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
                         </button>
                         <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                       </div>
