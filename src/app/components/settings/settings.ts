@@ -2,7 +2,7 @@ import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
-import { BankConfig, CategoryRule, ExcludeRule } from '../../models';
+import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem } from '../../models';
 
 @Component({
   selector: 'app-settings',
@@ -18,6 +18,18 @@ export class SettingsComponent {
   public newGroupName = '';
   public newCategoryName = '';
   public selectedGroupIdForNewCat = '';
+
+  // Category Group & Item Edit Modals
+  public editingGroup = signal<CategoryGroup | null>(null);
+  public editGroupName = '';
+  public editGroupIcon = '📁';
+
+  public editingItem = signal<{ group: CategoryGroup; item: CategoryItem } | null>(null);
+  public editItemName = '';
+  public editItemGroupId = '';
+  public editItemDefaultOwner = '';
+
+  public quickEmojis = ['💰', '🏦', '🏠', '🚗', '🍽️', '✈️', '🎁', '💊', '📁', '👶', '⚡', '🛒', '🎮', '💻', '🎓', '🐾', '🏋️', '📚', '☕', '🛠️'];
 
   // Currency & Rates State
   public newCurrencyCode = '';
@@ -411,6 +423,59 @@ export class SettingsComponent {
     if (ok) {
       this.service.deleteCategoryItem(groupId, itemId);
     }
+  }
+
+  public openEditGroupModal(grp: CategoryGroup) {
+    this.editingGroup.set(grp);
+    this.editGroupName = grp.name;
+    this.editGroupIcon = grp.icon || '📁';
+  }
+
+  public closeEditGroupModal() {
+    this.editingGroup.set(null);
+  }
+
+  public selectGroupIcon(icon: string) {
+    this.editGroupIcon = icon;
+  }
+
+  public saveEditGroup() {
+    const grp = this.editingGroup();
+    if (!grp || !this.editGroupName.trim()) return;
+    this.service.updateCategoryGroup(grp.id, this.editGroupName, this.editGroupIcon);
+    this.closeEditGroupModal();
+  }
+
+  public async deleteGroupFromModal(grp: CategoryGroup) {
+    const ok = await this.service.showConfirm('Delete Group', `Delete group "${grp.name}" and all its categories?`);
+    if (ok) {
+      this.service.deleteCategoryGroup(grp.id);
+      this.closeEditGroupModal();
+    }
+  }
+
+  public openEditItemModal(group: CategoryGroup, item: CategoryItem) {
+    this.editingItem.set({ group, item });
+    this.editItemName = item.name;
+    this.editItemGroupId = group.id;
+    this.editItemDefaultOwner = item.defaultOwner || '';
+  }
+
+  public closeEditItemModal() {
+    this.editingItem.set(null);
+  }
+
+  public saveEditItem() {
+    const data = this.editingItem();
+    if (!data || !this.editItemName.trim()) return;
+    this.service.updateCategoryItem(
+      data.group.id,
+      data.item.id,
+      this.editItemName,
+      this.editItemGroupId,
+      this.editItemDefaultOwner || undefined
+    );
+    this.closeEditItemModal();
   }
 
   public onBackupFileSelected(event: Event) {

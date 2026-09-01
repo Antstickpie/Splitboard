@@ -866,6 +866,105 @@ export class TransactionService {
     this.showToast(`Category "${name}" added`, 'success');
   }
 
+  public updateCategoryGroup(groupId: string, newName: string, newIcon: string): void {
+    const oldGroup = this.categoryGroups().find((g) => g.id === groupId);
+    const oldName = oldGroup?.name;
+
+    this.categoryGroups.update((curr) =>
+      curr.map((grp) => (grp.id === groupId ? { ...grp, name: newName.trim(), icon: newIcon.trim() || '📁' } : grp))
+    );
+
+    // Cascade name update to transactions and rules if name changed
+    if (oldName && oldName !== newName.trim()) {
+      let count = 0;
+      this.transactions.update((txs) =>
+        txs.map((tx) => {
+          if (tx.categoryGroup === oldName) {
+            count++;
+            return { ...tx, categoryGroup: newName.trim() };
+          }
+          return tx;
+        })
+      );
+      this.rules.update((rules) =>
+        rules.map((r) => (r.categoryGroup === oldName ? { ...r, categoryGroup: newName.trim() } : r))
+      );
+      this.showToast(`Updated "${newName}" and migrated ${count} transactions`, 'success');
+    } else {
+      this.showToast(`Category group updated`, 'success');
+    }
+  }
+
+  public updateCategoryItem(
+    groupId: string,
+    itemId: string,
+    newName: string,
+    targetGroupId?: string,
+    defaultOwner?: string
+  ): void {
+    let oldName = '';
+    const currentGroups = this.categoryGroups();
+    for (const g of currentGroups) {
+      const it = g.items.find((i) => i.id === itemId);
+      if (it) {
+        oldName = it.name;
+        break;
+      }
+    }
+
+    const trimmedName = newName.trim();
+    const finalGroupId = targetGroupId || groupId;
+
+    this.categoryGroups.update((curr) => {
+      let movedItem: any = null;
+      // Remove from old group
+      const withoutItem = curr.map((grp) => {
+        const found = grp.items.find((i) => i.id === itemId);
+        if (found) {
+          movedItem = { ...found, name: trimmedName, groupId: finalGroupId, defaultOwner };
+          return { ...grp, items: grp.items.filter((i) => i.id !== itemId) };
+        }
+        return grp;
+      });
+
+      if (!movedItem) return curr;
+
+      // Add to new or same group
+      return withoutItem.map((grp) => {
+        if (grp.id === finalGroupId) {
+          return { ...grp, items: [...grp.items, movedItem] };
+        }
+        return grp;
+      });
+    });
+
+    // Cascade name update to past transactions and rules for seamless analytics
+    if (oldName && oldName !== trimmedName) {
+      let count = 0;
+      this.transactions.update((txs) =>
+        txs.map((tx) => {
+          if (tx.categoryItem === oldName) {
+            count++;
+            return { ...tx, categoryItem: trimmedName };
+          }
+          return tx;
+        })
+      );
+      this.rules.update((rules) =>
+        rules.map((r) => (r.categoryItem === oldName ? { ...r, categoryItem: trimmedName } : r))
+      );
+      this.showToast(`Renamed "${oldName}" → "${trimmedName}" across ${count} transactions`, 'success');
+    } else {
+      this.showToast(`Category updated`, 'success');
+    }
+  }
+
+  public deleteCategoryGroup(groupId: string): void {
+    const grp = this.categoryGroups().find((g) => g.id === groupId);
+    this.categoryGroups.update((curr) => curr.filter((g) => g.id !== groupId));
+    this.showToast(`Deleted group "${grp?.name || ''}"`, 'info');
+  }
+
   public deleteCategoryItem(groupId: string, itemId: string): void {
     this.categoryGroups.update((curr) =>
       curr.map((grp) =>

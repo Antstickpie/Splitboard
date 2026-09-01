@@ -292,16 +292,35 @@
 
       <div class="category-groups-preview-grid">
         <div class="group-preview-box" *ngFor="let grp of service.categoryGroups()">
-          <div class="group-preview-title">
-            <span>{{ grp.icon || '📁' }} <strong>{{ grp.name }}</strong></span>
-            <span class="badge badge-neutral" style="font-size: 0.65rem;">{{ grp.items.length }} items</span>
+          <div class="group-preview-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="display: flex; align-items: center; gap: 0.35rem;">
+              <span style="font-size: 1.05rem;">{{ grp.icon || '📁' }}</span>
+              <strong style="font-size: 0.88rem;">{{ grp.name }}</strong>
+            </span>
+            <div style="display: flex; align-items: center; gap: 0.3rem;">
+              <span class="badge badge-neutral" style="font-size: 0.65rem;">{{ grp.items.length }} items</span>
+              <button
+                type="button"
+                class="btn btn-secondary btn-xs"
+                (click)="openEditGroupModal(grp)"
+                title="Edit group name & icon"
+                style="padding: 0.15rem 0.35rem; font-size: 0.68rem; line-height: 1;">
+                ✏️ Edit
+              </button>
+            </div>
           </div>
 
           <div class="group-items-chip-list">
-            <div class="cat-chip" *ngFor="let item of grp.items">
+            <div
+              class="cat-chip"
+              *ngFor="let item of grp.items"
+              (click)="openEditItemModal(grp, item)"
+              title="Click to rename / edit category"
+              style="cursor: pointer;">
               <span class="cat-chip-name">{{ item.name }}</span>
               <span *ngIf="item.defaultOwner" class="badge badge-info" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;">{{ item.defaultOwner }}</span>
-              <button class="cat-chip-del" (click)="deleteCategoryItem(grp.id, item.id, item.name)">✕</button>
+              <span style="font-size: 0.62rem; color: var(--text-muted); opacity: 0.7; margin-left: 0.2rem;">✏️</span>
+              <button class="cat-chip-del" (click)="$event.stopPropagation(); deleteCategoryItem(grp.id, item.id, item.name)" title="Delete category">✕</button>
             </div>
             <span *ngIf="grp.items.length === 0" style="font-size: 0.72rem; color: var(--text-muted);">
               No items yet. Add items above.
@@ -880,6 +899,134 @@
         <button class="btn btn-danger btn-sm" (click)="clearAllData()">
           🗑 Clear All Transactions
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Category Group (Name & Icon) -->
+  <div class="modal-backdrop" *ngIf="editingGroup() as grp">
+    <div class="modal-content-card glass-card animate-scale-in" style="max-width: 440px;" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.05rem;">✏️ Edit Category Group</h3>
+        <button class="btn-icon-close" (click)="closeEditGroupModal()">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <!-- Icon Selector -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">
+            Group Icon:
+          </label>
+          <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.5rem;">
+            <input
+              type="text"
+              [(ngModel)]="editGroupIcon"
+              class="person-input font-mono"
+              style="width: 50px; text-align: center; font-size: 1.2rem; padding: 0.2rem;"
+              maxlength="4" />
+            <span style="font-size: 0.74rem; color: var(--text-muted);">Pick from presets below or type any emoji:</span>
+          </div>
+          <!-- Quick Emoji Grid -->
+          <div style="display: flex; gap: 0.3rem; flex-wrap: wrap; background: rgba(255, 255, 255, 0.03); padding: 0.4rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08);">
+            <button
+              *ngFor="let emo of quickEmojis"
+              type="button"
+              class="btn btn-secondary btn-xs"
+              (click)="selectGroupIcon(emo)"
+              [class.btn-primary]="editGroupIcon === emo"
+              style="font-size: 1.05rem; padding: 0.2rem 0.35rem; min-width: 28px;">
+              {{ emo }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Group Name -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">
+            Group Name:
+          </label>
+          <input
+            type="text"
+            [(ngModel)]="editGroupName"
+            placeholder="e.g. Housing, Transportation..."
+            class="person-input"
+            style="width: 100%;"
+            (keydown.enter)="saveEditGroup()" />
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">
+            💡 Renaming will automatically update all past transactions and rules under this group.
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.6rem; padding-top: 0.8rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+          <button class="btn btn-danger btn-xs" (click)="deleteGroupFromModal(grp)">
+            🗑 Delete Group
+          </button>
+          <div style="display: flex; gap: 0.4rem;">
+            <button class="btn btn-secondary btn-xs" (click)="closeEditGroupModal()">Cancel</button>
+            <button class="btn btn-primary btn-xs" (click)="saveEditGroup()" [disabled]="!editGroupName.trim()">
+              ✓ Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Category Item (Sub-category) -->
+  <div class="modal-backdrop" *ngIf="editingItem() as itmData">
+    <div class="modal-content-card glass-card animate-scale-in" style="max-width: 440px;" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.05rem;">✏️ Edit Sub-Category</h3>
+        <button class="btn-icon-close" (click)="closeEditItemModal()">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <!-- Category Item Name -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">
+            Category Name:
+          </label>
+          <input
+            type="text"
+            [(ngModel)]="editItemName"
+            placeholder="e.g. Groceries, Rent, Parking..."
+            class="person-input"
+            style="width: 100%;"
+            (keydown.enter)="saveEditItem()" />
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">
+            💡 Renaming will automatically update all past transactions, analytics, and rules.
+          </div>
+        </div>
+
+        <!-- Parent Group -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">
+            Parent Group Heading:
+          </label>
+          <select [(ngModel)]="editItemGroupId" class="settings-select" style="width: 100%;">
+            <option *ngFor="let g of service.categoryGroups()" [value]="g.id">
+              {{ g.icon || '📁' }} {{ g.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Default Owner -->
+        <div>
+          <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">
+            Default Assigned Owner (Optional):
+          </label>
+          <select [(ngModel)]="editItemDefaultOwner" class="settings-select" style="width: 100%;">
+            <option value="">None (Shared / Split Default)</option>
+            <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+          </select>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.6rem; padding-top: 0.8rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+          <button class="btn btn-secondary btn-xs" (click)="closeEditItemModal()">Cancel</button>
+          <button class="btn btn-primary btn-xs" (click)="saveEditItem()" [disabled]="!editItemName.trim()">
+            ✓ Save Changes
+          </button>
+        </div>
       </div>
     </div>
   </div>
