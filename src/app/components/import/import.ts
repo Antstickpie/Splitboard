@@ -847,8 +847,20 @@ export class ImportComponent {
     return !this.expandedDescriptionGroups().has(desc);
   }
 
+  public currentActiveTabTransactions = computed<Transaction[]>(() => {
+    const tab = this.previewTab();
+    const res = this.previewResult();
+    if (!res) return [];
+    if (tab === 'valid') return this.sortedTransactions();
+    if (tab === 'review') return this.reviewTransactions();
+    if (tab === 'incomes') return res.incomes || [];
+    if (tab === 'duplicates') return res.duplicates || [];
+    if (tab === 'excluded') return res.excluded || [];
+    return [];
+  });
+
   public descriptionGroups = computed<DescriptionGroup[]>(() => {
-    const txs = this.sortedTransactions();
+    const txs = this.currentActiveTabTransactions();
     const map = new Map<string, Transaction[]>();
 
     for (const tx of txs) {
@@ -889,7 +901,7 @@ export class ImportComponent {
 
   public singleTransactions = computed<Transaction[]>(() => {
     const multiDescriptions = new Set(this.descriptionGroups().map((g) => g.description));
-    return this.sortedTransactions().filter((t) => !multiDescriptions.has((t.description || 'Unspecified').trim()));
+    return this.currentActiveTabTransactions().filter((t) => !multiDescriptions.has((t.description || 'Unspecified').trim()));
   });
 
   public onGroupCategoryChange(group: DescriptionGroup, newCategory: string): void {
@@ -974,14 +986,69 @@ export class ImportComponent {
     );
   }
 
+  public includeGroup(group: DescriptionGroup): void {
+    const tab = this.previewTab();
+    const res = this.previewResult();
+    if (!res) return;
+    const ids = new Set(group.items.map((t) => t.id));
+
+    if (tab === 'incomes') {
+      this.previewResult.set({
+        ...res,
+        incomes: res.incomes.filter((t) => !ids.has(t.id)),
+        transactions: [...group.items, ...res.transactions],
+        incomesCount: Math.max(0, res.incomesCount - group.count)
+      });
+      this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
+    } else if (tab === 'duplicates') {
+      this.previewResult.set({
+        ...res,
+        duplicates: res.duplicates.filter((t) => !ids.has(t.id)),
+        transactions: [...group.items, ...res.transactions],
+        duplicatesCount: Math.max(0, res.duplicatesCount - group.count)
+      });
+      this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
+    } else if (tab === 'excluded') {
+      this.previewResult.set({
+        ...res,
+        excluded: res.excluded.filter((t) => !ids.has(t.id)),
+        transactions: [...group.items, ...res.transactions],
+        excludedCount: Math.max(0, res.excludedCount - group.count)
+      });
+      this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
+    }
+  }
+
   public removeGroupTransactions(group: DescriptionGroup): void {
+    const tab = this.previewTab();
     const ids = new Set(group.items.map((t) => t.id));
     const res = this.previewResult();
     if (!res) return;
-    this.previewResult.set({
-      ...res,
-      transactions: res.transactions.filter((t) => !ids.has(t.id))
-    });
+
+    if (tab === 'valid' || tab === 'review') {
+      this.previewResult.set({
+        ...res,
+        transactions: res.transactions.filter((t) => !ids.has(t.id))
+      });
+    } else if (tab === 'incomes') {
+      this.previewResult.set({
+        ...res,
+        incomes: res.incomes.filter((t) => !ids.has(t.id)),
+        incomesCount: Math.max(0, res.incomesCount - group.count)
+      });
+    } else if (tab === 'duplicates') {
+      this.previewResult.set({
+        ...res,
+        duplicates: res.duplicates.filter((t) => !ids.has(t.id)),
+        duplicatesCount: Math.max(0, res.duplicatesCount - group.count)
+      });
+    } else if (tab === 'excluded') {
+      this.previewResult.set({
+        ...res,
+        excluded: res.excluded.filter((t) => !ids.has(t.id)),
+        excludedCount: Math.max(0, res.excludedCount - group.count)
+      });
+    }
     this.service.showToast(`Skipped ${group.count} items`, 'info');
   }
 
