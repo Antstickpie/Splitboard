@@ -44,7 +44,7 @@
   </div>
 
   <!-- Inline Statement Importer in Same Window -->
-  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 0.8rem;">
+  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 0.8rem; position: relative; z-index: 100000; min-height: 540px;">
     <app-import (importCompleted)="isImportOpen.set(false)"></app-import>
   </div>
 

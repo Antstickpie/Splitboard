@@ -549,7 +549,7 @@ export class ImportComponent {
 
   public async selectBankAndParse(bankName: string): Promise<void> {
     if (!this.selectedOwner()) {
-      this.service.showToast('Please select an account owner first', 'error');
+      this.service.showToast('Please select an account owner first', 'info');
       return;
     }
     this.showBankSelectModal.set(false);
