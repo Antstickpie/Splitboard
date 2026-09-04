@@ -153,12 +153,18 @@ export class LedgerComponent {
     this.service.searchQuery.set('');
   }
 
-  public recordSettlement(): void {
+  public async recordSettlement(): Promise<void> {
     const s = this.service.monthSettlement();
     if (s.isSettled || s.netOwedAmount <= 0) return;
 
     const month = this.service.selectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.service.selectedMonth();
     const date = `${month}-28`;
+
+    const ok = await this.service.showConfirm(
+      'Confirm Settle Up',
+      `Record settlement of ${this.service.formatCurrency(s.netOwedAmount)} from ${s.debtorName} to ${s.creditorName} for ${this.service.formatMonth(month)}?\n\nThis will record a transfer transaction balancing accounts to ${this.service.formatCurrency(0)}.`
+    );
+    if (!ok) return;
 
     this.service.addTransaction({
       id: crypto.randomUUID(),

@@ -80,39 +80,66 @@
     <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem;">Parsing rows and matching automated category rules</div>
   </div>
 
-  <!-- Imported Statement Batches (1-Click Multi-Month Undo) -->
+  <!-- Imported Statement Batches (Grouped by Account Owner) -->
   <div class="glass-card" *ngIf="service.importedBatches().length > 0" style="padding: 1rem 1.2rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.5rem;">
       <div style="display: flex; align-items: center; gap: 0.4rem;">
         <span style="font-size: 1.1rem;">📜</span>
-        <strong style="font-size: 0.92rem; color: var(--text-main);">Recent Statement Imports (1-Click Batch Undo)</strong>
+        <strong style="font-size: 0.92rem; color: var(--text-main);">Imported Statements (Grouped by Owner)</strong>
       </div>
       <span style="font-size: 0.75rem; color: var(--text-muted);">
-        {{ service.importedBatches().length }} active statement batch{{ service.importedBatches().length > 1 ? 'es' : '' }}
+        {{ service.importedBatches().length }} statement file{{ service.importedBatches().length > 1 ? 's' : '' }} active
       </span>
     </div>
 
-    <div style="display: flex; flex-direction: column; gap: 0.45rem;">
-      <div
-        *ngFor="let b of service.importedBatches()"
-        style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.8rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
-        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-          <span style="font-size: 0.95rem;">📄</span>
-          <div>
-            <strong style="font-size: 0.84rem; color: var(--primary);">{{ b.fileName }}</strong>
-            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
-              {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: {{ service.formatCurrency(b.totalAmount) }}
-            </div>
+    <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+      <div *ngFor="let og of service.importedBatchesByOwner()" style="display: flex; flex-direction: column; gap: 0.45rem;">
+        <!-- Owner Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.15rem 0.2rem;">
+          <div style="display: flex; align-items: center; gap: 0.45rem;">
+            <span
+              class="badge"
+              [style.color]="og.owner === service.personOne().name ? 'var(--primary)' : (og.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-main)')"
+              [style.background]="og.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (og.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.08)')"
+              style="font-size: 0.76rem; font-weight: 700; padding: 0.2rem 0.55rem;">
+              👤 {{ og.owner }}
+            </span>
+            <span style="font-size: 0.74rem; color: var(--text-muted);">
+              {{ og.batches.length }} statement{{ og.batches.length > 1 ? 's' : '' }} • {{ og.count }} transactions
+            </span>
           </div>
+          <span class="font-mono" style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">
+            Total: {{ service.formatCurrency(og.totalAmount) }}
+          </span>
         </div>
 
-        <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-          <button
-            class="btn btn-secondary btn-xs"
-            (click)="openBatchModal(b)"
-            style="font-size: 0.76rem; padding: 0.25rem 0.65rem;">
-            👁️ View & Manage
-          </button>
+        <!-- Statements List for this Owner -->
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+          <div
+            *ngFor="let b of og.batches"
+            style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.8rem; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+              <span style="font-size: 0.95rem;">📄</span>
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
+                  <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
+                  {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+              <button
+                class="btn btn-secondary btn-xs"
+                (click)="openBatchModal(b)"
+                style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
+                👁️ View & Manage
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -20,11 +20,11 @@
       </div>
       <div class="settlement-actions-wrap" *ngIf="!service.monthSettlement().isSettled">
         <button
-          class="btn btn-primary btn-sm"
+          class="btn btn-secondary btn-xs"
           (click)="recordSettlement()"
           title="Log a settlement payment to balance accounts"
-          style="font-weight: 600;">
-          💸 Record Settle Up
+          style="font-weight: 600; padding: 0.35rem 0.75rem; border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); color: var(--text-main);">
+          🤝 Record Settle Up
         </button>
       </div>
     </div>

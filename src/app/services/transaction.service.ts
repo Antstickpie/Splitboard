@@ -64,6 +64,23 @@ export interface SettlementSummary {
   }[];
 }
 
+export interface ImportedBatch {
+  fileName: string;
+  count: number;
+  minDate: string;
+  maxDate: string;
+  totalAmount: number;
+  owner: string;
+  bank: string;
+}
+
+export interface OwnerBatchesGroup {
+  owner: string;
+  count: number;
+  totalAmount: number;
+  batches: ImportedBatch[];
+}
+
 export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [];
 
 @Injectable({
@@ -455,9 +472,9 @@ export class TransactionService {
   });
 
   // Track Imported Statement Batches for 1-click Undo across all months
-  public importedBatches = computed(() => {
+  public importedBatches = computed<ImportedBatch[]>(() => {
     const txs = this.transactions();
-    const map = new Map<string, { fileName: string; count: number; minDate: string; maxDate: string; totalAmount: number }>();
+    const map = new Map<string, ImportedBatch>();
 
     for (const tx of txs) {
       if (tx.sourceFile && tx.sourceFile !== 'Manual Entry' && tx.sourceFile !== 'Manual Cash Entry') {
@@ -468,18 +485,53 @@ export class TransactionService {
             count: 0,
             minDate: tx.date || '',
             maxDate: tx.date || '',
-            totalAmount: 0
+            totalAmount: 0,
+            owner: tx.paidBy || 'Shared',
+            bank: tx.bank || ''
           });
         }
         const b = map.get(src)!;
         b.count++;
         b.totalAmount += Number(tx.amount) || 0;
+        if (tx.paidBy && (!b.owner || b.owner === 'Shared')) b.owner = tx.paidBy;
+        if (tx.bank && !b.bank) b.bank = tx.bank;
         if (tx.date && (!b.minDate || tx.date < b.minDate)) b.minDate = tx.date;
         if (tx.date && (!b.maxDate || tx.date > b.maxDate)) b.maxDate = tx.date;
       }
     }
 
     return Array.from(map.values());
+  });
+
+  public importedBatchesByOwner = computed<OwnerBatchesGroup[]>(() => {
+    const batches = this.importedBatches();
+    const p1 = this.personOne().name;
+    const p2 = this.personTwo().name;
+    const map = new Map<string, ImportedBatch[]>();
+
+    for (const b of batches) {
+      const owner = b.owner || 'Shared';
+      if (!map.has(owner)) {
+        map.set(owner, []);
+      }
+      map.get(owner)!.push(b);
+    }
+
+    // Ensure predictable order (Person 1, Person 2, then others)
+    const result: OwnerBatchesGroup[] = [];
+    const orderedOwners = Array.from(new Set([p1, p2, ...map.keys()])).filter((o) => map.has(o));
+
+    for (const owner of orderedOwners) {
+      const items = map.get(owner)!;
+      result.push({
+        owner,
+        count: items.reduce((sum, x) => sum + x.count, 0),
+        totalAmount: items.reduce((sum, x) => sum + x.totalAmount, 0),
+        batches: items
+      });
+    }
+
+    return result;
   });
 
   constructor() {
