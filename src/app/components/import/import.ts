@@ -443,7 +443,7 @@ export class ImportComponent {
   constructor() {
     this.selectedBank.set('');
     this.detectedBankSuggestion.set('');
-    this.selectedOwner.set(this.service.personOne().name);
+    this.selectedOwner.set('');
   }
 
   public onBankChange(bankName: string): void {
@@ -527,6 +527,7 @@ export class ImportComponent {
     this.pendingFile = file;
     this.pendingText = null;
     this.uploadedFileName.set(file.name);
+    this.selectedOwner.set('');
     this.showBankSelectModal.set(true);
     input.value = '';
   }
@@ -536,6 +537,7 @@ export class ImportComponent {
     this.pendingText = this.rawClipboardText;
     this.pendingFile = null;
     this.uploadedFileName.set('Clipboard Paste');
+    this.selectedOwner.set('');
     this.showBankSelectModal.set(true);
   }
 
@@ -546,6 +548,10 @@ export class ImportComponent {
   }
 
   public async selectBankAndParse(bankName: string): Promise<void> {
+    if (!this.selectedOwner()) {
+      this.service.showToast('Please select an account owner first', 'error');
+      return;
+    }
     this.showBankSelectModal.set(false);
     this.selectedBank.set(bankName);
     this.isParsing.set(true);
