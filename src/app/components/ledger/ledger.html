@@ -1,50 +1,55 @@
 <div class="animate-fade-in ledger-container">
-  <!-- Top Settlement Hero Card -->
-  <div class="glass-card settlement-hero-card">
-    <div class="settlement-hero-header">
-      <div class="settlement-status-badge">
+  <!-- Compact Settlement & Spend Summary Strip -->
+  <div class="glass-card settlement-compact-bar">
+    <!-- Left: Settlement Status & Action -->
+    <div class="settlement-left-col">
+      <div class="settlement-title-row">
         <span class="status-dot" [class.settled]="service.monthSettlement().isSettled">●</span>
         <span class="status-title" *ngIf="service.monthSettlement().isSettled">All Settled Up 🎉</span>
         <span class="status-title" *ngIf="!service.monthSettlement().isSettled">
           <strong>{{ service.monthSettlement().debtorName }}</strong> owes <strong>{{ service.monthSettlement().creditorName }}</strong>
         </span>
-      </div>
-      <div class="settlement-main-amount font-mono" style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2;">
-        <div style="font-size: 1.55rem; font-weight: 700;">
+        <span class="settlement-badge-amount font-mono" *ngIf="!service.monthSettlement().isSettled">
           {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
-          <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500; margin-left: 0.2rem;">Total</span>
-        </div>
-        <div *ngIf="service.monthSettlement().carryoverAmount > 0" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500; margin-top: 0.2rem;">
-          This Month: {{ service.formatCurrency(service.monthSettlement().thisMonthNetOwed) }} • Prior Carryover: {{ service.formatCurrency(service.monthSettlement().carryoverAmount) }}
-        </div>
-      </div>
-      <div class="settlement-actions-wrap" *ngIf="!service.monthSettlement().isSettled">
+        </span>
         <button
-          class="btn btn-secondary btn-xs"
+          *ngIf="!service.monthSettlement().isSettled"
+          class="btn btn-secondary btn-xs record-settle-btn"
           (click)="recordSettlement()"
-          title="Log a settlement payment to balance accounts"
-          style="font-weight: 600; padding: 0.35rem 0.75rem; border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); color: var(--text-main);">
+          title="Log a settlement payment to balance accounts">
           🤝 Record Settle Up
         </button>
       </div>
+
+      <div *ngIf="service.monthSettlement().carryoverAmount > 0 && !service.monthSettlement().isSettled" class="settlement-breakdown-subtext">
+        <span>This Month: <strong class="font-mono">{{ service.formatCurrency(service.monthSettlement().thisMonthNetOwed) }}</strong></span>
+        <span class="subtext-bullet">•</span>
+        <span>Prior Carryover: <strong class="font-mono">{{ service.formatCurrency(service.monthSettlement().carryoverAmount) }}</strong></span>
+      </div>
     </div>
 
-    <!-- Quick Month Metrics -->
-    <div class="metrics-grid settlement-metrics">
-      <div class="metric-card">
-        <div class="label">{{ service.personOne().name }} Paid</div>
-        <div class="value font-mono">{{ service.formatCurrency(service.monthSettlement().personAPaid) }}</div>
-        <div class="sub-value">Share: {{ service.formatCurrency(service.monthSettlement().personAShare) }}</div>
+    <!-- Right: Concise Month Metrics -->
+    <div class="settlement-right-metrics">
+      <div class="metric-compact-item">
+        <div class="metric-compact-label">{{ service.personOne().name }} Paid</div>
+        <div class="metric-compact-value font-mono">{{ service.formatCurrency(service.monthSettlement().personAPaid) }}</div>
+        <div class="metric-compact-sub">Share: {{ service.formatCurrency(service.monthSettlement().personAShare) }}</div>
       </div>
-      <div class="metric-card">
-        <div class="label">{{ service.personTwo().name }} Paid</div>
-        <div class="value font-mono">{{ service.formatCurrency(service.monthSettlement().personBPaid) }}</div>
-        <div class="sub-value">Share: {{ service.formatCurrency(service.monthSettlement().personBShare) }}</div>
+
+      <div class="metric-compact-divider"></div>
+
+      <div class="metric-compact-item">
+        <div class="metric-compact-label">{{ service.personTwo().name }} Paid</div>
+        <div class="metric-compact-value font-mono">{{ service.formatCurrency(service.monthSettlement().personBPaid) }}</div>
+        <div class="metric-compact-sub">Share: {{ service.formatCurrency(service.monthSettlement().personBShare) }}</div>
       </div>
-      <div class="metric-card">
-        <div class="label">Shared Expenses</div>
-        <div class="value font-mono">{{ service.formatCurrency(service.monthSettlement().personAShare + service.monthSettlement().personBShare) }}</div>
-        <div class="sub-value">{{ service.filteredTransactions().length }} transactions in view</div>
+
+      <div class="metric-compact-divider"></div>
+
+      <div class="metric-compact-item">
+        <div class="metric-compact-label">Shared Spend</div>
+        <div class="metric-compact-value font-mono">{{ service.formatCurrency(service.monthSettlement().personAShare + service.monthSettlement().personBShare) }}</div>
+        <div class="metric-compact-sub">{{ service.filteredTransactions().length }} txs</div>
       </div>
     </div>
   </div>
