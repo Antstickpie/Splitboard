@@ -372,9 +372,20 @@
                 <span>Expense share this month:</span>
                 <span class="font-mono" style="color: var(--danger);">-{{ service.formatCurrency(personSavingsBreakdown().p1.spentShare) }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p1.settlementAdj !== 0" [style.color]="personSavingsBreakdown().p1.settlementAdj > 0 ? '#10b981' : '#ef4444'">
-                <span>{{ personSavingsBreakdown().p1.settlementAdj > 0 ? '+ Reimbursement (Split)' : '- Owed to ' + personSavingsBreakdown().p2.name }}:</span>
-                <span class="font-mono">{{ personSavingsBreakdown().p1.settlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p1.settlementAdj) }}</span>
+              <!-- Person 1 Settlement Line (This month) -->
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p1.thisMonthSettlementAdj !== 0" [style.color]="personSavingsBreakdown().p1.thisMonthSettlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>{{ personSavingsBreakdown().p1.thisMonthSettlementAdj > 0 ? '+ Reimbursement (This Month)' : '- Owed to ' + personSavingsBreakdown().p2.name + ' (This Month)' }}:</span>
+                <span class="font-mono">{{ personSavingsBreakdown().p1.thisMonthSettlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p1.thisMonthSettlementAdj) }}</span>
+              </div>
+              <!-- Person 1 Prior Carryover Owed -->
+              <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text-muted); opacity: 0.85;" *ngIf="personSavingsBreakdown().p1.carryoverSettlementAdj !== 0">
+                <span>↳ Prior carryover owed:</span>
+                <span class="font-mono" [style.color]="personSavingsBreakdown().p1.carryoverSettlementAdj > 0 ? '#10b981' : '#ef4444'">{{ personSavingsBreakdown().p1.carryoverSettlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p1.carryoverSettlementAdj) }}</span>
+              </div>
+              <!-- Person 1 Total Net Owed/Receivable -->
+              <div style="display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0;" *ngIf="personSavingsBreakdown().p1.carryoverSettlementAdj !== 0 && personSavingsBreakdown().p1.totalSettlementAdj !== 0" [style.color]="personSavingsBreakdown().p1.totalSettlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>Total Net {{ personSavingsBreakdown().p1.totalSettlementAdj > 0 ? 'Receivable' : 'Owed to ' + personSavingsBreakdown().p2.name }}:</span>
+                <span class="font-mono">{{ personSavingsBreakdown().p1.totalSettlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p1.totalSettlementAdj) }}</span>
               </div>
               <div style="display: flex; justify-content: space-between; padding-top: 0.2rem; border-top: 1px dashed rgba(255,255,255,0.06); font-weight: 600;">
                 <span>Saved this month:</span>
@@ -406,9 +417,20 @@
                 <span>Expense share this month:</span>
                 <span class="font-mono" style="color: var(--danger);">-{{ service.formatCurrency(personSavingsBreakdown().p2.spentShare) }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p2.settlementAdj !== 0" [style.color]="personSavingsBreakdown().p2.settlementAdj > 0 ? '#10b981' : '#ef4444'">
-                <span>{{ personSavingsBreakdown().p2.settlementAdj > 0 ? '+ Reimbursement (Split)' : '- Owed to ' + personSavingsBreakdown().p1.name }}:</span>
-                <span class="font-mono">{{ personSavingsBreakdown().p2.settlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p2.settlementAdj) }}</span>
+              <!-- Person 2 Settlement Line (This month) -->
+              <div style="display: flex; justify-content: space-between;" *ngIf="personSavingsBreakdown().p2.thisMonthSettlementAdj !== 0" [style.color]="personSavingsBreakdown().p2.thisMonthSettlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>{{ personSavingsBreakdown().p2.thisMonthSettlementAdj > 0 ? '+ Reimbursement (This Month)' : '- Owed to ' + personSavingsBreakdown().p1.name + ' (This Month)' }}:</span>
+                <span class="font-mono">{{ personSavingsBreakdown().p2.thisMonthSettlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p2.thisMonthSettlementAdj) }}</span>
+              </div>
+              <!-- Person 2 Prior Carryover Owed -->
+              <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text-muted); opacity: 0.85;" *ngIf="personSavingsBreakdown().p2.carryoverSettlementAdj !== 0">
+                <span>↳ Prior carryover owed:</span>
+                <span class="font-mono" [style.color]="personSavingsBreakdown().p2.carryoverSettlementAdj > 0 ? '#10b981' : '#ef4444'">{{ personSavingsBreakdown().p2.carryoverSettlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p2.carryoverSettlementAdj) }}</span>
+              </div>
+              <!-- Person 2 Total Net Owed/Receivable -->
+              <div style="display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0;" *ngIf="personSavingsBreakdown().p2.carryoverSettlementAdj !== 0 && personSavingsBreakdown().p2.totalSettlementAdj !== 0" [style.color]="personSavingsBreakdown().p2.totalSettlementAdj > 0 ? '#10b981' : '#ef4444'">
+                <span>Total Net {{ personSavingsBreakdown().p2.totalSettlementAdj > 0 ? 'Receivable' : 'Owed to ' + personSavingsBreakdown().p1.name }}:</span>
+                <span class="font-mono">{{ personSavingsBreakdown().p2.totalSettlementAdj > 0 ? '+' : '' }}{{ service.formatCurrency(personSavingsBreakdown().p2.totalSettlementAdj) }}</span>
               </div>
               <div style="display: flex; justify-content: space-between; padding-top: 0.2rem; border-top: 1px dashed rgba(255,255,255,0.06); font-weight: 600;">
                 <span>Saved this month:</span>

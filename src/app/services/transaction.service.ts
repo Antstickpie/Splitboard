@@ -49,6 +49,8 @@ export interface SettlementSummary {
   carryoverDebtor: string;
   carryoverCreditor: string;
   thisMonthNetOwed: number;
+  thisMonthDebtor: string;
+  thisMonthCreditor: string;
   itemizedDetails: {
     id: string;
     date: string;
@@ -420,6 +422,15 @@ export class TransactionService {
 
     const thisMonthDiff = currP2OwesP1 - currP1OwesP2;
     const thisMonthNetOwed = parseFloat(Math.abs(thisMonthDiff).toFixed(2));
+    let thisMonthDebtor = '';
+    let thisMonthCreditor = '';
+    if (thisMonthDiff > 0.005) {
+      thisMonthDebtor = p2;
+      thisMonthCreditor = p1;
+    } else if (thisMonthDiff < -0.005) {
+      thisMonthDebtor = p1;
+      thisMonthCreditor = p2;
+    }
 
     return {
       personAPaid: currP1Paid,
@@ -436,6 +447,8 @@ export class TransactionService {
       carryoverDebtor,
       carryoverCreditor,
       thisMonthNetOwed,
+      thisMonthDebtor,
+      thisMonthCreditor,
       itemizedDetails: itemized
     };
   });

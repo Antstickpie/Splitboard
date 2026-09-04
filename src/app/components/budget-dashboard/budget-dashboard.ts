@@ -547,21 +547,44 @@ export class BudgetDashboardComponent {
     });
 
     const settlement = this.service.monthSettlement();
-    let p1SettlementAdj = 0;
-    let p2SettlementAdj = 0;
-
-    if (!settlement.isSettled) {
-      if (settlement.creditorName === p1) {
-        p1SettlementAdj = settlement.netOwedAmount;
-        p2SettlementAdj = -settlement.netOwedAmount;
-      } else if (settlement.creditorName === p2) {
-        p1SettlementAdj = -settlement.netOwedAmount;
-        p2SettlementAdj = settlement.netOwedAmount;
+    let p1ThisMonthSettlementAdj = 0;
+    let p2ThisMonthSettlementAdj = 0;
+    if (settlement.thisMonthNetOwed > 0) {
+      if (settlement.thisMonthCreditor === p1) {
+        p1ThisMonthSettlementAdj = settlement.thisMonthNetOwed;
+        p2ThisMonthSettlementAdj = -settlement.thisMonthNetOwed;
+      } else if (settlement.thisMonthCreditor === p2) {
+        p1ThisMonthSettlementAdj = -settlement.thisMonthNetOwed;
+        p2ThisMonthSettlementAdj = settlement.thisMonthNetOwed;
       }
     }
 
-    const p1MonthSaved = p1IncomeMonth - p1SpentShareMonth + p1SettlementAdj;
-    const p2MonthSaved = p2IncomeMonth - p2SpentShareMonth + p2SettlementAdj;
+    let p1CarryoverSettlementAdj = 0;
+    let p2CarryoverSettlementAdj = 0;
+    if (settlement.carryoverAmount > 0) {
+      if (settlement.carryoverCreditor === p1) {
+        p1CarryoverSettlementAdj = settlement.carryoverAmount;
+        p2CarryoverSettlementAdj = -settlement.carryoverAmount;
+      } else if (settlement.carryoverCreditor === p2) {
+        p1CarryoverSettlementAdj = -settlement.carryoverAmount;
+        p2CarryoverSettlementAdj = settlement.carryoverAmount;
+      }
+    }
+
+    let p1TotalSettlementAdj = 0;
+    let p2TotalSettlementAdj = 0;
+    if (!settlement.isSettled) {
+      if (settlement.creditorName === p1) {
+        p1TotalSettlementAdj = settlement.netOwedAmount;
+        p2TotalSettlementAdj = -settlement.netOwedAmount;
+      } else if (settlement.creditorName === p2) {
+        p1TotalSettlementAdj = -settlement.netOwedAmount;
+        p2TotalSettlementAdj = settlement.netOwedAmount;
+      }
+    }
+
+    const p1MonthSaved = p1IncomeMonth - p1SpentShareMonth + p1ThisMonthSettlementAdj;
+    const p2MonthSaved = p2IncomeMonth - p2SpentShareMonth + p2ThisMonthSettlementAdj;
 
     // 2. Cumulative Prior Savings (from all months prior to currentMonth)
     let p1PriorSavings = 0;
@@ -622,7 +645,10 @@ export class BudgetDashboardComponent {
         monthSaved: p1MonthSaved,
         priorSavings: p1PriorSavings,
         totalCumulative: p1TotalCumulative,
-        settlementAdj: p1SettlementAdj
+        thisMonthSettlementAdj: p1ThisMonthSettlementAdj,
+        carryoverSettlementAdj: p1CarryoverSettlementAdj,
+        totalSettlementAdj: p1TotalSettlementAdj,
+        settlementAdj: p1ThisMonthSettlementAdj
       },
       p2: {
         name: p2,
@@ -631,7 +657,10 @@ export class BudgetDashboardComponent {
         monthSaved: p2MonthSaved,
         priorSavings: p2PriorSavings,
         totalCumulative: p2TotalCumulative,
-        settlementAdj: p2SettlementAdj
+        thisMonthSettlementAdj: p2ThisMonthSettlementAdj,
+        carryoverSettlementAdj: p2CarryoverSettlementAdj,
+        totalSettlementAdj: p2TotalSettlementAdj,
+        settlementAdj: p2ThisMonthSettlementAdj
       },
       totalSavingsMonth: p1MonthSaved + p2MonthSaved,
       totalSavingsCumulative: p1TotalCumulative + p2TotalCumulative
