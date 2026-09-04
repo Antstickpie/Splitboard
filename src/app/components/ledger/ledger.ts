@@ -20,6 +20,27 @@ export class LedgerComponent {
   public pendingImportFile = signal<File | null>(null);
   public isImportDragOver = signal<boolean>(false);
 
+  // Statement Batches Viewer / Manager Modal
+  public isManageBatchesModalOpen = signal<boolean>(false);
+  public viewingBatch = signal<any | null>(null);
+
+  public openBatchModal(b: any): void {
+    this.viewingBatch.set(b);
+  }
+
+  public closeBatchModal(): void {
+    this.viewingBatch.set(null);
+  }
+
+  public getBatchTransactions(fileName: string): Transaction[] {
+    return this.service.transactions().filter((t) => t.sourceFile === fileName);
+  }
+
+  public async deleteBatchFromModal(fileName: string): Promise<void> {
+    this.closeBatchModal();
+    await this.service.undoImportBatch(fileName);
+  }
+
   public toggleImport(): void {
     if (this.isImportOpen()) {
       this.closeImport();

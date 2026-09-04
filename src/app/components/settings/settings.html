@@ -897,6 +897,83 @@
     </div>
   </div>
 
+  <!-- WIDE SECTION 5: Imported Bank Statements & Data Batches -->
+  <div class="settings-section wide-section" *ngIf="service.importedBatches().length > 0">
+    <div class="section-title">
+      <span class="section-icon">📜</span>
+      <span>Imported Bank Statements (Grouped by Owner)</span>
+    </div>
+
+    <div class="glass-card rules-editor-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+        <p class="subtitle" style="margin: 0;">
+          All active imported statement batches organized by owner. You can inspect individual statement transactions or delete/undo batches anytime.
+        </p>
+        <span class="badge badge-neutral">
+          {{ service.importedBatches().length }} statement file{{ service.importedBatches().length > 1 ? 's' : '' }}
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+        <div *ngFor="let og of service.importedBatchesByOwner()" style="display: flex; flex-direction: column; gap: 0.45rem;">
+          <!-- Owner Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.15rem 0.2rem;">
+            <div style="display: flex; align-items: center; gap: 0.45rem;">
+              <span
+                class="badge"
+                [style.color]="og.owner === service.personOne().name ? 'var(--primary)' : (og.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-main)')"
+                [style.background]="og.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (og.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.08)')"
+                style="font-size: 0.76rem; font-weight: 700; padding: 0.2rem 0.55rem;">
+                👤 {{ og.owner }}
+              </span>
+              <span style="font-size: 0.74rem; color: var(--text-muted);">
+                {{ og.batches.length }} statement{{ og.batches.length > 1 ? 's' : '' }} • {{ og.count }} transactions
+              </span>
+            </div>
+            <span class="font-mono" style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">
+              Total: {{ service.formatCurrency(og.totalAmount) }}
+            </span>
+          </div>
+
+          <!-- Statements List for this Owner -->
+          <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <div
+              *ngFor="let b of og.batches"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span style="font-size: 1.1rem;">📄</span>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
+                    <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
+                  </div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
+                    {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  (click)="openBatchModal(b)"
+                  style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
+                  👁️ View Transactions
+                </button>
+                <button
+                  class="btn btn-secondary btn-xs"
+                  (click)="service.undoImportBatch(b.fileName)"
+                  style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- BOTTOM DANGER ZONE -->
   <div class="settings-section">
     <div class="glass-card danger-zone-card">
@@ -1040,6 +1117,60 @@
           <button class="btn btn-primary btn-xs" (click)="saveEditItem()" [disabled]="!editItemName.trim()">
             ✓ Save Changes
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Statement Batch Details & Transactions -->
+  <div class="modal-backdrop" *ngIf="viewingBatch() as batch" (click)="closeBatchModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()" style="max-width: 860px; width: 95vw; max-height: 85vh; display: flex; flex-direction: column; background: var(--bg-card, #131722); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 1.2rem; box-shadow: 0 16px 40px rgba(0,0,0,0.6);">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.3rem;">📄</span>
+            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">{{ batch.fileName }}</h3>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">
+            {{ batch.count }} transactions • Dates: {{ batch.minDate }} → {{ batch.maxDate }} • Total: <strong style="color: var(--primary);">{{ service.formatCurrency(batch.totalAmount) }}</strong>
+          </div>
+        </div>
+        <button class="btn-icon-close" (click)="closeBatchModal()" style="font-size: 1.1rem; width: 28px; height: 28px; cursor: pointer; background: transparent; border: none; color: var(--text-muted);">✕</button>
+      </div>
+
+      <!-- Scrollable list of transactions in this statement -->
+      <div style="flex: 1; overflow-y: auto; padding: 0.8rem 0; min-height: 220px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); text-align: left;">
+              <th style="padding: 0.4rem 0.6rem;">Date</th>
+              <th style="padding: 0.4rem 0.6rem;">Description</th>
+              <th style="padding: 0.4rem 0.6rem;">Category</th>
+              <th style="padding: 0.4rem 0.6rem;">Paid By</th>
+              <th style="padding: 0.4rem 0.6rem;">Split</th>
+              <th style="padding: 0.4rem 0.6rem; text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of getBatchTransactions(batch.fileName)" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="padding: 0.45rem 0.6rem; white-space: nowrap; color: var(--text-muted);">{{ service.formatDate(t.date) }}</td>
+              <td style="padding: 0.45rem 0.6rem; font-weight: 500; color: var(--text-main);">{{ t.description }}</td>
+              <td style="padding: 0.45rem 0.6rem;"><span class="badge badge-neutral" style="font-size: 0.7rem;">{{ t.categoryItem || 'Uncategorized' }}</span></td>
+              <td style="padding: 0.45rem 0.6rem;"><span class="badge" [class.badge-info]="t.paidBy === service.personOne().name" [class.badge-warning]="t.paidBy === service.personTwo().name">{{ t.paidBy }}</span></td>
+              <td style="padding: 0.45rem 0.6rem;"><span class="badge" [class.badge-success]="t.splitType === 'SPLIT'" [class.badge-neutral]="t.splitType === 'SELF'" [class.badge-danger]="t.splitType === 'OTHER'">{{ t.splitType }}</span></td>
+              <td style="padding: 0.45rem 0.6rem; text-align: right; font-family: monospace; font-weight: 600;">{{ service.formatCurrency(t.amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Footer inside Modal -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.8rem; border-top: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; gap: 0.6rem;">
+        <button class="btn btn-secondary btn-sm" (click)="deleteBatchFromModal(batch.fileName)" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
+          🗑️ Delete Statement Batch
+        </button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-secondary btn-sm" (click)="closeBatchModal()">Close</button>
         </div>
       </div>
     </div>

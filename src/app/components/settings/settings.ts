@@ -478,6 +478,26 @@ export class SettingsComponent {
     this.closeEditItemModal();
   }
 
+  // Statement Batches Viewer / Manager
+  public viewingBatch = signal<any | null>(null);
+
+  public openBatchModal(b: any): void {
+    this.viewingBatch.set(b);
+  }
+
+  public closeBatchModal(): void {
+    this.viewingBatch.set(null);
+  }
+
+  public getBatchTransactions(fileName: string) {
+    return this.service.transactions().filter((t) => t.sourceFile === fileName);
+  }
+
+  public async deleteBatchFromModal(fileName: string): Promise<void> {
+    this.closeBatchModal();
+    await this.service.undoImportBatch(fileName);
+  }
+
   public onBackupFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
