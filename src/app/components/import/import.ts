@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TransactionService } from '../../services/transaction.service';
+import { TransactionService, ImportedBatch } from '../../services/transaction.service';
 import { StatementParserService, ParsedStatementResult } from '../../services/statement-parser.service';
 import { Transaction, SplitType } from '../../models';
 import { CategorySelectComponent } from '../category-select/category-select';
@@ -1339,9 +1339,9 @@ export class ImportComponent {
     this.service.showToast(`Loaded ${cloned.length} transactions into editor. Edit and click "Import" to save!`, 'info');
   }
 
-  public viewingBatch = signal<{ fileName: string; count: number; minDate: string; maxDate: string; totalAmount: number } | null>(null);
+  public viewingBatch = signal<ImportedBatch | null>(null);
 
-  public openBatchModal(b: { fileName: string; count: number; minDate: string; maxDate: string; totalAmount: number }): void {
+  public openBatchModal(b: ImportedBatch): void {
     this.viewingBatch.set(b);
   }
 

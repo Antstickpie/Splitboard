@@ -943,30 +943,35 @@
               <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
                 <span style="font-size: 1.1rem;">📄</span>
                 <div>
-                  <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
-                    <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
-                  </div>
-                  <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
-                    {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
-                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                  <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
+                  <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
+                  <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reviewCount > 0">
+                    🔍 {{ b.reviewCount }} in review
+                  </span>
+                  <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reimbursableCount > 0">
+                    ⏳ {{ b.reimbursableCount }} reimbursable
+                  </span>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
+                  {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
                 </div>
               </div>
+            </div>
 
-              <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                <button
-                  class="btn btn-secondary btn-xs"
-                  (click)="openBatchModal(b)"
-                  style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
-                  👁️ View Transactions
-                </button>
-                <button
-                  class="btn btn-secondary btn-xs"
-                  (click)="service.undoImportBatch(b.fileName)"
-                  style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
-                  🗑️ Delete
-                </button>
-              </div>
+            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+              <button
+                class="btn btn-secondary btn-xs"
+                (click)="openBatchModal(b)"
+                style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
+                👁️ View Transactions
+              </button>
+              <button
+                class="btn btn-secondary btn-xs"
+                (click)="service.undoImportBatch(b.fileName)"
+                style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
+                🗑️ Delete
+              </button>
             </div>
           </div>
         </div>
@@ -1124,15 +1129,25 @@
 
   <!-- Modal: Statement Batch Details & Transactions -->
   <div class="modal-backdrop" *ngIf="viewingBatch() as batch" (click)="closeBatchModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1rem;">
-    <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()" style="max-width: 860px; width: 95vw; max-height: 85vh; display: flex; flex-direction: column; background: var(--bg-card, #131722); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 1.2rem; box-shadow: 0 16px 40px rgba(0,0,0,0.6);">
+    <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()" style="max-width: 920px; width: 95vw; max-height: 85vh; display: flex; flex-direction: column; background: var(--bg-card, #131722); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 1.2rem; box-shadow: 0 16px 40px rgba(0,0,0,0.6);">
       <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
         <div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             <span style="font-size: 1.3rem;">📄</span>
             <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">{{ batch.fileName }}</h3>
+            <span class="badge badge-neutral" style="font-size: 0.72rem;" *ngIf="batch.bank">{{ batch.bank }}</span>
+            <span class="badge" [style.color]="batch.owner === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="batch.owner === service.personOne().name ? 'rgba(0,229,255,0.12)' : 'rgba(139,92,246,0.12)'" style="font-size: 0.72rem; font-weight: 600;" *ngIf="batch.owner">
+              👤 {{ batch.owner }}
+            </span>
           </div>
-          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">
-            {{ batch.count }} transactions • Dates: {{ batch.minDate }} → {{ batch.maxDate }} • Total: <strong style="color: var(--primary);">{{ service.formatCurrency(batch.totalAmount) }}</strong>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span>{{ batch.count }} transactions • Dates: {{ batch.minDate }} → {{ batch.maxDate }} • Total: <strong style="color: var(--primary);">{{ service.formatCurrency(batch.totalAmount) }}</strong></span>
+            <span class="badge badge-warning" style="font-size: 0.7rem; font-weight: 600;" *ngIf="batch.reviewCount > 0">
+              🔍 {{ batch.reviewCount }} in review
+            </span>
+            <span class="badge badge-warning" style="font-size: 0.7rem; font-weight: 600;" *ngIf="batch.reimbursableCount > 0">
+              ⏳ {{ batch.reimbursableCount }} reimbursable
+            </span>
           </div>
         </div>
         <button class="btn-icon-close" (click)="closeBatchModal()" style="font-size: 1.1rem; width: 28px; height: 28px; cursor: pointer; background: transparent; border: none; color: var(--text-muted);">✕</button>
@@ -1144,21 +1159,50 @@
           <thead>
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); text-align: left;">
               <th style="padding: 0.4rem 0.6rem;">Date</th>
+              <th style="padding: 0.4rem 0.6rem;">Bank</th>
+              <th style="padding: 0.4rem 0.6rem;">Paid By</th>
               <th style="padding: 0.4rem 0.6rem;">Description</th>
               <th style="padding: 0.4rem 0.6rem;">Category</th>
-              <th style="padding: 0.4rem 0.6rem;">Paid By</th>
               <th style="padding: 0.4rem 0.6rem;">Split</th>
+              <th style="padding: 0.4rem 0.6rem;">Note</th>
               <th style="padding: 0.4rem 0.6rem; text-align: right;">Amount</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let t of getBatchTransactions(batch.fileName)" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
-              <td style="padding: 0.45rem 0.6rem; white-space: nowrap; color: var(--text-muted);">{{ service.formatDate(t.date) }}</td>
-              <td style="padding: 0.45rem 0.6rem; font-weight: 500; color: var(--text-main);">{{ t.description }}</td>
+            <tr *ngFor="let t of getBatchTransactions(batch.fileName)" style="border-bottom: 1px solid rgba(255,255,255,0.04);" [class.tx-row-review]="t.isUnderReview">
+              <td style="padding: 0.45rem 0.6rem; white-space: nowrap; color: var(--text-muted); font-size: 0.76rem;">{{ service.formatDate(t.date) }}</td>
+              <td style="padding: 0.45rem 0.6rem;"><span class="badge badge-neutral" style="font-size: 0.68rem;">{{ t.bank }}</span></td>
+              <td style="padding: 0.45rem 0.6rem;">
+                <span class="badge" [style.color]="t.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="t.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-size: 0.72rem; font-weight: 600;">
+                  {{ t.paidBy }}
+                </span>
+              </td>
+              <td style="padding: 0.45rem 0.6rem; font-weight: 500; color: var(--text-main);">
+                <span>{{ t.description }}</span>
+                <span *ngIf="t.isUnderReview" class="badge badge-warning" style="margin-left: 0.35rem; font-size: 0.68rem; font-weight: 600;">
+                  🔍 Review
+                </span>
+                <span *ngIf="t.isCashTransfer" class="badge badge-warning" style="margin-left: 0.35rem; font-size: 0.68rem;">💸 Cash Transfer</span>
+                <span *ngIf="t.isReimbursable" class="badge" [class.badge-warning]="t.reimbursementStatus === 'PENDING'" [class.badge-success]="t.reimbursementStatus === 'REIMBURSED'" style="margin-left: 0.35rem; font-size: 0.68rem; font-weight: 600;">
+                  {{ t.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
+                </span>
+              </td>
               <td style="padding: 0.45rem 0.6rem;"><span class="badge badge-neutral" style="font-size: 0.7rem;">{{ t.categoryItem || 'Uncategorized' }}</span></td>
-              <td style="padding: 0.45rem 0.6rem;"><span class="badge" [class.badge-info]="t.paidBy === service.personOne().name" [class.badge-warning]="t.paidBy === service.personTwo().name">{{ t.paidBy }}</span></td>
-              <td style="padding: 0.45rem 0.6rem;"><span class="badge" [class.badge-success]="t.splitType === 'SPLIT'" [class.badge-neutral]="t.splitType === 'SELF'" [class.badge-danger]="t.splitType === 'OTHER'">{{ t.splitType }}</span></td>
-              <td style="padding: 0.45rem 0.6rem; text-align: right; font-family: monospace; font-weight: 600;">{{ service.formatCurrency(t.amount) }}</td>
+              <td style="padding: 0.45rem 0.6rem;">
+                <span class="badge" [class.badge-success]="t.splitType === 'SPLIT'" [class.badge-neutral]="t.splitType === 'SELF'" [class.badge-danger]="t.splitType === 'OTHER'" style="font-size: 0.7rem;">
+                  {{ t.splitType === 'SPLIT' ? '50/50' : (t.splitType === 'SELF' ? '100% ' + t.paidBy : '100% Other') }}
+                </span>
+              </td>
+              <td style="padding: 0.45rem 0.6rem; font-size: 0.74rem; color: var(--text-muted);">
+                <span *ngIf="t.note">💬 {{ t.note }}</span>
+                <span *ngIf="!t.note" style="color: var(--text-dark);">—</span>
+              </td>
+              <td style="padding: 0.45rem 0.6rem; text-align: right; font-family: monospace; font-weight: 700; font-size: 0.85rem;" [class.text-success]="t.type === 'INCOME'">
+                <div>{{ service.formatCurrency(t.amount) }}</div>
+                <div *ngIf="t.originalCurrency && t.originalCurrency !== service.currency() && t.originalAmount" style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500;">
+                  ({{ service.getCurrencySymbol(t.originalCurrency) }}{{ t.originalAmount }} {{ t.originalCurrency }})
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>

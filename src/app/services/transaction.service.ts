@@ -72,12 +72,16 @@ export interface ImportedBatch {
   totalAmount: number;
   owner: string;
   bank: string;
+  reviewCount: number;
+  reimbursableCount: number;
+  doneCount: number;
 }
 
 export interface OwnerBatchesGroup {
   owner: string;
   count: number;
   totalAmount: number;
+  reviewCount: number;
   batches: ImportedBatch[];
 }
 
@@ -487,12 +491,18 @@ export class TransactionService {
             maxDate: tx.date || '',
             totalAmount: 0,
             owner: tx.paidBy || 'Shared',
-            bank: tx.bank || ''
+            bank: tx.bank || '',
+            reviewCount: 0,
+            reimbursableCount: 0,
+            doneCount: 0
           });
         }
         const b = map.get(src)!;
         b.count++;
         b.totalAmount += Number(tx.amount) || 0;
+        if (tx.isUnderReview) b.reviewCount++;
+        if (tx.isReimbursable) b.reimbursableCount++;
+        if (tx.isDone) b.doneCount++;
         if (tx.paidBy && (!b.owner || b.owner === 'Shared')) b.owner = tx.paidBy;
         if (tx.bank && !b.bank) b.bank = tx.bank;
         if (tx.date && (!b.minDate || tx.date < b.minDate)) b.minDate = tx.date;
@@ -527,6 +537,7 @@ export class TransactionService {
         owner,
         count: items.reduce((sum, x) => sum + x.count, 0),
         totalAmount: items.reduce((sum, x) => sum + x.totalAmount, 0),
+        reviewCount: items.reduce((sum, x) => sum + x.reviewCount, 0),
         batches: items
       });
     }

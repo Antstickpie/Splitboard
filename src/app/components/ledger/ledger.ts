@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TransactionService } from '../../services/transaction.service';
+import { TransactionService, ImportedBatch } from '../../services/transaction.service';
 import { Transaction, SplitType, SplitMode } from '../../models';
 import { ImportComponent } from '../import/import';
 import { CategorySelectComponent } from '../category-select/category-select';
@@ -22,9 +22,9 @@ export class LedgerComponent {
 
   // Statement Batches Viewer / Manager Modal
   public isManageBatchesModalOpen = signal<boolean>(false);
-  public viewingBatch = signal<any | null>(null);
+  public viewingBatch = signal<ImportedBatch | null>(null);
 
-  public openBatchModal(b: any): void {
+  public openBatchModal(b: ImportedBatch): void {
     this.viewingBatch.set(b);
   }
 
