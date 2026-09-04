@@ -10,15 +10,6 @@
       </button>
     </div>
 
-    <div class="config-grid" style="grid-template-columns: 1fr; max-width: 300px; margin-bottom: 0.2rem;">
-      <div>
-        <label class="input-label" style="margin-bottom: 0.2rem; font-size: 0.72rem;">Default Account Owner</label>
-        <select [ngModel]="selectedOwner()" (ngModelChange)="selectedOwner.set($event)" class="styled-select" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
-          <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
-        </select>
-      </div>
-    </div>
-
     <!-- Dropzone / File Upload -->
     <div class="dropzone-box" (click)="fileInput.click()" style="padding: 1.2rem 1rem;">
       <input type="file" #fileInput (change)="onFileSelected($event)" accept=".pdf,.csv,.tsv,.xlsx,.xls,.txt" style="display: none;">
@@ -1714,7 +1705,7 @@
         <div>
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <span style="font-size: 1.3rem;">🏦</span>
-            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">Select Bank Account</h3>
+            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">Select Bank Account & Owner</h3>
           </div>
           <p style="margin: 0.25rem 0 0 0; font-size: 0.76rem; color: var(--text-muted);">
             Statement: <strong style="color: var(--primary);">{{ uploadedFileName() }}</strong>
@@ -1723,7 +1714,29 @@
         <button class="btn-icon-remove" (click)="closeBankSelectModal()" style="font-size: 1.1rem; cursor: pointer; background: transparent; border: none; color: var(--text-muted);">✕</button>
       </div>
 
-      <p style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 0.8rem;">
+      <!-- Account Owner Selection -->
+      <div style="margin-bottom: 1rem; padding: 0.75rem 0.85rem; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+        <label style="display: block; font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 0.45rem;">
+          Default Account Owner
+        </label>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button
+            *ngFor="let p of service.persons()"
+            type="button"
+            class="btn btn-xs"
+            [class.btn-primary]="selectedOwner() === p.name"
+            [class.btn-secondary]="selectedOwner() !== p.name"
+            (click)="selectedOwner.set(p.name)"
+            style="flex: 1; padding: 0.45rem 0.7rem; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
+            <span>👤</span>
+            <span>{{ p.name }}</span>
+            <span *ngIf="selectedOwner() === p.name" style="margin-left: 0.2rem; font-weight: bold;">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bank Account Selection -->
+      <p style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 0.6rem;">
         Choose the bank to immediately apply its specific rules, exclusions, and column formats:
       </p>
 
