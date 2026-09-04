@@ -116,6 +116,11 @@
   text-transform: uppercase;
 }
 
+.everydollar-month-container {
+  width: 220px;
+  position: relative;
+}
+
 .everydollar-month-trigger {
   font-family: var(--font-sans);
   font-size: 1.15rem;
@@ -129,7 +134,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  min-width: 165px;
+  width: 220px;
+  min-width: 220px;
+  box-sizing: border-box;
   gap: 0.5rem;
   transition: all 0.15s ease;
 }
