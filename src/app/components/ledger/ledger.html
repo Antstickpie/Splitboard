@@ -7,6 +7,9 @@
         <span class="status-title" *ngIf="service.monthSettlement().isSettled">All Settled Up 🎉</span>
         <span class="status-title" *ngIf="!service.monthSettlement().isSettled">
           <strong>{{ service.monthSettlement().debtorName }}</strong> owes <strong>{{ service.monthSettlement().creditorName }}</strong>
+          <span *ngIf="service.monthSettlement().carryoverAmount > 0" style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.35rem;">
+            (incl. {{ service.formatCurrency(service.monthSettlement().carryoverAmount) }} carryover)
+          </span>
         </span>
       </div>
       <div class="settlement-main-amount font-mono">

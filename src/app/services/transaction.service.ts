@@ -45,6 +45,10 @@ export interface SettlementSummary {
   debtorName: string;
   creditorName: string;
   isSettled: boolean;
+  carryoverAmount: number;
+  carryoverDebtor: string;
+  carryoverCreditor: string;
+  thisMonthNetOwed: number;
   itemizedDetails: {
     id: string;
     date: string;
@@ -162,6 +166,27 @@ export class TransactionService {
     return true;
   }
 
+  public isDatePriorToActiveRange(txDate: string): boolean {
+    if (!txDate) return false;
+    const mode = this.dateFilterMode();
+    if (mode === 'ALL') return false;
+    if (mode === 'MONTH') {
+      const m = this.selectedMonth();
+      if (m === 'ALL') return false;
+      return txDate.slice(0, 7) < m;
+    }
+    if (mode === 'YEAR') {
+      const y = this.selectedYear();
+      return txDate.slice(0, 4) < y;
+    }
+    if (mode === 'RANGE') {
+      const start = this.dateRangeStart();
+      if (!start) return false;
+      return txDate.slice(0, 10) < start;
+    }
+    return false;
+  }
+
   public reviewTransactionsForSelectedMonth = computed(() => {
     return this.transactions().filter(
       (tx) => this.isDateInActiveRange(tx.date) && tx.isUnderReview
@@ -238,121 +263,150 @@ export class TransactionService {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   });
 
-  // Current Range Settlement Calculation
+  public calculateTxDebt(tx: Transaction, p1: string, p2: string): { p1OwesP2: number; p2OwesP1: number; p1Paid: number; p2Paid: number; p1Share: number; p2Share: number } {
+    if (tx.type === 'INCOME') return { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
+    const amount = Number(tx.amount) || 0;
+    if (amount <= 0) return { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
+
+    const isP1 = tx.paidBy === p1;
+    const isP2 = tx.paidBy === p2;
+
+    const p1Paid = isP1 ? amount : 0;
+    const p2Paid = isP2 ? amount : 0;
+
+    let p1Share = 0;
+    let p2Share = 0;
+    let p1OwesP2 = 0;
+    let p2OwesP1 = 0;
+
+    if (tx.isReimbursable) {
+      if (tx.reimbursementStatus === 'REIMBURSED') {
+        if (tx.reimbursedTo && tx.reimbursedTo !== tx.paidBy) {
+          if (isP1 && tx.reimbursedTo === p2) {
+            p2OwesP1 = amount;
+            p2Share = amount;
+          } else if (isP2 && tx.reimbursedTo === p1) {
+            p1OwesP2 = amount;
+            p1Share = amount;
+          }
+        }
+      } else {
+        if (isP1) p1Share = amount;
+        else p2Share = amount;
+      }
+    } else if (tx.isCashTransfer) {
+      if (tx.transferTo === p2 && isP1) {
+        p2OwesP1 = amount;
+        p2Share = amount;
+      } else if (tx.transferTo === p1 && isP2) {
+        p1OwesP2 = amount;
+        p1Share = amount;
+      }
+    } else if (tx.splitType === 'SELF') {
+      if (isP1) p1Share = amount;
+      else p2Share = amount;
+    } else if (tx.splitType === 'OTHER') {
+      if (isP1) {
+        p2Share = amount;
+        p2OwesP1 = amount;
+      } else {
+        p1Share = amount;
+        p1OwesP2 = amount;
+      }
+    } else {
+      if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+        p1Share = Number(tx.customSplitAmounts[p1]) || 0;
+        p2Share = Number(tx.customSplitAmounts[p2]) || 0;
+      } else {
+        const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
+        if (isP1) {
+          p1Share = parseFloat(((amount * pct) / 100).toFixed(2));
+          p2Share = parseFloat((amount - p1Share).toFixed(2));
+        } else {
+          p2Share = parseFloat(((amount * pct) / 100).toFixed(2));
+          p1Share = parseFloat((amount - p2Share).toFixed(2));
+        }
+      }
+
+      if (isP1) {
+        p2OwesP1 = p2Share;
+      } else if (isP2) {
+        p1OwesP2 = p1Share;
+      }
+    }
+
+    return { p1OwesP2, p2OwesP1, p1Paid, p2Paid, p1Share, p2Share };
+  }
+
+  // Current Range Settlement Calculation with Automatic Carryover from Prior Months
   public monthSettlement = computed<SettlementSummary>(() => {
     const p1 = this.personOne().name;
     const p2 = this.personTwo().name;
 
-    let p1Paid = 0;
-    let p2Paid = 0;
-    let p1TotalShare = 0;
-    let p2TotalShare = 0;
-    let p1OwesP2 = 0;
-    let p2OwesP1 = 0;
+    let priorP1OwesP2 = 0;
+    let priorP2OwesP1 = 0;
 
-    const relevantTxs = this.transactions().filter((tx) => this.isDateInActiveRange(tx.date));
+    let currP1Paid = 0;
+    let currP2Paid = 0;
+    let currP1TotalShare = 0;
+    let currP2TotalShare = 0;
+    let currP1OwesP2 = 0;
+    let currP2OwesP1 = 0;
 
     const itemized: SettlementSummary['itemizedDetails'] = [];
 
-    relevantTxs.forEach((tx) => {
-      if (tx.type === 'INCOME') return;
-      const amount = Number(tx.amount) || 0;
-      if (amount <= 0) return;
+    this.transactions().forEach((tx) => {
+      const isPrior = this.isDatePriorToActiveRange(tx.date);
+      const isCurrent = this.isDateInActiveRange(tx.date);
 
-      const isP1 = tx.paidBy === p1;
-      const isP2 = tx.paidBy === p2;
+      if (!isPrior && !isCurrent) return; // Ignore future transactions relative to active range
 
-      if (isP1) p1Paid += amount;
-      if (isP2) p2Paid += amount;
+      const res = this.calculateTxDebt(tx, p1, p2);
 
-      let p1Share = 0;
-      let p2Share = 0;
+      if (isPrior) {
+        priorP1OwesP2 += res.p1OwesP2;
+        priorP2OwesP1 += res.p2OwesP1;
+      } else if (isCurrent) {
+        currP1Paid += res.p1Paid;
+        currP2Paid += res.p2Paid;
+        currP1TotalShare += res.p1Share;
+        currP2TotalShare += res.p2Share;
+        currP1OwesP2 += res.p1OwesP2;
+        currP2OwesP1 += res.p2OwesP1;
 
-      if (tx.isReimbursable) {
-        if (tx.reimbursementStatus === 'REIMBURSED') {
-          // Money was collected back!
-          // If reimbursedTo is the other partner, that partner received the cash and must pay the original payer:
-          if (tx.reimbursedTo && tx.reimbursedTo !== tx.paidBy) {
-            if (isP1 && tx.reimbursedTo === p2) {
-              p2OwesP1 += amount;
-              p2Share = amount;
-            } else if (isP2 && tx.reimbursedTo === p1) {
-              p1OwesP2 += amount;
-              p1Share = amount;
-            }
-          } else {
-            // Reimbursed to same person who paid -> Net 0, neither partner owes anything
-            p1Share = 0;
-            p2Share = 0;
-          }
-        } else {
-          // PENDING: Out-of-pocket temporary loan by paidBy (100% SELF until reimbursed)
-          if (isP1) p1Share = amount;
-          else p2Share = amount;
-        }
-      } else if (tx.isCashTransfer) {
-        // Direct cash transfer: paidBy gave cash to transferTo
-        if (tx.transferTo === p2 && isP1) {
-          p2OwesP1 += amount;
-          p2Share = amount;
-        } else if (tx.transferTo === p1 && isP2) {
-          p1OwesP2 += amount;
-          p1Share = amount;
-        }
-      } else if (tx.splitType === 'SELF') {
-        // 100% self
-        if (isP1) p1Share = amount;
-        else p2Share = amount;
-      } else if (tx.splitType === 'OTHER') {
-        // 100% for the other person
-        if (isP1) {
-          p2Share = amount;
-          p2OwesP1 += amount;
-        } else {
-          p1Share = amount;
-          p1OwesP2 += amount;
-        }
-      } else {
-        // SPLIT
-        if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
-          p1Share = Number(tx.customSplitAmounts[p1]) || 0;
-          p2Share = Number(tx.customSplitAmounts[p2]) || 0;
-        } else {
-          const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
-          if (isP1) {
-            p1Share = parseFloat(((amount * pct) / 100).toFixed(2));
-            p2Share = parseFloat((amount - p1Share).toFixed(2));
-          } else {
-            p2Share = parseFloat(((amount * pct) / 100).toFixed(2));
-            p1Share = parseFloat((amount - p2Share).toFixed(2));
-          }
-        }
-
-        if (isP1) {
-          p2OwesP1 += p2Share;
-        } else if (isP2) {
-          p1OwesP2 += p1Share;
+        if (tx.type !== 'INCOME' && (Number(tx.amount) || 0) > 0) {
+          itemized.push({
+            id: tx.id,
+            date: tx.date,
+            description: tx.description,
+            paidBy: tx.paidBy,
+            amount: Number(tx.amount) || 0,
+            splitType: tx.splitType,
+            personAShare: res.p1Share,
+            personBShare: res.p2Share,
+            category: tx.categoryItem
+          });
         }
       }
-
-      p1TotalShare += p1Share;
-      p2TotalShare += p2Share;
-
-      itemized.push({
-        id: tx.id,
-        date: tx.date,
-        description: tx.description,
-        paidBy: tx.paidBy,
-        amount,
-        splitType: tx.splitType,
-        personAShare: p1Share,
-        personBShare: p2Share,
-        category: tx.categoryItem
-      });
     });
 
-    const diff = p2OwesP1 - p1OwesP2;
-    let netOwedAmount = Math.abs(diff);
+    const priorDiff = priorP2OwesP1 - priorP1OwesP2;
+    const priorCarryover = parseFloat(Math.abs(priorDiff).toFixed(2));
+    let carryoverDebtor = '';
+    let carryoverCreditor = '';
+    if (priorDiff > 0.005) {
+      carryoverDebtor = p2;
+      carryoverCreditor = p1;
+    } else if (priorDiff < -0.005) {
+      carryoverDebtor = p1;
+      carryoverCreditor = p2;
+    }
+
+    const totalP1OwesP2 = priorP1OwesP2 + currP1OwesP2;
+    const totalP2OwesP1 = priorP2OwesP1 + currP2OwesP1;
+
+    const diff = totalP2OwesP1 - totalP1OwesP2;
+    const netOwedAmount = parseFloat(Math.abs(diff).toFixed(2));
     let debtorName = '';
     let creditorName = '';
 
@@ -364,17 +418,24 @@ export class TransactionService {
       creditorName = p2;
     }
 
+    const thisMonthDiff = currP2OwesP1 - currP1OwesP2;
+    const thisMonthNetOwed = parseFloat(Math.abs(thisMonthDiff).toFixed(2));
+
     return {
-      personAPaid: p1Paid,
-      personBPaid: p2Paid,
-      personAShare: p1TotalShare,
-      personBShare: p2TotalShare,
-      personAOwesPersonB: p1OwesP2,
-      personBOwesPersonA: p2OwesP1,
-      netOwedAmount: parseFloat(netOwedAmount.toFixed(2)),
+      personAPaid: currP1Paid,
+      personBPaid: currP2Paid,
+      personAShare: currP1TotalShare,
+      personBShare: currP2TotalShare,
+      personAOwesPersonB: totalP1OwesP2,
+      personBOwesPersonA: totalP2OwesP1,
+      netOwedAmount,
       debtorName,
       creditorName,
       isSettled: netOwedAmount < 0.01,
+      carryoverAmount: priorCarryover,
+      carryoverDebtor,
+      carryoverCreditor,
+      thisMonthNetOwed,
       itemizedDetails: itemized
     };
   });
