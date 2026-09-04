@@ -8,9 +8,11 @@ export interface ParsedStatementResult {
   incomes: Transaction[];
   duplicates: Transaction[];
   excluded: Transaction[];
+  deleted: Transaction[];
   incomesCount: number;
   duplicatesCount: number;
   excludedCount: number;
+  deletedCount: number;
   bankName: string;
   bankMismatch?: { detected: string; selected: string };
   totalParsed: number;
@@ -157,7 +159,7 @@ export class StatementParserService {
   ): ParsedStatementResult {
     const lines = this.splitIntoLines(text);
     if (lines.length === 0) {
-      return { transactions: [], incomes: [], duplicates: [], excluded: [], incomesCount: 0, duplicatesCount: 0, excludedCount: 0, bankName, totalParsed: 0 };
+      return { transactions: [], incomes: [], duplicates: [], excluded: [], deleted: [], incomesCount: 0, duplicatesCount: 0, excludedCount: 0, deletedCount: 0, bankName, totalParsed: 0 };
     }
 
     const detectedBank = this.detectBank(bankName, fileName, text);
@@ -217,6 +219,7 @@ export class StatementParserService {
     const incomes: Transaction[] = [];
     const duplicates: Transaction[] = [];
     const excluded: Transaction[] = [];
+    const deleted: Transaction[] = [];
 
     for (let i = startIdx; i < parsedRows.length; i++) {
       const row = parsedRows[i];
@@ -323,8 +326,14 @@ export class StatementParserService {
         continue;
       }
 
-      // 2. Check Duplicates against Database only
+      // 2. Check Previously Deleted Transactions
       const sig = this.service.getTransactionSignature(tx);
+      if (this.service.isSignatureDeleted(sig)) {
+        deleted.push(tx);
+        continue;
+      }
+
+      // 3. Check Duplicates against Database only
       const dbCount = dbSigCounts.get(sig) || 0;
       if (dbCount > 0) {
         duplicates.push(tx);
@@ -340,17 +349,20 @@ export class StatementParserService {
     incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    deleted.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
     return {
       transactions,
       incomes,
       duplicates,
       excluded,
+      deleted,
       incomesCount: incomes.length,
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
+      deletedCount: deleted.length,
       bankName: detectedBank,
-      totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
+      totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length + deleted.length
     };
   }
 
@@ -404,6 +416,7 @@ export class StatementParserService {
     const incomes: Transaction[] = [];
     const duplicates: Transaction[] = [];
     const excluded: Transaction[] = [];
+    const deleted: Transaction[] = [];
     const detectedBank = this.detectBank(bankName, fileName, text);
     
     // Count occurrences already in Database
@@ -590,6 +603,11 @@ export class StatementParserService {
       }
 
       const sig = this.service.getTransactionSignature(tx);
+      if (this.service.isSignatureDeleted(sig)) {
+        deleted.push(tx);
+        continue;
+      }
+
       const dbCount = dbSigCounts.get(sig) || 0;
       if (dbCount > 0) {
         duplicates.push(tx);
@@ -601,16 +619,24 @@ export class StatementParserService {
       }
     }
 
+    transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    deleted.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
     return {
       transactions,
       incomes,
       duplicates,
       excluded,
+      deleted,
       incomesCount: incomes.length,
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
+      deletedCount: deleted.length,
       bankName: detectedBank,
-      totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length
+      totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length + deleted.length
     };
   }
 

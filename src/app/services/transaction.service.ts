@@ -81,6 +81,7 @@ export class TransactionService {
   public bankConfigs = signal<BankConfig[]>(DEFAULT_BANKS);
   public rules = signal<CategoryRule[]>(DEFAULT_RULES);
   public excludeRules = signal<ExcludeRule[]>(DEFAULT_EXCLUDE_RULES);
+  public deletedSignatures = signal<string[]>([]);
   public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
 
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings'): void {
@@ -499,6 +500,7 @@ export class TransactionService {
         bankConfigs: this.bankConfigs(),
         rules: this.rules(),
         excludeRules: this.excludeRules(),
+        deletedSignatures: this.deletedSignatures(),
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
@@ -617,6 +619,11 @@ export class TransactionService {
         this.excludeRules.set(data.excludeRules);
       } else {
         this.excludeRules.set([]);
+      }
+      if (data.deletedSignatures !== undefined) {
+        this.deletedSignatures.set(data.deletedSignatures);
+      } else {
+        this.deletedSignatures.set([]);
       }
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
@@ -843,6 +850,10 @@ export class TransactionService {
   }
 
   public deleteTransaction(id: string): void {
+    const tx = this.transactions().find((t) => t.id === id);
+    if (tx) {
+      this.recordDeletedTransaction(tx);
+    }
     this.transactions.update((curr) => curr.filter((tx) => tx.id !== id));
     this.showToast('Transaction deleted', 'info');
     this.triggerAutoSyncIfEnabled();
@@ -854,13 +865,47 @@ export class TransactionService {
     this.triggerAutoSyncIfEnabled();
   }
 
-  // Deduplication
+  // Deduplication & Deleted Transaction Memory
   public getTransactionSignature(tx: Transaction): string {
     const d = tx.rawDate ? tx.rawDate.trim() : (tx.date || '').slice(0, 10);
     const amt = Number(tx.amount).toFixed(2);
     const desc = (tx.description || '').trim().toLowerCase();
     const bank = (tx.bank || '').trim().toLowerCase();
     return `${d}_${amt}_${desc}_${bank}`;
+  }
+
+  public recordDeletedSignature(sig: string): void {
+    if (!sig) return;
+    this.deletedSignatures.update((curr) => {
+      if (curr.includes(sig)) return curr;
+      return [...curr, sig];
+    });
+  }
+
+  public recordDeletedTransaction(tx: Transaction): void {
+    if (!tx) return;
+    const sig = this.getTransactionSignature(tx);
+    this.recordDeletedSignature(sig);
+  }
+
+  public recordDeletedTransactions(txs: Transaction[]): void {
+    if (!txs || txs.length === 0) return;
+    const sigs = txs.map((t) => this.getTransactionSignature(t)).filter(Boolean);
+    this.deletedSignatures.update((curr) => {
+      const set = new Set(curr);
+      sigs.forEach((s) => set.add(s));
+      return Array.from(set);
+    });
+  }
+
+  public restoreDeletedSignature(sig: string): void {
+    if (!sig) return;
+    this.deletedSignatures.update((curr) => curr.filter((s) => s !== sig));
+  }
+
+  public isSignatureDeleted(sig: string): boolean {
+    if (!sig) return false;
+    return this.deletedSignatures().includes(sig);
   }
 
   // Person Operations
@@ -1192,6 +1237,7 @@ export class TransactionService {
       bankConfigs: this.bankConfigs(),
       rules: this.rules(),
       excludeRules: this.excludeRules(),
+      deletedSignatures: this.deletedSignatures(),
       settings: {
         currency: this.currency(),
         dateFormat: this.dateFormat(),
@@ -1225,6 +1271,7 @@ export class TransactionService {
       if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
       if (data.rules) this.rules.set(data.rules);
       if (data.excludeRules) this.excludeRules.set(data.excludeRules);
+      if (data.deletedSignatures) this.deletedSignatures.set(data.deletedSignatures);
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
@@ -1297,6 +1344,7 @@ export class TransactionService {
         bankConfigs: this.bankConfigs(),
         rules: this.rules(),
         excludeRules: this.excludeRules(),
+        deletedSignatures: this.deletedSignatures(),
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
@@ -1377,6 +1425,7 @@ export class TransactionService {
       if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
       if (data.rules) this.rules.set(data.rules);
       if (data.excludeRules) this.excludeRules.set(data.excludeRules);
+      if (data.deletedSignatures) this.deletedSignatures.set(data.deletedSignatures);
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);

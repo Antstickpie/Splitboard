@@ -187,7 +187,7 @@
         </div>
         <span class="subtitle" style="margin: 0.2rem 0 0 0;">
           {{ res.duplicatesCount > 0 ? res.duplicatesCount + ' duplicates' : '0 duplicates' }},
-          {{ res.excludedCount > 0 ? res.excludedCount + ' excluded by bank rules' : '0 excluded' }}
+          {{ res.excludedCount > 0 ? res.excludedCount + ' excluded by bank rules' : '0 excluded' }}<span *ngIf="res.deleted && res.deleted.length > 0">, {{ res.deleted.length }} previously deleted</span>
         </span>
       </div>
 
@@ -299,7 +299,7 @@
       <!-- RIGHT PANE: Tabulated Splitboard Table & Controls -->
       <div class="import-table-pane">
 
-        <!-- Preview Sub-Tabs: Valid, Review, Incomes, Duplicates, Excluded -->
+        <!-- Preview Sub-Tabs: Valid, Review, Incomes, Duplicates, Excluded, Deleted -->
         <div class="preview-tabs-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
           <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
             <button
@@ -339,6 +339,14 @@
               (click)="previewTab.set('excluded')"
               [style.color]="res.excluded.length > 0 ? '#f87171' : 'var(--text-muted)'">
               🚫 Excluded by Rules ({{ res.excluded.length }})
+            </button>
+
+            <button
+              class="preview-tab-btn"
+              [class.active]="previewTab() === 'deleted'"
+              (click)="previewTab.set('deleted')"
+              [style.color]="res.deleted && res.deleted.length > 0 ? '#9ca3af' : 'var(--text-muted)'">
+              🗑️ Previously Deleted ({{ res.deleted ? res.deleted.length : 0 }})
             </button>
           </div>
 
@@ -1584,6 +1592,154 @@
 
         <div *ngIf="groupedExcluded().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
           No transactions matched your exclusion rules in this statement.
+        </div>
+    <!-- TAB 4: Previously Deleted Transactions (Grouped / Flat View) -->
+    <div *ngIf="previewTab() === 'deleted'">
+      <div class="preview-info-banner warning" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; background: rgba(156, 163, 175, 0.08); border-color: rgba(156, 163, 175, 0.3);">
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <span style="font-size: 1.1rem;">🗑️</span>
+          <span>These {{ res.deleted ? res.deleted.length : 0 }} transactions were deleted in the past (or skipped during import). They are remembered so they won't clutter future imports, but you can restore them anytime.</span>
+        </div>
+        <button
+          *ngIf="res.deleted && res.deleted.length > 0"
+          class="btn btn-primary btn-xs"
+          (click)="includeAllDeleted()"
+          style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
+          + Restore / Include All {{ res.deleted.length }} Rows
+        </button>
+      </div>
+
+      <!-- FLAT VIEW: When Group by Description is OFF -->
+      <div class="table-container" *ngIf="!isGroupByDescription()" style="max-height: 580px; overflow-y: auto; margin-top: 0.6rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Bank</th>
+              <th>Owner</th>
+              <th>Category</th>
+              <th style="text-align: right;">Amount</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of res.deleted">
+              <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+              <td style="font-weight: 500; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
+                <span style="text-decoration: line-through; opacity: 0.75;">{{ tx.description }}</span>
+                <span class="badge badge-neutral" style="margin-left: 0.3rem; font-size: 0.68rem;">🗑️ Deleted</span>
+              </td>
+              <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+              <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
+              <td><span class="badge badge-neutral" style="font-size: 0.7rem;">{{ tx.categoryItem || 'Uncategorized' }}</span></td>
+              <td class="font-mono" style="text-align: right; font-weight: bold; opacity: 0.85;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td style="text-align: center;">
+                <button class="btn btn-secondary btn-xs" (click)="includeDeleted(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                  + Restore / Include
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="!res.deleted || res.deleted.length === 0">
+              <td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No previously deleted transactions found in this statement.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- GROUPED VIEW: When Group by Description is ON -->
+      <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
+        <!-- Multi-Item Groups -->
+        <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div *ngFor="let grp of descriptionGroups()" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
+                <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); text-decoration: line-through; opacity: 0.85;" [title]="grp.description">{{ grp.description }}</div>
+                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">🗑️ {{ grp.count }} deleted items</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-muted);">{{ service.formatCurrency(grp.totalAmount) }}</span>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <button class="btn btn-secondary btn-xs" (click)="includeGroup(grp)" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                  + Restore Group ({{ grp.count }})
+                </button>
+                <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Dismiss from view">✕</button>
+              </div>
+            </div>
+
+            <!-- Expanded Rows -->
+            <div *ngIf="isDescriptionGroupExpanded(grp.description)" class="animate-fade-in" style="margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+              <table style="width: 100%; font-size: 0.78rem;">
+                <thead>
+                  <tr style="opacity: 0.7; font-size: 0.72rem;">
+                    <th>Date</th>
+                    <th>Bank</th>
+                    <th>Owner</th>
+                    <th style="text-align: right;">Amount</th>
+                    <th style="text-align: center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let tx of grp.items">
+                    <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
+                    <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+                    <td style="width: 90px;"><span class="badge badge-info">{{ tx.paidBy }}</span></td>
+                    <td class="font-mono" style="text-align: right; font-weight: bold; opacity: 0.85;">{{ service.formatCurrency(tx.amount) }}</td>
+                    <td style="text-align: center; width: 120px;">
+                      <button class="btn btn-secondary btn-xs" (click)="includeDeleted(tx)" style="padding: 0.15rem 0.4rem; font-size: 0.7rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                        + Restore
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Single Items Table -->
+        <div *ngIf="singleTransactions().length > 0" style="margin-top: 0.4rem;">
+          <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem;">
+            Single Deleted Items ({{ singleTransactions().length }})
+          </div>
+          <div class="table-container" style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Bank</th>
+                  <th>Owner</th>
+                  <th style="text-align: right;">Amount</th>
+                  <th style="text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let tx of singleTransactions()">
+                  <td>{{ service.formatDate(tx.date) }}</td>
+                  <td style="font-weight: 500; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
+                    <span style="text-decoration: line-through; opacity: 0.75;">{{ tx.description }}</span>
+                    <span class="badge badge-neutral" style="margin-left: 0.3rem; font-size: 0.68rem;">🗑️ Deleted</span>
+                  </td>
+                  <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+                  <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
+                  <td class="font-mono" style="text-align: right; font-weight: bold; opacity: 0.85;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-xs" (click)="includeDeleted(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                      + Restore
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div *ngIf="descriptionGroups().length === 0 && singleTransactions().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+          No previously deleted transactions found in this statement.
         </div>
       </div>
     </div>

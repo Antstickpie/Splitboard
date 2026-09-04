@@ -127,4 +127,6 @@ export interface AppDataBackup {
     googleFileName: string;
     theme: 'dark' | 'light';
   };
+  deletedSignatures?: string[];
 }
+
