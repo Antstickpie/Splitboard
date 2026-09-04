@@ -1069,52 +1069,52 @@
     </div>
 
     <!-- Scrollable list of transactions in this statement -->
-    <div style="flex: 1; overflow-y: auto; padding: 0.8rem 0; min-height: 220px;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+    <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0.6rem 0; min-height: 220px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: fixed;">
         <thead>
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); text-align: left;">
-            <th style="padding: 0.4rem 0.6rem;">Date</th>
-            <th style="padding: 0.4rem 0.6rem;">Bank</th>
-            <th style="padding: 0.4rem 0.6rem;">Paid By</th>
-            <th style="padding: 0.4rem 0.6rem;">Description</th>
-            <th style="padding: 0.4rem 0.6rem;">Category</th>
-            <th style="padding: 0.4rem 0.6rem;">Split</th>
-            <th style="padding: 0.4rem 0.6rem;">Note</th>
-            <th style="padding: 0.4rem 0.6rem; text-align: right;">Amount</th>
+            <th style="padding: 0.4rem 0.5rem; width: 85px; white-space: nowrap;">Date</th>
+            <th style="padding: 0.4rem 0.5rem; width: 75px; white-space: nowrap;">Bank</th>
+            <th style="padding: 0.4rem 0.5rem; width: 65px; white-space: nowrap;">Paid By</th>
+            <th style="padding: 0.4rem 0.5rem; width: auto;">Description</th>
+            <th style="padding: 0.4rem 0.5rem; width: 105px;">Category</th>
+            <th style="padding: 0.4rem 0.5rem; width: 75px; white-space: nowrap;">Split</th>
+            <th style="padding: 0.4rem 0.5rem; width: 85px;">Note</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; width: 90px; white-space: nowrap;">Amount</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let t of getBatchTransactions(batch.fileName)" style="border-bottom: 1px solid rgba(255,255,255,0.04);" [class.tx-row-review]="t.isUnderReview">
-            <td style="padding: 0.45rem 0.6rem; white-space: nowrap; color: var(--text-muted); font-size: 0.76rem;">{{ service.formatDate(t.date) }}</td>
-            <td style="padding: 0.45rem 0.6rem;"><span class="badge badge-neutral" style="font-size: 0.68rem;">{{ t.bank }}</span></td>
-            <td style="padding: 0.45rem 0.6rem;">
-              <span class="badge" [style.color]="t.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="t.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-size: 0.72rem; font-weight: 600;">
+            <td style="padding: 0.4rem 0.5rem; white-space: nowrap; color: var(--text-muted); font-size: 0.74rem;">{{ service.formatDate(t.date) }}</td>
+            <td style="padding: 0.4rem 0.5rem; white-space: nowrap;"><span class="badge badge-neutral" style="font-size: 0.66rem;">{{ t.bank }}</span></td>
+            <td style="padding: 0.4rem 0.5rem; white-space: nowrap;">
+              <span class="badge" [style.color]="t.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="t.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-size: 0.7rem; font-weight: 600;">
                 {{ t.paidBy }}
               </span>
             </td>
-            <td style="padding: 0.45rem 0.6rem; font-weight: 500; color: var(--text-main);">
+            <td style="padding: 0.4rem 0.5rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="t.description">
               <span>{{ t.description }}</span>
-              <span *ngIf="t.isUnderReview" class="badge badge-warning" style="margin-left: 0.35rem; font-size: 0.68rem; font-weight: 600;">
+              <span *ngIf="t.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.65rem; font-weight: 600;">
                 🔍 Review
               </span>
-              <span *ngIf="t.isCashTransfer" class="badge badge-warning" style="margin-left: 0.35rem; font-size: 0.68rem;">💸 Cash Transfer</span>
-              <span *ngIf="t.isReimbursable" class="badge" [class.badge-warning]="t.reimbursementStatus === 'PENDING'" [class.badge-success]="t.reimbursementStatus === 'REIMBURSED'" style="margin-left: 0.35rem; font-size: 0.68rem; font-weight: 600;">
+              <span *ngIf="t.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.65rem;">💸 Transfer</span>
+              <span *ngIf="t.isReimbursable" class="badge" [class.badge-warning]="t.reimbursementStatus === 'PENDING'" [class.badge-success]="t.reimbursementStatus === 'REIMBURSED'" style="margin-left: 0.3rem; font-size: 0.65rem; font-weight: 600;">
                 {{ t.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
               </span>
             </td>
-            <td style="padding: 0.45rem 0.6rem;"><span class="badge badge-neutral" style="font-size: 0.7rem;">{{ t.categoryItem || 'Uncategorized' }}</span></td>
-            <td style="padding: 0.45rem 0.6rem;">
-              <span class="badge" [class.badge-success]="t.splitType === 'SPLIT'" [class.badge-neutral]="t.splitType === 'SELF'" [class.badge-danger]="t.splitType === 'OTHER'" style="font-size: 0.7rem;">
+            <td style="padding: 0.4rem 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="t.categoryItem || 'Uncategorized'"><span class="badge badge-neutral" style="font-size: 0.68rem;">{{ t.categoryItem || 'Uncategorized' }}</span></td>
+            <td style="padding: 0.4rem 0.5rem; white-space: nowrap;">
+              <span class="badge" [class.badge-success]="t.splitType === 'SPLIT'" [class.badge-neutral]="t.splitType === 'SELF'" [class.badge-danger]="t.splitType === 'OTHER'" style="font-size: 0.68rem;">
                 {{ t.splitType === 'SPLIT' ? '50/50' : (t.splitType === 'SELF' ? '100% ' + t.paidBy : '100% Other') }}
               </span>
             </td>
-            <td style="padding: 0.45rem 0.6rem; font-size: 0.74rem; color: var(--text-muted);">
+            <td style="padding: 0.4rem 0.5rem; font-size: 0.72rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="t.note || ''">
               <span *ngIf="t.note">💬 {{ t.note }}</span>
               <span *ngIf="!t.note" style="color: var(--text-dark);">—</span>
             </td>
-            <td style="padding: 0.45rem 0.6rem; text-align: right; font-family: monospace; font-weight: 700; font-size: 0.85rem;" [class.text-success]="t.type === 'INCOME'">
+            <td style="padding: 0.4rem 0.5rem; text-align: right; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;" [class.text-success]="t.type === 'INCOME'">
               <div>{{ service.formatCurrency(t.amount) }}</div>
-              <div *ngIf="t.originalCurrency && t.originalCurrency !== service.currency() && t.originalAmount" style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500;">
+              <div *ngIf="t.originalCurrency && t.originalCurrency !== service.currency() && t.originalAmount" style="font-size: 0.66rem; color: var(--text-muted); font-weight: 500;">
                 ({{ service.getCurrencySymbol(t.originalCurrency) }}{{ t.originalAmount }} {{ t.originalCurrency }})
               </div>
             </td>
