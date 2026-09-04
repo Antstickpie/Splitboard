@@ -321,12 +321,15 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Cloud & Local Backup */
-.cloud-sync-box, .local-backup-box {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 0.9rem 1.1rem;
-  border-radius: 8px;
+/* Cloud & Local Backup (Portfolio Matched) */
+.cloud-sync-box {
+  background: rgba(11, 15, 25, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 .sync-status-row {
@@ -335,23 +338,126 @@
   align-items: center;
 }
 
-.file-name-input {
-  width: 100%;
-  font-size: 0.78rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-main);
-}
-
 .auto-sync-toggle-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 0.6rem;
-  padding-top: 0.5rem;
-  border-top: 1px dashed rgba(255, 255, 255, 0.06);
+  margin-top: 0.1rem;
+}
+
+.custom-cloud-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  background: #00e5ff;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.custom-cloud-checkbox:checked::before {
+  content: "✓";
+  font-size: 11px;
+  font-weight: 900;
+  color: #0b0f19;
+}
+
+.cloud-action-buttons-row {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.cloud-pull-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  transition: all 0.2s ease;
+}
+
+.cloud-pull-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.cloud-push-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #00e5ff 0%, #8b5cf6 100%);
+  border: none;
+  color: #090d16;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  box-shadow: 0 4px 15px rgba(0, 229, 255, 0.25);
+  transition: all 0.2s ease;
+}
+
+.cloud-push-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.local-file-section {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.local-file-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.local-action-buttons-row {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.local-backup-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.local-backup-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Danger Zone (Dedicated Bottom Container) */

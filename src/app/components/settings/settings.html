@@ -191,17 +191,24 @@
     <!-- Card 4: Cloud & Local Backup -->
     <div class="glass-card setting-box">
       <div class="box-header">
-        <h3>☁ Cloud & Backup</h3>
-        <p class="subtitle">Google Drive & JSON snapshot.</p>
+        <h3>☁️ Cloud & Local Backup</h3>
+        <p class="subtitle">Sync to Google Drive or save JSON locally.</p>
       </div>
 
-      <div class="cloud-sync-box" style="padding: 0.6rem;">
+      <div class="cloud-sync-box">
         <div class="sync-status-row">
-          <div style="display: flex; align-items: center; gap: 0.35rem;">
-            <span style="font-size: 1rem;">📁</span>
-            <strong style="font-size: 0.8rem;">Google Drive</strong>
+          <div style="display: flex; align-items: center; gap: 0.45rem;">
+            <svg width="18" height="18" viewBox="0 0 87.3 78" style="vertical-align: middle; flex-shrink: 0;">
+              <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#0066da"/>
+              <path d="M43.65 25L29.9 1.2c-1.35.8-2.5 1.9-3.3 3.3L1.2 53.35C.4 54.75 0 56.3 0 57.85h27.5L43.65 25z" fill="#00ac47"/>
+              <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 10.15 7.9 13.65z" fill="#ea4335"/>
+              <path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.95 0H34.35c-1.55 0-3.1.4-4.45 1.2L43.65 25z" fill="#00832d"/>
+              <path d="M59.8 57.85H27.5L13.75 81.65c1.35.8 2.9 1.2 4.45 1.2h50.9c1.55 0 3.1-.4 4.45-1.2L59.8 57.85z" fill="#2684fc"/>
+              <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 28h27.5c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z" fill="#ffba00"/>
+            </svg>
+            <strong style="font-size: 0.88rem; color: #00e5ff; font-weight: 700;">Cloud (Google Drive)</strong>
           </div>
-          <span *ngIf="service.isGoogleConnected()" style="color: var(--success); font-size: 0.72rem; font-weight: bold;">
+          <span *ngIf="service.isGoogleConnected()" style="color: #22c55e; font-size: 0.78rem; font-weight: 700; display: flex; align-items: center; gap: 0.25rem;">
             ● Connected
           </span>
           <button *ngIf="!service.isGoogleConnected()" class="btn btn-secondary btn-xs" (click)="service.connectGoogleDrive()">
@@ -209,37 +216,44 @@
           </button>
         </div>
 
-        <div class="auto-sync-toggle-row" style="margin-top: 0.35rem; padding-top: 0.35rem;">
-          <span style="font-size: 0.72rem; color: var(--text-muted);">Auto-sync changes</span>
-          <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.72rem;">
+        <div class="auto-sync-toggle-row">
+          <span style="font-size: 0.8rem; color: #94a3b8;">Auto-sync cloud</span>
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.8rem; color: var(--text-main); font-weight: 600;">
             <input
               type="checkbox"
               [ngModel]="service.autoSyncGoogleDrive()"
               (ngModelChange)="service.autoSyncGoogleDrive.set($event)"
-              style="accent-color: var(--primary); cursor: pointer;">
-            <span>{{ service.autoSyncGoogleDrive() ? 'On' : 'Off' }}</span>
+              class="custom-cloud-checkbox">
+            <span>On</span>
           </label>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; gap: 0.35rem; margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.06);">
-          <button class="btn btn-secondary btn-xs" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            Pull
+        <div class="cloud-action-buttons-row">
+          <button class="btn cloud-pull-btn" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+            <span style="font-size: 0.95rem;">☁️</span> Pull Cloud
           </button>
-          <button class="btn btn-primary btn-xs" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            Push
+          <button class="btn cloud-push-btn" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
+            <span style="font-size: 0.95rem;">☁️</span> Push Cloud
           </button>
         </div>
       </div>
 
-      <!-- Local JSON Backup & Restore -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.08); gap: 0.5rem;">
-        <button class="btn btn-secondary btn-xs" (click)="service.exportBackupJson()" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.74rem;">
-          💾 Export Backup
-        </button>
-        <button class="btn btn-secondary btn-xs" (click)="backupFileInput.click()" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.74rem;">
-          📂 Restore Backup
-        </button>
-        <input #backupFileInput type="file" accept=".json" (change)="onBackupFileSelected($event)" style="display: none;">
+      <!-- Local File (Offline JSON) -->
+      <div class="local-file-section">
+        <div class="local-file-header">
+          <span style="font-size: 0.95rem;">💻</span>
+          <strong style="font-size: 0.82rem; color: #cbd5e1;">Local File (Offline JSON)</strong>
+        </div>
+
+        <div class="local-action-buttons-row">
+          <button class="btn local-backup-btn" (click)="service.exportBackupJson()">
+            <span style="font-size: 0.9rem;">💾</span> Export JSON
+          </button>
+          <button class="btn local-backup-btn" (click)="backupFileInput.click()">
+            <span style="font-size: 0.9rem;">📁</span> Import JSON
+          </button>
+          <input #backupFileInput type="file" accept=".json" (change)="onBackupFileSelected($event)" style="display: none;">
+        </div>
       </div>
     </div>
   </div>
