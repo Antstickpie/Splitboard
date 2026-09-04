@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, Output, EventEmitter, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -519,16 +519,24 @@ export class ImportComponent {
   public pendingFile: File | null = null;
   public pendingText: string | null = null;
 
-  public onFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
+  @Input() set initialFile(file: File | null | undefined) {
+    if (file) {
+      this.processSelectedFile(file);
+    }
+  }
 
-    const file = input.files[0];
+  public processSelectedFile(file: File): void {
     this.pendingFile = file;
     this.pendingText = null;
     this.uploadedFileName.set(file.name);
     this.selectedOwner.set('');
     this.showBankSelectModal.set(true);
+  }
+
+  public onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    this.processSelectedFile(input.files[0]);
     input.value = '';
   }
 
@@ -545,6 +553,9 @@ export class ImportComponent {
     this.showBankSelectModal.set(false);
     this.pendingFile = null;
     this.pendingText = null;
+    if (!this.previewResult()) {
+      this.importCompleted.emit();
+    }
   }
 
   public async selectBankAndParse(bankName: string): Promise<void> {
@@ -1276,5 +1287,6 @@ export class ImportComponent {
     this.pdfDocInstance = null;
     this.pdfArrayBuffer = null;
     this.pdfPagesList.set([]);
+    this.importCompleted.emit();
   }
 }

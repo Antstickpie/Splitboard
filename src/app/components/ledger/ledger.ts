@@ -17,9 +17,60 @@ export class LedgerComponent {
   public service = inject(TransactionService);
   private elementRef = inject(ElementRef);
   public isImportOpen = signal<boolean>(false);
+  public pendingImportFile = signal<File | null>(null);
+  public isImportDragOver = signal<boolean>(false);
 
   public toggleImport(): void {
-    this.isImportOpen.set(!this.isImportOpen());
+    if (this.isImportOpen()) {
+      this.closeImport();
+    } else {
+      this.isImportOpen.set(true);
+    }
+  }
+
+  public onImportButtonClick(input: HTMLInputElement): void {
+    if (this.isImportOpen()) {
+      this.closeImport();
+    } else {
+      input.click();
+    }
+  }
+
+  public onStatementFileChosen(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    this.pendingImportFile.set(file);
+    this.isImportOpen.set(true);
+    input.value = '';
+  }
+
+  public onImportDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isImportDragOver.set(true);
+  }
+
+  public onImportDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isImportDragOver.set(false);
+  }
+
+  public onImportFileDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isImportDragOver.set(false);
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      const file = event.dataTransfer.files[0];
+      this.pendingImportFile.set(file);
+      this.isImportOpen.set(true);
+    }
+  }
+
+  public closeImport(): void {
+    this.isImportOpen.set(false);
+    this.pendingImportFile.set(null);
   }
 
   public openGoogleRate(from: string, to: string): void {

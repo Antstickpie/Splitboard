@@ -1,46 +1,83 @@
-<div class="animate-fade-in import-container" style="gap: 0.5rem; position: relative; min-height: 540px;">
-  <!-- Settings & Upload Area -->
-  <div class="glass-card import-config-card" style="padding: 1.2rem 1.4rem; gap: 0.8rem; min-height: 520px; display: flex; flex-direction: column;">
-    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.4rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
-      <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
-        <span>📥</span> Import Bank Statement / Receipts
+<div class="animate-fade-in import-container" style="gap: 0.5rem; position: relative;">
+
+  <!-- Step 1: Select Bank Account & Owner Card -->
+  <div class="glass-card animate-fade-in" *ngIf="showBankSelectModal()" style="padding: 1.2rem 1.4rem; max-width: 540px; margin: 0.5rem auto; width: 100%; border: 1px solid rgba(0, 229, 255, 0.35); box-shadow: 0 15px 40px rgba(0,0,0,0.6);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.3rem;">🏦</span>
+          <h3 style="margin: 0; font-size: 1.08rem; color: var(--text-main);">Select Bank Account & Owner</h3>
+        </div>
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.76rem; color: var(--text-muted);">
+          Statement: <strong style="color: var(--primary);">{{ uploadedFileName() }}</strong>
+        </p>
       </div>
-      <button class="btn btn-secondary btn-xs" (click)="importCompleted.emit()" style="padding: 0.15rem 0.45rem; font-size: 0.72rem;">
-        ✕ Close
-      </button>
+      <button class="btn-icon-remove" (click)="closeBankSelectModal()" style="font-size: 1.1rem; cursor: pointer; background: transparent; border: none; color: var(--text-muted);" title="Close">✕</button>
     </div>
 
-    <!-- Dropzone / File Upload -->
-    <div class="dropzone-box" (click)="fileInput.click()" style="padding: 2rem 1.2rem; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px;">
-      <input type="file" #fileInput (change)="onFileSelected($event)" accept=".pdf,.csv,.tsv,.xlsx,.xls,.txt" style="display: none;">
-      <div class="dropzone-icon" style="font-size: 1.8rem; margin-bottom: 0.2rem;">📄</div>
-      <div class="dropzone-title" style="font-size: 0.9rem; font-weight: 600;">
-        {{ uploadedFileName() ? uploadedFileName() : 'Click or Drop Bank Statement File Here' }}
+    <!-- Account Owner Selection (Clean & Subtle) -->
+    <div style="margin-bottom: 0.9rem; padding: 0.65rem 0.8rem; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+        <label style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0;">
+          Default Account Owner
+        </label>
+        <span *ngIf="selectedOwner()" style="font-size: 0.72rem; color: #10b981; font-weight: 600;">
+          ✓ {{ selectedOwner() }}
+        </span>
       </div>
-      <div class="dropzone-subtitle" style="font-size: 0.75rem; color: var(--text-muted);">
-        Supports PDF statements, CSV exports, Excel sheets (.xlsx)
-      </div>
-      <div *ngIf="isParsing()" class="loading-spin-text">
-        <span class="animate-spin">⏳</span> Processing statement...
-      </div>
-    </div>
-
-    <!-- Direct Paste Toggle / Alternative -->
-    <div class="paste-section" style="margin-top: auto; padding-top: 0.8rem;">
-      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem;">
-        Or paste raw CSV / TSV text directly:
-      </div>
-      <textarea
-        [(ngModel)]="rawClipboardText"
-        placeholder="Paste CSV rows here (e.g. 15.08.2026;REWE; -45,20)..."
-        rows="3"
-        class="raw-textarea"></textarea>
-      <div style="display: flex; justify-content: flex-end; margin-top: 0.4rem;">
-        <button class="btn btn-secondary btn-xs" (click)="parseClipboardText()" [disabled]="!rawClipboardText.trim()">
-          Parse Text
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button
+          *ngFor="let p of service.persons()"
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="selectedOwner() === p.name"
+          [class.btn-secondary]="selectedOwner() !== p.name"
+          (click)="selectedOwner.set(p.name)"
+          style="flex: 1; padding: 0.45rem 0.7rem; font-size: 0.84rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
+          <span>👤</span>
+          <span>{{ p.name }}</span>
+          <span *ngIf="selectedOwner() === p.name" style="margin-left: 0.2rem; font-weight: bold;">✓</span>
         </button>
       </div>
     </div>
+
+    <!-- Bank Account Selection -->
+    <p style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 0.55rem;">
+      Choose the bank to immediately apply its specific rules, exclusions, and column formats:
+    </p>
+
+    <!-- 1-Click Bank Buttons Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
+      <button
+        *ngFor="let b of service.bankConfigs()"
+        class="btn btn-secondary"
+        (click)="selectBankAndParse(b.name)"
+        style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.85rem; font-weight: 600; text-align: left; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+        [style.opacity]="selectedOwner() ? '1' : '0.65'">
+        <span style="font-size: 1.1rem;">🏦</span>
+        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ b.name }}</span>
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        (click)="selectBankAndParse('Generic Bank')"
+        style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.85rem; font-weight: 600; text-align: left; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+        [style.opacity]="selectedOwner() ? '1' : '0.65'">
+        <span style="font-size: 1.1rem;">🌐</span>
+        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Generic Bank</span>
+      </button>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end;">
+      <button class="btn btn-secondary btn-xs" (click)="closeBankSelectModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Parsing Indicator -->
+  <div class="glass-card animate-fade-in" *ngIf="isParsing()" style="padding: 2.2rem 1.5rem; text-align: center; color: var(--primary); max-width: 540px; margin: 0.5rem auto; width: 100%;">
+    <span class="animate-spin" style="font-size: 2.2rem; display: inline-block; margin-bottom: 0.6rem;">⏳</span>
+    <div style="font-weight: 600; font-size: 1.05rem;">Processing statement...</div>
+    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem;">Parsing rows and matching automated category rules</div>
   </div>
 
   <!-- Imported Statement Batches (1-Click Multi-Month Undo) -->
@@ -1697,81 +1734,7 @@
     </div>
   </div>
 
-  <!-- Modal: Mandatory Bank Selection Immediately Upon Upload -->
-  <div class="modal-overlay animate-fade-in" *ngIf="showBankSelectModal()" (click)="closeBankSelectModal()" style="position: absolute; inset: 0; min-height: 540px; background: rgba(8, 11, 18, 0.92); backdrop-filter: blur(8px); z-index: 9999999; display: flex; align-items: center; justify-content: center; padding: 1.2rem; border-radius: 12px; overflow-y: auto;">
-    <div class="modal-card glass-card" (click)="$event.stopPropagation()" style="max-width: 480px; width: 100%; background: #0c101a; border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 12px; padding: 1.3rem; box-shadow: 0 25px 60px rgba(0,0,0,0.95); margin: auto;">
-      
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.3rem;">🏦</span>
-            <h3 style="margin: 0; font-size: 1.08rem; color: var(--text-main);">Select Bank Account & Owner</h3>
-          </div>
-          <p style="margin: 0.25rem 0 0 0; font-size: 0.76rem; color: var(--text-muted);">
-            Statement: <strong style="color: var(--primary);">{{ uploadedFileName() }}</strong>
-          </p>
-        </div>
-        <button class="btn-icon-remove" (click)="closeBankSelectModal()" style="font-size: 1.1rem; cursor: pointer; background: transparent; border: none; color: var(--text-muted);">✕</button>
-      </div>
 
-      <!-- Account Owner Selection (Clean & Subtle) -->
-      <div style="margin-bottom: 0.9rem; padding: 0.65rem 0.8rem; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-          <label style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0;">
-            Default Account Owner
-          </label>
-          <span *ngIf="selectedOwner()" style="font-size: 0.72rem; color: #10b981; font-weight: 600;">
-            ✓ {{ selectedOwner() }}
-          </span>
-        </div>
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button
-            *ngFor="let p of service.persons()"
-            type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="selectedOwner() === p.name"
-            [class.btn-secondary]="selectedOwner() !== p.name"
-            (click)="selectedOwner.set(p.name)"
-            style="flex: 1; padding: 0.45rem 0.7rem; font-size: 0.84rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
-            <span>👤</span>
-            <span>{{ p.name }}</span>
-            <span *ngIf="selectedOwner() === p.name" style="margin-left: 0.2rem; font-weight: bold;">✓</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Bank Account Selection -->
-      <p style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 0.55rem;">
-        Choose the bank to immediately apply its specific rules, exclusions, and column formats:
-      </p>
-
-      <!-- 1-Click Bank Buttons Grid -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <button
-          *ngFor="let b of service.bankConfigs()"
-          class="btn btn-secondary"
-          (click)="selectBankAndParse(b.name)"
-          style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.85rem; font-weight: 600; text-align: left; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
-          [style.opacity]="selectedOwner() ? '1' : '0.65'">
-          <span style="font-size: 1.1rem;">🏦</span>
-          <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ b.name }}</span>
-        </button>
-
-        <button
-          class="btn btn-secondary"
-          (click)="selectBankAndParse('Generic Bank')"
-          style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.6rem 0.8rem; font-size: 0.85rem; font-weight: 600; text-align: left; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
-          [style.opacity]="selectedOwner() ? '1' : '0.65'">
-          <span style="font-size: 1.1rem;">🌐</span>
-          <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Generic Bank</span>
-        </button>
-      </div>
-
-      <div style="display: flex; justify-content: flex-end;">
-        <button class="btn btn-secondary btn-xs" (click)="closeBankSelectModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Modal: Quick Add Category (Heading & Sub-Category) -->
   <div class="modal-backdrop-overlay animate-fade-in" *ngIf="showAddCategoryModal()" (click)="closeAddCategoryModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 10001; display: flex; align-items: center; justify-content: center; padding: 1rem;">

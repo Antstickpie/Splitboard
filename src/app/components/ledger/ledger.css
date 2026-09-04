@@ -545,3 +545,12 @@
   position: relative;
   z-index: 1000;
 }
+
+.import-dragover {
+  outline: 2px dashed var(--primary) !important;
+  outline-offset: 2px !important;
+  background: rgba(0, 229, 255, 0.2) !important;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.45) !important;
+  transform: scale(1.05);
+}
+

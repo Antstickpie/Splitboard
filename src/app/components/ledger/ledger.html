@@ -44,8 +44,8 @@
   </div>
 
   <!-- Inline Statement Importer in Same Window -->
-  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 0.8rem; position: relative; z-index: 100000; min-height: 540px;">
-    <app-import (importCompleted)="isImportOpen.set(false)"></app-import>
+  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 0.8rem; position: relative; z-index: 100000;">
+    <app-import [initialFile]="pendingImportFile()" (importCompleted)="closeImport()"></app-import>
   </div>
 
   <!-- Transactions Table Card with Integrated Header Controls -->
@@ -253,16 +253,39 @@
           ⚙ More Filters <span *ngIf="hasActiveFilters()">●</span>
         </button>
 
+        <!-- Direct Statement File Input -->
+        <input
+          type="file"
+          #statementFileInput
+          (change)="onStatementFileChosen($event)"
+          accept=".pdf,.csv,.tsv,.xlsx,.xls,.txt"
+          style="display: none;">
+
         <button
           class="btn btn-xs"
-          [class.btn-primary]="isImportOpen()"
-          [class.btn-secondary]="!isImportOpen()"
-          (click)="toggleImport()"
-          style="height: 28px; font-size: 0.76rem; padding: 0 0.55rem;">
-          📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import Statement ▼' }}
+          [class.btn-primary]="isImportOpen() || isImportDragOver()"
+          [class.btn-secondary]="!isImportOpen() && !isImportDragOver()"
+          [class.import-dragover]="isImportDragOver()"
+          (click)="onImportButtonClick(statementFileInput)"
+          (dragover)="onImportDragOver($event)"
+          (dragleave)="onImportDragLeave($event)"
+          (drop)="onImportFileDrop($event)"
+          style="height: 28px; font-size: 0.76rem; padding: 0 0.55rem; transition: all 0.2s ease; position: relative;"
+          [title]="isImportOpen() ? 'Close Importer' : 'Click to select bank statement or drag & drop file here'">
+          <span *ngIf="!isImportDragOver()">
+            📥 {{ isImportOpen() ? 'Close Importer ▲' : 'Import Statement' }}
+          </span>
+          <span *ngIf="isImportDragOver()" style="color: #00e5ff; font-weight: 700;">
+            ✨ Drop file here!
+          </span>
         </button>
-        <button class="btn btn-secondary btn-xs" (click)="openCashModal()" style="height: 28px; font-size: 0.76rem; padding: 0 0.55rem;">
-          💵 + Cash Transaction
+
+        <button
+          class="btn btn-secondary btn-xs"
+          (click)="openCashModal()"
+          style="height: 28px; font-size: 0.76rem; padding: 0 0.55rem;"
+          title="Add a transaction manually">
+          ➕ Transaction
         </button>
       </div>
     </div>
@@ -499,7 +522,7 @@
                 <button class="btn btn-secondary btn-xs" (click)="resetFilters()" style="margin-left: 0.5rem;">Clear Filters</button>
               </div>
               <div *ngIf="!service.searchQuery() && !hasActiveFilters()">
-                No transactions found for this period. Import a bank statement or log a cash spend to get started!
+                No transactions found for this period. Import a bank statement or add a transaction to get started!
               </div>
             </td>
           </tr>
@@ -509,11 +532,11 @@
   </div>
 </div>
 
-<!-- Modal: Quick Cash Expense / Transfer -->
+<!-- Modal: Add Transaction / Transfer -->
 <div class="modal-backdrop-overlay animate-fade-in" *ngIf="isCashModalOpen()">
   <div class="modal-content-card glass-card animate-scale-in">
     <div class="modal-header">
-      <h3>💵 Log Cash / Settlement</h3>
+      <h3>➕ Add Transaction</h3>
     </div>
     <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.8rem;">
       <div style="display: flex; gap: 0.8rem;">
