@@ -387,8 +387,11 @@ export class LedgerComponent {
 
     let categoryGroup = this.cashCategoryGroup;
     if (this.cashCategoryItem) {
-      const found = this.service.categoryGroups().find((g) => g.items.some((it) => it.name === this.cashCategoryItem));
-      if (found) categoryGroup = found.name;
+      const existingGrp = this.service.categoryGroups().find((g) => g.name === categoryGroup);
+      if (!existingGrp || !existingGrp.items.some((it) => it.name === this.cashCategoryItem)) {
+        const found = this.service.categoryGroups().find((g) => g.items.some((it) => it.name === this.cashCategoryItem));
+        if (found) categoryGroup = found.name;
+      }
     }
 
     const tx: Transaction = {
@@ -637,7 +640,7 @@ export class LedgerComponent {
     }
   }
 
-  public onInlineCategoryChange(tx: Transaction, itemCategoryName: string): void {
+  public onInlineCategoryChange(tx: Transaction, itemCategoryName: string, groupName?: string): void {
     if (!itemCategoryName) {
       this.service.updateTransaction(tx.id, {
         categoryGroup: undefined,
@@ -646,11 +649,18 @@ export class LedgerComponent {
       return;
     }
 
-    let parentGroupName: string | undefined;
-    for (const grp of this.service.categoryGroups()) {
-      if (grp.items.some((i) => i.name === itemCategoryName)) {
-        parentGroupName = grp.name;
-        break;
+    let parentGroupName: string | undefined = groupName;
+    if (!parentGroupName) {
+      const existingGrp = this.service.categoryGroups().find((g) => g.name === tx.categoryGroup);
+      if (existingGrp && existingGrp.items.some((i) => i.name === itemCategoryName)) {
+        parentGroupName = existingGrp.name;
+      } else {
+        for (const grp of this.service.categoryGroups()) {
+          if (grp.items.some((i) => i.name === itemCategoryName)) {
+            parentGroupName = grp.name;
+            break;
+          }
+        }
       }
     }
 
@@ -834,8 +844,11 @@ export class LedgerComponent {
     // Auto-detect group for category if changed
     let categoryGroup = this.editCategoryGroup;
     if (this.editCategoryItem) {
-      const found = this.service.categoryGroups().find((g) => g.items.some((it) => it.name === this.editCategoryItem));
-      if (found) categoryGroup = found.name;
+      const existingGrp = this.service.categoryGroups().find((g) => g.name === categoryGroup);
+      if (!existingGrp || !existingGrp.items.some((it) => it.name === this.editCategoryItem)) {
+        const found = this.service.categoryGroups().find((g) => g.items.some((it) => it.name === this.editCategoryItem));
+        if (found) categoryGroup = found.name;
+      }
     }
 
     this.service.updateTransaction(tx.id, {

@@ -28,12 +28,15 @@ export class CategorySelectComponent implements OnDestroy {
   private elementRef = inject(ElementRef);
 
   @Input() value: string = '';
+  @Input() group: string = '';
   @Input() placeholder: string = '📁 Uncategorized';
   @Input() compact: boolean = false;
   @Input() allowAddNew: boolean = true;
   @Input() minWidth: string = '140px';
 
   @Output() valueChange = new EventEmitter<string>();
+  @Output() groupChange = new EventEmitter<string>();
+  @Output() categoryChange = new EventEmitter<{ item: string; group: string }>();
   @Output() addNewRequested = new EventEmitter<void>();
 
   @ViewChild('triggerBtn') triggerBtnRef?: ElementRef<HTMLButtonElement>;
@@ -102,13 +105,67 @@ export class CategorySelectComponent implements OnDestroy {
     if (!val || val === 'Uncategorized') {
       return this.placeholder;
     }
-    for (const grp of this.service.categoryGroups()) {
-      const found = grp.items.find((i) => i.name === val);
-      if (found) {
-        return `${grp.icon || '📁'} ${found.name}`;
+    const allGroups = this.service.categoryGroups();
+
+    // Check if this item name exists in multiple groups
+    let matchCount = 0;
+    for (const g of allGroups) {
+      if (g.items.some((i) => i.name.toLowerCase() === val.toLowerCase())) {
+        matchCount++;
       }
     }
+    const isDuplicate = matchCount > 1;
+
+    // 1. If group input is provided, search that group first!
+    if (this.group) {
+      const matchGrp = allGroups.find((g) => g.name.toLowerCase() === this.group.toLowerCase());
+      if (matchGrp) {
+        const icon = matchGrp.icon || '📁';
+        return isDuplicate ? `${icon} ${val} (${matchGrp.name})` : `${icon} ${val}`;
+      }
+    }
+
+    // 2. Otherwise find the first matching group
+    for (const grp of allGroups) {
+      const found = grp.items.find((i) => i.name.toLowerCase() === val.toLowerCase());
+      if (found) {
+        const icon = grp.icon || '📁';
+        return isDuplicate ? `${icon} ${found.name} (${grp.name})` : `${icon} ${found.name}`;
+      }
+    }
+
     return `📁 ${val}`;
+  }
+
+  public get fullTooltip(): string {
+    if (!this.value || this.value === 'Uncategorized') {
+      return 'Click to select category';
+    }
+    if (this.group) {
+      return `${this.group} › ${this.value}`;
+    }
+    return this.displayLabel;
+  }
+
+  public isSelected(itemName: string, groupName: string): boolean {
+    if (!this.value || this.value === 'Uncategorized') return false;
+    if (this.value.toLowerCase() !== itemName.toLowerCase()) return false;
+    if (this.group) {
+      return this.group.toLowerCase() === groupName.toLowerCase();
+    }
+    const firstGroup = this.service.categoryGroups().find((g) =>
+      g.items.some((i) => i.name.toLowerCase() === itemName.toLowerCase())
+    );
+    return firstGroup?.name === groupName;
+  }
+
+  public isHighlighted(itemName: string, groupName: string): boolean {
+    const curr = this.flattenedSelectableItems()[this.highlightedIndex()];
+    return (
+      curr?.type === 'item' &&
+      curr.name.toLowerCase() === itemName.toLowerCase() &&
+      (curr.groupName || '').toLowerCase() === groupName.toLowerCase()
+    );
   }
 
   public updatePopoverPosition(): void {
@@ -168,11 +225,15 @@ export class CategorySelectComponent implements OnDestroy {
     }
   }
 
-  public selectItem(name: string): void {
+  public selectItem(name: string, groupName: string = ''): void {
     if (name === '__ADD_NEW__') {
       this.addNewRequested.emit();
       this.valueChange.emit('__ADD_NEW__');
     } else {
+      this.group = groupName;
+      this.value = name;
+      this.groupChange.emit(groupName);
+      this.categoryChange.emit({ item: name, group: groupName });
       this.valueChange.emit(name);
     }
     this.closeDropdown();
@@ -197,8 +258,17 @@ export class CategorySelectComponent implements OnDestroy {
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const currIdx = this.highlightedIndex();
-      if (items[currIdx]) {
-        this.selectItem(items[currIdx].name);
+      const item = items[currIdx];
+      if (item) {
+        if (item.type === 'item') {
+          this.selectItem(item.name, item.groupName || '');
+        } else if (item.type === 'uncat') {
+          this.selectItem('', '');
+        } else if (item.type === 'add_new') {
+          this.addNewRequested.emit();
+          this.valueChange.emit('__ADD_NEW__');
+          this.closeDropdown();
+        }
       } else if (this.searchQuery().trim()) {
         this.addNewRequested.emit();
         this.valueChange.emit('__ADD_NEW__');

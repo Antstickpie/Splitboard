@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
 import { CategoryGroup, CategoryItem, Transaction, SplitType } from '../../models';
+import { CategorySelectComponent } from '../category-select/category-select';
 
 interface CategoryGroupSummary {
   id: string;
@@ -28,7 +29,7 @@ interface CategoryGroupSummary {
 @Component({
   selector: 'app-budget-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CategorySelectComponent],
   templateUrl: './budget-dashboard.html',
   styleUrl: './budget-dashboard.css'
 })
@@ -92,7 +93,7 @@ export class BudgetDashboardComponent {
     });
   }
 
-  public onInlineCategoryChange(tx: Transaction, itemCategoryName: string): void {
+  public onInlineCategoryChange(tx: Transaction, itemCategoryName: string, groupName?: string): void {
     if (!itemCategoryName) {
       this.service.updateTransaction(tx.id, {
         categoryGroup: undefined,
@@ -102,11 +103,18 @@ export class BudgetDashboardComponent {
       return;
     }
 
-    let parentGroupName: string | undefined;
-    for (const grp of this.service.categoryGroups()) {
-      if (grp.items.some((i) => i.name === itemCategoryName)) {
-        parentGroupName = grp.name;
-        break;
+    let parentGroupName: string | undefined = groupName;
+    if (!parentGroupName) {
+      const existingGrp = this.service.categoryGroups().find((g) => g.name === tx.categoryGroup);
+      if (existingGrp && existingGrp.items.some((i) => i.name === itemCategoryName)) {
+        parentGroupName = existingGrp.name;
+      } else {
+        for (const grp of this.service.categoryGroups()) {
+          if (grp.items.some((i) => i.name === itemCategoryName)) {
+            parentGroupName = grp.name;
+            break;
+          }
+        }
       }
     }
 

@@ -19,6 +19,7 @@ export interface DescriptionGroup {
   count: number;
   totalAmount: number;
   items: Transaction[];
+  categoryGroup?: string;
   categoryItem?: string;
   splitType?: SplitType;
   owner?: string;
@@ -86,10 +87,13 @@ export class ImportComponent {
 
     this.service.addCategoryItem(groupId, subName, this.newCatPlannedDefault());
 
+    const createdGroup = this.service.categoryGroups().find((g) => g.id === groupId);
+    const groupName = createdGroup?.name;
+
     if (this.newCatTargetContext === 'row' && this.newCatTargetTx) {
-      this.onRowCategoryChange(this.newCatTargetTx, subName);
+      this.onRowCategoryChange(this.newCatTargetTx, subName, groupName);
     } else if (this.newCatTargetContext === 'group' && this.newCatTargetGroup) {
-      this.onGroupCategoryChange(this.newCatTargetGroup, subName);
+      this.onGroupCategoryChange(this.newCatTargetGroup, subName, groupName);
     } else if (this.newCatTargetContext === 'rule') {
       this.ruleCategory = subName;
     }
@@ -194,6 +198,7 @@ export class ImportComponent {
   public ruleKeyword = '';
   public ruleBank = 'All';
   public ruleCategory = '';
+  public ruleCategoryGroup = '';
   public ruleSplitType: SplitType = 'SELF';
   public rulePaidBy = '';
   public editingExistingRuleId: string | null = null;
@@ -205,6 +210,7 @@ export class ImportComponent {
     this.ruleBank = tx.bank || 'All';
     this.ruleType.set('categorize');
     this.ruleCategory = tx.categoryItem || '';
+    this.ruleCategoryGroup = tx.categoryGroup || '';
     this.ruleSplitType = tx.splitType || 'SELF';
     this.rulePaidBy = tx.paidBy || this.service.personOne().name;
     this.showRuleModal.set(true);
@@ -256,6 +262,7 @@ export class ImportComponent {
     this.ruleBank = info.rule.bank || 'All';
     if (info.type === 'category') {
       this.ruleCategory = info.rule.categoryItem || '';
+      this.ruleCategoryGroup = info.rule.categoryGroup || '';
       this.ruleSplitType = info.rule.splitType || 'SPLIT';
       this.rulePaidBy = info.rule.paidBy || '';
     }
@@ -300,11 +307,13 @@ export class ImportComponent {
         }
       }
     } else {
-      let catGroup = '';
-      for (const grp of this.service.categoryGroups()) {
-        if (grp.items.some((i) => i.name === this.ruleCategory)) {
-          catGroup = grp.name;
-          break;
+      let catGroup = this.ruleCategoryGroup;
+      if (!catGroup && this.ruleCategory) {
+        for (const grp of this.service.categoryGroups()) {
+          if (grp.items.some((i) => i.name === this.ruleCategory)) {
+            catGroup = grp.name;
+            break;
+          }
         }
       }
 
@@ -377,16 +386,23 @@ export class ImportComponent {
     if (res) this.previewResult.set({ ...res });
   }
 
-  public onRowCategoryChange(tx: Transaction, newCategory: string): void {
+  public onRowCategoryChange(tx: Transaction, newCategory: string, newGroup?: string): void {
     if (newCategory === '__ADD_NEW__') {
       this.openAddCategoryModal(tx, 'row');
       return;
     }
     tx.categoryItem = newCategory;
-    for (const grp of this.service.categoryGroups()) {
-      if (grp.items.some((i) => i.name === newCategory)) {
-        tx.categoryGroup = grp.name;
-        break;
+    if (newGroup) {
+      tx.categoryGroup = newGroup;
+    } else {
+      const existingGrp = this.service.categoryGroups().find((g) => g.name === tx.categoryGroup);
+      if (!existingGrp || !existingGrp.items.some((i) => i.name === newCategory)) {
+        for (const grp of this.service.categoryGroups()) {
+          if (grp.items.some((i) => i.name === newCategory)) {
+            tx.categoryGroup = grp.name;
+            break;
+          }
+        }
       }
     }
     if (newCategory.toLowerCase().includes('reimburse')) {
@@ -1006,6 +1022,9 @@ export class ImportComponent {
       const firstCat = items[0]?.categoryItem;
       const allSameCat = items.every((t) => t.categoryItem === firstCat);
 
+      const firstGroup = items[0]?.categoryGroup;
+      const allSameGroup = items.every((t) => (t.categoryGroup || '') === (firstGroup || ''));
+
       const firstSplit = items[0]?.splitType;
       const allSameSplit = items.every((t) => t.splitType === firstSplit);
 
@@ -1020,6 +1039,7 @@ export class ImportComponent {
         count: items.length,
         totalAmount,
         categoryItem: allSameCat ? firstCat : undefined,
+        categoryGroup: allSameGroup ? firstGroup : undefined,
         splitType: allSameSplit ? firstSplit : undefined,
         owner: allSameOwner ? firstOwner : undefined,
         note: allSameNote ? (firstNote || '') : undefined,
@@ -1046,13 +1066,15 @@ export class ImportComponent {
     return this.currentActiveTabTransactions().filter((t) => !multiDescriptions.has((t.description || 'Unspecified').trim()));
   });
 
-  public onGroupCategoryChange(group: DescriptionGroup, newCategory: string): void {
+  public onGroupCategoryChange(group: DescriptionGroup, newCategory: string, newGroup?: string): void {
     if (newCategory === '__ADD_NEW__') {
       this.openAddCategoryModal(group.items[0], 'group', group);
       return;
     }
+    group.categoryItem = newCategory;
+    if (newGroup) group.categoryGroup = newGroup;
     group.items.forEach((tx) => {
-      this.onRowCategoryChange(tx, newCategory);
+      this.onRowCategoryChange(tx, newCategory, newGroup);
     });
     this.service.showToast(`Updated category for all ${group.count} "${group.description}" items`, 'success');
   }

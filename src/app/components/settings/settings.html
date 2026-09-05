@@ -386,9 +386,13 @@
 
           <div style="flex: 1 1 160px;">
             <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Assigned Category</label>
-            <select [(ngModel)]="newRuleCategory" class="settings-select" style="width: 100%; height: 30px;">
-              <optgroup *ngFor="let g of service.categoryGroups()" [label]="g.name">
-                <option *ngFor="let itm of g.items" [value]="itm.name">{{ itm.name }}</option>
+            <select
+              [ngModel]="newRuleCategoryGroup + ':::' + newRuleCategory"
+              (ngModelChange)="onNewRuleCategoryChange($event)"
+              class="settings-select"
+              style="width: 100%; height: 30px;">
+              <optgroup *ngFor="let g of service.categoryGroups()" [label]="(g.icon || '📁') + ' ' + g.name">
+                <option *ngFor="let itm of g.items" [value]="g.name + ':::' + itm.name">{{ itm.name }}</option>
               </optgroup>
             </select>
           </div>
@@ -506,9 +510,13 @@
                 </div>
                 <div>
                   <label class="input-label">Category</label>
-                  <select [(ngModel)]="editRuleModel.categoryItem" class="settings-select" style="width: 100%;">
-                    <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
-                      <option *ngFor="let item of grp.items" [value]="item.name">{{ item.name }}</option>
+                  <select
+                    [ngModel]="(editRuleModel.categoryGroup || '') + ':::' + editRuleModel.categoryItem"
+                    (ngModelChange)="onEditRuleCategoryChange($event)"
+                    class="settings-select"
+                    style="width: 100%;">
+                    <optgroup *ngFor="let grp of service.categoryGroups()" [label]="(grp.icon || '📁') + ' ' + grp.name">
+                      <option *ngFor="let item of grp.items" [value]="grp.name + ':::' + item.name">{{ item.name }}</option>
                     </optgroup>
                   </select>
                 </div>

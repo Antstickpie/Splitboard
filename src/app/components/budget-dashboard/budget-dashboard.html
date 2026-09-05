@@ -178,15 +178,13 @@
                         <span *ngIf="tx.bank" style="font-size: 0.65rem; color: var(--text-muted); margin-left: 0.25rem;">({{ tx.bank }})</span>
                       </td>
                       <td style="padding: 0.25rem 0.4rem;" (click)="$event.stopPropagation()">
-                        <select
-                          [ngModel]="tx.categoryItem || ''"
-                          (ngModelChange)="onInlineCategoryChange(tx, $event)"
-                          style="font-size: 0.72rem; padding: 0.15rem 0.3rem; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; color: var(--text-main); max-width: 140px;">
-                          <option value="">❓ Uncategorized</option>
-                          <optgroup *ngFor="let cg of service.categoryGroups()" [label]="(cg.icon || '📁') + ' ' + cg.name">
-                            <option *ngFor="let ci of cg.items" [value]="ci.name">{{ ci.name }}</option>
-                          </optgroup>
-                        </select>
+                        <app-category-select
+                          [value]="tx.categoryItem || ''"
+                          [group]="tx.categoryGroup || ''"
+                          [compact]="true"
+                          minWidth="130px"
+                          (categoryChange)="onInlineCategoryChange(tx, $event.item, $event.group)">
+                        </app-category-select>
                       </td>
                       <td style="padding: 0.3rem 0.4rem;" (click)="$event.stopPropagation()">
                         <span

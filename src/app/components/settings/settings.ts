@@ -97,6 +97,7 @@ export class SettingsComponent {
   public newRuleBank = 'All';
   public newRuleKeyword = '';
   public newRuleCategory = '';
+  public newRuleCategoryGroup = '';
   public newRuleSplitType: 'SELF' | 'OTHER' | 'SPLIT' = 'SPLIT';
   public newRuleOwner = '';
 
@@ -121,9 +122,33 @@ export class SettingsComponent {
 
   constructor() {
     const firstGroup = this.service.categoryGroups()[0];
-    if (firstGroup) this.selectedGroupIdForNewCat = firstGroup.id;
-    if (firstGroup && firstGroup.items[0]) this.newRuleCategory = firstGroup.items[0].name;
+    if (firstGroup) {
+      this.selectedGroupIdForNewCat = firstGroup.id;
+      this.newRuleCategoryGroup = firstGroup.name;
+      if (firstGroup.items[0]) this.newRuleCategory = firstGroup.items[0].name;
+    }
     this.newBankCurrency = this.service.currency();
+  }
+
+  public onNewRuleCategoryChange(composite: string): void {
+    const parts = composite.split(':::');
+    if (parts.length === 2) {
+      this.newRuleCategoryGroup = parts[0];
+      this.newRuleCategory = parts[1];
+    } else {
+      this.newRuleCategory = composite;
+    }
+  }
+
+  public onEditRuleCategoryChange(composite: string): void {
+    if (!this.editRuleModel) return;
+    const parts = composite.split(':::');
+    if (parts.length === 2) {
+      this.editRuleModel.categoryGroup = parts[0];
+      this.editRuleModel.categoryItem = parts[1];
+    } else {
+      this.editRuleModel.categoryItem = composite;
+    }
   }
 
   public addBank() {
@@ -222,11 +247,13 @@ export class SettingsComponent {
 
   public addRule() {
     if (!this.newRuleKeyword.trim() || !this.newRuleCategory) return;
-    let group = '';
-    for (const grp of this.service.categoryGroups()) {
-      if (grp.items.some((i) => i.name === this.newRuleCategory)) {
-        group = grp.name;
-        break;
+    let group = this.newRuleCategoryGroup;
+    if (!group) {
+      for (const grp of this.service.categoryGroups()) {
+        if (grp.items.some((i) => i.name === this.newRuleCategory)) {
+          group = grp.name;
+          break;
+        }
       }
     }
     this.service.addRule({

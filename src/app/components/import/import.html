@@ -696,7 +696,8 @@
               <td>
                 <app-category-select
                   [value]="tx.categoryItem || ''"
-                  (valueChange)="onRowCategoryChange(tx, $event)"
+                  [group]="tx.categoryGroup || ''"
+                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
                   (addNewRequested)="openAddCategoryModal(tx, 'row')">
                 </app-category-select>
               </td>
@@ -798,8 +799,9 @@
                 <div style="max-width: 175px;">
                   <app-category-select
                     [value]="grp.categoryItem || ''"
+                    [group]="grp.categoryGroup || ''"
                     placeholder="📁 Set Category..."
-                    (valueChange)="onGroupCategoryChange(grp, $event)"
+                    (categoryChange)="onGroupCategoryChange(grp, $event.item, $event.group)"
                     (addNewRequested)="openAddCategoryModal(grp.items[0], 'group', grp)">
                   </app-category-select>
                 </div>
@@ -929,8 +931,9 @@
                     <td>
                       <app-category-select
                         [value]="tx.categoryItem || ''"
+                        [group]="tx.categoryGroup || ''"
                         [compact]="true"
-                        (valueChange)="onRowCategoryChange(tx, $event)"
+                        (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
                     </td>
@@ -1054,8 +1057,9 @@
                 <td>
                   <app-category-select
                     [value]="tx.categoryItem || ''"
+                    [group]="tx.categoryGroup || ''"
                     [compact]="true"
-                    (valueChange)="onRowCategoryChange(tx, $event)"
+                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
                     (addNewRequested)="openAddCategoryModal(tx, 'row')">
                   </app-category-select>
                 </td>
@@ -1193,7 +1197,8 @@
               <td>
                 <app-category-select
                   [value]="tx.categoryItem || ''"
-                  (valueChange)="onRowCategoryChange(tx, $event)"
+                  [group]="tx.categoryGroup || ''"
+                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
                   (addNewRequested)="openAddCategoryModal(tx, 'row')">
                 </app-category-select>
               </td>
@@ -1299,8 +1304,9 @@
                 <div style="max-width: 175px;">
                   <app-category-select
                     [value]="grp.categoryItem || ''"
+                    [group]="grp.categoryGroup || ''"
                     placeholder="📁 Set Category..."
-                    (valueChange)="onGroupCategoryChange(grp, $event)"
+                    (categoryChange)="onGroupCategoryChange(grp, $event.item, $event.group)"
                     (addNewRequested)="openAddCategoryModal(grp.items[0], 'group', grp)">
                   </app-category-select>
                 </div>
@@ -1407,8 +1413,9 @@
                     <td>
                       <app-category-select
                         [value]="tx.categoryItem || ''"
+                        [group]="tx.categoryGroup || ''"
                         [compact]="true"
-                        (valueChange)="onRowCategoryChange(tx, $event)"
+                        (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
                     </td>
@@ -1528,7 +1535,8 @@
                   <td>
                     <app-category-select
                       [value]="tx.categoryItem || ''"
-                      (valueChange)="onRowCategoryChange(tx, $event)"
+                      [group]="tx.categoryGroup || ''"
+                      (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
                       (addNewRequested)="openAddCategoryModal(tx, 'row')">
                     </app-category-select>
                   </td>
@@ -1979,19 +1987,12 @@
                 ➕ New Category
               </button>
             </div>
-            <select
-              [ngModel]="ruleCategory"
-              (ngModelChange)="$event === '__ADD_NEW__' ? openAddCategoryModal(undefined, 'rule') : ruleCategory = $event"
-              class="styled-select"
-              style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
-              <option value="">-- Choose Category --</option>
-              <option value="__ADD_NEW__" style="color: var(--primary); font-weight: bold;">➕ Add New Category...</option>
-              <optgroup *ngFor="let grp of service.categoryGroups()" [label]="(grp.icon || '📁') + ' ' + grp.name">
-                <option *ngFor="let item of grp.items" [value]="item.name">
-                  {{ item.name }}
-                </option>
-              </optgroup>
-            </select>
+            <app-category-select
+              [value]="ruleCategory"
+              [group]="ruleCategoryGroup"
+              (categoryChange)="ruleCategory = $event.item; ruleCategoryGroup = $event.group"
+              (addNewRequested)="openAddCategoryModal(undefined, 'rule')">
+            </app-category-select>
           </div>
 
           <!-- Split Mode & Paid By -->

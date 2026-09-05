@@ -7,7 +7,7 @@
     [class.compact]="compact"
     [class.open]="isOpen()"
     (click)="toggleDropdown($event)"
-    [title]="displayLabel"
+    [title]="fullTooltip"
     [style.minWidth]="minWidth">
     <span class="cat-label-text">{{ displayLabel }}</span>
     <span class="cat-chevron">{{ isOpen() ? '▲' : '▼' }}</span>
@@ -61,7 +61,7 @@
         class="cat-option-btn uncat-btn"
         [class.selected]="!value || value === 'Uncategorized'"
         [class.highlighted]="flattenedSelectableItems()[highlightedIndex()]?.type === 'uncat'"
-        (click)="selectItem('')">
+        (click)="selectItem('', '')">
         <span class="option-icon">📁</span>
         <span class="option-name">Uncategorized</span>
         <span class="check-mark" *ngIf="!value || value === 'Uncategorized'">✓</span>
@@ -81,11 +81,11 @@
             *ngFor="let item of grp.items"
             type="button"
             class="cat-option-btn item-btn"
-            [class.selected]="value === item.name"
-            [class.highlighted]="flattenedSelectableItems()[highlightedIndex()]?.name === item.name"
-            (click)="selectItem(item.name)">
+            [class.selected]="isSelected(item.name, grp.name)"
+            [class.highlighted]="isHighlighted(item.name, grp.name)"
+            (click)="selectItem(item.name, grp.name)">
             <span class="option-name">{{ item.name }}</span>
-            <span class="check-mark" *ngIf="value === item.name">✓</span>
+            <span class="check-mark" *ngIf="isSelected(item.name, grp.name)">✓</span>
           </button>
         </div>
       </div>

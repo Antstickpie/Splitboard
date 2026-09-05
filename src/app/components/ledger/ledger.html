@@ -477,7 +477,8 @@
             <td>
               <app-category-select
                 [value]="tx.categoryItem || ''"
-                (valueChange)="onInlineCategoryChange(tx, $event)">
+                [group]="tx.categoryGroup || ''"
+                (categoryChange)="onInlineCategoryChange(tx, $event.item, $event.group)">
               </app-category-select>
             </td>
             <td class="font-mono" style="text-align: right; font-weight: 700; font-size: 0.88rem;" [class.text-success]="tx.type === 'INCOME'">
@@ -641,12 +642,11 @@
 
       <div>
         <label class="input-label">Category</label>
-        <select [(ngModel)]="cashCategoryItem" style="width: 100%;">
-          <option value="">Uncategorized</option>
-          <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
-            <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
-          </optgroup>
-        </select>
+        <app-category-select
+          [value]="cashCategoryItem"
+          [group]="cashCategoryGroup"
+          (categoryChange)="cashCategoryItem = $event.item; cashCategoryGroup = $event.group">
+        </app-category-select>
       </div>
 
       <div *ngIf="!cashIsTransfer" style="margin-top: 0.4rem;">
@@ -799,12 +799,11 @@
 
       <div>
         <label class="input-label">Category</label>
-        <select [(ngModel)]="editCategoryItem" style="width: 100%;">
-          <option value="">Uncategorized</option>
-          <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
-            <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
-          </optgroup>
-        </select>
+        <app-category-select
+          [value]="editCategoryItem"
+          [group]="editCategoryGroup"
+          (categoryChange)="editCategoryItem = $event.item; editCategoryGroup = $event.group">
+        </app-category-select>
       </div>
 
       <!-- Split Allocation (only for non-transfers) -->
