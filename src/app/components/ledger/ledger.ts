@@ -89,9 +89,18 @@ export class LedgerComponent {
     }
   }
 
+  public isResumingDraft = signal<boolean>(false);
+
+  public resumeDraftFromLedger(): void {
+    this.pendingImportFile.set(null);
+    this.isResumingDraft.set(true);
+    this.isImportOpen.set(true);
+  }
+
   public closeImport(): void {
     this.isImportOpen.set(false);
     this.pendingImportFile.set(null);
+    this.isResumingDraft.set(false);
   }
 
   public openGoogleRate(from: string, to: string): void {

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService, ImportedBatch } from '../../services/transaction.service';
 import { StatementParserService, ParsedStatementResult } from '../../services/statement-parser.service';
-import { Transaction, SplitType } from '../../models';
+import { Transaction, SplitType, ImportDraft } from '../../models';
 import { CategorySelectComponent } from '../category-select/category-select';
 
 export interface TransactionGroup {
@@ -524,6 +524,74 @@ export class ImportComponent {
     if (file) {
       this.processSelectedFile(file);
     }
+  }
+
+  @Input() set autoResumeDraft(val: boolean) {
+    if (val && this.service.importDraft()) {
+      this.resumeDraft();
+    }
+  }
+
+  public saveDraft(): void {
+    const res = this.previewResult();
+    if (!res) return;
+
+    const draft: ImportDraft = {
+      id: Date.now().toString(),
+      savedAt: new Date().toISOString(),
+      fileName: this.uploadedFileName() || 'Statement',
+      bankName: this.selectedBank() || res.bankName || 'Generic Bank',
+      owner: this.selectedOwner() || '',
+      previewResult: res
+    };
+
+    this.service.saveImportDraft(draft);
+    this.service.showToast(`✓ Progress saved! (${res.transactions.length} rows staged)`, 'success');
+  }
+
+  public resumeDraft(draft?: ImportDraft | null): void {
+    const d = draft || this.service.importDraft();
+    if (!d) return;
+
+    this.uploadedFileName.set(d.fileName);
+    this.selectedBank.set(d.bankName);
+    this.selectedOwner.set(d.owner || '');
+    this.previewResult.set({ ...d.previewResult });
+    this.showBankSelectModal.set(false);
+    this.previewTab.set('valid');
+    this.sortColumn.set('original');
+
+    this.service.showToast(`Resumed draft for "${d.fileName}" (${d.previewResult.transactions.length} rows)`, 'success');
+  }
+
+  public discardDraft(): void {
+    this.service.clearImportDraft();
+    this.service.showToast('Import draft discarded', 'info');
+  }
+
+  public formatDraftTime(iso: string): string {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return iso;
+    }
+  }
+
+  public async onCancelPreview(): Promise<void> {
+    const res = this.previewResult();
+    if (res && res.transactions.length > 0) {
+      const ok = await this.service.showConfirm(
+        'Save Progress Before Closing?',
+        `You have ${res.transactions.length} staged transactions in preview.\n\nSave your progress as a draft so you can resume anytime?`
+      );
+      if (ok) {
+        this.saveDraft();
+        this.clearPreview();
+        return;
+      }
+    }
+    this.clearPreview();
   }
 
   public processSelectedFile(file: File): void {
@@ -1292,6 +1360,7 @@ export class ImportComponent {
       await this.service.showAlert('Import Completed', msg);
     }
 
+    this.service.clearImportDraft();
     this.clearPreview();
     this.importCompleted.emit();
   }

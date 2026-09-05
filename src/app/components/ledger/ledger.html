@@ -56,7 +56,7 @@
 
   <!-- Inline Statement Importer in Same Window -->
   <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 0.8rem; position: relative; z-index: 100000;">
-    <app-import [initialFile]="pendingImportFile()" (importCompleted)="closeImport()"></app-import>
+    <app-import [initialFile]="pendingImportFile()" [autoResumeDraft]="isResumingDraft()" (importCompleted)="closeImport()"></app-import>
   </div>
 
   <!-- Transactions Table Card with Integrated Header Controls -->
@@ -298,6 +298,17 @@
           <span *ngIf="isImportDragOver()" style="color: #00e5ff; font-weight: 700;">
             ✨ Drop file here!
           </span>
+        </button>
+
+        <!-- Resume Saved Draft Button -->
+        <button
+          *ngIf="service.importDraft() as draft"
+          class="btn btn-secondary btn-xs animate-fade-in"
+          (click)="resumeDraftFromLedger()"
+          style="height: 28px; font-size: 0.76rem; padding: 0 0.6rem; background: rgba(0, 229, 255, 0.12); border: 1px solid rgba(0, 229, 255, 0.4); color: var(--primary); display: flex; align-items: center; gap: 0.35rem; font-weight: 600;"
+          [title]="'Resume saved import progress for ' + draft.fileName + ' (' + draft.previewResult.transactions.length + ' rows)'">
+          <span>📝</span>
+          <span>Resume Draft ({{ draft.previewResult.transactions.length }})</span>
         </button>
 
         <button

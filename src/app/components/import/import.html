@@ -1,5 +1,28 @@
 <div class="animate-fade-in import-container" style="gap: 0.5rem; position: relative;">
 
+  <!-- Active Draft Banner (if available and no preview loaded) -->
+  <div class="glass-card animate-fade-in" *ngIf="service.importDraft() as draft" style="padding: 0.85rem 1.1rem; border: 1px solid rgba(0, 229, 255, 0.35); background: rgba(0, 229, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 0.5rem auto 0.8rem auto; max-width: 580px; width: 100%;">
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+      <span style="font-size: 1.4rem;">💾</span>
+      <div>
+        <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-main);">
+          Saved Draft: <span style="color: var(--primary);">{{ draft.fileName }}</span>
+        </div>
+        <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.1rem;">
+          {{ draft.previewResult.transactions.length }} staged rows • Bank: {{ draft.bankName }} • Saved {{ formatDraftTime(draft.savedAt) }}
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 0.45rem; align-items: center;">
+      <button class="btn btn-primary btn-xs" (click)="resumeDraft(draft)" style="font-size: 0.76rem; padding: 0.35rem 0.75rem;">
+        ▶ Resume Progress
+      </button>
+      <button class="btn btn-secondary btn-xs" (click)="discardDraft()" style="font-size: 0.76rem; padding: 0.35rem 0.6rem;" title="Discard saved draft">
+        🗑 Discard
+      </button>
+    </div>
+  </div>
+
   <!-- Step 1: Select Bank Account & Owner Card -->
   <div class="glass-card animate-fade-in" *ngIf="showBankSelectModal()" style="padding: 1.2rem 1.4rem; max-width: 540px; margin: 0.5rem auto; width: 100%; border: 1px solid rgba(0, 229, 255, 0.35); box-shadow: 0 15px 40px rgba(0,0,0,0.6);">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem;">
@@ -308,7 +331,14 @@
           style="font-size: 0.78rem;">
           ➕ Add Category
         </button>
-        <button class="btn btn-secondary btn-sm" (click)="clearPreview()">Cancel</button>
+        <button
+          class="btn btn-secondary btn-sm"
+          (click)="saveDraft()"
+          title="Save staging progress without importing to ledger"
+          style="font-size: 0.78rem; border-color: rgba(0, 229, 255, 0.4); background: rgba(0, 229, 255, 0.08); color: var(--primary); display: flex; align-items: center; gap: 0.35rem; font-weight: 600;">
+          <span>💾</span> Save Progress
+        </button>
+        <button class="btn btn-secondary btn-sm" (click)="onCancelPreview()">Cancel</button>
         <button
           class="btn btn-primary btn-sm"
           (click)="commitImport()"

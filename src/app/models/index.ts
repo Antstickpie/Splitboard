@@ -130,3 +130,26 @@ export interface AppDataBackup {
   deletedSignatures?: string[];
 }
 
+export interface ParsedStatementResult {
+  transactions: Transaction[];
+  incomes: Transaction[];
+  duplicates: Transaction[];
+  excluded: Transaction[];
+  deleted: Transaction[];
+  incomesCount: number;
+  duplicatesCount: number;
+  excludedCount: number;
+  deletedCount: number;
+  bankName: string;
+  bankMismatch?: { detected: string; selected: string };
+  totalParsed: number;
+}
+
+export interface ImportDraft {
+  id: string;
+  savedAt: string; // ISO timestamp
+  fileName: string;
+  bankName: string;
+  owner: string;
+  previewResult: ParsedStatementResult;
+}

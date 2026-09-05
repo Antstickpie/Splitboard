@@ -1,22 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { TransactionService } from './transaction.service';
-import { Transaction, SplitType, BankConfig } from '../models';
+import { Transaction, SplitType, BankConfig, ParsedStatementResult } from '../models';
 
-export interface ParsedStatementResult {
-  transactions: Transaction[];
-  incomes: Transaction[];
-  duplicates: Transaction[];
-  excluded: Transaction[];
-  deleted: Transaction[];
-  incomesCount: number;
-  duplicatesCount: number;
-  excludedCount: number;
-  deletedCount: number;
-  bankName: string;
-  bankMismatch?: { detected: string; selected: string };
-  totalParsed: number;
-}
+export type { ParsedStatementResult };
 
 @Injectable({
   providedIn: 'root'

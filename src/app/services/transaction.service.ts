@@ -10,7 +10,8 @@ import {
   SplitType,
   SplitMode,
   CategoryRule,
-  ExcludeRule
+  ExcludeRule,
+  ImportDraft
 } from '../models';
 import { DEFAULT_PERSONS, DEFAULT_BANKS, DEFAULT_CATEGORY_GROUPS, DEFAULT_RULES } from '../constants/default-data';
 
@@ -104,6 +105,10 @@ export class TransactionService {
   public excludeRules = signal<ExcludeRule[]>(DEFAULT_EXCLUDE_RULES);
   public deletedSignatures = signal<string[]>([]);
   public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
+
+  // Statement Import Draft Signal
+  private readonly DRAFT_STORAGE_KEY = 'splitboard_import_draft';
+  public importDraft = signal<ImportDraft | null>(this.loadImportDraft());
 
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings'): void {
     this.activeTab.set(tab);
@@ -703,6 +708,34 @@ export class TransactionService {
       }
     } catch (e) {
       console.error('Failed to load local data', e);
+    }
+  }
+
+  // Import Progress Draft Storage
+  public loadImportDraft(): ImportDraft | null {
+    try {
+      const raw = localStorage.getItem(this.DRAFT_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public saveImportDraft(draft: ImportDraft): void {
+    try {
+      localStorage.setItem(this.DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      this.importDraft.set(draft);
+    } catch (e) {
+      console.error('Failed to save import draft', e);
+    }
+  }
+
+  public clearImportDraft(): void {
+    try {
+      localStorage.removeItem(this.DRAFT_STORAGE_KEY);
+      this.importDraft.set(null);
+    } catch (e) {
+      console.error('Failed to clear import draft', e);
     }
   }
 
