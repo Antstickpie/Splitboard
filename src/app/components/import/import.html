@@ -832,6 +832,18 @@
                   </button>
                 </div>
 
+                <!-- Bulk Note / Comment -->
+                <div style="min-width: 120px; max-width: 180px;">
+                  <input
+                    type="text"
+                    [ngModel]="grp.note !== undefined ? grp.note : ''"
+                    (ngModelChange)="onGroupNoteChange(grp, $event)"
+                    [placeholder]="grp.note === undefined ? '💬 Mixed notes...' : '💬 Group note...'"
+                    class="inline-note-input"
+                    style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main);"
+                    title="Apply note/comment to all {{ grp.count }} items in this group" />
+                </div>
+
                 <!-- Bulk Done -->
                 <button
                   type="button"
@@ -1318,6 +1330,18 @@
                     [title]="'100% ' + service.personTwo().name">
                     {{ service.personTwo().name.substring(0, 3) }}
                   </button>
+                </div>
+
+                <!-- Bulk Note / Comment -->
+                <div style="min-width: 120px; max-width: 180px;">
+                  <input
+                    type="text"
+                    [ngModel]="grp.note !== undefined ? grp.note : ''"
+                    (ngModelChange)="onGroupNoteChange(grp, $event)"
+                    [placeholder]="grp.note === undefined ? '💬 Mixed notes...' : '💬 Group note...'"
+                    class="inline-note-input"
+                    style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main);"
+                    title="Apply note/comment to all {{ grp.count }} items in this group" />
                 </div>
 
                 <!-- Bulk Review Toggle (Resolve) -->

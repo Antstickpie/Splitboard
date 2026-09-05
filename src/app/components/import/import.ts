@@ -22,6 +22,7 @@ export interface DescriptionGroup {
   categoryItem?: string;
   splitType?: SplitType;
   owner?: string;
+  note?: string;
 }
 
 @Component({
@@ -1011,6 +1012,9 @@ export class ImportComponent {
       const firstOwner = items[0]?.paidBy;
       const allSameOwner = items.every((t) => t.paidBy === firstOwner);
 
+      const firstNote = items[0]?.note;
+      const allSameNote = items.every((t) => (t.note || '') === (firstNote || ''));
+
       groups.push({
         description,
         count: items.length,
@@ -1018,12 +1022,24 @@ export class ImportComponent {
         categoryItem: allSameCat ? firstCat : undefined,
         splitType: allSameSplit ? firstSplit : undefined,
         owner: allSameOwner ? firstOwner : undefined,
+        note: allSameNote ? (firstNote || '') : undefined,
         items
       });
     }
 
     return groups;
   });
+
+  public onGroupNoteChange(group: DescriptionGroup, newNote: string): void {
+    group.note = newNote;
+    group.items.forEach((tx) => {
+      tx.note = newNote;
+    });
+    const res = this.previewResult();
+    if (res) {
+      this.previewResult.set({ ...res });
+    }
+  }
 
   public singleTransactions = computed<Transaction[]>(() => {
     const multiDescriptions = new Set(this.descriptionGroups().map((g) => g.description));
