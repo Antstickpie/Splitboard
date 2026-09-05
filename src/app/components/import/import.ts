@@ -21,6 +21,8 @@ export interface DescriptionGroup {
   items: Transaction[];
   categoryGroup?: string;
   categoryItem?: string;
+  isMixedCategory?: boolean;
+  mixedCategorySummary?: string;
   splitType?: SplitType;
   owner?: string;
   note?: string;
@@ -1019,11 +1021,34 @@ export class ImportComponent {
       if (items.length < 2) continue; // Only group when at least 2 items exist!
 
       const totalAmount = items.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-      const firstCat = items[0]?.categoryItem;
-      const allSameCat = items.every((t) => t.categoryItem === firstCat);
+      const firstCat = (items[0]?.categoryItem || '').trim();
+      const firstGroup = (items[0]?.categoryGroup || '').trim();
 
-      const firstGroup = items[0]?.categoryGroup;
-      const allSameGroup = items.every((t) => (t.categoryGroup || '') === (firstGroup || ''));
+      const allSameCat = items.every(
+        (t) => (t.categoryItem || '').trim().toLowerCase() === firstCat.toLowerCase()
+      );
+      const allSameGroup = items.every(
+        (t) => (t.categoryGroup || '').trim().toLowerCase() === firstGroup.toLowerCase()
+      );
+      const allSameCategory = allSameCat && allSameGroup && !!firstCat;
+
+      let isMixedCategory = false;
+      let mixedCategorySummary = '';
+      if (!allSameCategory && items.some((t) => !!t.categoryItem)) {
+        isMixedCategory = true;
+        const counts = new Map<string, number>();
+        items.forEach((t) => {
+          const label = t.categoryItem
+            ? (t.categoryGroup ? `${t.categoryItem} (${t.categoryGroup})` : t.categoryItem)
+            : 'Uncategorized';
+          counts.set(label, (counts.get(label) || 0) + 1);
+        });
+        mixedCategorySummary =
+          'Mixed categories in group: ' +
+          Array.from(counts.entries())
+            .map(([k, v]) => `${v}x ${k}`)
+            .join(', ');
+      }
 
       const firstSplit = items[0]?.splitType;
       const allSameSplit = items.every((t) => t.splitType === firstSplit);
@@ -1038,8 +1063,10 @@ export class ImportComponent {
         description,
         count: items.length,
         totalAmount,
-        categoryItem: allSameCat ? firstCat : undefined,
-        categoryGroup: allSameGroup ? firstGroup : undefined,
+        categoryItem: allSameCategory ? items[0].categoryItem : undefined,
+        categoryGroup: allSameCategory ? items[0].categoryGroup : undefined,
+        isMixedCategory,
+        mixedCategorySummary,
         splitType: allSameSplit ? firstSplit : undefined,
         owner: allSameOwner ? firstOwner : undefined,
         note: allSameNote ? (firstNote || '') : undefined,
@@ -1072,10 +1099,24 @@ export class ImportComponent {
       return;
     }
     group.categoryItem = newCategory;
-    if (newGroup) group.categoryGroup = newGroup;
+    group.categoryGroup = newGroup;
+    group.isMixedCategory = false;
+    group.mixedCategorySummary = '';
     group.items.forEach((tx) => {
-      this.onRowCategoryChange(tx, newCategory, newGroup);
+      tx.categoryItem = newCategory;
+      if (newGroup) {
+        tx.categoryGroup = newGroup;
+      }
+      if (newCategory.toLowerCase().includes('reimburse')) {
+        tx.isReimbursable = true;
+        tx.reimbursementStatus = 'PENDING';
+        tx.splitType = 'SELF';
+      }
     });
+    const res = this.previewResult();
+    if (res) {
+      this.previewResult.set({ ...res });
+    }
     this.service.showToast(`Updated category for all ${group.count} "${group.description}" items`, 'success');
   }
 

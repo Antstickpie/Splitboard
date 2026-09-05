@@ -30,6 +30,7 @@ export class CategorySelectComponent implements OnDestroy {
   @Input() value: string = '';
   @Input() group: string = '';
   @Input() placeholder: string = '📁 Uncategorized';
+  @Input() customTitle?: string;
   @Input() compact: boolean = false;
   @Input() allowAddNew: boolean = true;
   @Input() minWidth: string = '140px';
@@ -138,6 +139,9 @@ export class CategorySelectComponent implements OnDestroy {
   }
 
   public get fullTooltip(): string {
+    if (this.customTitle) {
+      return this.customTitle;
+    }
     if (!this.value || this.value === 'Uncategorized') {
       return 'Click to select category';
     }

@@ -800,7 +800,8 @@
                   <app-category-select
                     [value]="grp.categoryItem || ''"
                     [group]="grp.categoryGroup || ''"
-                    placeholder="📁 Set Category..."
+                    [placeholder]="grp.isMixedCategory ? '📁 Mixed categories...' : '📁 Set Category...'"
+                    [customTitle]="grp.mixedCategorySummary || ''"
                     (categoryChange)="onGroupCategoryChange(grp, $event.item, $event.group)"
                     (addNewRequested)="openAddCategoryModal(grp.items[0], 'group', grp)">
                   </app-category-select>
@@ -1305,7 +1306,8 @@
                   <app-category-select
                     [value]="grp.categoryItem || ''"
                     [group]="grp.categoryGroup || ''"
-                    placeholder="📁 Set Category..."
+                    [placeholder]="grp.isMixedCategory ? '📁 Mixed categories...' : '📁 Set Category...'"
+                    [customTitle]="grp.mixedCategorySummary || ''"
                     (categoryChange)="onGroupCategoryChange(grp, $event.item, $event.group)"
                     (addNewRequested)="openAddCategoryModal(grp.items[0], 'group', grp)">
                   </app-category-select>
