@@ -566,7 +566,17 @@ export class ImportComponent {
 
   public discardDraft(): void {
     this.service.clearImportDraft();
+    this.previewResult.set(null);
+    this.uploadedFileName.set('');
+    this.selectedBank.set('');
+    this.selectedOwner.set('');
+    this.showBankSelectModal.set(false);
+    this.isPdfLoaded.set(false);
+    this.pdfDocInstance = null;
+    this.pdfArrayBuffer = null;
+    this.pdfPagesList.set([]);
     this.service.showToast('Import draft discarded', 'info');
+    this.importCompleted.emit();
   }
 
   public formatDraftTime(iso: string): string {
@@ -591,7 +601,7 @@ export class ImportComponent {
         return;
       }
     }
-    this.clearPreview();
+    this.discardDraft();
   }
 
   public processSelectedFile(file: File): void {

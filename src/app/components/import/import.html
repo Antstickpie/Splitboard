@@ -338,6 +338,14 @@
           style="font-size: 0.78rem; border-color: rgba(0, 229, 255, 0.4); background: rgba(0, 229, 255, 0.08); color: var(--primary); display: flex; align-items: center; gap: 0.35rem; font-weight: 600;">
           <span>💾</span> Save Progress
         </button>
+        <button
+          *ngIf="service.importDraft()"
+          class="btn btn-secondary btn-sm"
+          (click)="discardDraft()"
+          title="Permanently discard saved draft and close importer"
+          style="font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); color: #f87171; display: flex; align-items: center; gap: 0.35rem;">
+          <span>🗑</span> Discard Draft
+        </button>
         <button class="btn btn-secondary btn-sm" (click)="onCancelPreview()">Cancel</button>
         <button
           class="btn btn-primary btn-sm"

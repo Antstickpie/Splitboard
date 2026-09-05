@@ -103,6 +103,13 @@ export class LedgerComponent {
     this.isResumingDraft.set(false);
   }
 
+  public discardDraftFromLedger(event: MouseEvent): void {
+    event.stopPropagation();
+    this.service.clearImportDraft();
+    this.closeImport();
+    this.service.showToast('Import draft discarded', 'info');
+  }
+
   public openGoogleRate(from: string, to: string): void {
     const query = encodeURIComponent(`1 ${from} to ${to}`);
     window.open(`https://www.google.com/search?q=${query}`, '_blank');

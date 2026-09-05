@@ -300,16 +300,23 @@
           </span>
         </button>
 
-        <!-- Resume Saved Draft Button -->
-        <button
-          *ngIf="service.importDraft() as draft"
-          class="btn btn-secondary btn-xs animate-fade-in"
-          (click)="resumeDraftFromLedger()"
-          style="height: 28px; font-size: 0.76rem; padding: 0 0.6rem; background: rgba(0, 229, 255, 0.12); border: 1px solid rgba(0, 229, 255, 0.4); color: var(--primary); display: flex; align-items: center; gap: 0.35rem; font-weight: 600;"
-          [title]="'Resume saved import progress for ' + draft.fileName + ' (' + draft.previewResult.transactions.length + ' rows)'">
-          <span>📝</span>
-          <span>Resume Draft ({{ draft.previewResult.transactions.length }})</span>
-        </button>
+        <!-- Resume Saved Draft Button Group -->
+        <div *ngIf="service.importDraft() as draft" class="animate-fade-in" style="display: flex; align-items: center; background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 6px; overflow: hidden; height: 28px;">
+          <button
+            class="btn btn-xs"
+            (click)="resumeDraftFromLedger()"
+            style="height: 100%; border: none; background: transparent; color: var(--primary); font-size: 0.76rem; padding: 0 0.5rem; font-weight: 600; display: flex; align-items: center; gap: 0.3rem;"
+            [title]="'Resume saved import progress for ' + draft.fileName + ' (' + draft.previewResult.transactions.length + ' rows)'">
+            <span>📝</span>
+            <span>Resume Draft ({{ draft.previewResult.transactions.length }})</span>
+          </button>
+          <button
+            (click)="discardDraftFromLedger($event)"
+            style="height: 100%; border: none; border-left: 1px solid rgba(0, 229, 255, 0.25); background: transparent; color: var(--text-muted); cursor: pointer; padding: 0 0.45rem; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;"
+            title="Discard saved draft">
+            ✕
+          </button>
+        </div>
 
         <button
           class="btn btn-secondary btn-xs"
