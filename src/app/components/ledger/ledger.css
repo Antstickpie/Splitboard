@@ -629,3 +629,9 @@
   transform: scale(1.05);
 }
 
+#imported-statements-section,
+#inline-import-section {
+  scroll-margin-top: 32px;
+}
+
+

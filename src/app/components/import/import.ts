@@ -746,8 +746,14 @@ export class ImportComponent {
 
   public scrollToPreviewOrImport(): void {
     setTimeout(() => {
-      const el = document.querySelector('.preview-card') || document.getElementById('inline-import-section') || document.querySelector('.import-container');
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const el = (document.querySelector('.preview-card') ||
+        document.getElementById('inline-import-section') ||
+        document.querySelector('.import-container')) as HTMLElement | null;
+      if (el) {
+        const topGap = 32;
+        const targetY = Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - topGap);
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
     }, 100);
   }
 
@@ -1642,9 +1648,7 @@ export class ImportComponent {
     this.previewTab.set('valid');
     this.sortColumn.set('original');
 
-    setTimeout(() => {
-      document.querySelector('.preview-card')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    this.scrollToPreviewOrImport();
 
     this.service.showToast(`Loaded ${cloned.length} transactions into editor. Edit and click "Import" to save!`, 'info');
   }

@@ -33,7 +33,11 @@ export class LedgerComponent {
     if (!next) {
       setTimeout(() => {
         const el = document.getElementById('imported-statements-section');
-        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (el) {
+          const topGap = 32;
+          const targetY = Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - topGap);
+          window.scrollTo({ top: targetY, behavior: 'smooth' });
+        }
       }, 50);
     }
   }
@@ -90,8 +94,12 @@ export class LedgerComponent {
 
   public scrollToImportSection(): void {
     setTimeout(() => {
-      const el = document.getElementById('inline-import-section') || document.querySelector('app-import');
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const el = (document.getElementById('inline-import-section') || document.querySelector('app-import')) as HTMLElement | null;
+      if (el) {
+        const topGap = 32;
+        const targetY = Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - topGap);
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
     }, 100);
   }
 
