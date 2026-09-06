@@ -1,7 +1,7 @@
 <div class="animate-fade-in import-container" style="gap: 0.5rem; position: relative;">
 
-  <!-- Active Draft Banner (if available and no preview loaded) -->
-  <div class="glass-card animate-fade-in" *ngIf="service.importDraft() as draft" style="padding: 0.85rem 1.1rem; border: 1px solid rgba(0, 229, 255, 0.35); background: rgba(0, 229, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 0.5rem auto 0.8rem auto; max-width: 580px; width: 100%;">
+  <!-- Active Draft Banner (only when no preview is currently active) -->
+  <div class="glass-card animate-fade-in" *ngIf="availableDraft() as draft" style="padding: 0.85rem 1.1rem; border: 1px solid rgba(0, 229, 255, 0.35); background: rgba(0, 229, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 0.5rem auto 0.8rem auto; max-width: 580px; width: 100%;">
     <div style="display: flex; align-items: center; gap: 0.65rem;">
       <span style="font-size: 1.4rem;">💾</span>
       <div>

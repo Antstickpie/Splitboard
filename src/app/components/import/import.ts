@@ -713,6 +713,10 @@ export class ImportComponent {
     this.service.showToast(`✓ Progress saved! (${res.transactions.length} rows staged)`, 'success');
   }
 
+  public availableDraft = computed<ImportDraft | null>(() => {
+    return !this.previewResult() ? this.service.importDraft() : null;
+  });
+
   public async resumeDraft(draft?: ImportDraft | null): Promise<void> {
     const d = draft || this.service.importDraft();
     if (!d) return;
