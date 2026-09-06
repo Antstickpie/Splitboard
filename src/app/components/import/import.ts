@@ -1612,15 +1612,6 @@ export class ImportComponent {
         'error'
       );
       this.previewTab.set('valid');
-      this.descriptionGroups().forEach((grp) => {
-        if (this.hasUnselectedSplits(grp)) {
-          this.expandedDescriptionGroups.update((set) => {
-            const next = new Set(set);
-            next.add(grp.description);
-            return next;
-          });
-        }
-      });
       setTimeout(() => {
         const firstMissing = document.querySelector('.split-button-group.needs-split');
         if (firstMissing) {
