@@ -271,7 +271,7 @@
   </div>
 
   <!-- Preview Card -->
-  <div class="glass-card preview-card animate-fade-in" [class.full-width-preview]="isPdfLoaded() && isPdfViewerOpen()" *ngIf="previewResult() as res">
+  <div class="glass-card preview-card full-width-preview animate-fade-in" *ngIf="previewResult() as res">
     <div class="preview-header">
       <div>
         <div style="display: flex; align-items: center; gap: 0.6rem;">
@@ -469,7 +469,7 @@
             <input
               type="checkbox"
               [ngModel]="isGroupByDescription()"
-              (ngModelChange)="isGroupByDescription.set($event)"
+              (ngModelChange)="onToggleGroupByDescription($event)"
               style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--primary);">
             <span [style.color]="isGroupByDescription() ? 'var(--primary)' : 'var(--text-main)'">📑 Group by Description</span>
           </label>
@@ -530,7 +530,7 @@
       <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
         <!-- Multi-Item Groups -->
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups()" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
@@ -543,8 +543,15 @@
                 <button class="btn btn-secondary btn-xs" (click)="includeGroup(grp)" style="padding: 0.2rem 0.55rem; font-size: 0.72rem;">
                   + Include Group ({{ grp.count }})
                 </button>
-                <button class="btn btn-secondary btn-xs" (click)="openRuleModal(grp.items[0])" title="Create rule from this description" style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
-                  ⚡ Rule
+                <button
+                  class="btn btn-secondary btn-xs"
+                  (click)="openRuleModal(grp.items[0])"
+                  [title]="hasMatchingRule(grp.items[0]) ? 'Edit existing rule for this description' : 'Create rule from this description'"
+                  [style.borderColor]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                  [style.background]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                  [style.color]="hasMatchingRule(grp.items[0]) ? 'var(--primary)' : ''"
+                  style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
+                  {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
                 </button>
                 <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Skip all items in this group">✕</button>
               </div>
@@ -750,8 +757,15 @@
                     style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
                     {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
                   </button>
-                  <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule from this transaction" style="padding: 0.2rem 0.45rem; font-size: 0.72rem; gap: 0.2rem;">
-                    ⚡ Rule
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    (click)="openRuleModal(tx)"
+                    [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule from this transaction'"
+                    [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                    [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                    [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
+                    style="padding: 0.2rem 0.45rem; font-size: 0.72rem; gap: 0.2rem;">
+                    {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                   </button>
                   <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                 </div>
@@ -771,7 +785,7 @@
         
         <!-- Multi-Item Groups (2+ items with same description) -->
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups()" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <!-- Group Summary Row -->
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
@@ -871,16 +885,23 @@
                   style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
                   {{ isGroupUnderReview(grp) ? '🔍 Reviewing' : '🔍 Review' }}
                 </button>
-                <button class="btn btn-secondary btn-xs" (click)="openRuleModal(grp.items[0])" title="Create rule from this description" style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
-                  ⚡ Rule
+                <button
+                  class="btn btn-secondary btn-xs"
+                  (click)="openRuleModal(grp.items[0])"
+                  [title]="hasMatchingRule(grp.items[0]) ? 'Edit existing rule for this description' : 'Create rule from this description'"
+                  [style.borderColor]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                  [style.background]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                  [style.color]="hasMatchingRule(grp.items[0]) ? 'var(--primary)' : ''"
+                  style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
+                  {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
                 </button>
                 <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Skip all items in this group">✕</button>
               </div>
             </div>
 
             <!-- Expanded Item List -->
-            <div *ngIf="isDescriptionGroupExpanded(grp.description)" class="animate-fade-in" style="margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
-              <table style="width: 100%; font-size: 0.78rem;">
+            <div *ngIf="isDescriptionGroupExpanded(grp.description)" class="animate-fade-in table-container" style="margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px dashed rgba(255, 255, 255, 0.08); overflow-x: auto;">
+              <table style="width: 100%; min-width: 960px; font-size: 0.78rem;">
                 <thead>
                   <tr style="opacity: 0.7; font-size: 0.72rem;">
                     <th style="width: 32px; text-align: center;">Done</th>
@@ -999,7 +1020,8 @@
           <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
             <span>📄</span> Single / Unique Transactions ({{ singleTransactions().length }})
           </div>
-          <table class="import-preview-table" style="width: 100%; font-size: 0.78rem;">
+          <div class="table-container" style="overflow-x: auto; width: 100%;">
+            <table class="import-preview-table" style="width: 100%; min-width: 960px; font-size: 0.78rem;">
             <thead>
               <tr style="opacity: 0.7; font-size: 0.72rem;">
                 <th style="width: 32px; text-align: center;">Done</th>
@@ -1110,8 +1132,15 @@
                       style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
                       {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
                     </button>
-                    <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule" style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
-                      ⚡ Rule
+                    <button
+                      class="btn btn-secondary btn-xs"
+                      (click)="openRuleModal(tx)"
+                      [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule'"
+                      [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                      [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                      [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
+                      style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
+                      {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                     </button>
                     <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                   </div>
@@ -1119,6 +1148,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         <div *ngIf="descriptionGroups().length === 0 && singleTransactions().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
@@ -1247,8 +1277,15 @@
                     title="Resolve / Unflag review">
                     ✓ Resolved
                   </button>
-                  <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule" style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
-                    ⚡ Rule
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    (click)="openRuleModal(tx)"
+                    [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule'"
+                    [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                    [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                    [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
+                    style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
+                    {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                   </button>
                   <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                 </div>
@@ -1267,7 +1304,7 @@
       <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
         <!-- Multi-Item Groups -->
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups()" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
@@ -1360,8 +1397,15 @@
                   title="Resolve review for all items in this group">
                   ✓ Resolve Group
                 </button>
-                <button class="btn btn-secondary btn-xs" (click)="openRuleModal(grp.items[0])" title="Create rule from this description" style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
-                  ⚡ Rule
+                <button
+                  class="btn btn-secondary btn-xs"
+                  (click)="openRuleModal(grp.items[0])"
+                  [title]="hasMatchingRule(grp.items[0]) ? 'Edit existing rule for this description' : 'Create rule from this description'"
+                  [style.borderColor]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                  [style.background]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                  [style.color]="hasMatchingRule(grp.items[0]) ? 'var(--primary)' : ''"
+                  style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
+                  {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
                 </button>
                 <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Skip all items in this group">✕</button>
               </div>
@@ -1465,8 +1509,15 @@
                           title="Resolve / Unflag review">
                           ✓
                         </button>
-                        <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule" style="padding: 0.15rem 0.35rem; font-size: 0.68rem;">
-                          ⚡
+                        <button
+                          class="btn btn-secondary btn-xs"
+                          (click)="openRuleModal(tx)"
+                          [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule'"
+                          [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                          [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                          [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
+                          style="padding: 0.15rem 0.35rem; font-size: 0.68rem;">
+                          {{ hasMatchingRule(tx) ? '✏️' : '⚡' }}
                         </button>
                         <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip row">✕</button>
                       </div>
@@ -1586,8 +1637,15 @@
                         title="Resolve / Unflag review">
                         ✓ Resolved
                       </button>
-                      <button class="btn btn-secondary btn-xs" (click)="openRuleModal(tx)" title="Create rule" style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
-                        ⚡ Rule
+                      <button
+                        class="btn btn-secondary btn-xs"
+                        (click)="openRuleModal(tx)"
+                        [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule'"
+                        [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                        [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                        [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
+                        style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
+                        {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                       </button>
                       <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                     </div>
@@ -1797,7 +1855,7 @@
       <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
         <!-- Multi-Item Groups -->
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups()" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
@@ -1897,9 +1955,21 @@
       <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.25rem;">⚡</span>
-          <h3 style="margin: 0; font-size: 1.05rem;">Create Rule</h3>
+          <h3 style="margin: 0; font-size: 1.05rem;">{{ editingExistingRuleId ? 'Edit Rule' : 'Create Rule' }}</h3>
+          <span *ngIf="editingExistingRuleId" class="badge badge-warning" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">Existing</span>
         </div>
-        <button class="btn-icon-remove" (click)="closeRuleModal()" style="font-size: 1rem;">✕</button>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button
+            *ngIf="editingExistingRuleId"
+            type="button"
+            class="btn btn-secondary btn-xs"
+            (click)="switchToCreateNewRule()"
+            style="font-size: 0.72rem; padding: 0.2rem 0.5rem;"
+            title="Switch to creating a brand new rule instead of editing this one">
+            + New Rule Instead
+          </button>
+          <button class="btn-icon-remove" (click)="closeRuleModal()" style="font-size: 1rem;">✕</button>
+        </div>
       </div>
 
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.9rem; padding: 0.8rem 0;">
@@ -2018,11 +2088,24 @@
         </ng-container>
       </div>
 
-      <div class="modal-actions" style="margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.8rem;">
-        <button class="btn btn-secondary btn-sm" (click)="closeRuleModal()">Cancel</button>
-        <button class="btn btn-primary btn-sm" (click)="saveRuleFromModal()" [disabled]="!ruleKeyword.trim()">
-          {{ editingExistingRuleId ? '✓ Update & Apply Rule' : '✓ Save & Apply Rule' }}
-        </button>
+      <div class="modal-actions" style="margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <button
+            *ngIf="editingExistingRuleId"
+            type="button"
+            class="btn btn-secondary btn-sm"
+            (click)="deleteRuleFromModal()"
+            style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); font-size: 0.78rem;"
+            title="Permanently delete this rule">
+            🗑 Delete Rule
+          </button>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button class="btn btn-secondary btn-sm" (click)="closeRuleModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" (click)="saveRuleFromModal()" [disabled]="!ruleKeyword.trim()">
+            {{ editingExistingRuleId ? '✓ Update & Apply Rule' : '✓ Save & Apply Rule' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

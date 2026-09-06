@@ -22,9 +22,16 @@
       </div>
 
       <div *ngIf="service.monthSettlement().carryoverAmount > 0 && !service.monthSettlement().isSettled" class="settlement-breakdown-subtext">
-        <span>This Month: <strong class="font-mono">{{ service.formatCurrency(service.monthSettlement().thisMonthNetOwed) }}</strong></span>
+        <span *ngIf="service.monthSettlement().thisMonthNetOwed > 0">
+          This Month: <strong>{{ service.monthSettlement().thisMonthDebtor }}</strong> owes <strong>{{ service.monthSettlement().thisMonthCreditor }}</strong> <strong class="font-mono">{{ service.formatCurrency(service.monthSettlement().thisMonthNetOwed) }}</strong>
+        </span>
+        <span *ngIf="service.monthSettlement().thisMonthNetOwed <= 0">
+          This Month: <strong>All Settled</strong>
+        </span>
         <span class="subtext-bullet">•</span>
-        <span>Prior Carryover: <strong class="font-mono">{{ service.formatCurrency(service.monthSettlement().carryoverAmount) }}</strong></span>
+        <span>
+          Prior Carryover: <strong>{{ service.monthSettlement().carryoverDebtor }}</strong> owes <strong>{{ service.monthSettlement().carryoverCreditor }}</strong> <strong class="font-mono">{{ service.formatCurrency(service.monthSettlement().carryoverAmount) }}</strong>
+        </span>
       </div>
     </div>
 

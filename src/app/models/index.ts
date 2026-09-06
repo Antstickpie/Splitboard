@@ -152,4 +152,6 @@ export interface ImportDraft {
   bankName: string;
   owner: string;
   previewResult: ParsedStatementResult;
+  hasPdf?: boolean;
 }
+

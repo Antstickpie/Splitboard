@@ -712,6 +712,74 @@ export class TransactionService {
   }
 
   // Import Progress Draft Storage
+  private readonly IDB_NAME = 'SplitboardDraftDB';
+  private readonly IDB_STORE = 'drafts';
+  private readonly IDB_PDF_KEY = 'current_draft_pdf';
+
+  private openDraftDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') {
+        reject(new Error('IndexedDB not supported'));
+        return;
+      }
+      const request = indexedDB.open(this.IDB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.IDB_STORE)) {
+          db.createObjectStore(this.IDB_STORE);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  public async saveDraftPdfBlob(buffer: ArrayBuffer): Promise<void> {
+    try {
+      const db = await this.openDraftDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(this.IDB_STORE, 'readwrite');
+        const store = tx.objectStore(this.IDB_STORE);
+        const req = store.put(buffer, this.IDB_PDF_KEY);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    } catch (err) {
+      console.warn('Failed to store draft PDF in IndexedDB:', err);
+    }
+  }
+
+  public async loadDraftPdfBlob(): Promise<ArrayBuffer | null> {
+    try {
+      const db = await this.openDraftDB();
+      return await new Promise<ArrayBuffer | null>((resolve, reject) => {
+        const tx = db.transaction(this.IDB_STORE, 'readonly');
+        const store = tx.objectStore(this.IDB_STORE);
+        const req = store.get(this.IDB_PDF_KEY);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (err) {
+      console.warn('Failed to load draft PDF from IndexedDB:', err);
+      return null;
+    }
+  }
+
+  public async clearDraftPdfBlob(): Promise<void> {
+    try {
+      const db = await this.openDraftDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(this.IDB_STORE, 'readwrite');
+        const store = tx.objectStore(this.IDB_STORE);
+        const req = store.delete(this.IDB_PDF_KEY);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    } catch (err) {
+      console.warn('Failed to clear draft PDF from IndexedDB:', err);
+    }
+  }
+
   public loadImportDraft(): ImportDraft | null {
     try {
       const raw = localStorage.getItem(this.DRAFT_STORAGE_KEY);
@@ -734,6 +802,7 @@ export class TransactionService {
     try {
       localStorage.removeItem(this.DRAFT_STORAGE_KEY);
       this.importDraft.set(null);
+      this.clearDraftPdfBlob().catch(() => {});
     } catch (e) {
       console.error('Failed to clear import draft', e);
     }

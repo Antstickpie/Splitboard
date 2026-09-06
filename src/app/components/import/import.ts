@@ -205,17 +205,107 @@ export class ImportComponent {
   public rulePaidBy = '';
   public editingExistingRuleId: string | null = null;
 
+  public findMatchingRuleForTx(tx: Transaction): { type: 'category' | 'exclude'; rule: any } | null {
+    const desc = (tx.description || '').trim().toLowerCase();
+    if (!desc) return null;
+    const txBank = (tx.bank || '').toLowerCase();
+
+    // 1. Check Category Rules
+    const matchingCatRules = this.service.rules().filter((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      if (!rKw || rKw.length < 2) return false;
+      const ruleBank = (r.bank || 'All').toLowerCase();
+      const matchesBank = ruleBank === 'all' || !txBank || txBank.includes(ruleBank) || ruleBank.includes(txBank);
+      const matchesKeyword = desc === rKw || desc.includes(rKw) || rKw.includes(desc);
+      return matchesBank && matchesKeyword;
+    });
+
+    if (matchingCatRules.length > 0) {
+      matchingCatRules.sort((a, b) => {
+        const aBankSpecific = a.bank && a.bank.toLowerCase() !== 'all' ? 1 : 0;
+        const bBankSpecific = b.bank && b.bank.toLowerCase() !== 'all' ? 1 : 0;
+        if (aBankSpecific !== bBankSpecific) return bBankSpecific - aBankSpecific;
+        return (b.keyword || '').length - (a.keyword || '').length;
+      });
+      return { type: 'category', rule: matchingCatRules[0] };
+    }
+
+    // 2. Check Exclude Rules
+    const matchingExcludeRules = this.service.excludeRules().filter((r) => {
+      const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+      if (!rKw || rKw.length < 2) return false;
+      const ruleBank = (r.bank || 'All').toLowerCase();
+      const matchesBank = ruleBank === 'all' || !txBank || txBank.includes(ruleBank) || ruleBank.includes(txBank);
+      const matchesKeyword = desc === rKw || desc.includes(rKw) || rKw.includes(desc);
+      return matchesBank && matchesKeyword;
+    });
+
+    if (matchingExcludeRules.length > 0) {
+      matchingExcludeRules.sort((a, b) => {
+        const aBankSpecific = a.bank && a.bank.toLowerCase() !== 'all' ? 1 : 0;
+        const bBankSpecific = b.bank && b.bank.toLowerCase() !== 'all' ? 1 : 0;
+        if (aBankSpecific !== bBankSpecific) return bBankSpecific - aBankSpecific;
+        return (b.keyword || '').length - (a.keyword || '').length;
+      });
+      return { type: 'exclude', rule: matchingExcludeRules[0] };
+    }
+
+    return null;
+  }
+
+  public hasMatchingRule(tx: Transaction | undefined | null): boolean {
+    if (!tx) return false;
+    return !!this.findMatchingRuleForTx(tx);
+  }
+
   public openRuleModal(tx: Transaction): void {
-    this.editingExistingRuleId = null;
     this.ruleTargetTx.set(tx);
-    this.ruleKeyword = tx.description || '';
-    this.ruleBank = tx.bank || 'All';
-    this.ruleType.set('categorize');
-    this.ruleCategory = tx.categoryItem || '';
-    this.ruleCategoryGroup = tx.categoryGroup || '';
-    this.ruleSplitType = tx.splitType || 'SELF';
-    this.rulePaidBy = tx.paidBy || this.service.personOne().name;
+    const existing = this.findMatchingRuleForTx(tx);
+
+    if (existing) {
+      this.loadExistingRuleIntoModal({
+        type: existing.type,
+        rule: existing.rule,
+        message: ''
+      }, false);
+    } else {
+      this.editingExistingRuleId = null;
+      this.ruleKeyword = tx.description || '';
+      this.ruleBank = tx.bank || 'All';
+      this.ruleType.set('categorize');
+      this.ruleCategory = tx.categoryItem || '';
+      this.ruleCategoryGroup = tx.categoryGroup || '';
+      this.ruleSplitType = tx.splitType || 'SELF';
+      this.rulePaidBy = tx.paidBy || this.service.personOne().name;
+    }
+
     this.showRuleModal.set(true);
+  }
+
+  public switchToCreateNewRule(): void {
+    this.editingExistingRuleId = null;
+    const tx = this.ruleTargetTx();
+    if (tx) {
+      this.ruleKeyword = tx.description || '';
+      this.ruleBank = tx.bank || 'All';
+      this.ruleCategory = tx.categoryItem || '';
+      this.ruleCategoryGroup = tx.categoryGroup || '';
+      this.ruleSplitType = tx.splitType || 'SELF';
+      this.rulePaidBy = tx.paidBy || this.service.personOne().name;
+    }
+    this.service.showToast('Switched to creating a new rule', 'info');
+  }
+
+  public deleteRuleFromModal(): void {
+    if (!this.editingExistingRuleId) return;
+    const id = this.editingExistingRuleId;
+    if (this.ruleType() === 'exclude') {
+      this.service.deleteExcludeRule(id);
+    } else {
+      this.service.deleteRule(id);
+    }
+    this.closeRuleModal();
+    this.service.showToast('Rule deleted', 'info');
   }
 
   public closeRuleModal(): void {
@@ -237,7 +327,7 @@ export class ImportComponent {
       return {
         type: 'category',
         rule: matchedCat,
-        message: `Category rule already exists: "${matchedCat.keyword}" → ${matchedCat.categoryItem} (${matchedCat.splitType || 'SPLIT'}) for [${b}]`
+        message: `Category rule: "${matchedCat.keyword}" → ${matchedCat.categoryItem} (${matchedCat.splitType || 'SPLIT'}) for [${b}]`
       };
     }
 
@@ -250,14 +340,17 @@ export class ImportComponent {
       return {
         type: 'exclude',
         rule: matchedExclude,
-        message: `Exclude rule already exists: "${matchedExclude.keyword}" for [${b}]`
+        message: `Exclude rule: "${matchedExclude.keyword}" for [${b}]`
       };
     }
 
     return null;
   }
 
-  public loadExistingRuleIntoModal(info: { type: 'category' | 'exclude'; rule: any; message: string }): void {
+  public loadExistingRuleIntoModal(
+    info: { type: 'category' | 'exclude'; rule: any; message: string },
+    showToast = true
+  ): void {
     this.editingExistingRuleId = info.rule.id;
     this.ruleType.set(info.type === 'category' ? 'categorize' : 'exclude');
     this.ruleKeyword = info.rule.keyword;
@@ -268,7 +361,9 @@ export class ImportComponent {
       this.ruleSplitType = info.rule.splitType || 'SPLIT';
       this.rulePaidBy = info.rule.paidBy || '';
     }
-    this.service.showToast('Loaded existing rule for editing!', 'info');
+    if (showToast) {
+      this.service.showToast('Loaded existing rule for editing!', 'info');
+    }
   }
 
   public saveRuleFromModal(): void {
@@ -551,9 +646,18 @@ export class ImportComponent {
     }
   }
 
-  public saveDraft(): void {
+  public async saveDraft(): Promise<void> {
     const res = this.previewResult();
     if (!res) return;
+
+    const hasPdf = !!this.pdfArrayBuffer;
+    if (hasPdf && this.pdfArrayBuffer) {
+      try {
+        await this.service.saveDraftPdfBlob(this.pdfArrayBuffer);
+      } catch (err) {
+        console.warn('Failed to save draft PDF to IndexedDB:', err);
+      }
+    }
 
     const draft: ImportDraft = {
       id: Date.now().toString(),
@@ -561,14 +665,15 @@ export class ImportComponent {
       fileName: this.uploadedFileName() || 'Statement',
       bankName: this.selectedBank() || res.bankName || 'Generic Bank',
       owner: this.selectedOwner() || '',
-      previewResult: res
+      previewResult: res,
+      hasPdf: hasPdf
     };
 
     this.service.saveImportDraft(draft);
     this.service.showToast(`✓ Progress saved! (${res.transactions.length} rows staged)`, 'success');
   }
 
-  public resumeDraft(draft?: ImportDraft | null): void {
+  public async resumeDraft(draft?: ImportDraft | null): Promise<void> {
     const d = draft || this.service.importDraft();
     if (!d) return;
 
@@ -580,11 +685,24 @@ export class ImportComponent {
     this.previewTab.set('valid');
     this.sortColumn.set('original');
 
+    if (d.hasPdf || d.fileName?.toLowerCase().endsWith('.pdf')) {
+      try {
+        const buffer = await this.service.loadDraftPdfBlob();
+        if (buffer) {
+          this.pdfArrayBuffer = buffer;
+          await this.renderPdfDoc(buffer);
+        }
+      } catch (err) {
+        console.warn('Could not restore PDF for draft:', err);
+      }
+    }
+
     this.service.showToast(`Resumed draft for "${d.fileName}" (${d.previewResult.transactions.length} rows)`, 'success');
   }
 
-  public discardDraft(): void {
+  public async discardDraft(): Promise<void> {
     this.service.clearImportDraft();
+    await this.service.clearDraftPdfBlob();
     this.previewResult.set(null);
     this.uploadedFileName.set('');
     this.selectedBank.set('');
@@ -615,12 +733,12 @@ export class ImportComponent {
         `You have ${res.transactions.length} staged transactions in preview.\n\nSave your progress as a draft so you can resume anytime?`
       );
       if (ok) {
-        this.saveDraft();
+        await this.saveDraft();
         this.clearPreview();
         return;
       }
     }
-    this.discardDraft();
+    await this.discardDraft();
   }
 
   public processSelectedFile(file: File): void {
@@ -773,6 +891,11 @@ export class ImportComponent {
     if (!this.pdfDocInstance) return;
     const zoom = this.pdfZoom();
     const dpr = window.devicePixelRatio || 1;
+
+    let firstCanvas = document.getElementById('pdf-canvas-1');
+    if (!firstCanvas) {
+      await new Promise((r) => setTimeout(r, 120));
+    }
 
     for (let pageNum = 1; pageNum <= this.pdfDocInstance.numPages; pageNum++) {
       const canvas = document.getElementById('pdf-canvas-' + pageNum) as HTMLCanvasElement;
@@ -977,6 +1100,11 @@ export class ImportComponent {
   public isGroupByDescription = signal<boolean>(false);
   public expandedDescriptionGroups = signal<Set<string>>(new Set());
 
+  public onToggleGroupByDescription(val: boolean): void {
+    this.isGroupByDescription.set(val);
+    this.expandedDescriptionGroups.set(new Set());
+  }
+
   public toggleDescriptionGroup(desc: string): void {
     this.expandedDescriptionGroups.update((set) => {
       const next = new Set(set);
@@ -987,8 +1115,7 @@ export class ImportComponent {
   }
 
   public isDescriptionGroupExpanded(desc: string): boolean {
-    // If not explicitly toggled, default to expanded so user sees items immediately
-    return !this.expandedDescriptionGroups().has(desc);
+    return this.expandedDescriptionGroups().has(desc);
   }
 
   public currentActiveTabTransactions = computed<Transaction[]>(() => {
@@ -1082,10 +1209,14 @@ export class ImportComponent {
     group.items.forEach((tx) => {
       tx.note = newNote;
     });
-    const res = this.previewResult();
-    if (res) {
-      this.previewResult.set({ ...res });
-    }
+  }
+
+  public trackGroup(_index: number, grp: DescriptionGroup): string {
+    return grp.description;
+  }
+
+  public trackTx(_index: number, tx: Transaction): string {
+    return tx.id;
   }
 
   public singleTransactions = computed<Transaction[]>(() => {

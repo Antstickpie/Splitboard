@@ -396,11 +396,15 @@
 
 .import-table-pane .table-container {
   width: 100%;
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .import-table-pane table {
   width: 100%;
+  min-width: 960px;
   border-collapse: collapse;
 }
 
