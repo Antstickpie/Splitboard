@@ -1294,11 +1294,24 @@ export class ImportComponent {
   }
 
   public onGroupSplitChange(group: DescriptionGroup, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
+    const p1 = this.service.personOne().name;
     group.items.forEach((tx) => {
-      this.onInlineSplitButtonClick(tx, choice);
+      if (choice === 'SPLIT_5050') {
+        tx.splitType = 'SPLIT';
+      } else if (choice === '100_P1') {
+        tx.splitType = tx.paidBy === p1 ? 'SELF' : 'OTHER';
+      } else {
+        tx.splitType = tx.paidBy === p1 ? 'OTHER' : 'SELF';
+      }
     });
+    group.splitType = choice === 'SPLIT_5050' ? 'SPLIT' : (choice === '100_P1' ? (group.items[0]?.paidBy === p1 ? 'SELF' : 'OTHER') : (group.items[0]?.paidBy === p1 ? 'OTHER' : 'SELF'));
     const res = this.previewResult();
-    if (res) this.previewResult.set({ ...res });
+    if (res) {
+      this.previewResult.set({
+        ...res,
+        transactions: [...res.transactions]
+      });
+    }
     this.service.showToast(`Updated split for all ${group.count} "${group.description}" items`, 'success');
   }
 
