@@ -335,16 +335,24 @@
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Bank</th>
+              <th (click)="toggleSort('date')" style="cursor: pointer; user-select: none;">
+                Date {{ sortColumn() === 'date' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('description')" style="cursor: pointer; user-select: none;">
+                Description {{ sortColumn() === 'description' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('bank')" style="cursor: pointer; user-select: none;">
+                Bank {{ sortColumn() === 'bank' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
               <th>Owner</th>
-              <th style="text-align: right;">Positive Amount</th>
+              <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">
+                Positive Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
               <th style="text-align: center;">Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let tx of res.incomes">
+            <tr *ngFor="let tx of sortedIncomes()">
               <td>{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
@@ -1638,17 +1646,27 @@
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Bank</th>
+              <th (click)="toggleSort('date')" style="cursor: pointer; user-select: none;">
+                Date {{ sortColumn() === 'date' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('description')" style="cursor: pointer; user-select: none;">
+                Description {{ sortColumn() === 'description' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('bank')" style="cursor: pointer; user-select: none;">
+                Bank {{ sortColumn() === 'bank' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
               <th>Owner</th>
-              <th>Category</th>
-              <th style="text-align: right;">Amount</th>
+              <th (click)="toggleSort('categoryItem')" style="cursor: pointer; user-select: none;">
+                Category {{ sortColumn() === 'categoryItem' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">
+                Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
               <th style="text-align: center;">Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let tx of res.deleted">
+            <tr *ngFor="let tx of sortedDeleted()">
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
                 <span style="text-decoration: line-through; opacity: 0.75;">{{ tx.description }}</span>

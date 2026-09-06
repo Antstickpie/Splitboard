@@ -166,34 +166,6 @@ export class ImportComponent {
   public previewResult = signal<ParsedStatementResult | null>(null);
   public previewTab = signal<'valid' | 'review' | 'incomes' | 'duplicates' | 'excluded' | 'deleted'>('valid');
 
-  public reviewTransactions = computed(() => {
-    const res = this.previewResult();
-    if (!res || !res.transactions) return [];
-    const list = res.transactions.filter((t) => t.isUnderReview);
-    const col = this.sortColumn();
-    if (col === 'original') {
-      if (this.isPdfLoaded() && list.length > 1) {
-        const firstDate = list[0].date || '';
-        const lastDate = list[list.length - 1].date || '';
-        if (firstDate && lastDate && firstDate > lastDate) {
-          return [...list].reverse();
-        }
-      }
-      return list;
-    }
-    const asc = this.sortAsc();
-    return [...list].sort((a, b) => {
-      let valA: any = a[col] ?? '';
-      let valB: any = b[col] ?? '';
-      if (col === 'amount') {
-        return asc ? (valA - valB) : (valB - valA);
-      }
-      return asc
-        ? String(valA).localeCompare(String(valB))
-        : String(valB).localeCompare(String(valA));
-    });
-  });
-
   public toggleTxDone(tx: Transaction): void {
     tx.isDone = !tx.isDone;
     const res = this.previewResult();
@@ -219,12 +191,11 @@ export class ImportComponent {
   private pdfDocInstance: any = null;
   private pdfArrayBuffer: ArrayBuffer | null = null;
 
-  public sortedTransactions = computed(() => {
-    const res = this.previewResult();
-    if (!res || !res.transactions) return [];
+  public sortTxList(list: Transaction[]): Transaction[] {
+    if (!list || list.length === 0) return [];
     const col = this.sortColumn();
     if (col === 'original') {
-      const txs = [...res.transactions];
+      const txs = [...list];
       if (this.isPdfLoaded() && txs.length > 1) {
         const firstDate = txs[0].date || '';
         const lastDate = txs[txs.length - 1].date || '';
@@ -235,7 +206,7 @@ export class ImportComponent {
       return txs;
     }
     const asc = this.sortAsc();
-    return [...res.transactions].sort((a, b) => {
+    return [...list].sort((a, b) => {
       let valA: any = a[col] ?? '';
       let valB: any = b[col] ?? '';
       if (col === 'amount') {
@@ -245,6 +216,38 @@ export class ImportComponent {
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
     });
+  }
+
+  public sortedTransactions = computed(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return [];
+    return this.sortTxList(res.transactions);
+  });
+
+  public reviewTransactions = computed(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return [];
+    return this.sortTxList(res.transactions.filter((t) => t.isUnderReview));
+  });
+
+  public sortedIncomes = computed(() => {
+    const res = this.previewResult();
+    return this.sortTxList(res?.incomes || []);
+  });
+
+  public sortedDuplicates = computed(() => {
+    const res = this.previewResult();
+    return this.sortTxList(res?.duplicates || []);
+  });
+
+  public sortedExcluded = computed(() => {
+    const res = this.previewResult();
+    return this.sortTxList(res?.excluded || []);
+  });
+
+  public sortedDeleted = computed(() => {
+    const res = this.previewResult();
+    return this.sortTxList(res?.deleted || []);
   });
 
   public toggleSort(column: 'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem') {
@@ -1224,10 +1227,10 @@ export class ImportComponent {
     if (!res) return [];
     if (tab === 'valid') return this.sortedTransactions();
     if (tab === 'review') return this.reviewTransactions();
-    if (tab === 'incomes') return res.incomes || [];
-    if (tab === 'duplicates') return res.duplicates || [];
-    if (tab === 'excluded') return res.excluded || [];
-    if (tab === 'deleted') return res.deleted || [];
+    if (tab === 'incomes') return this.sortedIncomes();
+    if (tab === 'duplicates') return this.sortedDuplicates();
+    if (tab === 'excluded') return this.sortedExcluded();
+    if (tab === 'deleted') return this.sortedDeleted();
     return [];
   });
 
@@ -1596,21 +1599,21 @@ export class ImportComponent {
   }
 
   public groupedExcluded = computed(() => {
-    const res = this.previewResult();
-    if (!res || !res.excluded || res.excluded.length === 0) return [];
-    return this.groupTransactions(res.excluded, true);
+    const excluded = this.sortedExcluded();
+    if (!excluded || excluded.length === 0) return [];
+    return this.groupTransactions(excluded, true);
   });
 
   public groupedDuplicates = computed(() => {
-    const res = this.previewResult();
-    if (!res || !res.duplicates || res.duplicates.length === 0) return [];
-    return this.groupTransactions(res.duplicates, false);
+    const duplicates = this.sortedDuplicates();
+    if (!duplicates || duplicates.length === 0) return [];
+    return this.groupTransactions(duplicates, false);
   });
 
   public groupedDeleted = computed(() => {
-    const res = this.previewResult();
-    if (!res || !res.deleted || res.deleted.length === 0) return [];
-    return this.groupTransactions(res.deleted, false);
+    const deleted = this.sortedDeleted();
+    if (!deleted || deleted.length === 0) return [];
+    return this.groupTransactions(deleted, false);
   });
 
   public includeExcludedGroup(group: TransactionGroup): void {

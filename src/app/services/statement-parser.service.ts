@@ -74,7 +74,8 @@ export class StatementParserService {
           const items = (textContent.items as any[]).map((item) => ({
             str: item.str || '',
             x: item.transform ? item.transform[4] : 0,
-            y: item.transform ? item.transform[5] : 0
+            y: item.transform ? item.transform[5] : 0,
+            width: typeof item.width === 'number' && item.width > 0 ? item.width : (item.str ? item.str.length * 5 : 0)
           }));
 
           items.sort((a, b) => {
@@ -85,16 +86,22 @@ export class StatementParserService {
           });
 
           let lastY: number | undefined;
+          let lastRight: number | undefined;
           let pageText = '';
 
           for (const item of items) {
             if (lastY !== undefined && Math.abs(item.y - lastY) > 3.5) {
               pageText += '\n';
+              lastRight = undefined;
             } else if (pageText.length > 0 && !pageText.endsWith(' ') && !pageText.endsWith('\n')) {
-              pageText += ' ';
+              const gap = lastRight !== undefined ? item.x - lastRight : 0;
+              if (lastRight === undefined || gap > 1.8) {
+                pageText += ' ';
+              }
             }
             pageText += item.str;
             lastY = item.y;
+            lastRight = item.x + item.width;
           }
 
           fullText += '\n' + pageText;
@@ -433,7 +440,7 @@ export class StatementParserService {
     // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
     const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
     const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
-    const amountTokenRegex = /([+\-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-SH]?)/g;
+    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-\u2010-\u2015\u2212SH]?)/g;
 
     // Structural table block grouping:
     // A transaction block starts at a Date line and captures all lines until the next Date line or table boundary.
@@ -500,7 +507,12 @@ export class StatementParserService {
       const isoDate = this.normalizeDate(rawDate);
       if (!isoDate) continue;
 
-      const fullBlockText = block.lines.join(' ');
+      let fullBlockText = block.lines.join(' ');
+      // Heal numbers that got split across text items or contain spaces (e.g. "- 1 13.36" or "- 113.36" or "1 234.56")
+      // 1. Collapse spaces between sign and digits: "- 113.36" -> "-113.36"
+      fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212])\s+(\d)/g, '$1$2');
+      // 2. Collapse split thousands or split integers before decimal: e.g. "-1 13.36" -> "-113.36", "1 234.56" -> "1234.56"
+      fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212]?\b\d{1,3})\s+(\d{1,3}[.,]\d{2}\b)/g, '$1$2');
 
       // Find amounts in this block
       const amtMatches = Array.from(fullBlockText.matchAll(amountTokenRegex));
@@ -510,14 +522,14 @@ export class StatementParserService {
       let chosenAmtStr = amtMatches[amtMatches.length - 1][1].trim();
       for (const m of amtMatches) {
         const token = m[1].trim();
-        if (token.includes('-') || token.includes('+') || token.endsWith('S') || token.endsWith('H')) {
+        if (/[+\-\u2010-\u2015\u2212]/.test(token) || token.endsWith('S') || token.endsWith('H')) {
           chosenAmtStr = token;
           break;
         }
       }
 
       let amount = this.parseAmount(chosenAmtStr);
-      if (chosenAmtStr.endsWith('S') || chosenAmtStr.endsWith('-')) {
+      if (chosenAmtStr.endsWith('S') || /[-\u2010-\u2015\u2212]$/.test(chosenAmtStr)) {
         amount = -Math.abs(amount);
       } else if (chosenAmtStr.endsWith('H') || chosenAmtStr.endsWith('+')) {
         amount = Math.abs(amount);
@@ -551,7 +563,7 @@ export class StatementParserService {
         );
 
       let isCharge = true;
-      if (chosenAmtStr.includes('-') || chosenAmtStr.endsWith('S')) {
+      if (/[-\u2010-\u2015\u2212]/.test(chosenAmtStr) || chosenAmtStr.endsWith('S')) {
         isCharge = true;
       } else if (chosenAmtStr.includes('+') || chosenAmtStr.endsWith('H')) {
         isCharge = false;
@@ -829,7 +841,7 @@ export class StatementParserService {
 
   public parseAmount(raw: string): number {
     if (!raw) return 0;
-    let clean = raw.trim();
+    let clean = raw.trim().replace(/[\u2010-\u2015\u2212]/g, '-');
 
     const isNegative = clean.includes('-') || clean.endsWith('S') || clean.endsWith('D');
     clean = clean.replace(/[^0-9,.-]/g, '');
