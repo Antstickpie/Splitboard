@@ -61,11 +61,6 @@
     </div>
   </div>
 
-  <!-- Inline Statement Importer in Same Window -->
-  <div *ngIf="isImportOpen()" id="inline-import-section" class="animate-fade-in" style="position: relative; z-index: 100000;">
-    <app-import [initialFile]="pendingImportFile()" [autoResumeDraft]="isResumingDraft()" (importCompleted)="closeImport()"></app-import>
-  </div>
-
   <!-- Imported Statements - Always visible in this view, collapsed by default -->
   <div class="glass-card animate-fade-in" *ngIf="service.importedBatches().length > 0" id="imported-statements-section" style="padding: 0.65rem 1rem;">
     <!-- Collapsible Header -->
@@ -197,6 +192,11 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Inline Statement Importer in Same Window -->
+  <div *ngIf="isImportOpen()" id="inline-import-section" class="animate-fade-in" style="position: relative; z-index: 100000;">
+    <app-import [initialFile]="pendingImportFile()" [autoResumeDraft]="isResumingDraft()" (importCompleted)="closeImport()"></app-import>
   </div>
 
   <!-- Transactions Table Card with Integrated Header Controls -->
