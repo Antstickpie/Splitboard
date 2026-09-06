@@ -697,6 +697,7 @@ export class ImportComponent {
       }
     }
 
+    this.isGroupByDescription.set(!this.isPdfLoaded());
     this.scrollToPreviewOrImport();
     this.service.showToast(`Resumed draft for "${d.fileName}" (${d.previewResult.transactions.length} rows)`, 'success');
   }
@@ -713,6 +714,7 @@ export class ImportComponent {
     this.pdfDocInstance = null;
     this.pdfArrayBuffer = null;
     this.pdfPagesList.set([]);
+    this.isGroupByDescription.set(false);
     this.service.showToast('Import draft discarded', 'info');
     this.importCompleted.emit();
   }
@@ -822,6 +824,7 @@ export class ImportComponent {
         res.excluded.forEach((t) => (t.bank = bankName));
         res.deleted.forEach((t) => (t.bank = bankName));
         this.previewResult.set(res);
+        this.isGroupByDescription.set(!this.isPdfLoaded());
         this.scrollToPreviewOrImport();
         this.service.showToast(
           `Parsed ${res.transactions.length} expenses for ${bankName}!`,
@@ -848,6 +851,7 @@ export class ImportComponent {
         res.excluded.forEach((t) => (t.bank = bankName));
         res.deleted.forEach((t) => (t.bank = bankName));
         this.previewResult.set(res);
+        this.isGroupByDescription.set(true);
         this.scrollToPreviewOrImport();
         this.service.showToast(
           `Parsed ${res.transactions.length} expenses for ${bankName}!`,
@@ -1616,6 +1620,11 @@ export class ImportComponent {
 
     this.uploadedFileName.set(fileName);
     this.selectedBank.set(bankName);
+    this.isPdfLoaded.set(false);
+    this.pdfDocInstance = null;
+    this.pdfArrayBuffer = null;
+    this.pdfPagesList.set([]);
+    this.isGroupByDescription.set(true);
     this.previewResult.set({
       transactions: cloned,
       incomes: [],
@@ -1674,6 +1683,7 @@ export class ImportComponent {
     this.pdfDocInstance = null;
     this.pdfArrayBuffer = null;
     this.pdfPagesList.set([]);
+    this.isGroupByDescription.set(false);
     this.importCompleted.emit();
   }
 }
