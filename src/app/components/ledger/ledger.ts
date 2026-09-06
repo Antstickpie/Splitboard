@@ -23,6 +23,8 @@ export class LedgerComponent {
   // Statement Batches Viewer / Manager Modal
   public isManageBatchesModalOpen = signal<boolean>(false);
   public isBatchesCollapsed = signal<boolean>(true);
+  public expandedPeriods = signal<Set<string>>(new Set());
+  public expandedOwners = signal<Set<string>>(new Set());
   public viewingBatch = signal<ImportedBatch | null>(null);
 
   public toggleBatchesCollapsed(): void {
@@ -34,6 +36,39 @@ export class LedgerComponent {
         el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 50);
     }
+  }
+
+  public isPeriodExpanded(period: string): boolean {
+    return this.expandedPeriods().has(period);
+  }
+
+  public togglePeriodExpanded(period: string): void {
+    this.expandedPeriods.update((set) => {
+      const next = new Set(set);
+      if (next.has(period)) {
+        next.delete(period);
+      } else {
+        next.add(period);
+      }
+      return next;
+    });
+  }
+
+  public isOwnerExpanded(period: string, owner: string): boolean {
+    return this.expandedOwners().has(`${period}::${owner}`);
+  }
+
+  public toggleOwnerExpanded(period: string, owner: string): void {
+    const key = `${period}::${owner}`;
+    this.expandedOwners.update((set) => {
+      const next = new Set(set);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   }
 
   public openBatchModal(b: ImportedBatch): void {

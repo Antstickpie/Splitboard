@@ -36,6 +36,43 @@ export class SettingsComponent {
   public isRatesCollapsed = signal<boolean>(false);
   public isEditingRates = signal<boolean>(false);
 
+  // Statement Batches Collapse State
+  public expandedPeriods = signal<Set<string>>(new Set());
+  public expandedOwners = signal<Set<string>>(new Set());
+
+  public isPeriodExpanded(period: string): boolean {
+    return this.expandedPeriods().has(period);
+  }
+
+  public togglePeriodExpanded(period: string): void {
+    this.expandedPeriods.update((set) => {
+      const next = new Set(set);
+      if (next.has(period)) {
+        next.delete(period);
+      } else {
+        next.add(period);
+      }
+      return next;
+    });
+  }
+
+  public isOwnerExpanded(period: string, owner: string): boolean {
+    return this.expandedOwners().has(`${period}::${owner}`);
+  }
+
+  public toggleOwnerExpanded(period: string, owner: string): void {
+    const key = `${period}::${owner}`;
+    this.expandedOwners.update((set) => {
+      const next = new Set(set);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   public exchangeRatePairs = computed(() => {
     const currencies = this.service.visibleCurrencies();
     const pairs: Array<{ key: string; from: string; to: string; name: string; pairLabel: string; rate: number }> = [];
