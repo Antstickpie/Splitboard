@@ -169,7 +169,29 @@ export class ImportComponent {
   public reviewTransactions = computed(() => {
     const res = this.previewResult();
     if (!res || !res.transactions) return [];
-    return res.transactions.filter((t) => t.isUnderReview);
+    const list = res.transactions.filter((t) => t.isUnderReview);
+    const col = this.sortColumn();
+    if (col === 'original') {
+      if (this.isPdfLoaded() && list.length > 1) {
+        const firstDate = list[0].date || '';
+        const lastDate = list[list.length - 1].date || '';
+        if (firstDate && lastDate && firstDate > lastDate) {
+          return [...list].reverse();
+        }
+      }
+      return list;
+    }
+    const asc = this.sortAsc();
+    return [...list].sort((a, b) => {
+      let valA: any = a[col] ?? '';
+      let valB: any = b[col] ?? '';
+      if (col === 'amount') {
+        return asc ? (valA - valB) : (valB - valA);
+      }
+      return asc
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
   });
 
   public toggleTxDone(tx: Transaction): void {
@@ -202,7 +224,15 @@ export class ImportComponent {
     if (!res || !res.transactions) return [];
     const col = this.sortColumn();
     if (col === 'original') {
-      return [...res.transactions];
+      const txs = [...res.transactions];
+      if (this.isPdfLoaded() && txs.length > 1) {
+        const firstDate = txs[0].date || '';
+        const lastDate = txs[txs.length - 1].date || '';
+        if (firstDate && lastDate && firstDate > lastDate) {
+          return txs.reverse();
+        }
+      }
+      return txs;
     }
     const asc = this.sortAsc();
     return [...res.transactions].sort((a, b) => {
@@ -222,7 +252,11 @@ export class ImportComponent {
       this.sortAsc.set(!this.sortAsc());
     } else {
       this.sortColumn.set(column);
-      this.sortAsc.set(column === 'description' || column === 'bank');
+      if (column === 'date') {
+        this.sortAsc.set(this.isPdfLoaded());
+      } else {
+        this.sortAsc.set(column === 'description' || column === 'bank');
+      }
     }
   }
 

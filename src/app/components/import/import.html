@@ -499,11 +499,13 @@
               [class.tx-row-done]="tx.isDone"
               [class.tx-row-review]="tx.isUnderReview">
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
-                <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
-                <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600;">
-                  🔍 Review
-                </span>
+              <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
+                <div class="tx-description-cell">
+                  <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+                  <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
+                    🔍 Review
+                  </span>
+                </div>
               </td>
               <td>
                 <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
@@ -864,11 +866,13 @@
                 [class.tx-row-done]="tx.isDone"
                 [class.tx-row-review]="tx.isUnderReview">
                 <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
-                <td style="font-weight: 500;" [title]="tx.description">
-                  <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
-                  <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600;">
-                    🔍 Review
-                  </span>
+                <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
+                  <div class="tx-description-cell">
+                    <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+                    <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
+                      🔍 Review
+                    </span>
+                  </div>
                 </td>
                 <td>
                   <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
@@ -1012,11 +1016,13 @@
               [class.tx-row-done]="tx.isDone"
               [class.tx-row-review]="tx.isUnderReview">
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
-              <td style="font-weight: 500;" [title]="tx.description">
-                <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
-                <span class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600;">
-                  🔍 In Review
-                </span>
+              <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
+                <div class="tx-description-cell">
+                  <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+                  <span class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
+                    🔍 In Review
+                  </span>
+                </div>
               </td>
               <td><span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span></td>
               <td>
@@ -1362,11 +1368,13 @@
                   [class.tx-row-done]="tx.isDone"
                   [class.tx-row-review]="tx.isUnderReview">
                   <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
-                  <td style="font-weight: 500;" [title]="tx.description">
-                    <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
-                    <span class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600;">
-                      🔍 In Review
-                    </span>
+                  <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
+                    <div class="tx-description-cell">
+                      <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+                      <span class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
+                        🔍 In Review
+                      </span>
+                    </div>
                   </td>
                   <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                   <td>

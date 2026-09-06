@@ -442,14 +442,31 @@
   border-collapse: collapse;
 }
 
-.import-table-pane table td,
-.import-table-pane table th {
+.import-table-pane table td:has(.cat-select-container),
+.import-table-pane table td:has(app-category-select) {
   overflow: visible !important;
 }
 
 .import-table-pane table tr:has(.cat-select-container.open) {
   position: relative;
   z-index: 1000;
+}
+
+/* Description cell truncation to prevent horizontal overflow */
+.tx-description-cell {
+  display: flex;
+  align-items: center;
+  max-width: 280px;
+  min-width: 0;
+  overflow: hidden !important;
+}
+
+.tx-description-text {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  min-width: 0;
+  flex: 1;
 }
 
 /* Action column button fixed alignment */

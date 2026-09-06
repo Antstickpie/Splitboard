@@ -606,11 +606,8 @@ export class StatementParserService {
       }
     }
 
-    transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    incomes.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    duplicates.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    excluded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    deleted.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    // Preserve natural statement reading order from the PDF (top to bottom of pages)
+    // so transactions in the preview table directly match the order on the PDF statement.
 
     return {
       transactions,
