@@ -48,7 +48,6 @@ export class ImportComponent {
   public newCatHeadingName = signal<string>('');
   public newCatHeadingIcon = signal<string>('📁');
   public newCatSubName = signal<string>('');
-  public newCatPlannedDefault = signal<number>(0);
   public newCatTargetTx: Transaction | null = null;
   public newCatTargetGroup: DescriptionGroup | null = null;
   public newCatTargetContext: 'row' | 'group' | 'rule' | 'toolbar' = 'toolbar';
@@ -63,7 +62,6 @@ export class ImportComponent {
     this.newCatHeadingName.set('');
     this.newCatHeadingIcon.set('📁');
     this.newCatSubName.set('');
-    this.newCatPlannedDefault.set(0);
     this.showAddCategoryModal.set(true);
   }
 
@@ -87,7 +85,7 @@ export class ImportComponent {
 
     if (!groupId) return;
 
-    this.service.addCategoryItem(groupId, subName, this.newCatPlannedDefault());
+    this.service.addCategoryItem(groupId, subName);
 
     const createdGroup = this.service.categoryGroups().find((g) => g.id === groupId);
     const groupName = createdGroup?.name;
