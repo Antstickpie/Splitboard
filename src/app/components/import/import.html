@@ -660,33 +660,6 @@
                   </app-category-select>
                 </div>
 
-                <!-- Bulk Split -->
-                <div class="split-button-group" [class.needs-split]="hasUnselectedSplits(grp)" [title]="hasUnselectedSplits(grp) ? '⚠️ Please select a split for this group' : ''">
-                  <button
-                    type="button"
-                    class="split-btn split-btn-5050"
-                    [class.active]="getGroupSplitValue(grp) === 'SPLIT_5050'"
-                    (click)="onGroupSplitChange(grp, 'SPLIT_5050')"
-                    title="Set all to Split 50/50">
-                    50/50
-                  </button>
-                  <button
-                    type="button"
-                    class="split-btn split-btn-p1"
-                    [class.active]="getGroupSplitValue(grp) === '100_P1'"
-                    (click)="onGroupSplitChange(grp, '100_P1')"
-                    [title]="'Set all 100% ' + service.personOne().name">
-                    {{ service.personOne().name }}
-                  </button>
-                  <button
-                    type="button"
-                    class="split-btn split-btn-p2"
-                    [class.active]="getGroupSplitValue(grp) === '100_P2'"
-                    (click)="onGroupSplitChange(grp, '100_P2')"
-                    [title]="'Set all 100% ' + service.personTwo().name">
-                    {{ service.personTwo().name }}
-                  </button>
-                </div>
 
                 <!-- Bulk Note / Comment -->
                 <div style="min-width: 120px; max-width: 180px;">
@@ -1189,32 +1162,6 @@
                   </app-category-select>
                 </div>
 
-                <!-- Bulk Split -->
-                <div class="split-button-group" [class.needs-split]="hasUnselectedSplits(grp)" [title]="hasUnselectedSplits(grp) ? '⚠️ Please select a split for this group' : ''">
-                  <button
-                    type="button"
-                    class="split-btn"
-                    [class.active]="getGroupSplitValue(grp) === 'SPLIT_5050'"
-                    (click)="onGroupSplitChange(grp, 'SPLIT_5050')">
-                    50/50
-                  </button>
-                  <button
-                    type="button"
-                    class="split-btn"
-                    [class.active]="getGroupSplitValue(grp) === '100_P1'"
-                    (click)="onGroupSplitChange(grp, '100_P1')"
-                    [title]="'100% ' + service.personOne().name">
-                    {{ service.personOne().name.substring(0, 3) }}
-                  </button>
-                  <button
-                    type="button"
-                    class="split-btn"
-                    [class.active]="getGroupSplitValue(grp) === '100_P2'"
-                    (click)="onGroupSplitChange(grp, '100_P2')"
-                    [title]="'100% ' + service.personTwo().name">
-                    {{ service.personTwo().name.substring(0, 3) }}
-                  </button>
-                </div>
 
                 <!-- Bulk Note / Comment -->
                 <div style="min-width: 120px; max-width: 180px;">
