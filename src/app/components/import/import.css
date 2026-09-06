@@ -175,6 +175,25 @@
   border-radius: 8px;
   padding: 2px;
   gap: 2px;
+  transition: all 0.2s ease;
+}
+
+.split-button-group.needs-split {
+  border: 1px dashed #f59e0b !important;
+  background: rgba(245, 158, 11, 0.12) !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+  animation: pulse-split-needed 2.5s infinite ease-in-out;
+}
+
+@keyframes pulse-split-needed {
+  0%, 100% {
+    border-color: rgba(245, 158, 11, 0.95);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    border-color: rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 2px rgba(245, 158, 11, 0.1);
+  }
 }
 
 .split-btn {

@@ -511,7 +511,14 @@ export class ImportComponent {
     if (res) this.previewResult.set({ ...res });
   }
 
-  public getInlineSplitValue(tx: Transaction): 'SPLIT_5050' | '100_P1' | '100_P2' {
+  public unselectedSplitCount = computed(() => {
+    const res = this.previewResult();
+    if (!res) return 0;
+    return res.transactions.filter((t) => !t.splitType).length;
+  });
+
+  public getInlineSplitValue(tx: Transaction): 'SPLIT_5050' | '100_P1' | '100_P2' | null {
+    if (!tx.splitType) return null;
     const p1 = this.service.personOne().name;
     if (tx.splitType === 'SPLIT') return 'SPLIT_5050';
     if (tx.paidBy === p1) {
@@ -1273,11 +1280,19 @@ export class ImportComponent {
     this.service.showToast(`Updated category for all ${group.count} "${group.description}" items`, 'success');
   }
 
-  public getGroupSplitValue(group: DescriptionGroup): 'SPLIT_5050' | '100_P1' | '100_P2' | 'MIXED' {
-    if (!group.items || group.items.length === 0) return 'SPLIT_5050';
+  public getGroupSplitValue(group: DescriptionGroup): 'SPLIT_5050' | '100_P1' | '100_P2' | 'MIXED' | 'NONE' {
+    if (!group.items || group.items.length === 0) return 'NONE';
     const firstVal = this.getInlineSplitValue(group.items[0]);
+    if (!firstVal) {
+      const anySet = group.items.some((tx) => !!this.getInlineSplitValue(tx));
+      return anySet ? 'MIXED' : 'NONE';
+    }
     const allSame = group.items.every((tx) => this.getInlineSplitValue(tx) === firstVal);
     return allSame ? firstVal : 'MIXED';
+  }
+
+  public hasUnselectedSplits(group: DescriptionGroup): boolean {
+    return group.items.some((t) => !t.splitType);
   }
 
   public onGroupSplitChange(group: DescriptionGroup, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
@@ -1591,6 +1606,22 @@ export class ImportComponent {
   public async commitImport() {
     const res = this.previewResult();
     if (!res || res.transactions.length === 0) return;
+
+    const unselected = this.unselectedSplitCount();
+    if (unselected > 0) {
+      this.service.showToast(
+        `Please select a split for ${unselected} transaction${unselected > 1 ? 's' : ''} before importing.`,
+        'error'
+      );
+      this.previewTab.set('valid');
+      setTimeout(() => {
+        const firstMissing = document.querySelector('.split-button-group.needs-split');
+        if (firstMissing) {
+          firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      return;
+    }
 
     this.service.addTransactions(res.transactions);
     this.service.showToast(`Successfully imported ${res.transactions.length} transactions!`, 'success');

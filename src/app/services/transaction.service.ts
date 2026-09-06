@@ -419,7 +419,7 @@ export class TransactionService {
             description: tx.description,
             paidBy: tx.paidBy,
             amount: Number(tx.amount) || 0,
-            splitType: tx.splitType,
+            splitType: tx.splitType || 'SPLIT',
             personAShare: res.p1Share,
             personBShare: res.p2Share,
             category: tx.categoryItem

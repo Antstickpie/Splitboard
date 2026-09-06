@@ -36,7 +36,7 @@ export interface Transaction {
   categoryItem?: string;
   
   // Split logic
-  splitType: SplitType;
+  splitType?: SplitType;
   splitMode?: SplitMode;
   splitPercentage?: number; // % paidBy keeps for self (default 50)
   customSplitAmounts?: Record<string, number>; // personName -> amount they are responsible for
