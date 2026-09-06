@@ -92,65 +92,86 @@
       </div>
     </div>
 
-    <!-- Expanded Body -->
-    <div *ngIf="!isBatchesCollapsed()" class="animate-fade-in" style="display: flex; flex-direction: column; gap: 0.9rem;">
-      <div *ngFor="let og of service.importedBatchesByOwner()" style="display: flex; flex-direction: column; gap: 0.45rem;">
-        <!-- Owner Header -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.15rem 0.2rem;">
+    <!-- Expanded Body with Top Level Sort: Past 3 Months & Earlier -->
+    <div *ngIf="!isBatchesCollapsed()" class="animate-fade-in" style="display: flex; flex-direction: column; gap: 1rem;">
+      <div *ngFor="let pg of service.importedBatchesByPeriod()" style="display: flex; flex-direction: column; gap: 0.6rem;">
+        <!-- Top Level Period Header: Past 3 Months / Earlier -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0.2rem 0.35rem 0.2rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
           <div style="display: flex; align-items: center; gap: 0.45rem;">
-            <span
-              class="badge"
-              [style.color]="og.owner === service.personOne().name ? 'var(--primary)' : (og.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-main)')"
-              [style.background]="og.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (og.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.08)')"
-              style="font-size: 0.76rem; font-weight: 700; padding: 0.2rem 0.55rem;">
-              👤 {{ og.owner }}
+            <span style="font-size: 1rem;">{{ pg.icon }}</span>
+            <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">
+              {{ pg.label }}
             </span>
-            <span style="font-size: 0.74rem; color: var(--text-muted);">
-              {{ og.batches.length }} statement{{ og.batches.length > 1 ? 's' : '' }} • {{ og.count }} transactions
+            <span class="badge badge-neutral" style="font-size: 0.68rem; font-weight: 600;">
+              {{ pg.count }} statement{{ pg.count > 1 ? 's' : '' }}
             </span>
           </div>
-          <span class="font-mono" style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">
-            Total: {{ service.formatCurrency(og.totalAmount) }}
+          <span class="font-mono" style="font-size: 0.76rem; font-weight: 600; color: var(--text-muted);">
+            Total: {{ service.formatCurrency(pg.totalAmount) }}
           </span>
         </div>
 
-        <!-- Statements List for this Owner -->
-        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-          <div
-            *ngFor="let b of og.batches"
-            style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-              <span style="font-size: 1.1rem;">📄</span>
-              <div>
-                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-                  <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
-                  <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
-                  <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reviewCount > 0">
-                    🔍 {{ b.reviewCount }} in review
-                  </span>
-                  <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reimbursableCount > 0">
-                    ⏳ {{ b.reimbursableCount }} reimbursable
-                  </span>
-                </div>
-                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
-                  {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
-                </div>
+        <!-- Statements grouped by owner under this period -->
+        <div style="display: flex; flex-direction: column; gap: 0.65rem; padding-left: 0.25rem;">
+          <div *ngFor="let og of pg.ownerGroups" style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <!-- Owner Subheader -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.1rem 0.2rem;">
+              <div style="display: flex; align-items: center; gap: 0.45rem;">
+                <span
+                  class="badge"
+                  [style.color]="og.owner === service.personOne().name ? 'var(--primary)' : (og.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-main)')"
+                  [style.background]="og.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (og.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.08)')"
+                  style="font-size: 0.74rem; font-weight: 700; padding: 0.18rem 0.5rem;">
+                  👤 {{ og.owner }}
+                </span>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">
+                  {{ og.batches.length }} statement{{ og.batches.length > 1 ? 's' : '' }} • {{ og.count }} transactions
+                </span>
               </div>
+              <span class="font-mono" style="font-size: 0.74rem; font-weight: 600; color: var(--text-muted);">
+                Total: {{ service.formatCurrency(og.totalAmount) }}
+              </span>
             </div>
 
-            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-              <button
-                class="btn btn-secondary btn-xs"
-                (click)="openBatchModal(b)"
-                style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
-                👁️ View Transactions
-              </button>
-              <button
-                class="btn btn-secondary btn-xs"
-                (click)="service.undoImportBatch(b.fileName)"
-                style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
-                🗑️ Delete
-              </button>
+            <!-- Statements List for this Owner -->
+            <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <div
+                *ngFor="let b of og.batches"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                  <span style="font-size: 1.1rem;">📄</span>
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                      <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
+                      <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
+                      <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reviewCount > 0">
+                        🔍 {{ b.reviewCount }} in review
+                      </span>
+                      <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reimbursableCount > 0">
+                        ⏳ {{ b.reimbursableCount }} reimbursable
+                      </span>
+                    </div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
+                      {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    (click)="openBatchModal(b)"
+                    style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
+                    👁️ View Transactions
+                  </button>
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    (click)="service.undoImportBatch(b.fileName)"
+                    style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1087,63 +1108,83 @@
     </div>
 
     <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 0.8rem 0; display: flex; flex-direction: column; gap: 0.9rem;">
-      <div *ngFor="let og of service.importedBatchesByOwner()" style="display: flex; flex-direction: column; gap: 0.45rem;">
-        <!-- Owner Header -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.15rem 0.2rem;">
+      <div *ngFor="let pg of service.importedBatchesByPeriod()" style="display: flex; flex-direction: column; gap: 0.6rem;">
+        <!-- Top Level Period Header: Past 3 Months / Earlier -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0.2rem 0.35rem 0.2rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
           <div style="display: flex; align-items: center; gap: 0.45rem;">
-            <span
-              class="badge"
-              [style.color]="og.owner === service.personOne().name ? 'var(--primary)' : (og.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-main)')"
-              [style.background]="og.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (og.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.08)')"
-              style="font-size: 0.76rem; font-weight: 700; padding: 0.2rem 0.55rem;">
-              👤 {{ og.owner }}
+            <span style="font-size: 1rem;">{{ pg.icon }}</span>
+            <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">
+              {{ pg.label }}
             </span>
-            <span style="font-size: 0.74rem; color: var(--text-muted);">
-              {{ og.batches.length }} statement{{ og.batches.length > 1 ? 's' : '' }} • {{ og.count }} transactions
+            <span class="badge badge-neutral" style="font-size: 0.68rem; font-weight: 600;">
+              {{ pg.count }} statement{{ pg.count > 1 ? 's' : '' }}
             </span>
           </div>
-          <span class="font-mono" style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">
-            Total: {{ service.formatCurrency(og.totalAmount) }}
+          <span class="font-mono" style="font-size: 0.76rem; font-weight: 600; color: var(--text-muted);">
+            Total: {{ service.formatCurrency(pg.totalAmount) }}
           </span>
         </div>
 
-        <!-- Statements List for this Owner -->
-        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-          <div
-            *ngFor="let b of og.batches"
-            style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-              <span style="font-size: 1.1rem;">📄</span>
-              <div>
-                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-                  <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
-                  <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
-                  <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reviewCount > 0">
-                    🔍 {{ b.reviewCount }} in review
-                  </span>
-                  <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reimbursableCount > 0">
-                    ⏳ {{ b.reimbursableCount }} reimbursable
-                  </span>
-                </div>
-                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
-                  {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
-                </div>
+        <div style="display: flex; flex-direction: column; gap: 0.65rem; padding-left: 0.25rem;">
+          <div *ngFor="let og of pg.ownerGroups" style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <!-- Owner Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.15rem 0.2rem;">
+              <div style="display: flex; align-items: center; gap: 0.45rem;">
+                <span
+                  class="badge"
+                  [style.color]="og.owner === service.personOne().name ? 'var(--primary)' : (og.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-main)')"
+                  [style.background]="og.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (og.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.08)')"
+                  style="font-size: 0.76rem; font-weight: 700; padding: 0.2rem 0.55rem;">
+                  👤 {{ og.owner }}
+                </span>
+                <span style="font-size: 0.74rem; color: var(--text-muted);">
+                  {{ og.batches.length }} statement{{ og.batches.length > 1 ? 's' : '' }} • {{ og.count }} transactions
+                </span>
               </div>
+              <span class="font-mono" style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">
+                Total: {{ service.formatCurrency(og.totalAmount) }}
+              </span>
             </div>
 
-            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-              <button
-                class="btn btn-secondary btn-xs"
-                (click)="openBatchModal(b)"
-                style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
-                👁️ View Transactions
-              </button>
-              <button
-                class="btn btn-secondary btn-xs"
-                (click)="service.undoImportBatch(b.fileName)"
-                style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
-                🗑️ Delete
-              </button>
+            <!-- Statements List for this Owner -->
+            <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <div
+                *ngFor="let b of og.batches"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                  <span style="font-size: 1.1rem;">📄</span>
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                      <strong style="font-size: 0.84rem; color: var(--text-main);">{{ b.fileName }}</strong>
+                      <span class="badge badge-neutral" style="font-size: 0.68rem;" *ngIf="b.bank">{{ b.bank }}</span>
+                      <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reviewCount > 0">
+                        🔍 {{ b.reviewCount }} in review
+                      </span>
+                      <span class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600;" *ngIf="b.reimbursableCount > 0">
+                        ⏳ {{ b.reimbursableCount }} reimbursable
+                      </span>
+                    </div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
+                      {{ b.count }} transactions • Span: {{ b.minDate }} → {{ b.maxDate }} • Total: <strong style="color: var(--text-main);">{{ service.formatCurrency(b.totalAmount) }}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    (click)="openBatchModal(b)"
+                    style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
+                    👁️ View Transactions
+                  </button>
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    (click)="service.undoImportBatch(b.fileName)"
+                    style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

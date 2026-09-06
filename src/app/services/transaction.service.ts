@@ -86,6 +86,15 @@ export interface OwnerBatchesGroup {
   batches: ImportedBatch[];
 }
 
+export interface StatementPeriodGroup {
+  period: 'recent' | 'earlier';
+  label: string;
+  icon: string;
+  count: number;
+  totalAmount: number;
+  ownerGroups: OwnerBatchesGroup[];
+}
+
 export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [];
 
 @Injectable({
@@ -544,6 +553,84 @@ export class TransactionService {
         totalAmount: items.reduce((sum, x) => sum + x.totalAmount, 0),
         reviewCount: items.reduce((sum, x) => sum + x.reviewCount, 0),
         batches: items
+      });
+    }
+
+    return result;
+  });
+
+  public importedBatchesByPeriod = computed<StatementPeriodGroup[]>(() => {
+    const batches = this.importedBatches();
+    if (batches.length === 0) return [];
+
+    const now = new Date();
+    const cutoffDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const cutoffStr = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const recentBatches: ImportedBatch[] = [];
+    const earlierBatches: ImportedBatch[] = [];
+
+    for (const b of batches) {
+      if (!b.maxDate || b.maxDate >= cutoffStr) {
+        recentBatches.push(b);
+      } else {
+        earlierBatches.push(b);
+      }
+    }
+
+    const p1 = this.personOne().name;
+    const p2 = this.personTwo().name;
+
+    const buildOwnerGroups = (batchList: ImportedBatch[]): OwnerBatchesGroup[] => {
+      const map = new Map<string, ImportedBatch[]>();
+      for (const b of batchList) {
+        const owner = b.owner || 'Shared';
+        if (!map.has(owner)) {
+          map.set(owner, []);
+        }
+        map.get(owner)!.push(b);
+      }
+
+      const orderedOwners = Array.from(new Set([p1, p2, ...map.keys()])).filter((o) => map.has(o));
+      const res: OwnerBatchesGroup[] = [];
+
+      for (const owner of orderedOwners) {
+        const items = map.get(owner)!;
+        items.sort((a, b) => (b.maxDate || b.minDate || '').localeCompare(a.maxDate || a.minDate || ''));
+        res.push({
+          owner,
+          count: items.reduce((sum, x) => sum + x.count, 0),
+          totalAmount: items.reduce((sum, x) => sum + x.totalAmount, 0),
+          reviewCount: items.reduce((sum, x) => sum + x.reviewCount, 0),
+          batches: items
+        });
+      }
+      return res;
+    };
+
+    const result: StatementPeriodGroup[] = [];
+
+    if (recentBatches.length > 0) {
+      const ogs = buildOwnerGroups(recentBatches);
+      result.push({
+        period: 'recent',
+        label: 'Past 3 Months',
+        icon: '📅',
+        count: recentBatches.length,
+        totalAmount: recentBatches.reduce((sum, b) => sum + b.totalAmount, 0),
+        ownerGroups: ogs
+      });
+    }
+
+    if (earlierBatches.length > 0) {
+      const ogs = buildOwnerGroups(earlierBatches);
+      result.push({
+        period: 'earlier',
+        label: 'Earlier',
+        icon: '🗄️',
+        count: earlierBatches.length,
+        totalAmount: earlierBatches.reduce((sum, b) => sum + b.totalAmount, 0),
+        ownerGroups: ogs
       });
     }
 
