@@ -22,7 +22,19 @@ export class LedgerComponent {
 
   // Statement Batches Viewer / Manager Modal
   public isManageBatchesModalOpen = signal<boolean>(false);
+  public isBatchesCollapsed = signal<boolean>(true);
   public viewingBatch = signal<ImportedBatch | null>(null);
+
+  public toggleBatchesCollapsed(): void {
+    const next = !this.isBatchesCollapsed();
+    this.isBatchesCollapsed.set(next);
+    if (!next) {
+      setTimeout(() => {
+        const el = document.getElementById('imported-statements-section');
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }
 
   public openBatchModal(b: ImportedBatch): void {
     this.viewingBatch.set(b);
