@@ -697,6 +697,7 @@ export class ImportComponent {
       }
     }
 
+    this.scrollToPreviewOrImport();
     this.service.showToast(`Resumed draft for "${d.fileName}" (${d.previewResult.transactions.length} rows)`, 'success');
   }
 
@@ -741,12 +742,20 @@ export class ImportComponent {
     await this.discardDraft();
   }
 
+  public scrollToPreviewOrImport(): void {
+    setTimeout(() => {
+      const el = document.querySelector('.preview-card') || document.getElementById('inline-import-section') || document.querySelector('.import-container');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
   public processSelectedFile(file: File): void {
     this.pendingFile = file;
     this.pendingText = null;
     this.uploadedFileName.set(file.name);
     this.selectedOwner.set('');
     this.showBankSelectModal.set(true);
+    this.scrollToPreviewOrImport();
   }
 
   public onFileSelected(event: Event) {
@@ -763,6 +772,7 @@ export class ImportComponent {
     this.uploadedFileName.set('Clipboard Paste');
     this.selectedOwner.set('');
     this.showBankSelectModal.set(true);
+    this.scrollToPreviewOrImport();
   }
 
   public closeBankSelectModal(): void {
@@ -812,6 +822,7 @@ export class ImportComponent {
         res.excluded.forEach((t) => (t.bank = bankName));
         res.deleted.forEach((t) => (t.bank = bankName));
         this.previewResult.set(res);
+        this.scrollToPreviewOrImport();
         this.service.showToast(
           `Parsed ${res.transactions.length} expenses for ${bankName}!`,
           'success'
@@ -837,6 +848,7 @@ export class ImportComponent {
         res.excluded.forEach((t) => (t.bank = bankName));
         res.deleted.forEach((t) => (t.bank = bankName));
         this.previewResult.set(res);
+        this.scrollToPreviewOrImport();
         this.service.showToast(
           `Parsed ${res.transactions.length} expenses for ${bankName}!`,
           'success'

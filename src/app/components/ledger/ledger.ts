@@ -41,11 +41,19 @@ export class LedgerComponent {
     await this.service.undoImportBatch(fileName);
   }
 
+  public scrollToImportSection(): void {
+    setTimeout(() => {
+      const el = document.getElementById('inline-import-section') || document.querySelector('app-import');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
   public toggleImport(): void {
     if (this.isImportOpen()) {
       this.closeImport();
     } else {
       this.isImportOpen.set(true);
+      this.scrollToImportSection();
     }
   }
 
@@ -63,6 +71,7 @@ export class LedgerComponent {
     const file = input.files[0];
     this.pendingImportFile.set(file);
     this.isImportOpen.set(true);
+    this.scrollToImportSection();
     input.value = '';
   }
 
@@ -86,6 +95,7 @@ export class LedgerComponent {
       const file = event.dataTransfer.files[0];
       this.pendingImportFile.set(file);
       this.isImportOpen.set(true);
+      this.scrollToImportSection();
     }
   }
 
@@ -95,6 +105,7 @@ export class LedgerComponent {
     this.pendingImportFile.set(null);
     this.isResumingDraft.set(true);
     this.isImportOpen.set(true);
+    this.scrollToImportSection();
   }
 
   public closeImport(): void {

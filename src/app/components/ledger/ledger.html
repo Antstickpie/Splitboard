@@ -62,7 +62,7 @@
   </div>
 
   <!-- Inline Statement Importer in Same Window -->
-  <div *ngIf="isImportOpen()" class="animate-fade-in" style="margin-bottom: 0.8rem; position: relative; z-index: 100000;">
+  <div *ngIf="isImportOpen()" id="inline-import-section" class="animate-fade-in" style="margin-bottom: 0.8rem; position: relative; z-index: 100000;">
     <app-import [initialFile]="pendingImportFile()" [autoResumeDraft]="isResumingDraft()" (importCompleted)="closeImport()"></app-import>
   </div>
 
