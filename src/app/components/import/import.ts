@@ -52,13 +52,44 @@ export class ImportComponent {
   public newCatTargetGroup: DescriptionGroup | null = null;
   public newCatTargetContext: 'row' | 'group' | 'rule' | 'toolbar' = 'toolbar';
 
+  public selectedGroupExistingSubCategories = computed<string[]>(() => {
+    const groupId = this.newCatSelectedGroupId();
+    if (!groupId) return [];
+    const grp = this.service.categoryGroups().find((g) => g.id === groupId);
+    return grp?.items?.map((i) => i.name) || [];
+  });
+
+  public isSubNameAlreadyExisting = computed<boolean>(() => {
+    const sub = this.newCatSubName().trim().toLowerCase();
+    if (!sub) return false;
+    return this.selectedGroupExistingSubCategories().some((s) => s.trim().toLowerCase() === sub);
+  });
+
+  public selectExistingSubCategory(name: string): void {
+    const groupId = this.newCatSelectedGroupId();
+    const createdGroup = this.service.categoryGroups().find((g) => g.id === groupId);
+    const groupName = createdGroup?.name;
+
+    if (this.newCatTargetContext === 'row' && this.newCatTargetTx) {
+      this.onRowCategoryChange(this.newCatTargetTx, name, groupName);
+    } else if (this.newCatTargetContext === 'group' && this.newCatTargetGroup) {
+      this.onGroupCategoryChange(this.newCatTargetGroup, name, groupName);
+    } else if (this.newCatTargetContext === 'rule') {
+      this.ruleCategory = name;
+    }
+    this.closeAddCategoryModal();
+  }
+
   public openAddCategoryModal(targetTx?: Transaction, context: 'row' | 'group' | 'rule' | 'toolbar' = 'toolbar', targetGroup?: DescriptionGroup): void {
     this.newCatTargetTx = targetTx || null;
     this.newCatTargetGroup = targetGroup || null;
     this.newCatTargetContext = context;
     const groups = this.service.categoryGroups();
     this.newCatMode.set(groups.length > 0 ? 'existing' : 'new_heading');
-    this.newCatSelectedGroupId.set(groups.length > 0 ? groups[0].id : '');
+    const currentGroup = targetTx?.categoryGroup || targetGroup?.categoryGroup;
+    const matchedGroup = currentGroup ? groups.find((g) => g.name === currentGroup) : null;
+    const initialGroupId = matchedGroup ? matchedGroup.id : (groups.length > 0 ? groups[0].id : '');
+    this.newCatSelectedGroupId.set(initialGroupId);
     this.newCatHeadingName.set('');
     this.newCatHeadingIcon.set('📁');
     this.newCatSubName.set('');
@@ -85,7 +116,11 @@ export class ImportComponent {
 
     if (!groupId) return;
 
-    this.service.addCategoryItem(groupId, subName);
+    const existingGroup = this.service.categoryGroups().find((g) => g.id === groupId);
+    const alreadyExists = existingGroup?.items?.some((i) => i.name.trim().toLowerCase() === subName.toLowerCase());
+    if (!alreadyExists) {
+      this.service.addCategoryItem(groupId, subName);
+    }
 
     const createdGroup = this.service.categoryGroups().find((g) => g.id === groupId);
     const groupName = createdGroup?.name;

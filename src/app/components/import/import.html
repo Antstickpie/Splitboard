@@ -2003,6 +2003,28 @@
                 {{ (grp.icon || '📁') }} {{ grp.name }}
               </option>
             </select>
+
+            <!-- Existing sub-categories in this heading -->
+            <div style="margin-top: 0.5rem; padding: 0.5rem 0.65rem; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;">
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>Existing in this heading ({{ selectedGroupExistingSubCategories().length }}):</span>
+                <span style="font-size: 0.68rem; opacity: 0.8; color: var(--primary);">Click to pick</span>
+              </div>
+              <div *ngIf="selectedGroupExistingSubCategories().length > 0" style="display: flex; flex-wrap: wrap; gap: 0.35rem; max-height: 110px; overflow-y: auto;">
+                <button
+                  type="button"
+                  *ngFor="let sub of selectedGroupExistingSubCategories()"
+                  (click)="selectExistingSubCategory(sub)"
+                  class="badge badge-neutral"
+                  style="cursor: pointer; font-size: 0.73rem; padding: 0.2rem 0.5rem; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-main); transition: all 0.15s ease;"
+                  title="Click to use '{{ sub }}'">
+                  {{ sub }}
+                </button>
+              </div>
+              <div *ngIf="selectedGroupExistingSubCategories().length === 0" style="font-size: 0.72rem; color: var(--text-muted); font-style: italic;">
+                No sub-categories in this heading yet.
+              </div>
+            </div>
           </div>
 
           <!-- New Heading Fields -->
@@ -2048,6 +2070,9 @@
             placeholder="e.g. Netflix, Vet Bills, Groceries, Pharmacy"
             class="styled-select"
             style="width: 100%; box-sizing: border-box; font-size: 0.85rem;" />
+          <div *ngIf="isSubNameAlreadyExisting()" style="margin-top: 0.35rem; font-size: 0.72rem; color: #fbbf24; background: rgba(245, 158, 11, 0.1); padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid rgba(245, 158, 11, 0.25);">
+            ℹ️ "{{ newCatSubName().trim() }}" already exists in this heading. Clicking save will use it.
+          </div>
         </div>
 
 
