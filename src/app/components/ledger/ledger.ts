@@ -285,12 +285,13 @@ export class LedgerComponent {
     this.service.showToast(`Settlement of ${this.service.formatCurrency(s.netOwedAmount)} recorded!`, 'success');
   }
 
-  // Quick Cash / Transfer modal
+  // Quick Cash / Transfer / Income modal
   public isCashModalOpen = signal(false);
   public cashDate = new Date().toISOString().slice(0, 10);
   public cashAmount = 0;
   public cashDescription = '';
   public cashPaidBy = '';
+  public cashTxType: 'EXPENSE' | 'INCOME' | 'TRANSFER' = 'EXPENSE';
   public cashIsTransfer = false;
   public cashTransferTo = '';
   public cashCategoryGroup = 'Housing';
@@ -381,13 +382,45 @@ export class LedgerComponent {
     this.cashCustomP1Amount = Math.max(0, parseFloat((this.cashAmount - val).toFixed(2)));
   }
 
+  public onCashTxTypeChange(type: 'EXPENSE' | 'INCOME' | 'TRANSFER') {
+    this.cashTxType = type;
+    this.cashIsTransfer = type === 'TRANSFER';
+    if (type === 'INCOME') {
+      this.cashCategoryGroup = 'Income & Inflows';
+      this.cashCategoryItem = 'Salary';
+      this.cashSplitOption = 'PAYER_ONLY';
+      if (!this.cashDescription || this.cashDescription === 'Cash Expense') {
+        this.cashDescription = 'Salary';
+      }
+    } else if (type === 'EXPENSE') {
+      if (this.cashCategoryGroup === 'Income & Inflows') {
+        this.cashCategoryGroup = 'Food';
+        this.cashCategoryItem = 'Dining Out and Food Chill';
+      }
+      if (this.cashDescription === 'Salary') {
+        this.cashDescription = '';
+      }
+    }
+  }
+
   public openCashModal() {
-    this.cashDate = new Date().toISOString().slice(0, 10);
+    const selMonth = this.service.selectedMonth();
+    if (selMonth && selMonth !== 'ALL' && /^\d{4}-\d{2}$/.test(selMonth)) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (today.startsWith(selMonth)) {
+        this.cashDate = today;
+      } else {
+        this.cashDate = `${selMonth}-01`;
+      }
+    } else {
+      this.cashDate = new Date().toISOString().slice(0, 10);
+    }
     this.cashAmount = 0;
     this.cashCurrency = this.service.currency();
     this.cashDescription = '';
     this.cashPaidBy = this.service.personOne().name;
     this.cashTransferTo = this.service.personTwo().name;
+    this.cashTxType = 'EXPENSE';
     this.cashIsTransfer = false;
     this.cashCategoryGroup = 'Food';
     this.cashCategoryItem = 'Dining Out and Food Chill';
@@ -418,12 +451,15 @@ export class LedgerComponent {
       rate = this.service.getExchangeRate(this.cashCurrency, baseCurrency);
     }
 
+    const isIncome = this.cashTxType === 'INCOME';
     let splitType: SplitType = 'SPLIT';
     let splitMode: SplitMode = 'PERCENTAGE';
     let splitPercentage = 50;
     let customSplitAmounts: Record<string, number> | undefined = undefined;
 
-    if (this.cashIsTransfer) {
+    if (isIncome) {
+      splitType = 'SELF';
+    } else if (this.cashIsTransfer) {
       splitType = 'OTHER';
     } else if (this.cashSplitOption === 'PAYER_ONLY') {
       splitType = 'SELF';
@@ -464,16 +500,16 @@ export class LedgerComponent {
       id: 'cash-' + Date.now(),
       date: this.cashDate,
       bank: 'Cash',
-      account: 'Cash Wallet',
-      description: this.cashDescription.trim() || (this.cashIsTransfer ? `Transfer to ${this.cashTransferTo}` : 'Cash Expense'),
+      account: isIncome ? 'Income' : 'Cash Wallet',
+      description: this.cashDescription.trim() || (isIncome ? 'Salary / Income' : (this.cashIsTransfer ? `Transfer to ${this.cashTransferTo}` : 'Cash Expense')),
       amount: finalAmount,
-      type: 'EXPENSE',
+      type: isIncome ? 'INCOME' : 'EXPENSE',
       paidBy: this.cashPaidBy,
       isCash: true,
       isCashTransfer: this.cashIsTransfer,
       transferTo: this.cashIsTransfer ? this.cashTransferTo : undefined,
-      categoryGroup: categoryGroup || undefined,
-      categoryItem: this.cashCategoryItem || undefined,
+      categoryGroup: categoryGroup || (isIncome ? 'Income & Inflows' : undefined),
+      categoryItem: this.cashCategoryItem || (isIncome ? 'Salary' : undefined),
       splitType,
       splitMode,
       splitPercentage,
@@ -487,7 +523,7 @@ export class LedgerComponent {
 
     this.service.addTransaction(tx);
     this.isCashModalOpen.set(false);
-    this.service.showToast('Entry logged successfully', 'success');
+    this.service.showToast(isIncome ? 'Income logged successfully' : 'Entry logged successfully', 'success');
   }
 
   public getEffectiveDateRangeLabel(): string {
