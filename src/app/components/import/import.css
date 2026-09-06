@@ -451,3 +451,58 @@
   position: relative;
   z-index: 1000;
 }
+
+/* Action column button fixed alignment */
+.tx-actions-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tx-btn-done {
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.2rem 0 !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+.tx-btn-review {
+  width: 88px !important;
+  min-width: 88px !important;
+  max-width: 88px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.2rem 0 !important;
+  font-size: 0.72rem !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+.tx-btn-rule {
+  width: 88px !important;
+  min-width: 88px !important;
+  max-width: 88px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.2rem 0 !important;
+  font-size: 0.72rem !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
