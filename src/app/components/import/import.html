@@ -624,12 +624,12 @@
         
         <!-- Multi-Item Groups (2+ items with same description) -->
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" [class.tx-group-done]="isGroupDone(grp)" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <!-- Group Summary Row -->
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [title]="grp.description">{{ grp.description }}</div>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ grp.count }} items</span>
                 <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);">{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
@@ -1143,11 +1143,11 @@
       <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
         <!-- Multi-Item Groups -->
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" [class.tx-group-done]="isGroupDone(grp)" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [title]="grp.description">{{ grp.description }}</div>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-warning" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">🔍 {{ grp.count }} review items</span>
                 <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);">{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>

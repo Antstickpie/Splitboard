@@ -307,6 +307,19 @@
   filter: grayscale(0.15);
 }
 
+.tx-group-done {
+  opacity: 0.38;
+  filter: grayscale(0.85);
+  background: rgba(255, 255, 255, 0.01) !important;
+  border-color: rgba(255, 255, 255, 0.04) !important;
+  transition: opacity 0.2s ease, filter 0.2s ease, border-color 0.2s ease;
+}
+
+.tx-group-done:hover {
+  opacity: 0.85;
+  filter: grayscale(0.15);
+}
+
 .tx-row-review {
   background: rgba(245, 158, 11, 0.06) !important;
   box-shadow: inset 3px 0 0 #f59e0b;
