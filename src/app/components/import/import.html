@@ -1,19 +1,19 @@
 <div class="animate-fade-in import-container" style="gap: 0.5rem; position: relative;">
 
   <!-- Active Draft Banner (only when no preview is currently active) -->
-  <div class="glass-card animate-fade-in" *ngIf="availableDraft() as draft" style="padding: 0.85rem 1.1rem; border: 1px solid rgba(0, 229, 255, 0.35); background: rgba(0, 229, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 0.5rem auto 0.8rem auto; max-width: 580px; width: 100%;">
-    <div style="display: flex; align-items: center; gap: 0.65rem;">
-      <span style="font-size: 1.4rem;">💾</span>
-      <div>
-        <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-main);">
+  <div class="glass-card animate-fade-in" *ngIf="availableDraft() as draft" style="padding: 0.85rem 1.1rem; border: 1px solid rgba(0, 229, 255, 0.35); background: rgba(0, 229, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 0.5rem auto 0.8rem auto; max-width: 580px; width: 100%; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0; flex: 1;">
+      <span style="font-size: 1.4rem; flex-shrink: 0;">💾</span>
+      <div style="min-width: 0; flex: 1;">
+        <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           Saved Draft: <span style="color: var(--primary);">{{ draft.fileName }}</span>
         </div>
-        <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.1rem;">
+        <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           {{ draft.previewResult.transactions.length }} staged rows • Bank: {{ draft.bankName }} • Saved {{ formatDraftTime(draft.savedAt) }}
         </div>
       </div>
     </div>
-    <div style="display: flex; gap: 0.45rem; align-items: center;">
+    <div style="display: flex; gap: 0.45rem; align-items: center; flex-shrink: 0;">
       <button class="btn btn-primary btn-xs" (click)="resumeDraft(draft)" style="font-size: 0.76rem; padding: 0.35rem 0.75rem;">
         ▶ Resume Progress
       </button>
@@ -24,18 +24,18 @@
   </div>
 
   <!-- Step 1: Select Bank Account & Owner Card -->
-  <div class="glass-card animate-fade-in" *ngIf="showBankSelectModal()" style="padding: 1.2rem 1.4rem; max-width: 540px; margin: 0.5rem auto; width: 100%; border: 1px solid rgba(0, 229, 255, 0.35); box-shadow: 0 15px 40px rgba(0,0,0,0.6);">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem;">
-      <div>
+  <div class="glass-card animate-fade-in" *ngIf="showBankSelectModal()" style="padding: 1.2rem 1.4rem; max-width: 540px; margin: 0.5rem auto; width: 100%; box-sizing: border-box; border: 1px solid rgba(0, 229, 255, 0.35); box-shadow: 0 15px 40px rgba(0,0,0,0.6); position: relative;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem; gap: 0.75rem; min-width: 0; width: 100%; box-sizing: border-box;">
+      <div style="min-width: 0; flex: 1;">
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.3rem;">🏦</span>
-          <h3 style="margin: 0; font-size: 1.08rem; color: var(--text-main);">Select Bank Account & Owner</h3>
+          <span style="font-size: 1.3rem; flex-shrink: 0;">🏦</span>
+          <h3 style="margin: 0; font-size: 1.08rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Select Bank Account & Owner</h3>
         </div>
-        <p style="margin: 0.25rem 0 0 0; font-size: 0.76rem; color: var(--text-muted);">
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.76rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="uploadedFileName()">
           Statement: <strong style="color: var(--primary);">{{ uploadedFileName() }}</strong>
         </p>
       </div>
-      <button class="btn-icon-remove" (click)="closeBankSelectModal()" style="font-size: 1.1rem; cursor: pointer; background: transparent; border: none; color: var(--text-muted);" title="Close">✕</button>
+      <button class="btn-icon-remove" (click)="closeBankSelectModal()" style="font-size: 1.1rem; cursor: pointer; background: transparent; border: none; color: var(--text-muted); flex-shrink: 0; padding: 0 0.25rem; line-height: 1;" title="Close">✕</button>
     </div>
 
     <!-- Account Owner Selection (Clean & Subtle) -->
