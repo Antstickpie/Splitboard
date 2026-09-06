@@ -474,7 +474,6 @@
         <table>
           <thead>
             <tr>
-              <th style="width: 38px; text-align: center;" title="Mark Done">Done</th>
               <th (click)="toggleSort('date')" style="cursor: pointer; user-select: none;">
                 Date {{ sortColumn() === 'date' ? (sortAsc() ? '▲' : '▼') : '' }}
               </th>
@@ -499,20 +498,6 @@
               *ngFor="let tx of sortedTransactions()"
               [class.tx-row-done]="tx.isDone"
               [class.tx-row-review]="tx.isUnderReview">
-              <!-- Done Checkbox Column -->
-              <td style="text-align: center; vertical-align: middle;">
-                <button
-                  type="button"
-                  class="btn btn-xs"
-                  [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
-                  [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                  [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
-                  (click)="toggleTxDone(tx)"
-                  [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
-                  style="width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; border-radius: 50%; cursor: pointer;">
-                  {{ tx.isDone ? '✓' : '○' }}
-                </button>
-              </td>
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
                 <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
@@ -530,13 +515,11 @@
                 <span
                   class="badge"
                   (click)="toggleTxOwner(tx)"
-                  [style.cursor]="'pointer'"
-                  [title]="'Click to switch owner (' + (tx.paidBy === service.personOne().name ? service.personTwo().name : service.personOne().name) + ')'"
+                  style="cursor: pointer;"
                   [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
                   [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : 'rgba(139, 92, 246, 0.12)'"
-                  [style.border]="'1px solid ' + (tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.3)' : 'rgba(139, 92, 246, 0.3)')"
-                  style="font-weight: 600; user-select: none; font-size: 0.72rem; padding: 0.2rem 0.5rem;">
-                  👤 {{ tx.paidBy }}
+                  [title]="'Click to toggle owner: ' + tx.paidBy">
+                  👤 {{ tx.paidBy || 'Shared' }}
                 </span>
               </td>
               <td>
@@ -547,31 +530,28 @@
                   (addNewRequested)="openAddCategoryModal(tx, 'row')">
                 </app-category-select>
               </td>
-              <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
               <td>
                 <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                   <button
                     type="button"
                     class="split-btn split-btn-5050"
                     [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
-                    (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')"
-                    title="Split 50/50">
+                    (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')">
                     50/50
                   </button>
                   <button
                     type="button"
                     class="split-btn split-btn-p1"
                     [class.active]="getInlineSplitValue(tx) === '100_P1'"
-                    (click)="onInlineSplitButtonClick(tx, '100_P1')"
-                    [title]="'100% ' + service.personOne().name">
+                    (click)="onInlineSplitButtonClick(tx, '100_P1')">
                     {{ service.personOne().name }}
                   </button>
                   <button
                     type="button"
                     class="split-btn split-btn-p2"
                     [class.active]="getInlineSplitValue(tx) === '100_P2'"
-                    (click)="onInlineSplitButtonClick(tx, '100_P2')"
-                    [title]="'100% ' + service.personTwo().name">
+                    (click)="onInlineSplitButtonClick(tx, '100_P2')">
                     {{ service.personTwo().name }}
                   </button>
                 </div>
@@ -586,6 +566,19 @@
               </td>
               <td style="text-align: center;">
                 <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
+                  <!-- Done Button -->
+                  <button
+                    type="button"
+                    class="btn btn-xs"
+                    [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                    [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                    (click)="toggleTxDone(tx)"
+                    [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
+                    style="padding: 0.18rem 0.45rem; font-size: 0.72rem; font-weight: 600;">
+                    {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                  </button>
+                  <!-- Review Button -->
                   <button
                     class="btn btn-xs"
                     [style.color]="tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
@@ -596,6 +589,7 @@
                     style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
                     {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
                   </button>
+                  <!-- Rule Button -->
                   <button
                     class="btn btn-secondary btn-xs"
                     (click)="openRuleModal(tx)"
@@ -606,12 +600,13 @@
                     style="padding: 0.2rem 0.45rem; font-size: 0.72rem; gap: 0.2rem;">
                     {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                   </button>
+                  <!-- Delete / Skip Button -->
                   <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                 </div>
               </td>
             </tr>
             <tr *ngIf="res.transactions.length === 0">
-              <td colspan="10" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+              <td colspan="9" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
                 No new transactions to import. (Check the Duplicates or Excluded tabs above).
               </td>
             </tr>
@@ -743,7 +738,6 @@
               <table style="width: 100%; min-width: 960px; font-size: 0.78rem;">
                 <thead>
                   <tr style="opacity: 0.7; font-size: 0.72rem;">
-                    <th style="width: 32px; text-align: center;">Done</th>
                     <th>Date</th>
                     <th>Bank</th>
                     <th>Owner</th>
@@ -759,19 +753,6 @@
                     *ngFor="let tx of grp.items"
                     [class.tx-row-done]="tx.isDone"
                     [class.tx-row-review]="tx.isUnderReview">
-                    <td style="text-align: center; vertical-align: middle;">
-                      <button
-                        type="button"
-                        class="btn btn-xs"
-                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
-                        [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                        [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
-                        (click)="toggleTxDone(tx)"
-                        [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
-                        style="width: 20px; height: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 50%; cursor: pointer;">
-                        {{ tx.isDone ? '✓' : '○' }}
-                      </button>
-                    </td>
                     <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
                     <td>
                       <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
@@ -835,6 +816,17 @@
                     <td style="text-align: center; white-space: nowrap;">
                       <div style="display: flex; justify-content: center; align-items: center; gap: 0.25rem;">
                         <button
+                          type="button"
+                          class="btn btn-xs"
+                          [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                          [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                          (click)="toggleTxDone(tx)"
+                          [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
+                          style="padding: 0.18rem 0.45rem; font-size: 0.72rem; font-weight: 600;">
+                          {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                        </button>
+                        <button
                           class="btn btn-xs"
                           [style.color]="tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
                           [style.background]="tx.isUnderReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)'"
@@ -863,7 +855,6 @@
             <table class="import-preview-table" style="width: 100%; min-width: 960px; font-size: 0.78rem;">
             <thead>
               <tr style="opacity: 0.7; font-size: 0.72rem;">
-                <th style="width: 32px; text-align: center;">Done</th>
                 <th>Date</th>
                 <th>Description</th>
                 <th>Bank</th>
@@ -880,19 +871,6 @@
                 *ngFor="let tx of singleTransactions()"
                 [class.tx-row-done]="tx.isDone"
                 [class.tx-row-review]="tx.isUnderReview">
-                <td style="text-align: center; vertical-align: middle;">
-                  <button
-                    type="button"
-                    class="btn btn-xs"
-                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
-                    [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                    [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
-                    (click)="toggleTxDone(tx)"
-                    [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
-                    style="width: 20px; height: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 50%; cursor: pointer;">
-                    {{ tx.isDone ? '✓' : '○' }}
-                  </button>
-                </td>
                 <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
                 <td style="font-weight: 500;" [title]="tx.description">
                   <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
@@ -962,6 +940,17 @@
                 <td style="text-align: center; white-space: nowrap;">
                   <div style="display: flex; justify-content: center; align-items: center; gap: 0.25rem;">
                     <button
+                      type="button"
+                      class="btn btn-xs"
+                      [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                      [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                      [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                      (click)="toggleTxDone(tx)"
+                      [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
+                      style="padding: 0.18rem 0.45rem; font-size: 0.72rem; font-weight: 600;">
+                      {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                    </button>
+                    <button
                       class="btn btn-xs"
                       [style.color]="tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
                       [style.background]="tx.isUnderReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)'"
@@ -1017,7 +1006,6 @@
         <table>
           <thead>
             <tr>
-              <th style="width: 38px; text-align: center;">Done</th>
               <th>Date</th>
               <th>Description</th>
               <th>Bank</th>
@@ -1034,18 +1022,6 @@
               *ngFor="let tx of reviewTransactions()"
               [class.tx-row-done]="tx.isDone"
               [class.tx-row-review]="tx.isUnderReview">
-              <td style="text-align: center; vertical-align: middle;">
-                <button
-                  type="button"
-                  class="btn btn-xs"
-                  [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
-                  [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                  [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
-                  (click)="toggleTxDone(tx)"
-                  style="width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; border-radius: 50%; cursor: pointer;">
-                  {{ tx.isDone ? '✓' : '○' }}
-                </button>
-              </td>
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500;" [title]="tx.description">
                 <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
@@ -1110,6 +1086,17 @@
               <td style="text-align: center; white-space: nowrap;">
                 <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
                   <button
+                    type="button"
+                    class="btn btn-xs"
+                    [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                    [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                    (click)="toggleTxDone(tx)"
+                    [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
+                    style="padding: 0.18rem 0.45rem; font-size: 0.72rem; font-weight: 600;">
+                    {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                  </button>
+                  <button
                     class="btn btn-xs"
                     style="color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); padding: 0.2rem 0.5rem; font-size: 0.72rem;"
                     (click)="toggleTxReview(tx)"
@@ -1131,7 +1118,7 @@
               </td>
             </tr>
             <tr *ngIf="reviewTransactions().length === 0">
-              <td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">
                 🎉 No transactions flagged for review in this statement!
               </td>
             </tr>
@@ -1255,7 +1242,6 @@
               <table style="width: 100%; font-size: 0.78rem;">
                 <thead>
                   <tr style="opacity: 0.7; font-size: 0.72rem;">
-                    <th style="width: 32px; text-align: center;">Done</th>
                     <th>Date</th>
                     <th>Bank</th>
                     <th>Owner</th>
@@ -1271,18 +1257,6 @@
                     *ngFor="let tx of grp.items"
                     [class.tx-row-done]="tx.isDone"
                     [class.tx-row-review]="tx.isUnderReview">
-                    <td style="text-align: center; vertical-align: middle;">
-                      <button
-                        type="button"
-                        class="btn btn-xs"
-                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
-                        [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                        [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
-                        (click)="toggleTxDone(tx)"
-                        style="width: 20px; height: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 50%; cursor: pointer;">
-                        {{ tx.isDone ? '✓' : '○' }}
-                      </button>
-                    </td>
                     <td>{{ service.formatDate(tx.date) }}</td>
                     <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                     <td>
@@ -1342,6 +1316,17 @@
                     <td style="text-align: center; white-space: nowrap;">
                       <div style="display: flex; justify-content: center; align-items: center; gap: 0.3rem;">
                         <button
+                          type="button"
+                          class="btn btn-xs"
+                          [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                          [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                          (click)="toggleTxDone(tx)"
+                          [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
+                          style="padding: 0.15rem 0.4rem; font-size: 0.7rem; font-weight: 600;">
+                          {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                        </button>
+                        <button
                           class="btn btn-xs"
                           style="color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); padding: 0.15rem 0.4rem; font-size: 0.7rem;"
                           (click)="toggleTxReview(tx)"
@@ -1377,7 +1362,6 @@
             <table>
               <thead>
                 <tr>
-                  <th style="width: 38px; text-align: center;">Done</th>
                   <th>Date</th>
                   <th>Description</th>
                   <th>Bank</th>
@@ -1394,18 +1378,6 @@
                   *ngFor="let tx of singleTransactions()"
                   [class.tx-row-done]="tx.isDone"
                   [class.tx-row-review]="tx.isUnderReview">
-                  <td style="text-align: center; vertical-align: middle;">
-                    <button
-                      type="button"
-                      class="btn btn-xs"
-                      [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)'"
-                      [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                      [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
-                      (click)="toggleTxDone(tx)"
-                      style="width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; border-radius: 50%; cursor: pointer;">
-                      {{ tx.isDone ? '✓' : '○' }}
-                    </button>
-                  </td>
                   <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
                   <td style="font-weight: 500;" [title]="tx.description">
                     <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
@@ -1469,6 +1441,17 @@
                   </td>
                   <td style="text-align: center; white-space: nowrap;">
                     <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
+                      <button
+                        type="button"
+                        class="btn btn-xs"
+                        [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                        [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                        (click)="toggleTxDone(tx)"
+                        [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'"
+                        style="padding: 0.18rem 0.45rem; font-size: 0.72rem; font-weight: 600;">
+                        {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                      </button>
                       <button
                         class="btn btn-xs"
                         style="color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); padding: 0.2rem 0.5rem; font-size: 0.72rem;"
