@@ -1634,6 +1634,9 @@
         <div *ngIf="groupedExcluded().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
           No transactions matched your exclusion rules in this statement.
         </div>
+      </div>
+    </div>
+
     <!-- TAB 4: Previously Deleted Transactions (Grouped / Flat View) -->
     <div *ngIf="previewTab() === 'deleted'">
       <div class="preview-info-banner warning" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; background: rgba(156, 163, 175, 0.08); border-color: rgba(156, 163, 175, 0.3);">
