@@ -296,28 +296,68 @@
 
 /* Workflow Row States: Done & Review in Importer */
 .tx-row-done {
+  background: rgba(255, 255, 255, 0.01) !important;
+}
+
+.tx-row-done > td:not(:last-child) {
   opacity: 0.38;
   filter: grayscale(0.85);
-  background: rgba(255, 255, 255, 0.01) !important;
   transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
-.tx-row-done:hover {
+.tx-row-done:hover > td:not(:last-child) {
   opacity: 0.85;
   filter: grayscale(0.15);
+}
+
+.tx-row-done > td:last-child .tx-actions-cell > button:not(.tx-btn-done) {
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.tx-row-done:hover > td:last-child .tx-actions-cell > button:not(.tx-btn-done) {
+  opacity: 1;
 }
 
 .tx-group-done {
-  opacity: 0.38;
-  filter: grayscale(0.85);
   background: rgba(255, 255, 255, 0.01) !important;
   border-color: rgba(255, 255, 255, 0.04) !important;
-  transition: opacity 0.2s ease, filter 0.2s ease, border-color 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
-.tx-group-done:hover {
+.tx-group-done .grp-main-info,
+.tx-group-done .grp-bulk-controls > *:not(.tx-btn-done),
+.tx-group-done .table-container {
+  opacity: 0.38;
+  filter: grayscale(0.85);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.tx-group-done:hover .grp-main-info,
+.tx-group-done:hover .grp-bulk-controls > *:not(.tx-btn-done),
+.tx-group-done:hover .table-container {
   opacity: 0.85;
   filter: grayscale(0.15);
+}
+
+.tx-btn-done {
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+
+.tx-btn-done.is-done {
+  color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.24) !important;
+  border: 1px solid #10b981 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35) !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.tx-btn-done.is-done:hover {
+  background: rgba(16, 185, 129, 0.32) !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.5) !important;
 }
 
 .tx-row-review {

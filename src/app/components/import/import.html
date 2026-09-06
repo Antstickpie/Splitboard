@@ -572,8 +572,9 @@
                   <button
                     type="button"
                     class="btn btn-xs tx-btn-done"
+                    [class.is-done]="tx.isDone"
                     [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
                     [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                     (click)="toggleTxDone(tx)"
                     [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
@@ -621,7 +622,7 @@
           <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" [class.tx-group-done]="isGroupDone(grp)" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <!-- Group Summary Row -->
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-              <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
+              <div class="grp-main-info" style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
                 <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ grp.count }} items</span>
@@ -629,7 +630,7 @@
               </div>
 
               <!-- Group Bulk Controls -->
-              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+              <div class="grp-bulk-controls" style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
                 <!-- Bulk Owner -->
                 <span
                   class="badge"
@@ -698,8 +699,9 @@
                 <button
                   type="button"
                   class="btn btn-xs tx-btn-done"
+                  [class.is-done]="isGroupDone(grp)"
                   [style.color]="isGroupDone(grp) ? '#10b981' : 'var(--text-muted)'"
-                  [style.background]="isGroupDone(grp) ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                  [style.background]="isGroupDone(grp) ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
                   [style.border]="isGroupDone(grp) ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                   (click)="toggleGroupDone(grp)"
                   [title]="isGroupDone(grp) ? 'All marked done (click to unmark all)' : 'Mark all items in this group as done (gray out)'">
@@ -814,8 +816,9 @@
                         <button
                           type="button"
                           class="btn btn-xs tx-btn-done"
+                          [class.is-done]="tx.isDone"
                           [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
                           [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                           (click)="toggleTxDone(tx)"
                           [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
@@ -938,8 +941,9 @@
                     <button
                       type="button"
                       class="btn btn-xs tx-btn-done"
+                      [class.is-done]="tx.isDone"
                       [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                      [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                      [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
                       [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                       (click)="toggleTxDone(tx)"
                       [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
@@ -1083,8 +1087,9 @@
                   <button
                     type="button"
                     class="btn btn-xs tx-btn-done"
+                    [class.is-done]="tx.isDone"
                     [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
                     [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                     (click)="toggleTxDone(tx)"
                     [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
@@ -1125,7 +1130,7 @@
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
           <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" [class.tx-group-done]="isGroupDone(grp)" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-              <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
+              <div class="grp-main-info" style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
                 <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-warning" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">🔍 {{ grp.count }} review items</span>
@@ -1133,12 +1138,13 @@
               </div>
 
               <!-- Group Bulk Controls -->
-              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+              <div class="grp-bulk-controls" style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
                 <!-- Bulk Done -->
                 <button
                   type="button"
                   class="btn btn-xs tx-btn-done"
-                  [style.background]="isGroupDone(grp) ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.05)'"
+                  [class.is-done]="isGroupDone(grp)"
+                  [style.background]="isGroupDone(grp) ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.05)'"
                   [style.color]="isGroupDone(grp) ? '#10b981' : 'var(--text-muted)'"
                   [style.border]="isGroupDone(grp) ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
                   (click)="toggleGroupDone(grp)"
@@ -1309,8 +1315,9 @@
                         <button
                           type="button"
                           class="btn btn-xs tx-btn-done"
+                          [class.is-done]="tx.isDone"
                           [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
                           [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                           (click)="toggleTxDone(tx)"
                           [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
@@ -1435,8 +1442,9 @@
                       <button
                         type="button"
                         class="btn btn-xs tx-btn-done"
+                        [class.is-done]="tx.isDone"
                         [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.04)'"
+                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
                         [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                         (click)="toggleTxDone(tx)"
                         [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">

@@ -404,17 +404,6 @@
           ⚙ More Filters <span *ngIf="hasActiveFilters()">●</span>
         </button>
 
-        <button
-          *ngIf="service.importedBatches().length > 0"
-          class="btn btn-xs"
-          [class.btn-primary]="!isBatchesCollapsed()"
-          [class.btn-secondary]="isBatchesCollapsed()"
-          (click)="toggleBatchesCollapsed()"
-          style="height: 28px; font-size: 0.76rem; padding: 0 0.55rem; white-space: nowrap;"
-          title="View and manage imported bank statements grouped by owner">
-          📜 Statements ({{ service.importedBatches().length }}) {{ isBatchesCollapsed() ? '▼' : '▲' }}
-        </button>
-
         <!-- Direct Statement File Input -->
         <input
           type="file"
