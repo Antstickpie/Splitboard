@@ -373,9 +373,9 @@
           [class.btn-secondary]="service.filterStatus() !== 'REVIEW'"
           (click)="service.filterStatus.set(service.filterStatus() === 'REVIEW' ? 'ALL' : 'REVIEW')"
           title="Filter to transactions flagged for review"
-          style="font-size: 0.74rem; padding: 0.2rem 0.55rem; height: 28px; white-space: nowrap;"
-          [style.color]="service.reviewTransactionsForSelectedMonth().length > 0 ? '#fbbf24' : 'inherit'"
-          [style.borderColor]="service.reviewTransactionsForSelectedMonth().length > 0 ? 'rgba(245, 158, 11, 0.4)' : 'inherit'">
+          style="font-size: 0.74rem; padding: 0 0.55rem; height: 28px; white-space: nowrap;"
+          [style.color]="service.reviewTransactionsForSelectedMonth().length > 0 ? '#fbbf24' : null"
+          [style.borderColor]="service.reviewTransactionsForSelectedMonth().length > 0 ? 'rgba(245, 158, 11, 0.4)' : null">
           🔍 In Review ({{ service.reviewTransactionsForSelectedMonth().length }})
         </button>
 
