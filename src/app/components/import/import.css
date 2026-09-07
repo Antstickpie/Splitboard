@@ -343,21 +343,49 @@
 .tx-btn-done {
   transition: all 0.15s ease;
   font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
+.tx-btn-done:hover:not(.is-done) {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+/* Settled, completed state: soft, calm, non-distracting, NO neon glow, NO thick CTA border */
 .tx-btn-done.is-done {
-  color: #10b981 !important;
-  background: rgba(16, 185, 129, 0.24) !important;
-  border: 1px solid #10b981 !important;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35) !important;
-  font-weight: 700 !important;
-  opacity: 1 !important;
+  color: #34d399 !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+  border: 1px solid rgba(16, 185, 129, 0.22) !important;
+  box-shadow: none !important;
+  font-weight: 500 !important;
+  opacity: 0.82 !important;
   filter: none !important;
 }
 
+/* On hover when already done: clearly indicates "Undo" affordance so user doesn't feel invited to re-complete */
 .tx-btn-done.is-done:hover {
-  background: rgba(16, 185, 129, 0.32) !important;
-  box-shadow: 0 0 14px rgba(16, 185, 129, 0.5) !important;
+  color: #f87171 !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.tx-btn-done .btn-undo-label {
+  display: none;
+}
+
+.tx-btn-done.is-done:hover .btn-done-label {
+  display: none;
+}
+
+.tx-btn-done.is-done:hover .btn-undo-label {
+  display: inline;
 }
 
 .tx-row-review {
@@ -526,7 +554,6 @@
   justify-content: center !important;
   padding: 0.2rem 0 !important;
   font-size: 0.72rem !important;
-  font-weight: 600 !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
   text-align: center !important;

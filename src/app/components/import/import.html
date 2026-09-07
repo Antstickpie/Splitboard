@@ -581,12 +581,10 @@
                     type="button"
                     class="btn btn-xs tx-btn-done"
                     [class.is-done]="tx.isDone"
-                    [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                    [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                     (click)="toggleTxDone(tx)"
                     [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                    {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                    <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                    <span class="btn-undo-label">↩ Undo</span>
                   </button>
                   <!-- Review Button -->
                   <button
@@ -708,12 +706,10 @@
                   type="button"
                   class="btn btn-xs tx-btn-done"
                   [class.is-done]="isGroupDone(grp)"
-                  [style.color]="isGroupDone(grp) ? '#10b981' : 'var(--text-muted)'"
-                  [style.background]="isGroupDone(grp) ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                  [style.border]="isGroupDone(grp) ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                   (click)="toggleGroupDone(grp)"
                   [title]="isGroupDone(grp) ? 'All marked done (click to unmark all)' : 'Mark all items in this group as done (gray out)'">
-                  {{ isGroupDone(grp) ? '✓ Done' : '○ Done' }}
+                  <span class="btn-done-label">{{ isGroupDone(grp) ? '✓ Done' : '○ Done' }}</span>
+                  <span class="btn-undo-label">↩ Undo</span>
                 </button>
 
                 <!-- Bulk Review -->
@@ -825,12 +821,10 @@
                           type="button"
                           class="btn btn-xs tx-btn-done"
                           [class.is-done]="tx.isDone"
-                          [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                          [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                           (click)="toggleTxDone(tx)"
                           [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                          {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                          <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                          <span class="btn-undo-label">↩ Undo</span>
                         </button>
                         <button
                           class="btn btn-xs tx-btn-review"
@@ -950,12 +944,10 @@
                       type="button"
                       class="btn btn-xs tx-btn-done"
                       [class.is-done]="tx.isDone"
-                      [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                      [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                      [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                       (click)="toggleTxDone(tx)"
                       [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                      {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                      <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                      <span class="btn-undo-label">↩ Undo</span>
                     </button>
                     <button
                       class="btn btn-xs tx-btn-review"
@@ -1096,12 +1088,10 @@
                     type="button"
                     class="btn btn-xs tx-btn-done"
                     [class.is-done]="tx.isDone"
-                    [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                    [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                     (click)="toggleTxDone(tx)"
                     [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                    {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                    <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                    <span class="btn-undo-label">↩ Undo</span>
                   </button>
                   <button
                     class="btn btn-xs tx-btn-review"
@@ -1152,12 +1142,10 @@
                   type="button"
                   class="btn btn-xs tx-btn-done"
                   [class.is-done]="isGroupDone(grp)"
-                  [style.background]="isGroupDone(grp) ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.05)'"
-                  [style.color]="isGroupDone(grp) ? '#10b981' : 'var(--text-muted)'"
-                  [style.border]="isGroupDone(grp) ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)'"
                   (click)="toggleGroupDone(grp)"
                   [title]="isGroupDone(grp) ? 'Unmark all as done' : 'Mark all items in this group as done'">
-                  {{ isGroupDone(grp) ? '✓ Done' : '○ Done' }}
+                  <span class="btn-done-label">{{ isGroupDone(grp) ? '✓ Done' : '○ Done' }}</span>
+                  <span class="btn-undo-label">↩ Undo</span>
                 </button>
 
                 <!-- Bulk Owner -->
@@ -1324,12 +1312,10 @@
                           type="button"
                           class="btn btn-xs tx-btn-done"
                           [class.is-done]="tx.isDone"
-                          [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                          [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                          [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                           (click)="toggleTxDone(tx)"
                           [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                          {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                          <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                          <span class="btn-undo-label">↩ Undo</span>
                         </button>
                         <button
                           class="btn btn-xs tx-btn-review"
@@ -1451,12 +1437,10 @@
                         type="button"
                         class="btn btn-xs tx-btn-done"
                         [class.is-done]="tx.isDone"
-                        [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                        [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                         (click)="toggleTxDone(tx)"
                         [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                        {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                        <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                        <span class="btn-undo-label">↩ Undo</span>
                       </button>
                       <button
                         class="btn btn-xs tx-btn-review"
@@ -1607,12 +1591,10 @@
                     type="button"
                     class="btn btn-xs tx-btn-done"
                     [class.is-done]="tx.isDone"
-                    [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                    [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                     (click)="toggleTxDone(tx)"
                     [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done'">
-                    {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                    <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                    <span class="btn-undo-label">↩ Undo</span>
                   </button>
                   <!-- Include Button -->
                   <button
@@ -1745,12 +1727,10 @@
                         type="button"
                         class="btn btn-xs tx-btn-done"
                         [class.is-done]="tx.isDone"
-                        [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
-                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
-                        [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
                         (click)="toggleTxDone(tx)"
                         [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done'">
-                        {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                        <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                        <span class="btn-undo-label">↩ Undo</span>
                       </button>
                       <button
                         class="btn btn-secondary btn-xs"
