@@ -380,10 +380,10 @@
           <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
-                <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [title]="grp.description">{{ grp.description }}</div>
-                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ grp.count }} items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: #10b981;">+{{ service.formatCurrency(grp.totalAmount) }}</span>
+                <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [title]="grp.description">{{ grp.description }}</div>
+                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">{{ grp.count }} items</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: #10b981; flex-shrink: 0; white-space: nowrap;">+{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
@@ -594,7 +594,7 @@
                     [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
                     (click)="toggleTxReview(tx)"
                     [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
-                    {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
+                    {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
                   </button>
                   <!-- Rule Button -->
                   <button
@@ -629,10 +629,10 @@
             <!-- Group Summary Row -->
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div class="grp-main-info" style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
-                <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
-                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ grp.count }} items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);">{{ service.formatCurrency(grp.totalAmount) }}</span>
+                <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
+                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">{{ grp.count }} items</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); flex-shrink: 0; white-space: nowrap;">{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <!-- Group Bulk Controls -->
@@ -720,7 +720,7 @@
                   [style.border]="isGroupUnderReview(grp) ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)'"
                   (click)="toggleGroupReview(grp)"
                   [title]="isGroupUnderReview(grp) ? 'All items in review (click to resolve all)' : 'Mark all items in this group for review'">
-                  {{ isGroupUnderReview(grp) ? '🔍 Reviewing' : '🔍 Review' }}
+                  {{ isGroupUnderReview(grp) ? '🔍 In Review' : '🔍 Review' }}
                 </button>
                 <button
                   class="btn btn-secondary btn-xs tx-btn-rule"
@@ -833,7 +833,7 @@
                           [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
                           (click)="toggleTxReview(tx)"
                           [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
-                          {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
+                          {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
                         </button>
                         <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
                       </div>
@@ -956,7 +956,7 @@
                       [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
                       (click)="toggleTxReview(tx)"
                       [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
-                      {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
+                      {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
                     </button>
                     <button
                       class="btn btn-secondary btn-xs tx-btn-rule"
@@ -1097,8 +1097,8 @@
                     class="btn btn-xs tx-btn-review"
                     style="color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4);"
                     (click)="toggleTxReview(tx)"
-                    title="Resolve / Unflag review">
-                    ✓ Resolved
+                    title="Resolve review for this transaction">
+                    ✓ Resolve
                   </button>
                   <button
                     class="btn btn-secondary btn-xs tx-btn-rule"
@@ -1129,10 +1129,10 @@
           <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" [class.tx-group-done]="isGroupDone(grp)" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div class="grp-main-info" style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
-                <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
-                <span class="badge badge-warning" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">🔍 {{ grp.count }} review items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main);">{{ service.formatCurrency(grp.totalAmount) }}</span>
+                <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
+                <span class="badge badge-warning" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">🔍 {{ grp.count }} review items</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); flex-shrink: 0; white-space: nowrap;">{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <!-- Group Bulk Controls -->
@@ -1321,8 +1321,8 @@
                           class="btn btn-xs tx-btn-review"
                           style="color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4);"
                           (click)="toggleTxReview(tx)"
-                          title="Resolve / Unflag review">
-                          ✓ Resolved
+                          title="Resolve review for this transaction">
+                          ✓ Resolve
                         </button>
                         <button
                           class="btn btn-secondary btn-xs tx-btn-rule"
@@ -1446,8 +1446,8 @@
                         class="btn btn-xs tx-btn-review"
                         style="color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4);"
                         (click)="toggleTxReview(tx)"
-                        title="Resolve / Unflag review">
-                        ✓ Resolved
+                        title="Resolve review for this transaction">
+                        ✓ Resolve
                       </button>
                       <button
                         class="btn btn-secondary btn-xs tx-btn-rule"
@@ -1626,11 +1626,11 @@
           <div
             (click)="toggleGroup(g.id)"
             style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255, 255, 255, 0.04); cursor: pointer; user-select: none;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="font-size: 0.75rem; color: var(--text-muted);">{{ isGroupExpanded(g.id) ? '▼' : '▶' }}</span>
-              <strong style="font-size: 0.84rem; color: var(--text-main);" [style.text-decoration]="g.items[0]?.isDone ? 'line-through' : 'none'">{{ g.title }}</strong>
-              <span class="badge badge-success" style="font-size: 0.68rem;">✓ In Ledger</span>
-              <span class="badge badge-warning" style="font-size: 0.68rem;">{{ g.count }} {{ g.count > 1 ? 'items' : 'item' }}</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1;">
+              <span style="font-size: 0.75rem; color: var(--text-muted); flex-shrink: 0;">{{ isGroupExpanded(g.id) ? '▼' : '▶' }}</span>
+              <strong style="font-size: 0.84rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; min-width: 0;" [style.text-decoration]="g.items[0]?.isDone ? 'line-through' : 'none'" [title]="g.title">{{ g.title }}</strong>
+              <span class="badge badge-success" style="font-size: 0.68rem; flex-shrink: 0; white-space: nowrap;">✓ In Ledger</span>
+              <span class="badge badge-warning" style="font-size: 0.68rem; flex-shrink: 0; white-space: nowrap;">{{ g.count }} {{ g.count > 1 ? 'items' : 'item' }}</span>
             </div>
 
             <div style="display: flex; align-items: center; gap: 0.6rem;" (click)="$event.stopPropagation()">
@@ -1893,10 +1893,10 @@
           <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
-                <span style="font-size: 0.8rem; color: var(--primary);">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); text-decoration: line-through; opacity: 0.85;" [title]="grp.description">{{ grp.description }}</div>
-                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">🗑️ {{ grp.count }} deleted items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-muted);">{{ service.formatCurrency(grp.totalAmount) }}</span>
+                <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); text-decoration: line-through; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [title]="grp.description">{{ grp.description }}</div>
+                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">🗑️ {{ grp.count }} deleted items</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-muted); flex-shrink: 0; white-space: nowrap;">{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">

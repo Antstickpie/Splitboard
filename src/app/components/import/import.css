@@ -561,18 +561,26 @@
 }
 
 .tx-btn-review {
-  width: 88px !important;
-  min-width: 88px !important;
-  max-width: 88px !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 0.2rem 0 !important;
-  font-size: 0.72rem !important;
+  padding: 0.2rem 0.2rem !important;
+  font-size: 0.70rem !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
   text-align: center !important;
   white-space: nowrap !important;
+}
+
+.grp-bulk-controls .tx-btn-review {
+  width: auto !important;
+  min-width: 94px !important;
+  max-width: none !important;
+  padding: 0.2rem 0.55rem !important;
+  font-size: 0.72rem !important;
 }
 
 .tx-btn-rule {

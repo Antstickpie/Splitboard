@@ -10,6 +10,8 @@
   justify-content: space-between;
   gap: 0.35rem;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-main);
@@ -39,12 +41,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  min-width: 0;
 }
 
 .cat-chevron {
   font-size: 0.62rem;
   color: var(--text-muted);
   flex-shrink: 0;
+  margin-left: 0.25rem;
 }
 
 /* Body-Portaled Dropdown Popover */

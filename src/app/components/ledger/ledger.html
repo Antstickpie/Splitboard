@@ -587,23 +587,25 @@
                 {{ tx.paidBy }}
               </span>
             </td>
-            <td style="font-weight: 500; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
-              <span>{{ tx.description }}</span>
-              <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600;">
-                🔍 Review
-              </span>
-              <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem;">Cash Transfer</span>
-              <span
-                *ngIf="tx.isReimbursable"
-                class="badge"
-                (click)="openReimbursementModal(tx)"
-                [style.cursor]="'pointer'"
-                [class.badge-warning]="tx.reimbursementStatus === 'PENDING'"
-                [class.badge-success]="tx.reimbursementStatus === 'REIMBURSED'"
-                style="margin-left: 0.35rem; font-size: 0.7rem; padding: 0.15rem 0.45rem; font-weight: 600;"
-                [title]="tx.reimbursementStatus === 'REIMBURSED' ? 'Reimbursed! Click to view / edit settlement' : 'Pending reimbursement. Click to settle'">
-                {{ tx.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
-              </span>
+            <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
+              <div class="tx-description-cell">
+                <span class="tx-description-text">{{ tx.description }}</span>
+                <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
+                  🔍 Review
+                </span>
+                <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem; flex-shrink: 0;">Cash Transfer</span>
+                <span
+                  *ngIf="tx.isReimbursable"
+                  class="badge"
+                  (click)="openReimbursementModal(tx)"
+                  [style.cursor]="'pointer'"
+                  [class.badge-warning]="tx.reimbursementStatus === 'PENDING'"
+                  [class.badge-success]="tx.reimbursementStatus === 'REIMBURSED'"
+                  style="margin-left: 0.35rem; font-size: 0.7rem; padding: 0.15rem 0.45rem; font-weight: 600; flex-shrink: 0;"
+                  [title]="tx.reimbursementStatus === 'REIMBURSED' ? 'Reimbursed! Click to view / edit settlement' : 'Pending reimbursement. Click to settle'">
+                  {{ tx.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
+                </span>
+              </div>
             </td>
             <td>
               <app-category-select

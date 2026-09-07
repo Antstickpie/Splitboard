@@ -430,6 +430,25 @@ tr:hover td {
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Truncated description cell with badges */
+.tx-description-cell {
+  display: flex;
+  align-items: center;
+  max-width: 280px;
+  min-width: 0;
+  overflow: hidden !important;
+}
+
+.tx-description-text {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  min-width: 0;
+  flex: 1;
 }
 
 .badge-success {
