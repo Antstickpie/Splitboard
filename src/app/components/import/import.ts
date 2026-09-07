@@ -1126,13 +1126,26 @@ export class ImportComponent {
     }
   }
 
+  public hasIncludedItems(group: DescriptionGroup): boolean {
+    return (group.items || []).some((t) => Boolean(t.includedFrom));
+  }
+
+  public getIncludedFromLabel(from?: string): string {
+    if (from === 'duplicates') return 'Duplicates';
+    if (from === 'incomes') return 'Incomes';
+    if (from === 'excluded') return 'Excluded';
+    if (from === 'deleted') return 'Recently Deleted';
+    return 'Source';
+  }
+
   public includeIncome(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;
+    const taggedTx: Transaction = { ...tx, includedFrom: 'incomes' };
     this.previewResult.set({
       ...res,
       incomes: res.incomes.filter((t) => t.id !== tx.id),
-      transactions: [tx, ...res.transactions],
+      transactions: [taggedTx, ...res.transactions],
       incomesCount: Math.max(0, res.incomesCount - 1)
     });
     this.service.showToast('Included transaction in import list', 'success');
@@ -1142,9 +1155,10 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res || res.incomes.length === 0) return;
     const count = res.incomes.length;
+    const tagged = res.incomes.map((t) => ({ ...t, includedFrom: 'incomes' as const }));
     this.previewResult.set({
       ...res,
-      transactions: [...res.transactions, ...res.incomes],
+      transactions: [...res.transactions, ...tagged],
       incomes: [],
       incomesCount: 0
     });
@@ -1154,10 +1168,11 @@ export class ImportComponent {
   public includeDuplicate(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;
+    const taggedTx: Transaction = { ...tx, includedFrom: 'duplicates' };
     this.previewResult.set({
       ...res,
       duplicates: res.duplicates.filter((t) => t.id !== tx.id),
-      transactions: [tx, ...res.transactions],
+      transactions: [taggedTx, ...res.transactions],
       duplicatesCount: Math.max(0, res.duplicatesCount - 1)
     });
     this.service.showToast('Included transaction in import list', 'success');
@@ -1167,9 +1182,10 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res || res.duplicates.length === 0) return;
     const count = res.duplicates.length;
+    const tagged = res.duplicates.map((t) => ({ ...t, includedFrom: 'duplicates' as const }));
     this.previewResult.set({
       ...res,
-      transactions: [...res.transactions, ...res.duplicates],
+      transactions: [...res.transactions, ...tagged],
       duplicates: [],
       duplicatesCount: 0
     });
@@ -1179,10 +1195,11 @@ export class ImportComponent {
   public includeExcluded(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;
+    const taggedTx: Transaction = { ...tx, includedFrom: 'excluded' };
     this.previewResult.set({
       ...res,
       excluded: res.excluded.filter((t) => t.id !== tx.id),
-      transactions: [tx, ...res.transactions],
+      transactions: [taggedTx, ...res.transactions],
       excludedCount: Math.max(0, res.excludedCount - 1)
     });
     this.service.showToast('Included transaction in import list', 'success');
@@ -1192,10 +1209,11 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res) return;
     this.service.restoreDeletedSignature(this.service.getTransactionSignature(tx), tx);
+    const taggedTx: Transaction = { ...tx, includedFrom: 'deleted' };
     this.previewResult.set({
       ...res,
       deleted: (res.deleted || []).filter((t) => t.id !== tx.id),
-      transactions: [tx, ...res.transactions],
+      transactions: [taggedTx, ...res.transactions],
       deletedCount: Math.max(0, (res.deletedCount || 0) - 1)
     });
     this.service.showToast('Restored transaction into import list', 'success');
@@ -1206,13 +1224,59 @@ export class ImportComponent {
     if (!res || !res.deleted || res.deleted.length === 0) return;
     const count = res.deleted.length;
     res.deleted.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t), t));
+    const tagged = res.deleted.map((t) => ({ ...t, includedFrom: 'deleted' as const }));
     this.previewResult.set({
       ...res,
-      transactions: [...res.transactions, ...res.deleted],
+      transactions: [...res.transactions, ...tagged],
       deleted: [],
       deletedCount: 0
     });
     this.service.showToast(`Restored all ${count} previously deleted rows into import list`, 'success');
+  }
+
+  public excludeIncludedTransaction(tx: Transaction): void {
+    const res = this.previewResult();
+    if (!res) return;
+    const fromTab = tx.includedFrom || 'duplicates';
+    const cleanedTx: Transaction = { ...tx };
+    delete cleanedTx.includedFrom;
+
+    const remainingTxs = res.transactions.filter((t) => t.id !== tx.id);
+
+    if (fromTab === 'duplicates') {
+      this.previewResult.set({
+        ...res,
+        transactions: remainingTxs,
+        duplicates: [cleanedTx, ...res.duplicates],
+        duplicatesCount: (res.duplicatesCount || 0) + 1
+      });
+      this.service.showToast('Returned transaction back to Duplicates', 'info');
+    } else if (fromTab === 'incomes') {
+      this.previewResult.set({
+        ...res,
+        transactions: remainingTxs,
+        incomes: [cleanedTx, ...res.incomes],
+        incomesCount: (res.incomesCount || 0) + 1
+      });
+      this.service.showToast('Returned transaction back to Incomes', 'info');
+    } else if (fromTab === 'excluded') {
+      this.previewResult.set({
+        ...res,
+        transactions: remainingTxs,
+        excluded: [cleanedTx, ...res.excluded],
+        excludedCount: (res.excludedCount || 0) + 1
+      });
+      this.service.showToast('Returned transaction back to Excluded', 'info');
+    } else if (fromTab === 'deleted') {
+      this.service.recordDeletedTransaction(cleanedTx);
+      this.previewResult.set({
+        ...res,
+        transactions: remainingTxs,
+        deleted: [cleanedTx, ...(res.deleted || [])],
+        deletedCount: (res.deletedCount || 0) + 1
+      });
+      this.service.showToast('Returned transaction back to Recently Deleted', 'info');
+    }
   }
 
   // Description Grouping for Valid Transactions
@@ -1480,35 +1544,39 @@ export class ImportComponent {
     const ids = new Set(group.items.map((t) => t.id));
 
     if (tab === 'incomes') {
+      const tagged = group.items.map((t) => ({ ...t, includedFrom: 'incomes' as const }));
       this.previewResult.set({
         ...res,
         incomes: res.incomes.filter((t) => !ids.has(t.id)),
-        transactions: [...group.items, ...res.transactions],
+        transactions: [...tagged, ...res.transactions],
         incomesCount: Math.max(0, res.incomesCount - group.count)
       });
       this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
     } else if (tab === 'duplicates') {
+      const tagged = group.items.map((t) => ({ ...t, includedFrom: 'duplicates' as const }));
       this.previewResult.set({
         ...res,
         duplicates: res.duplicates.filter((t) => !ids.has(t.id)),
-        transactions: [...group.items, ...res.transactions],
+        transactions: [...tagged, ...res.transactions],
         duplicatesCount: Math.max(0, res.duplicatesCount - group.count)
       });
       this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
     } else if (tab === 'excluded') {
+      const tagged = group.items.map((t) => ({ ...t, includedFrom: 'excluded' as const }));
       this.previewResult.set({
         ...res,
         excluded: res.excluded.filter((t) => !ids.has(t.id)),
-        transactions: [...group.items, ...res.transactions],
+        transactions: [...tagged, ...res.transactions],
         excludedCount: Math.max(0, res.excludedCount - group.count)
       });
       this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
     } else if (tab === 'deleted') {
       group.items.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t), t));
+      const tagged = group.items.map((t) => ({ ...t, includedFrom: 'deleted' as const }));
       this.previewResult.set({
         ...res,
         deleted: (res.deleted || []).filter((t) => !ids.has(t.id)),
-        transactions: [...group.items, ...res.transactions],
+        transactions: [...tagged, ...res.transactions],
         deletedCount: Math.max(0, (res.deletedCount || res.deleted?.length || 0) - group.count)
       });
       this.service.showToast(`Restored all ${group.count} "${group.description}" items into import list`, 'success');
@@ -1523,14 +1591,60 @@ export class ImportComponent {
 
     if (tab === 'valid' || tab === 'review') {
       const removedItems = res.transactions.filter((t) => ids.has(t.id));
-      this.service.recordDeletedTransactions(removedItems);
+      const toReturnToDuplicates: Transaction[] = [];
+      const toReturnToIncomes: Transaction[] = [];
+      const toReturnToExcluded: Transaction[] = [];
+      const toDelete: Transaction[] = [];
+
+      for (const t of removedItems) {
+        if (t.includedFrom === 'duplicates') {
+          const clean = { ...t };
+          delete clean.includedFrom;
+          toReturnToDuplicates.push(clean);
+        } else if (t.includedFrom === 'incomes') {
+          const clean = { ...t };
+          delete clean.includedFrom;
+          toReturnToIncomes.push(clean);
+        } else if (t.includedFrom === 'excluded') {
+          const clean = { ...t };
+          delete clean.includedFrom;
+          toReturnToExcluded.push(clean);
+        } else {
+          const isDbDuplicate = this.service.transactions().some(
+            (dbt) => this.service.getTransactionSignature(dbt) === this.service.getTransactionSignature(t)
+          );
+          if (isDbDuplicate) {
+            const clean = { ...t };
+            delete clean.includedFrom;
+            toReturnToDuplicates.push(clean);
+          } else {
+            toDelete.push(t);
+          }
+        }
+      }
+
+      if (toDelete.length > 0) {
+        this.service.recordDeletedTransactions(toDelete);
+      }
+
       this.previewResult.set({
         ...res,
         transactions: res.transactions.filter((t) => !ids.has(t.id)),
-        deleted: [...removedItems, ...(res.deleted || [])],
-        deletedCount: (res.deletedCount || 0) + removedItems.length
+        duplicates: [...toReturnToDuplicates, ...res.duplicates],
+        duplicatesCount: (res.duplicatesCount || 0) + toReturnToDuplicates.length,
+        incomes: [...toReturnToIncomes, ...res.incomes],
+        incomesCount: (res.incomesCount || 0) + toReturnToIncomes.length,
+        excluded: [...toReturnToExcluded, ...res.excluded],
+        excludedCount: (res.excludedCount || 0) + toReturnToExcluded.length,
+        deleted: [...toDelete, ...(res.deleted || [])],
+        deletedCount: (res.deletedCount || 0) + toDelete.length
       });
-      this.service.showToast(`Remembered ${group.count} items as deleted for future imports`, 'info');
+
+      if (toDelete.length > 0) {
+        this.service.showToast(`Remembered ${toDelete.length} new items as deleted for future imports`, 'info');
+      } else {
+        this.service.showToast(`Returned ${removedItems.length} items to their original sections`, 'info');
+      }
       return;
     } else if (tab === 'incomes') {
       this.previewResult.set({
@@ -1647,10 +1761,11 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res) return;
     const groupItemIds = new Set(group.items.map((t) => t.id));
+    const tagged = group.items.map((t) => ({ ...t, includedFrom: 'excluded' as const }));
     this.previewResult.set({
       ...res,
       excluded: res.excluded.filter((t) => !groupItemIds.has(t.id)),
-      transactions: [...group.items, ...res.transactions],
+      transactions: [...tagged, ...res.transactions],
       excludedCount: Math.max(0, res.excludedCount - group.count)
     });
     this.service.showToast(`Included all ${group.count} transactions from "${group.title}"`, 'success');
@@ -1660,10 +1775,11 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res) return;
     const groupItemIds = new Set(group.items.map((t) => t.id));
+    const tagged = group.items.map((t) => ({ ...t, includedFrom: 'duplicates' as const }));
     this.previewResult.set({
       ...res,
       duplicates: res.duplicates.filter((t) => !groupItemIds.has(t.id)),
-      transactions: [...group.items, ...res.transactions],
+      transactions: [...tagged, ...res.transactions],
       duplicatesCount: Math.max(0, res.duplicatesCount - group.count)
     });
     this.service.showToast(`Included all ${group.count} transactions from "${group.title}"`, 'success');
@@ -1674,10 +1790,11 @@ export class ImportComponent {
     if (!res) return;
     const groupItemIds = new Set(group.items.map((t) => t.id));
     group.items.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t), t));
+    const tagged = group.items.map((t) => ({ ...t, includedFrom: 'deleted' as const }));
     this.previewResult.set({
       ...res,
       deleted: (res.deleted || []).filter((t) => !groupItemIds.has(t.id)),
-      transactions: [...group.items, ...res.transactions],
+      transactions: [...tagged, ...res.transactions],
       deletedCount: Math.max(0, (res.deletedCount || 0) - group.count)
     });
     this.service.showToast(`Restored all ${group.count} transactions from "${group.title}"`, 'success');
@@ -1687,9 +1804,10 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res || res.excluded.length === 0) return;
     const count = res.excluded.length;
+    const tagged = res.excluded.map((t) => ({ ...t, includedFrom: 'excluded' as const }));
     this.previewResult.set({
       ...res,
-      transactions: [...res.transactions, ...res.excluded],
+      transactions: [...res.transactions, ...tagged],
       excluded: [],
       excludedCount: 0
     });
@@ -1700,21 +1818,43 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res) return;
     const targetTx = res.transactions.find((t) => t.id === txId);
-    if (targetTx) {
-      this.service.recordDeletedTransaction(targetTx);
-      this.previewResult.set({
-        ...res,
-        transactions: res.transactions.filter((t) => t.id !== txId),
-        deleted: [targetTx, ...(res.deleted || [])],
-        deletedCount: (res.deletedCount || 0) + 1
-      });
-      this.service.showToast(`Remembered as deleted for future imports`, 'info');
-    } else {
+    if (!targetTx) {
       this.previewResult.set({
         ...res,
         transactions: res.transactions.filter((t) => t.id !== txId)
       });
+      return;
     }
+
+    if (targetTx.includedFrom) {
+      this.excludeIncludedTransaction(targetTx);
+      return;
+    }
+
+    const isDbDuplicate = this.service.transactions().some(
+      (dbt) => this.service.getTransactionSignature(dbt) === this.service.getTransactionSignature(targetTx)
+    );
+    if (isDbDuplicate) {
+      const clean = { ...targetTx };
+      delete clean.includedFrom;
+      this.previewResult.set({
+        ...res,
+        transactions: res.transactions.filter((t) => t.id !== txId),
+        duplicates: [clean, ...res.duplicates],
+        duplicatesCount: (res.duplicatesCount || 0) + 1
+      });
+      this.service.showToast('Returned duplicate transaction to Duplicates', 'info');
+      return;
+    }
+
+    this.service.recordDeletedTransaction(targetTx);
+    this.previewResult.set({
+      ...res,
+      transactions: res.transactions.filter((t) => t.id !== txId),
+      deleted: [targetTx, ...(res.deleted || [])],
+      deletedCount: (res.deletedCount || 0) + 1
+    });
+    this.service.showToast(`Remembered as deleted for future imports`, 'info');
   }
 
   public async commitImport() {
@@ -1737,7 +1877,8 @@ export class ImportComponent {
       return;
     }
 
-    this.service.addTransactions(res.transactions);
+    const toAdd = res.transactions.map(({ includedFrom, ...rest }) => rest);
+    this.service.addTransactions(toAdd);
     this.service.showToast(`Successfully imported ${res.transactions.length} transactions!`, 'success');
 
     if (res.duplicatesCount > 0 || res.excludedCount > 0) {

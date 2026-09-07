@@ -310,16 +310,14 @@ export class StatementParserService {
         continue;
       }
 
-      // 2. Check Previously Deleted Transactions
       const sig = this.service.getTransactionSignature(tx);
-      if (this.service.isSignatureDeleted(sig, tx)) {
-        deleted.push(tx);
-        continue;
-      }
 
-      // 3. Check Duplicates against Database only
+      // 2. Check Duplicates against Database first
+      // If the transaction already exists in the ledger, it is a DUPLICATE, not deleted.
       const matchedDbTx = duplicateTracker.claim(tx);
       if (matchedDbTx) {
+        // If an accidental deleted signature exists for an active ledger transaction, clean it up
+        this.service.restoreDeletedSignature(sig, tx);
         if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
         if (matchedDbTx.categoryItem) tx.categoryItem = matchedDbTx.categoryItem;
         if (matchedDbTx.splitType) tx.splitType = matchedDbTx.splitType;
@@ -331,7 +329,16 @@ export class StatementParserService {
         if (matchedDbTx.bank && !tx.bank) tx.bank = matchedDbTx.bank;
         tx.isDone = true;
         duplicates.push(tx);
-      } else if (isIncomeOrPayment) {
+        continue;
+      }
+
+      // 3. Check Previously Deleted Transactions (only for rows not in the active database)
+      if (this.service.isSignatureDeleted(sig, tx)) {
+        deleted.push(tx);
+        continue;
+      }
+
+      if (isIncomeOrPayment) {
         incomes.push(tx);
       } else {
         transactions.push(tx);
@@ -687,13 +694,13 @@ export class StatementParserService {
       }
 
       const sig = this.service.getTransactionSignature(tx);
-      if (this.service.isSignatureDeleted(sig, tx)) {
-        deleted.push(tx);
-        continue;
-      }
 
+      // Check Duplicates against Database first
+      // If the transaction already exists in the ledger, it is a DUPLICATE, not deleted.
       const matchedDbTx = duplicateTracker.claim(tx);
       if (matchedDbTx) {
+        // If an accidental deleted signature exists for an active ledger transaction, clean it up
+        this.service.restoreDeletedSignature(sig, tx);
         if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
         if (matchedDbTx.categoryItem) tx.categoryItem = matchedDbTx.categoryItem;
         if (matchedDbTx.splitType) tx.splitType = matchedDbTx.splitType;
@@ -705,7 +712,16 @@ export class StatementParserService {
         if (matchedDbTx.bank && !tx.bank) tx.bank = matchedDbTx.bank;
         tx.isDone = true;
         duplicates.push(tx);
-      } else if (isIncomeOrPayment) {
+        continue;
+      }
+
+      // Check Previously Deleted Transactions (only for rows not in the active database)
+      if (this.service.isSignatureDeleted(sig, tx)) {
+        deleted.push(tx);
+        continue;
+      }
+
+      if (isIncomeOrPayment) {
         incomes.push(tx);
       } else {
         transactions.push(tx);

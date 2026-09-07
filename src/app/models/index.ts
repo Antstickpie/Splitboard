@@ -60,6 +60,7 @@ export interface Transaction {
   // Review & Workflow status
   isUnderReview?: boolean; // Flagged for review / discussion
   isDone?: boolean; // Marked as verified / done (grays out row)
+  includedFrom?: 'duplicates' | 'incomes' | 'excluded' | 'deleted'; // Original source tab when included into preview
   
   note?: string;
   sourceFile?: string;

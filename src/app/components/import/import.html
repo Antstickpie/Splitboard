@@ -606,8 +606,18 @@
                     [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
                     {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                   </button>
+                  <!-- Return to source if included -->
+                  <button
+                    *ngIf="tx.includedFrom"
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="excludeIncludedTransaction(tx)"
+                    style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                    [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
+                    ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
+                  </button>
                   <!-- Delete / Skip Button -->
-                  <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                  <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip this row'">✕</button>
                 </div>
               </td>
             </tr>
@@ -731,7 +741,16 @@
                   [style.color]="hasMatchingRule(grp.items[0]) ? 'var(--primary)' : ''">
                   {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
                 </button>
-                <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Skip all items in this group">✕</button>
+                <button
+                  *ngIf="hasIncludedItems(grp)"
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  (click)="removeGroupTransactions(grp)"
+                  style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                  title="Return included items in this group back to their original tabs">
+                  ↩ Return
+                </button>
+                <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" [title]="hasIncludedItems(grp) ? 'Return or skip items in this group' : 'Skip all items in this group'">✕</button>
               </div>
             </div>
 
@@ -835,7 +854,17 @@
                           [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
                           {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
                         </button>
-                        <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                        <!-- Return to source if included -->
+                        <button
+                          *ngIf="tx.includedFrom"
+                          type="button"
+                          class="btn btn-secondary btn-xs"
+                          (click)="excludeIncludedTransaction(tx)"
+                          style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                          [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
+                          ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
+                        </button>
+                        <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip this row'">✕</button>
                       </div>
                     </td>
                   </tr>
@@ -967,7 +996,17 @@
                       [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
                       {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                     </button>
-                    <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                    <!-- Return to source if included -->
+                    <button
+                      *ngIf="tx.includedFrom"
+                      type="button"
+                      class="btn btn-secondary btn-xs"
+                      (click)="excludeIncludedTransaction(tx)"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                      [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
+                      ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
+                    </button>
+                    <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip this row'">✕</button>
                   </div>
                 </td>
               </tr>
@@ -1109,7 +1148,17 @@
                     [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
                     {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                   </button>
-                  <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                  <!-- Return to source if included -->
+                  <button
+                    *ngIf="tx.includedFrom"
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="excludeIncludedTransaction(tx)"
+                    style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                    [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
+                    ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
+                  </button>
+                  <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip this row'">✕</button>
                 </div>
               </td>
             </tr>
@@ -1226,7 +1275,16 @@
                   [style.color]="hasMatchingRule(grp.items[0]) ? 'var(--primary)' : ''">
                   {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
                 </button>
-                <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Skip all items in this group">✕</button>
+                <button
+                  *ngIf="hasIncludedItems(grp)"
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  (click)="removeGroupTransactions(grp)"
+                  style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                  title="Return included items in this group back to their original tabs">
+                  ↩ Return
+                </button>
+                <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" [title]="hasIncludedItems(grp) ? 'Return or skip items in this group' : 'Skip all items in this group'">✕</button>
               </div>
             </div>
 
@@ -1333,7 +1391,17 @@
                           [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
                           {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                         </button>
-                        <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip row">✕</button>
+                        <!-- Return to source if included -->
+                        <button
+                          *ngIf="tx.includedFrom"
+                          type="button"
+                          class="btn btn-secondary btn-xs"
+                          (click)="excludeIncludedTransaction(tx)"
+                          style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                          [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
+                          ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
+                        </button>
+                        <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip row'">✕</button>
                       </div>
                     </td>
                   </tr>
@@ -1458,7 +1526,17 @@
                         [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
                         {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                       </button>
-                      <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" title="Skip this row">✕</button>
+                      <!-- Return to source if included -->
+                      <button
+                        *ngIf="tx.includedFrom"
+                        type="button"
+                        class="btn btn-secondary btn-xs"
+                        (click)="excludeIncludedTransaction(tx)"
+                        style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
+                        [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
+                        ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
+                      </button>
+                      <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip this row'">✕</button>
                     </div>
                   </td>
                 </tr>
