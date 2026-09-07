@@ -1150,9 +1150,95 @@ export class TransactionService {
     });
   }
 
-  public restoreDeletedSignature(sig: string): void {
+  private normalizeDateHelper(str: string): string | null {
+    if (!str) return null;
+    const clean = str.trim();
+    const dmyMatch = clean.match(/^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})/);
+    if (dmyMatch) {
+      const dNum = parseInt(dmyMatch[1], 10);
+      const mNum = parseInt(dmyMatch[2], 10);
+      let yNum = parseInt(dmyMatch[3], 10);
+      if (yNum < 100) yNum += 2000;
+      if (dNum >= 1 && dNum <= 31 && mNum >= 1 && mNum <= 12 && yNum >= 2000 && yNum <= 2099) {
+        return `${yNum}-${mNum.toString().padStart(2, '0')}-${dNum.toString().padStart(2, '0')}`;
+      }
+    }
+    const ymdMatch = clean.match(/^(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})/);
+    if (ymdMatch) {
+      const yNum = parseInt(ymdMatch[1], 10);
+      const mNum = parseInt(ymdMatch[2], 10);
+      const dNum = parseInt(ymdMatch[3], 10);
+      if (dNum >= 1 && dNum <= 31 && mNum >= 1 && mNum <= 12 && yNum >= 2000 && yNum <= 2099) {
+        return `${yNum}-${mNum.toString().padStart(2, '0')}-${dNum.toString().padStart(2, '0')}`;
+      }
+    }
+    return null;
+  }
+
+  public matchesDeletedSignature(sigRecord: string, tx: Transaction): boolean {
+    if (!sigRecord || !tx) return false;
+    const exactSig = this.getTransactionSignature(tx);
+    if (sigRecord === exactSig) return true;
+
+    // Parse sigRecord: ${date}_${amount}_${rest}
+    const firstUnderscore = sigRecord.indexOf('_');
+    if (firstUnderscore <= 0) return false;
+    const secondUnderscore = sigRecord.indexOf('_', firstUnderscore + 1);
+    if (secondUnderscore <= 0) return false;
+
+    const sDateRaw = sigRecord.slice(0, firstUnderscore);
+    const sAmtRaw = sigRecord.slice(firstUnderscore + 1, secondUnderscore);
+    const sRest = sigRecord.slice(secondUnderscore + 1);
+
+    // 1. Amount match (absolute amount)
+    const sAmt = Math.abs(parseFloat(sAmtRaw) || 0).toFixed(2);
+    const txAmt = Math.abs(Number(tx.amount) || 0).toFixed(2);
+    if (sAmt !== txAmt) return false;
+
+    // 2. Date match (normalized ISO date or raw date)
+    const txIsoDate = (tx.date || '').slice(0, 10);
+    const txRawDate = tx.rawDate ? tx.rawDate.trim() : '';
+    const sIsoDate = this.normalizeDateHelper(sDateRaw) || sDateRaw;
+
+    const dateMatches =
+      sDateRaw === txIsoDate ||
+      sDateRaw === txRawDate ||
+      sIsoDate === txIsoDate ||
+      sDateRaw.replace(/[^0-9]/g, '') === txIsoDate.replace(/[^0-9]/g, '');
+
+    if (!dateMatches) return false;
+
+    // 3. Description match
+    // Strip bank suffix if present: e.g. "rewemarkt_generic bank" -> "rewemarkt"
+    const lastUnderscore = sRest.lastIndexOf('_');
+    const sDesc = (lastUnderscore > 0 ? sRest.slice(0, lastUnderscore) : sRest).trim().toLowerCase();
+    const txDesc = (tx.description || '').trim().toLowerCase();
+
+    if (!sDesc || !txDesc) return true;
+
+    if (sDesc === txDesc) return true;
+    if (sDesc.replace(/\s+/g, ' ') === txDesc.replace(/\s+/g, ' ')) return true;
+
+    // Alphanumeric comparison (handles smushed words or hyphens/dashes)
+    const sAlpha = sDesc.replace(/[^a-z0-9]/g, '');
+    const txAlpha = txDesc.replace(/[^a-z0-9]/g, '');
+    if (sAlpha && txAlpha) {
+      if (sAlpha === txAlpha) return true;
+      if (sAlpha.length >= 4 && (txAlpha.includes(sAlpha) || sAlpha.includes(txAlpha))) return true;
+    }
+
+    return false;
+  }
+
+  public restoreDeletedSignature(sig: string, tx?: Transaction): void {
     if (!sig) return;
-    this.deletedSignatures.update((curr) => curr.filter((s) => s !== sig));
+    this.deletedSignatures.update((curr) =>
+      curr.filter((s) => {
+        if (s === sig) return false;
+        if (tx && this.matchesDeletedSignature(s, tx)) return false;
+        return true;
+      })
+    );
   }
 
   public isSignatureDeleted(sig: string, tx?: Transaction): boolean {
@@ -1160,15 +1246,7 @@ export class TransactionService {
     const list = this.deletedSignatures();
     if (list.includes(sig)) return true;
     if (tx) {
-      const d = (tx.date || '').slice(0, 10);
-      const amt = Math.abs(Number(tx.amount) || 0).toFixed(2);
-      const desc = (tx.description || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      // Check bank-agnostic deleted signature or legacy rawDate
-      if (list.some((s) => s.startsWith(`${d}_${amt}_${desc}`))) return true;
-      if (tx.rawDate) {
-        const legacySig = `${tx.rawDate.trim()}_${amt}_${desc}_${(tx.bank || '').trim().toLowerCase()}`;
-        if (list.includes(legacySig)) return true;
-      }
+      return list.some((s) => this.matchesDeletedSignature(s, tx));
     }
     return false;
   }

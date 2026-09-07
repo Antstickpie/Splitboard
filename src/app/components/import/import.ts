@@ -1191,7 +1191,7 @@ export class ImportComponent {
   public includeDeleted(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;
-    this.service.restoreDeletedSignature(this.service.getTransactionSignature(tx));
+    this.service.restoreDeletedSignature(this.service.getTransactionSignature(tx), tx);
     this.previewResult.set({
       ...res,
       deleted: (res.deleted || []).filter((t) => t.id !== tx.id),
@@ -1205,7 +1205,7 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res || !res.deleted || res.deleted.length === 0) return;
     const count = res.deleted.length;
-    res.deleted.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t)));
+    res.deleted.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t), t));
     this.previewResult.set({
       ...res,
       transactions: [...res.transactions, ...res.deleted],
@@ -1493,7 +1493,7 @@ export class ImportComponent {
       });
       this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
     } else if (tab === 'deleted') {
-      group.items.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t)));
+      group.items.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t), t));
       this.previewResult.set({
         ...res,
         deleted: (res.deleted || []).filter((t) => !ids.has(t.id)),
@@ -1662,7 +1662,7 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res) return;
     const groupItemIds = new Set(group.items.map((t) => t.id));
-    group.items.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t)));
+    group.items.forEach((t) => this.service.restoreDeletedSignature(this.service.getTransactionSignature(t), t));
     this.previewResult.set({
       ...res,
       deleted: (res.deleted || []).filter((t) => !groupItemIds.has(t.id)),
