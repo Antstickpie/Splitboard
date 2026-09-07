@@ -1489,12 +1489,12 @@
       </div>
     </div>
 
-    <!-- TAB 2: Duplicate Transactions (Grouped View) -->
+    <!-- TAB 2: Duplicate Transactions -->
     <div *ngIf="previewTab() === 'duplicates'">
       <div class="preview-info-banner warning" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <div style="display: flex; align-items: center; gap: 0.4rem;">
           <span>⚠️</span>
-          <span>These {{ res.duplicates.length }} transactions match records existing in your database ledger. Grouped below by merchant / payee.</span>
+          <span>These {{ res.duplicates.length }} transactions match records existing in your database ledger. Their recorded category and split are shown below.</span>
         </div>
         <button
           *ngIf="res.duplicates.length > 0"
@@ -1505,8 +1505,137 @@
         </button>
       </div>
 
-      <!-- Grouped Accordion List -->
-      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem;">
+      <!-- FLAT VIEW: When Group by Description is OFF -->
+      <div class="table-container" *ngIf="!isGroupByDescription()" style="max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
+        <table>
+          <thead>
+            <tr>
+              <th (click)="toggleSort('date')" style="cursor: pointer; user-select: none;">
+                Date {{ sortColumn() === 'date' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('description')" style="cursor: pointer; user-select: none;">
+                Description {{ sortColumn() === 'description' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('bank')" style="cursor: pointer; user-select: none;">
+                Bank {{ sortColumn() === 'bank' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th>Paid By / Owner</th>
+              <th (click)="toggleSort('categoryItem')" style="cursor: pointer; user-select: none;">
+                Recorded Category {{ sortColumn() === 'categoryItem' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">
+                Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}
+              </th>
+              <th>Recorded Split</th>
+              <th>💬 Note</th>
+              <th style="text-align: center; width: 220px; min-width: 220px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let tx of sortedDuplicates()"
+              [class.tx-row-done]="tx.isDone">
+              <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+              <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
+                <div class="tx-description-cell">
+                  <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+                  <span class="badge badge-success" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
+                    ✓ In Ledger
+                  </span>
+                </div>
+              </td>
+              <td>
+                <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
+              </td>
+              <td>
+                <span
+                  class="badge"
+                  (click)="toggleTxOwner(tx)"
+                  style="cursor: pointer;"
+                  [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                  [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : 'rgba(139, 92, 246, 0.12)'"
+                  [title]="'Click to toggle owner: ' + tx.paidBy">
+                  👤 {{ tx.paidBy || 'Shared' }}
+                </span>
+              </td>
+              <td>
+                <app-category-select
+                  [value]="tx.categoryItem || ''"
+                  [group]="tx.categoryGroup || ''"
+                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                </app-category-select>
+              </td>
+              <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td>
+                <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
+                  <button
+                    type="button"
+                    class="split-btn split-btn-5050"
+                    [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
+                    (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')">
+                    50/50
+                  </button>
+                  <button
+                    type="button"
+                    class="split-btn split-btn-p1"
+                    [class.active]="getInlineSplitValue(tx) === '100_P1'"
+                    (click)="onInlineSplitButtonClick(tx, '100_P1')">
+                    {{ service.personOne().name }}
+                  </button>
+                  <button
+                    type="button"
+                    class="split-btn split-btn-p2"
+                    [class.active]="getInlineSplitValue(tx) === '100_P2'"
+                    (click)="onInlineSplitButtonClick(tx, '100_P2')">
+                    {{ service.personTwo().name }}
+                  </button>
+                </div>
+              </td>
+              <td>
+                <input
+                  type="text"
+                  [(ngModel)]="tx.note"
+                  placeholder="💬 Add note..."
+                  class="inline-note-input"
+                  title="Add comment before importing" />
+              </td>
+              <td style="text-align: center; white-space: nowrap; width: 220px; min-width: 220px;">
+                <div class="tx-actions-cell" style="justify-content: center; gap: 0.4rem;">
+                  <!-- Done Button -->
+                  <button
+                    type="button"
+                    class="btn btn-xs tx-btn-done"
+                    [class.is-done]="tx.isDone"
+                    [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                    [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
+                    [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                    (click)="toggleTxDone(tx)"
+                    [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done'">
+                    {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                  </button>
+                  <!-- Include Button -->
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    (click)="includeDuplicate(tx)"
+                    style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);"
+                    title="Include this duplicate in import anyway">
+                    + Include
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!res.duplicates || res.duplicates.length === 0">
+              <td colspan="9" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No duplicate transactions detected in this statement.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- GROUPED VIEW: When Group by Description is ON -->
+      <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem;">
         <div
           *ngFor="let g of groupedDuplicates()"
           style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
@@ -1517,7 +1646,8 @@
             style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.8rem; background: rgba(255, 255, 255, 0.04); cursor: pointer; user-select: none;">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <span style="font-size: 0.75rem; color: var(--text-muted);">{{ isGroupExpanded(g.id) ? '▼' : '▶' }}</span>
-              <strong style="font-size: 0.84rem; color: var(--text-main);">{{ g.title }}</strong>
+              <strong style="font-size: 0.84rem; color: var(--text-main);" [style.text-decoration]="g.items[0]?.isDone ? 'line-through' : 'none'">{{ g.title }}</strong>
+              <span class="badge badge-success" style="font-size: 0.68rem;">✓ In Ledger</span>
               <span class="badge badge-warning" style="font-size: 0.68rem;">{{ g.count }} {{ g.count > 1 ? 'items' : 'item' }}</span>
             </div>
 
@@ -1525,25 +1655,110 @@
               <span class="font-mono" style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
                 {{ service.formatCurrency(g.totalAmount) }}
               </span>
-              <button class="btn btn-secondary btn-xs" (click)="includeDuplicateGroup(g)" style="padding: 0.15rem 0.45rem; font-size: 0.7rem;">
+              <button class="btn btn-secondary btn-xs" (click)="includeDuplicateGroup(g)" style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
                 + Include Group ({{ g.count }})
               </button>
             </div>
           </div>
 
           <!-- Expanded Rows Table -->
-          <div *ngIf="isGroupExpanded(g.id)" class="animate-fade-in" style="max-height: 250px; overflow-y: auto; border-top: 1px solid rgba(255, 255, 255, 0.05);">
-            <table>
+          <div *ngIf="isGroupExpanded(g.id)" class="animate-fade-in table-container" style="max-height: 300px; overflow-y: auto; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+            <table style="width: 100%; min-width: 900px; font-size: 0.78rem;">
+              <thead>
+                <tr style="opacity: 0.7; font-size: 0.72rem;">
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Bank</th>
+                  <th>Owner</th>
+                  <th>Recorded Category</th>
+                  <th style="text-align: right;">Amount</th>
+                  <th>Recorded Split</th>
+                  <th>💬 Note</th>
+                  <th style="text-align: center; width: 170px; min-width: 170px;">Action</th>
+                </tr>
+              </thead>
               <tbody>
-                <tr *ngFor="let tx of g.items">
-                  <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
-                  <td style="font-size: 0.78rem; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
-                  <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
-                  <td class="font-mono" style="width: 90px; text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
-                  <td style="width: 70px; text-align: center;">
-                    <button class="btn btn-secondary btn-xs" (click)="includeDuplicate(tx)" style="padding: 0.15rem 0.35rem; font-size: 0.68rem;">
-                      + Include
-                    </button>
+                <tr
+                  *ngFor="let tx of g.items"
+                  [class.tx-row-done]="tx.isDone">
+                  <td style="width: 95px; white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+                  <td style="font-size: 0.78rem; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">
+                    <span [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
+                  </td>
+                  <td style="width: 80px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
+                  <td style="width: 90px;">
+                    <span
+                      class="badge"
+                      (click)="toggleTxOwner(tx)"
+                      style="cursor: pointer; font-size: 0.7rem; padding: 0.15rem 0.4rem;"
+                      [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                      [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : 'rgba(139, 92, 246, 0.12)'">
+                      👤 {{ tx.paidBy }}
+                    </span>
+                  </td>
+                  <td>
+                    <app-category-select
+                      [value]="tx.categoryItem || ''"
+                      [group]="tx.categoryGroup || ''"
+                      [compact]="true"
+                      (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                      (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                    </app-category-select>
+                  </td>
+                  <td class="font-mono" style="width: 85px; text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td>
+                    <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
+                      <button
+                        type="button"
+                        class="split-btn split-btn-5050"
+                        [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
+                        (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')">
+                        50/50
+                      </button>
+                      <button
+                        type="button"
+                        class="split-btn split-btn-p1"
+                        [class.active]="getInlineSplitValue(tx) === '100_P1'"
+                        (click)="onInlineSplitButtonClick(tx, '100_P1')">
+                        {{ service.personOne().name }}
+                      </button>
+                      <button
+                        type="button"
+                        class="split-btn split-btn-p2"
+                        [class.active]="getInlineSplitValue(tx) === '100_P2'"
+                        (click)="onInlineSplitButtonClick(tx, '100_P2')">
+                        {{ service.personTwo().name }}
+                      </button>
+                    </div>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      [(ngModel)]="tx.note"
+                      placeholder="💬 Add note..."
+                      class="inline-note-input"
+                      title="Add comment before importing" />
+                  </td>
+                  <td style="text-align: center; white-space: nowrap; width: 170px; min-width: 170px;">
+                    <div class="tx-actions-cell" style="justify-content: center; gap: 0.35rem;">
+                      <button
+                        type="button"
+                        class="btn btn-xs tx-btn-done"
+                        [class.is-done]="tx.isDone"
+                        [style.color]="tx.isDone ? '#10b981' : 'var(--text-muted)'"
+                        [style.background]="tx.isDone ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255, 255, 255, 0.04)'"
+                        [style.border]="tx.isDone ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)'"
+                        (click)="toggleTxDone(tx)"
+                        [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done'">
+                        {{ tx.isDone ? '✓ Done' : '○ Done' }}
+                      </button>
+                      <button
+                        class="btn btn-secondary btn-xs"
+                        (click)="includeDuplicate(tx)"
+                        style="padding: 0.15rem 0.4rem; font-size: 0.68rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                        + Include
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>

@@ -318,7 +318,18 @@ export class StatementParserService {
       }
 
       // 3. Check Duplicates against Database only
-      if (duplicateTracker.claim(tx)) {
+      const matchedDbTx = duplicateTracker.claim(tx);
+      if (matchedDbTx) {
+        if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
+        if (matchedDbTx.categoryItem) tx.categoryItem = matchedDbTx.categoryItem;
+        if (matchedDbTx.splitType) tx.splitType = matchedDbTx.splitType;
+        if (matchedDbTx.splitMode) tx.splitMode = matchedDbTx.splitMode;
+        if (matchedDbTx.splitPercentage !== undefined) tx.splitPercentage = matchedDbTx.splitPercentage;
+        if (matchedDbTx.paidBy) tx.paidBy = matchedDbTx.paidBy;
+        if (matchedDbTx.customSplitAmounts) tx.customSplitAmounts = { ...matchedDbTx.customSplitAmounts };
+        if (matchedDbTx.note) tx.note = matchedDbTx.note;
+        if (matchedDbTx.bank && !tx.bank) tx.bank = matchedDbTx.bank;
+        tx.isDone = true;
         duplicates.push(tx);
       } else if (isIncomeOrPayment) {
         incomes.push(tx);
@@ -389,12 +400,12 @@ export class StatementParserService {
   }
 
   private createDuplicateTracker(fileName?: string): {
-    claim: (tx: Transaction) => boolean;
+    claim: (tx: Transaction) => Transaction | null;
   } {
-    const exactCounts = new Map<string, number>();
-    const noBankCounts = new Map<string, number>();
-    const normCounts = new Map<string, number>();
-    const sourceFileCounts = new Map<string, number>();
+    const exactMap = new Map<string, Transaction[]>();
+    const noBankMap = new Map<string, Transaction[]>();
+    const normMap = new Map<string, Transaction[]>();
+    const sourceFileMap = new Map<string, Transaction[]>();
 
     const getKeys = (t: Transaction) => {
       const d = (t.date || '').slice(0, 10);
@@ -413,54 +424,67 @@ export class StatementParserService {
 
     for (const t of this.service.transactions()) {
       const k = getKeys(t);
-      exactCounts.set(k.exact, (exactCounts.get(k.exact) || 0) + 1);
-      noBankCounts.set(k.noBank, (noBankCounts.get(k.noBank) || 0) + 1);
-      if (k.norm) normCounts.set(k.norm, (normCounts.get(k.norm) || 0) + 1);
-      if (k.sf) sourceFileCounts.set(k.sf, (sourceFileCounts.get(k.sf) || 0) + 1);
+      if (!exactMap.has(k.exact)) exactMap.set(k.exact, []);
+      exactMap.get(k.exact)!.push(t);
+
+      if (!noBankMap.has(k.noBank)) noBankMap.set(k.noBank, []);
+      noBankMap.get(k.noBank)!.push(t);
+
+      if (k.norm) {
+        if (!normMap.has(k.norm)) normMap.set(k.norm, []);
+        normMap.get(k.norm)!.push(t);
+      }
+      if (k.sf) {
+        if (!sourceFileMap.has(k.sf)) sourceFileMap.set(k.sf, []);
+        sourceFileMap.get(k.sf)!.push(t);
+      }
     }
 
-    const claim = (tx: Transaction): boolean => {
+    const popMatched = (map: Map<string, Transaction[]>, key: string): Transaction | null => {
+      const arr = map.get(key);
+      if (arr && arr.length > 0) {
+        const match = arr.shift()!;
+        const remove = (m: Map<string, Transaction[]>, mk: string) => {
+          const list = m.get(mk);
+          if (list) {
+            const idx = list.indexOf(match);
+            if (idx >= 0) list.splice(idx, 1);
+          }
+        };
+        const mk = getKeys(match);
+        remove(exactMap, mk.exact);
+        remove(noBankMap, mk.noBank);
+        if (mk.norm) remove(normMap, mk.norm);
+        if (mk.sf) remove(sourceFileMap, mk.sf);
+        return match;
+      }
+      return null;
+    };
+
+    const claim = (tx: Transaction): Transaction | null => {
       const k = getKeys(tx);
 
       // Tier 1: Exact signature (Date + Amount + Description + Bank)
-      const exactCount = exactCounts.get(k.exact) || 0;
-      if (exactCount > 0) {
-        exactCounts.set(k.exact, exactCount - 1);
-        if (k.noBank) noBankCounts.set(k.noBank, Math.max(0, (noBankCounts.get(k.noBank) || 1) - 1));
-        if (k.norm) normCounts.set(k.norm, Math.max(0, (normCounts.get(k.norm) || 1) - 1));
-        if (k.sf) sourceFileCounts.set(k.sf, Math.max(0, (sourceFileCounts.get(k.sf) || 1) - 1));
-        return true;
-      }
+      let match = popMatched(exactMap, k.exact);
+      if (match) return match;
 
       // Tier 2: Bank-agnostic signature (Date + Amount + Description)
-      const noBankCount = noBankCounts.get(k.noBank) || 0;
-      if (noBankCount > 0) {
-        noBankCounts.set(k.noBank, noBankCount - 1);
-        if (k.norm) normCounts.set(k.norm, Math.max(0, (normCounts.get(k.norm) || 1) - 1));
-        if (k.sf) sourceFileCounts.set(k.sf, Math.max(0, (sourceFileCounts.get(k.sf) || 1) - 1));
-        return true;
-      }
+      match = popMatched(noBankMap, k.noBank);
+      if (match) return match;
 
       // Tier 3: Same sourceFile (Re-importing exact same file, matching Date + Amount + Merchant/Desc)
       if (k.sf) {
-        const sfCount = sourceFileCounts.get(k.sf) || 0;
-        if (sfCount > 0) {
-          sourceFileCounts.set(k.sf, sfCount - 1);
-          if (k.norm) normCounts.set(k.norm, Math.max(0, (normCounts.get(k.norm) || 1) - 1));
-          return true;
-        }
+        match = popMatched(sourceFileMap, k.sf);
+        if (match) return match;
       }
 
       // Tier 4: Normalized merchant signature (Date + Amount + Normalized Merchant)
       if (k.norm) {
-        const normCount = normCounts.get(k.norm) || 0;
-        if (normCount > 0) {
-          normCounts.set(k.norm, normCount - 1);
-          return true;
-        }
+        match = popMatched(normMap, k.norm);
+        if (match) return match;
       }
 
-      return false;
+      return null;
     };
 
     return { claim };
@@ -668,7 +692,18 @@ export class StatementParserService {
         continue;
       }
 
-      if (duplicateTracker.claim(tx)) {
+      const matchedDbTx = duplicateTracker.claim(tx);
+      if (matchedDbTx) {
+        if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
+        if (matchedDbTx.categoryItem) tx.categoryItem = matchedDbTx.categoryItem;
+        if (matchedDbTx.splitType) tx.splitType = matchedDbTx.splitType;
+        if (matchedDbTx.splitMode) tx.splitMode = matchedDbTx.splitMode;
+        if (matchedDbTx.splitPercentage !== undefined) tx.splitPercentage = matchedDbTx.splitPercentage;
+        if (matchedDbTx.paidBy) tx.paidBy = matchedDbTx.paidBy;
+        if (matchedDbTx.customSplitAmounts) tx.customSplitAmounts = { ...matchedDbTx.customSplitAmounts };
+        if (matchedDbTx.note) tx.note = matchedDbTx.note;
+        if (matchedDbTx.bank && !tx.bank) tx.bank = matchedDbTx.bank;
+        tx.isDone = true;
         duplicates.push(tx);
       } else if (isIncomeOrPayment) {
         incomes.push(tx);
