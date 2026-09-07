@@ -300,7 +300,7 @@
 
             <div class="tx-card-right font-mono">
               <span class="tx-amount" [class.text-success]="tx.type === 'INCOME'">
-                {{ service.formatCurrency(tx.amount) }}
+                {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
               </span>
               <select
                 [ngModel]="tx.splitType"

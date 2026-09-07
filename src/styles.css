@@ -451,6 +451,11 @@ tr:hover td {
   flex: 1;
 }
 
+.text-income,
+.text-success {
+  color: #10b981 !important;
+}
+
 .badge-success {
   background: var(--success-bg);
   color: var(--success);

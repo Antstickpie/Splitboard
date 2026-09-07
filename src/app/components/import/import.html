@@ -540,7 +540,7 @@
                   (addNewRequested)="openAddCategoryModal(tx, 'row')">
                 </app-category-select>
               </td>
-              <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
                 <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                   <button
@@ -632,7 +632,7 @@
                 <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
                 <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">{{ grp.count }} items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); flex-shrink: 0; white-space: nowrap;">{{ service.formatCurrency(grp.totalAmount) }}</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; flex-shrink: 0; white-space: nowrap;" [class.text-income]="isIncomeGroup(grp)" [style.color]="isIncomeGroup(grp) ? '#10b981' : 'var(--text-main)'">{{ isIncomeGroup(grp) ? '+' : '' }}{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <!-- Group Bulk Controls -->
@@ -781,7 +781,7 @@
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
                     </td>
-                    <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+                    <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                     <td>
                       <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                         <button
@@ -904,7 +904,7 @@
                     (addNewRequested)="openAddCategoryModal(tx, 'row')">
                   </app-category-select>
                 </td>
-                <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+                <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                 <td>
                   <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                     <button
@@ -1047,7 +1047,7 @@
                   (addNewRequested)="openAddCategoryModal(tx, 'row')">
                 </app-category-select>
               </td>
-              <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
                 <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                   <button
@@ -1132,7 +1132,7 @@
                 <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
                 <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-warning" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">🔍 {{ grp.count }} review items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); flex-shrink: 0; white-space: nowrap;">{{ service.formatCurrency(grp.totalAmount) }}</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; flex-shrink: 0; white-space: nowrap;" [class.text-income]="isIncomeGroup(grp)" [style.color]="isIncomeGroup(grp) ? '#10b981' : 'var(--text-main)'">{{ isIncomeGroup(grp) ? '+' : '' }}{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <!-- Group Bulk Controls -->
@@ -1271,7 +1271,7 @@
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
                     </td>
-                    <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+                    <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                     <td>
                       <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                         <button
@@ -1396,7 +1396,7 @@
                       (addNewRequested)="openAddCategoryModal(tx, 'row')">
                     </app-category-select>
                   </td>
-                  <td class="font-mono" style="text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                   <td>
                     <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                       <button
@@ -1550,7 +1550,7 @@
                   (addNewRequested)="openAddCategoryModal(tx, 'row')">
                 </app-category-select>
               </td>
-              <td class="font-mono" style="text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
                 <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                   <button
@@ -1634,8 +1634,8 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 0.6rem;" (click)="$event.stopPropagation()">
-              <span class="font-mono" style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
-                {{ service.formatCurrency(g.totalAmount) }}
+              <span class="font-mono" style="font-size: 0.82rem; font-weight: 700;" [class.text-income]="isIncomeGroup(g)" [style.color]="isIncomeGroup(g) ? '#10b981' : 'var(--text-main)'">
+                {{ isIncomeGroup(g) ? '+' : '' }}{{ service.formatCurrency(g.totalAmount) }}
               </span>
               <button class="btn btn-secondary btn-xs" (click)="includeDuplicateGroup(g)" style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
                 + Include Group ({{ g.count }})
@@ -1687,7 +1687,7 @@
                       (addNewRequested)="openAddCategoryModal(tx, 'row')">
                     </app-category-select>
                   </td>
-                  <td class="font-mono" style="width: 85px; text-align: right; font-weight: 600;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td class="font-mono" style="width: 85px; text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                   <td>
                     <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
                       <button
@@ -1785,8 +1785,8 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 0.6rem;" (click)="$event.stopPropagation()">
-              <span class="font-mono" style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
-                {{ service.formatCurrency(g.totalAmount) }}
+              <span class="font-mono" style="font-size: 0.82rem; font-weight: 700;" [class.text-income]="isIncomeGroup(g)" [style.color]="isIncomeGroup(g) ? '#10b981' : 'var(--text-main)'">
+                {{ isIncomeGroup(g) ? '+' : '' }}{{ service.formatCurrency(g.totalAmount) }}
               </span>
               <button class="btn btn-secondary btn-xs" (click)="includeExcludedGroup(g)" style="padding: 0.15rem 0.45rem; font-size: 0.7rem;">
                 + Include Group ({{ g.count }})
@@ -1802,7 +1802,7 @@
                   <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
                   <td style="font-size: 0.78rem; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
                   <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
-                  <td class="font-mono" style="width: 90px; text-align: right; font-weight: bold;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td class="font-mono" style="width: 90px; text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                   <td style="width: 70px; text-align: center;">
                     <button class="btn btn-secondary btn-xs" (click)="includeExcluded(tx)" style="padding: 0.15rem 0.35rem; font-size: 0.68rem;">
                       + Include
@@ -1870,7 +1870,7 @@
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
               <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
               <td><span class="badge badge-neutral" style="font-size: 0.7rem;">{{ tx.categoryItem || 'Uncategorized' }}</span></td>
-              <td class="font-mono" style="text-align: right; font-weight: bold; opacity: 0.85;">{{ service.formatCurrency(tx.amount) }}</td>
+              <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)" [style.opacity]="isIncomeTx(tx) ? '1' : '0.85'">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td style="text-align: center;">
                 <button class="btn btn-secondary btn-xs" (click)="includeDeleted(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
                   + Restore / Include
@@ -1896,7 +1896,7 @@
                 <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
                 <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); text-decoration: line-through; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">🗑️ {{ grp.count }} deleted items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: var(--text-muted); flex-shrink: 0; white-space: nowrap;">{{ service.formatCurrency(grp.totalAmount) }}</span>
+                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; flex-shrink: 0; white-space: nowrap;" [class.text-income]="isIncomeGroup(grp)" [style.color]="isIncomeGroup(grp) ? '#10b981' : 'var(--text-muted)'">{{ isIncomeGroup(grp) ? '+' : '' }}{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
@@ -1924,7 +1924,7 @@
                     <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
                     <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                     <td style="width: 90px;"><span class="badge badge-info">{{ tx.paidBy }}</span></td>
-                    <td class="font-mono" style="text-align: right; font-weight: bold; opacity: 0.85;">{{ service.formatCurrency(tx.amount) }}</td>
+                    <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)" [style.opacity]="isIncomeTx(tx) ? '1' : '0.85'">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                     <td style="text-align: center; width: 120px;">
                       <button class="btn btn-secondary btn-xs" (click)="includeDeleted(tx)" style="padding: 0.15rem 0.4rem; font-size: 0.7rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
                         + Restore
@@ -1963,7 +1963,7 @@
                   </td>
                   <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                   <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
-                  <td class="font-mono" style="text-align: right; font-weight: bold; opacity: 0.85;">{{ service.formatCurrency(tx.amount) }}</td>
+                  <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)" [style.opacity]="isIncomeTx(tx) ? '1' : '0.85'">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                   <td style="text-align: center;">
                     <button class="btn btn-secondary btn-xs" (click)="includeDeleted(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
                       + Restore

@@ -1237,6 +1237,17 @@ export class ImportComponent {
     return this.expandedDescriptionGroups().has(desc);
   }
 
+  public isIncomeTx(tx: Transaction | undefined | null): boolean {
+    if (!tx) return false;
+    return tx.type === 'INCOME' || this.previewTab() === 'incomes';
+  }
+
+  public isIncomeGroup(grp: DescriptionGroup | TransactionGroup | undefined | null): boolean {
+    if (!grp) return false;
+    if (this.previewTab() === 'incomes') return true;
+    return !!grp.items && grp.items.length > 0 && grp.items.every((t) => t.type === 'INCOME');
+  }
+
   public currentActiveTabTransactions = computed<Transaction[]>(() => {
     const tab = this.previewTab();
     const res = this.previewResult();

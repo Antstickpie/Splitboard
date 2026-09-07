@@ -1247,7 +1247,7 @@
                 <span *ngIf="!t.note" style="color: var(--text-dark);">—</span>
               </td>
               <td style="padding: 0.4rem 0.5rem; text-align: right; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;" [class.text-success]="t.type === 'INCOME'">
-                <div>{{ service.formatCurrency(t.amount) }}</div>
+                <div>{{ t.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(t.amount) }}</div>
                 <div *ngIf="t.originalCurrency && t.originalCurrency !== service.currency() && t.originalAmount" style="font-size: 0.66rem; color: var(--text-muted); font-weight: 500;">
                   ({{ service.getCurrencySymbol(t.originalCurrency) }}{{ t.originalAmount }} {{ t.originalCurrency }})
                 </div>
