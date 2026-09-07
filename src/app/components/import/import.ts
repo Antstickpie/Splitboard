@@ -913,10 +913,18 @@ export class ImportComponent {
         this.previewResult.set(res);
         this.isGroupByDescription.set(!this.isPdfLoaded());
         this.scrollToPreviewOrImport();
-        this.service.showToast(
-          `Parsed ${res.transactions.length} expenses for ${bankName}!`,
-          'success'
-        );
+        if (res.transactions.length === 0 && res.duplicates.length > 0) {
+          this.previewTab.set('duplicates');
+          this.service.showToast(
+            `All ${res.duplicates.length} transactions were already imported in your ledger (Duplicates tab).`,
+            'info'
+          );
+        } else {
+          this.service.showToast(
+            `Parsed ${res.transactions.length} expenses for ${bankName}!`,
+            'success'
+          );
+        }
       } catch (e: any) {
         this.service.showToast('Error parsing file: ' + e.message, 'error');
       } finally {
@@ -940,10 +948,18 @@ export class ImportComponent {
         this.previewResult.set(res);
         this.isGroupByDescription.set(true);
         this.scrollToPreviewOrImport();
-        this.service.showToast(
-          `Parsed ${res.transactions.length} expenses for ${bankName}!`,
-          'success'
-        );
+        if (res.transactions.length === 0 && res.duplicates.length > 0) {
+          this.previewTab.set('duplicates');
+          this.service.showToast(
+            `All ${res.duplicates.length} transactions were already imported in your ledger (Duplicates tab).`,
+            'info'
+          );
+        } else {
+          this.service.showToast(
+            `Parsed ${res.transactions.length} expenses for ${bankName}!`,
+            'success'
+          );
+        }
       } catch (e: any) {
         this.service.showToast('Error parsing text: ' + e.message, 'error');
       } finally {

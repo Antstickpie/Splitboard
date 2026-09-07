@@ -86,22 +86,16 @@ export class StatementParserService {
           });
 
           let lastY: number | undefined;
-          let lastRight: number | undefined;
           let pageText = '';
 
           for (const item of items) {
             if (lastY !== undefined && Math.abs(item.y - lastY) > 3.5) {
               pageText += '\n';
-              lastRight = undefined;
             } else if (pageText.length > 0 && !pageText.endsWith(' ') && !pageText.endsWith('\n')) {
-              const gap = lastRight !== undefined ? item.x - lastRight : 0;
-              if (lastRight === undefined || gap > 1.8) {
-                pageText += ' ';
-              }
+              pageText += ' ';
             }
             pageText += item.str;
             lastY = item.y;
-            lastRight = item.x + item.width;
           }
 
           fullText += '\n' + pageText;
@@ -157,6 +151,7 @@ export class StatementParserService {
     }
 
     const detectedBank = this.detectBank(bankName, fileName, text);
+    const effectiveBank = (bankName && bankName !== 'Auto-Detect' ? bankName : detectedBank || 'Generic Bank').trim();
     const delimiter = this.detectDelimiter(text);
     const parsedRows = lines.map((line) => this.parseCsvLine(line, delimiter));
 
@@ -202,12 +197,7 @@ export class StatementParserService {
       }
     }
 
-    // Count occurrences already in Database (never flag intra-statement rows as duplicate)
-    const dbSigCounts = new Map<string, number>();
-    for (const t of this.service.transactions()) {
-      const sig = this.service.getTransactionSignature(t);
-      dbSigCounts.set(sig, (dbSigCounts.get(sig) || 0) + 1);
-    }
+    const duplicateTracker = this.createDuplicateTracker(fileName);
 
     const transactions: Transaction[] = [];
     const incomes: Transaction[] = [];
@@ -297,8 +287,8 @@ export class StatementParserService {
         amount: finalAmount,
         type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
         description: cleanDesc,
-        bank: detectedBank,
-        account: detectedBank,
+        bank: effectiveBank,
+        account: effectiveBank,
         paidBy: defaultOwner || this.service.personOne().name,
         categoryGroup: group,
         categoryItem: item,
@@ -315,23 +305,21 @@ export class StatementParserService {
 
       // 1. Check Bank Exclusion Rules (e.g. Daily Interest, Internal Transfers)
       const fullRowText = (cleanDesc + ' ' + (row[0] || '') + ' ' + (row[1] || '')).trim();
-      if (this.service.isTransactionExcluded(fullRowText, detectedBank)) {
+      if (this.service.isTransactionExcluded(fullRowText, effectiveBank)) {
         excluded.push(tx);
         continue;
       }
 
       // 2. Check Previously Deleted Transactions
       const sig = this.service.getTransactionSignature(tx);
-      if (this.service.isSignatureDeleted(sig)) {
+      if (this.service.isSignatureDeleted(sig, tx)) {
         deleted.push(tx);
         continue;
       }
 
       // 3. Check Duplicates against Database only
-      const dbCount = dbSigCounts.get(sig) || 0;
-      if (dbCount > 0) {
+      if (duplicateTracker.claim(tx)) {
         duplicates.push(tx);
-        dbSigCounts.set(sig, dbCount - 1);
       } else if (isIncomeOrPayment) {
         incomes.push(tx);
       } else {
@@ -355,7 +343,7 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       deletedCount: deleted.length,
-      bankName: detectedBank,
+      bankName: effectiveBank,
       totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length + deleted.length
     };
   }
@@ -400,6 +388,84 @@ export class StatementParserService {
     return this.service.fixMojibake(clean);
   }
 
+  private createDuplicateTracker(fileName?: string): {
+    claim: (tx: Transaction) => boolean;
+  } {
+    const exactCounts = new Map<string, number>();
+    const noBankCounts = new Map<string, number>();
+    const normCounts = new Map<string, number>();
+    const sourceFileCounts = new Map<string, number>();
+
+    const getKeys = (t: Transaction) => {
+      const d = (t.date || '').slice(0, 10);
+      const amt = Math.abs(Number(t.amount) || 0).toFixed(2);
+      const desc = (t.description || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const bank = (t.bank || '').trim().toLowerCase();
+      const normMerchant = this.normalizeMerchant(desc);
+
+      const exact = `${d}_${amt}_${desc}_${bank}`;
+      const noBank = `${d}_${amt}_${desc}`;
+      const norm = normMerchant ? `${d}_${amt}_${normMerchant}` : '';
+      const sf = t.sourceFile && fileName && t.sourceFile === fileName ? `${d}_${amt}_${normMerchant || desc}` : '';
+
+      return { exact, noBank, norm, sf };
+    };
+
+    for (const t of this.service.transactions()) {
+      const k = getKeys(t);
+      exactCounts.set(k.exact, (exactCounts.get(k.exact) || 0) + 1);
+      noBankCounts.set(k.noBank, (noBankCounts.get(k.noBank) || 0) + 1);
+      if (k.norm) normCounts.set(k.norm, (normCounts.get(k.norm) || 0) + 1);
+      if (k.sf) sourceFileCounts.set(k.sf, (sourceFileCounts.get(k.sf) || 0) + 1);
+    }
+
+    const claim = (tx: Transaction): boolean => {
+      const k = getKeys(tx);
+
+      // Tier 1: Exact signature (Date + Amount + Description + Bank)
+      const exactCount = exactCounts.get(k.exact) || 0;
+      if (exactCount > 0) {
+        exactCounts.set(k.exact, exactCount - 1);
+        if (k.noBank) noBankCounts.set(k.noBank, Math.max(0, (noBankCounts.get(k.noBank) || 1) - 1));
+        if (k.norm) normCounts.set(k.norm, Math.max(0, (normCounts.get(k.norm) || 1) - 1));
+        if (k.sf) sourceFileCounts.set(k.sf, Math.max(0, (sourceFileCounts.get(k.sf) || 1) - 1));
+        return true;
+      }
+
+      // Tier 2: Bank-agnostic signature (Date + Amount + Description)
+      const noBankCount = noBankCounts.get(k.noBank) || 0;
+      if (noBankCount > 0) {
+        noBankCounts.set(k.noBank, noBankCount - 1);
+        if (k.norm) normCounts.set(k.norm, Math.max(0, (normCounts.get(k.norm) || 1) - 1));
+        if (k.sf) sourceFileCounts.set(k.sf, Math.max(0, (sourceFileCounts.get(k.sf) || 1) - 1));
+        return true;
+      }
+
+      // Tier 3: Same sourceFile (Re-importing exact same file, matching Date + Amount + Merchant/Desc)
+      if (k.sf) {
+        const sfCount = sourceFileCounts.get(k.sf) || 0;
+        if (sfCount > 0) {
+          sourceFileCounts.set(k.sf, sfCount - 1);
+          if (k.norm) normCounts.set(k.norm, Math.max(0, (normCounts.get(k.norm) || 1) - 1));
+          return true;
+        }
+      }
+
+      // Tier 4: Normalized merchant signature (Date + Amount + Normalized Merchant)
+      if (k.norm) {
+        const normCount = normCounts.get(k.norm) || 0;
+        if (normCount > 0) {
+          normCounts.set(k.norm, normCount - 1);
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    return { claim };
+  }
+
   private extractTransactionsFromPdfText(
     text: string,
     bankName: string,
@@ -412,13 +478,8 @@ export class StatementParserService {
     const excluded: Transaction[] = [];
     const deleted: Transaction[] = [];
     const detectedBank = this.detectBank(bankName, fileName, text);
-    
-    // Count occurrences already in Database
-    const dbSigCounts = new Map<string, number>();
-    for (const t of this.service.transactions()) {
-      const sig = this.service.getTransactionSignature(t);
-      dbSigCounts.set(sig, (dbSigCounts.get(sig) || 0) + 1);
-    }
+    const effectiveBank = (bankName && bankName !== 'Auto-Detect' ? bankName : detectedBank || 'Generic Bank').trim();
+    const duplicateTracker = this.createDuplicateTracker(fileName);
 
     const bankCfg = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
     let invertSigns = bankCfg?.invertAmountSign ?? false;
@@ -584,8 +645,8 @@ export class StatementParserService {
         amount: Math.abs(amount),
         type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
         description: cleanDesc,
-        bank: detectedBank,
-        account: detectedBank,
+        bank: effectiveBank,
+        account: effectiveBank,
         paidBy: defaultOwner || this.service.personOne().name,
         categoryGroup: group,
         categoryItem: item,
@@ -596,21 +657,19 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
-      if (this.service.isTransactionExcluded(cleanDesc, detectedBank)) {
+      if (this.service.isTransactionExcluded(cleanDesc, effectiveBank)) {
         excluded.push(tx);
         continue;
       }
 
       const sig = this.service.getTransactionSignature(tx);
-      if (this.service.isSignatureDeleted(sig)) {
+      if (this.service.isSignatureDeleted(sig, tx)) {
         deleted.push(tx);
         continue;
       }
 
-      const dbCount = dbSigCounts.get(sig) || 0;
-      if (dbCount > 0) {
+      if (duplicateTracker.claim(tx)) {
         duplicates.push(tx);
-        dbSigCounts.set(sig, dbCount - 1);
       } else if (isIncomeOrPayment) {
         incomes.push(tx);
       } else {
@@ -631,7 +690,7 @@ export class StatementParserService {
       duplicatesCount: duplicates.length,
       excludedCount: excluded.length,
       deletedCount: deleted.length,
-      bankName: detectedBank,
+      bankName: effectiveBank,
       totalParsed: transactions.length + incomes.length + duplicates.length + excluded.length + deleted.length
     };
   }

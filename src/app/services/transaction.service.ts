@@ -1119,9 +1119,9 @@ export class TransactionService {
 
   // Deduplication & Deleted Transaction Memory
   public getTransactionSignature(tx: Transaction): string {
-    const d = tx.rawDate ? tx.rawDate.trim() : (tx.date || '').slice(0, 10);
-    const amt = Number(tx.amount).toFixed(2);
-    const desc = (tx.description || '').trim().toLowerCase();
+    const d = (tx.date || '').slice(0, 10);
+    const amt = Math.abs(Number(tx.amount) || 0).toFixed(2);
+    const desc = (tx.description || '').trim().toLowerCase().replace(/\s+/g, ' ');
     const bank = (tx.bank || '').trim().toLowerCase();
     return `${d}_${amt}_${desc}_${bank}`;
   }
@@ -1155,9 +1155,22 @@ export class TransactionService {
     this.deletedSignatures.update((curr) => curr.filter((s) => s !== sig));
   }
 
-  public isSignatureDeleted(sig: string): boolean {
+  public isSignatureDeleted(sig: string, tx?: Transaction): boolean {
     if (!sig) return false;
-    return this.deletedSignatures().includes(sig);
+    const list = this.deletedSignatures();
+    if (list.includes(sig)) return true;
+    if (tx) {
+      const d = (tx.date || '').slice(0, 10);
+      const amt = Math.abs(Number(tx.amount) || 0).toFixed(2);
+      const desc = (tx.description || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      // Check bank-agnostic deleted signature or legacy rawDate
+      if (list.some((s) => s.startsWith(`${d}_${amt}_${desc}`))) return true;
+      if (tx.rawDate) {
+        const legacySig = `${tx.rawDate.trim()}_${amt}_${desc}_${(tx.bank || '').trim().toLowerCase()}`;
+        if (list.includes(legacySig)) return true;
+      }
+    }
+    return false;
   }
 
   // Person Operations
