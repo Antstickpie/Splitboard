@@ -181,6 +181,28 @@ export class TransactionService {
   public personOne = computed(() => this.persons()[0] || { id: 'p1', name: 'Person 1' });
   public personTwo = computed(() => this.persons()[1] || { id: 'p2', name: 'Person 2' });
 
+  public getNextMonth(monthStr: string): string {
+    if (!monthStr || !monthStr.includes('-')) return '';
+    const [y, m] = monthStr.split('-').map(Number);
+    const nextDate = new Date(y, m, 1);
+    const ny = nextDate.getFullYear();
+    const nm = String(nextDate.getMonth() + 1).padStart(2, '0');
+    return `${ny}-${nm}`;
+  }
+
+  public getTransactionIncomeMonth(tx: Transaction): string {
+    return tx.incomeMonth || (tx.date ? tx.date.slice(0, 7) : '');
+  }
+
+  public isTransactionInMonth(tx: Transaction, month: string): boolean {
+    if (!month) return false;
+    if (month === 'ALL') return true;
+    if (tx.type === 'INCOME') {
+      return this.getTransactionIncomeMonth(tx) === month;
+    }
+    return Boolean(tx.date && tx.date.startsWith(month));
+  }
+
   public isDateInActiveRange(txDate: string): boolean {
     if (!txDate) return false;
     const mode = this.dateFilterMode();
@@ -200,6 +222,29 @@ export class TransactionService {
       if (start && d < start) return false;
       if (end && d > end) return false;
       return true;
+    }
+    return true;
+  }
+
+  public isTransactionInActiveRange(tx: Transaction): boolean {
+    const mode = this.dateFilterMode();
+    if (mode === 'ALL') return true;
+    if (mode === 'MONTH') {
+      const m = this.selectedMonth();
+      if (m === 'ALL') return true;
+      if (tx.type === 'INCOME' && tx.incomeMonth) {
+        // Appears in the month it funds (incomeMonth) AND its statement receipt month
+        return tx.incomeMonth === m || (Boolean(tx.date) && tx.date.startsWith(m));
+      }
+      return Boolean(tx.date && tx.date.startsWith(m));
+    }
+    if (mode === 'YEAR') {
+      const y = this.selectedYear();
+      const incM = tx.type === 'INCOME' && tx.incomeMonth ? tx.incomeMonth.slice(0, 4) : '';
+      return (Boolean(incM) && incM === y) || (Boolean(tx.date) && tx.date.startsWith(y));
+    }
+    if (mode === 'RANGE') {
+      return this.isDateInActiveRange(tx.date);
     }
     return true;
   }
@@ -227,7 +272,7 @@ export class TransactionService {
 
   public reviewTransactionsForSelectedMonth = computed(() => {
     return this.transactions().filter(
-      (tx) => this.isDateInActiveRange(tx.date) && tx.isUnderReview
+      (tx) => this.isTransactionInActiveRange(tx) && tx.isUnderReview
     );
   });
 
@@ -240,6 +285,9 @@ export class TransactionService {
     this.transactions().forEach((tx) => {
       if (tx.date && tx.date.length >= 4) {
         years.add(tx.date.substring(0, 4));
+      }
+      if (tx.incomeMonth && tx.incomeMonth.length >= 4) {
+        years.add(tx.incomeMonth.substring(0, 4));
       }
     });
     return Array.from(years).sort().reverse();
@@ -262,6 +310,9 @@ export class TransactionService {
       if (tx.date && tx.date.length >= 7) {
         months.add(tx.date.substring(0, 7));
       }
+      if (tx.incomeMonth && tx.incomeMonth.length >= 7) {
+        months.add(tx.incomeMonth.substring(0, 7));
+      }
     });
 
     return Array.from(months).sort().reverse();
@@ -277,7 +328,7 @@ export class TransactionService {
 
     return this.transactions()
       .filter((tx) => {
-        if (!this.isDateInActiveRange(tx.date)) return false;
+        if (!this.isTransactionInActiveRange(tx)) return false;
         if (bank !== 'ALL' && tx.bank !== bank) return false;
         if (owner !== 'ALL' && tx.paidBy !== owner) return false;
         if (split !== 'ALL' && tx.splitType !== split) return false;

@@ -358,7 +358,17 @@
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
               <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
               <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
-              <td style="text-align: center;">
+              <td style="text-align: center; white-space: nowrap;">
+                <button
+                  type="button"
+                  class="btn btn-xs"
+                  [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
+                  [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                  (click)="toggleIncomeMonth(tx)"
+                  style="padding: 0.2rem 0.5rem; font-size: 0.72rem; margin-right: 0.35rem;"
+                  [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
+                  📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Use for Next Month' }}
+                </button>
                 <button class="btn btn-secondary btn-xs" (click)="includeIncome(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
                   + Include in Import
                 </button>
@@ -387,6 +397,16 @@
               </div>
 
               <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <button
+                  type="button"
+                  class="btn btn-xs"
+                  [class.btn-primary]="isGroupIncomeNextMonth(grp)"
+                  [class.btn-secondary]="!isGroupIncomeNextMonth(grp)"
+                  (click)="toggleGroupIncomeMonth(grp)"
+                  style="padding: 0.2rem 0.55rem; font-size: 0.72rem;"
+                  title="Toggle all transactions in this group to next month or current month">
+                  📅 {{ isGroupIncomeNextMonth(grp) ? 'Reset to Current Month' : 'All for Next Month' }}
+                </button>
                 <button class="btn btn-secondary btn-xs" (click)="includeGroup(grp)" style="padding: 0.2rem 0.55rem; font-size: 0.72rem;">
                   + Include Group ({{ grp.count }})
                 </button>
@@ -422,7 +442,17 @@
                     <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                     <td style="width: 90px;"><span class="badge badge-info">{{ tx.paidBy }}</span></td>
                     <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
-                    <td style="text-align: center; width: 120px;">
+                    <td style="text-align: center; white-space: nowrap; width: 180px;">
+                      <button
+                        type="button"
+                        class="btn btn-xs"
+                        [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
+                        [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                        (click)="toggleIncomeMonth(tx)"
+                        style="padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-right: 0.25rem;"
+                        [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
+                        📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Use for Next Month' }}
+                      </button>
                       <button class="btn btn-secondary btn-xs" (click)="includeIncome(tx)" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
                         + Include
                       </button>
@@ -458,7 +488,17 @@
                   <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                   <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
                   <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
-                  <td style="text-align: center;">
+                  <td style="text-align: center; white-space: nowrap;">
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
+                      [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                      (click)="toggleIncomeMonth(tx)"
+                      style="padding: 0.2rem 0.5rem; font-size: 0.72rem; margin-right: 0.35rem;"
+                      [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
+                      📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Use for Next Month' }}
+                    </button>
                     <button class="btn btn-secondary btn-xs" (click)="includeIncome(tx)" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
                       + Include
                     </button>
@@ -506,7 +546,18 @@
               *ngFor="let tx of sortedTransactions()"
               [class.tx-row-done]="tx.isDone"
               [class.tx-row-review]="tx.isUnderReview">
-              <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+              <td style="white-space: nowrap;">
+                <div>{{ service.formatDate(tx.date) }}</div>
+                <div *ngIf="isIncomeTx(tx) && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)" style="margin-top: 0.2rem;">
+                  <span
+                    class="badge"
+                    (click)="toggleIncomeMonth(tx)"
+                    style="cursor: pointer; font-size: 0.68rem; padding: 0.1rem 0.35rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
+                    [title]="'Funds ' + service.formatMonth(tx.incomeMonth) + ' budget (click to reset to ' + service.formatMonth(tx.date.slice(0, 7)) + ')'">
+                    📅 For {{ service.formatMonth(tx.incomeMonth) }}
+                  </span>
+                </div>
+              </td>
               <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
                 <div class="tx-description-cell">
                   <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
@@ -605,6 +656,18 @@
                     [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
                     [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
                     {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
+                  </button>
+                  <!-- Income Month Toggle -->
+                  <button
+                    *ngIf="isIncomeTx(tx)"
+                    type="button"
+                    class="btn btn-xs"
+                    [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
+                    [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                    (click)="toggleIncomeMonth(tx)"
+                    style="font-size: 0.7rem; padding: 0.15rem 0.4rem; white-space: nowrap;"
+                    [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
+                    📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Next Month' }}
                   </button>
                   <!-- Return to source if included -->
                   <button
@@ -742,6 +805,17 @@
                   {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
                 </button>
                 <button
+                  *ngIf="isIncomeGroup(grp)"
+                  type="button"
+                  class="btn btn-xs"
+                  [class.btn-primary]="isGroupIncomeNextMonth(grp)"
+                  [class.btn-secondary]="!isGroupIncomeNextMonth(grp)"
+                  (click)="toggleGroupIncomeMonth(grp)"
+                  style="font-size: 0.72rem; padding: 0.2rem 0.5rem; white-space: nowrap;"
+                  title="Toggle all transactions in this group to next month or current month">
+                  📅 {{ isGroupIncomeNextMonth(grp) ? 'Reset to Current Month' : 'All for Next Month' }}
+                </button>
+                <button
                   *ngIf="hasIncludedItems(grp)"
                   type="button"
                   class="btn btn-secondary btn-xs"
@@ -854,6 +928,18 @@
                           [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
                           {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
                         </button>
+                        <!-- Income Month Toggle -->
+                        <button
+                          *ngIf="isIncomeTx(tx)"
+                          type="button"
+                          class="btn btn-xs"
+                          [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
+                          [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                          (click)="toggleIncomeMonth(tx)"
+                          style="font-size: 0.7rem; padding: 0.15rem 0.4rem; white-space: nowrap;"
+                          [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
+                          📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Next Month' }}
+                        </button>
                         <!-- Return to source if included -->
                         <button
                           *ngIf="tx.includedFrom"
@@ -899,7 +985,18 @@
                 *ngFor="let tx of singleTransactions()"
                 [class.tx-row-done]="tx.isDone"
                 [class.tx-row-review]="tx.isUnderReview">
-                <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+                <td style="white-space: nowrap;">
+                  <div>{{ service.formatDate(tx.date) }}</div>
+                  <div *ngIf="isIncomeTx(tx) && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)" style="margin-top: 0.2rem;">
+                    <span
+                      class="badge"
+                      (click)="toggleIncomeMonth(tx)"
+                      style="cursor: pointer; font-size: 0.68rem; padding: 0.1rem 0.35rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
+                      [title]="'Funds ' + service.formatMonth(tx.incomeMonth) + ' budget (click to reset to ' + service.formatMonth(tx.date.slice(0, 7)) + ')'">
+                      📅 For {{ service.formatMonth(tx.incomeMonth) }}
+                    </span>
+                  </div>
+                </td>
                 <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
                   <div class="tx-description-cell">
                     <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
@@ -995,6 +1092,18 @@
                       [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
                       [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
                       {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
+                    </button>
+                    <!-- Income Month Toggle -->
+                    <button
+                      *ngIf="isIncomeTx(tx)"
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
+                      [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                      (click)="toggleIncomeMonth(tx)"
+                      style="font-size: 0.7rem; padding: 0.15rem 0.4rem; white-space: nowrap;"
+                      [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
+                      📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Next Month' }}
                     </button>
                     <!-- Return to source if included -->
                     <button

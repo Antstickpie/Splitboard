@@ -61,6 +61,7 @@ export interface Transaction {
   isUnderReview?: boolean; // Flagged for review / discussion
   isDone?: boolean; // Marked as verified / done (grays out row)
   includedFrom?: 'duplicates' | 'incomes' | 'excluded' | 'deleted'; // Original source tab when included into preview
+  incomeMonth?: string; // e.g. 'YYYY-MM' - shifts income to fund a different month (e.g. salary at end of month funding next month)
   
   note?: string;
   sourceFile?: string;

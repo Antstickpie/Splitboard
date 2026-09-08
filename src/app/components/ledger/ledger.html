@@ -578,7 +578,18 @@
           <tr
             *ngFor="let tx of service.filteredTransactions()"
             [class.tx-row-review]="tx.isUnderReview">
-            <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
+            <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">
+              <div>{{ service.formatDate(tx.date) }}</div>
+              <div *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)" style="margin-top: 0.2rem;">
+                <span
+                  class="badge"
+                  (click)="toggleTxIncomeMonth(tx)"
+                  style="cursor: pointer; font-size: 0.68rem; padding: 0.1rem 0.35rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
+                  [title]="'Funds ' + service.formatMonth(tx.incomeMonth) + ' budget (click to reset to ' + service.formatMonth(tx.date.slice(0, 7)) + ')'">
+                  📅 For {{ service.formatMonth(tx.incomeMonth) }}
+                </span>
+              </div>
+            </td>
             <td>
               <span class="badge badge-neutral">{{ tx.bank }}</span>
             </td>
@@ -679,6 +690,17 @@
                   [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'"
                   style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
                   {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
+                </button>
+                <button
+                  *ngIf="tx.type === 'INCOME'"
+                  type="button"
+                  class="btn btn-xs"
+                  [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
+                  [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                  (click)="toggleTxIncomeMonth(tx)"
+                  style="padding: 0.2rem 0.45rem; font-size: 0.72rem; white-space: nowrap;"
+                  [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
+                  📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Next Month' }}
                 </button>
                 <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
                   ✏ Edit
@@ -781,6 +803,32 @@
           [group]="cashCategoryGroup"
           (categoryChange)="cashCategoryItem = $event.item; cashCategoryGroup = $event.group">
         </app-category-select>
+      </div>
+
+      <!-- Budget Month Allocation (for Cash Income) -->
+      <div *ngIf="cashTxType === 'INCOME'" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.4rem;">
+        <label class="input-label" style="color: #10b981; font-weight: 600; margin: 0;">📅 Budget Month Attribution</label>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+          Specify which month's budget and savings this income funds:
+        </div>
+        <div class="toggle-group" style="width: 100%; height: 32px;">
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.active]="!cashIncomeMonth || cashIncomeMonth === cashDate.slice(0, 7)"
+            (click)="cashIncomeMonth = cashDate.slice(0, 7)"
+            style="flex: 1; font-size: 0.76rem;">
+            Receipt Month ({{ service.formatMonth(cashDate.slice(0, 7)) }})
+          </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.active]="cashIncomeMonth === service.getNextMonth(cashDate.slice(0, 7))"
+            (click)="cashIncomeMonth = service.getNextMonth(cashDate.slice(0, 7))"
+            style="flex: 1; font-size: 0.76rem;">
+            Next Month ({{ service.formatMonth(service.getNextMonth(cashDate.slice(0, 7))) }})
+          </button>
+        </div>
       </div>
 
       <div *ngIf="!cashIsTransfer && cashTxType !== 'INCOME'" style="margin-top: 0.4rem;">
@@ -938,6 +986,32 @@
           [group]="editCategoryGroup"
           (categoryChange)="editCategoryItem = $event.item; editCategoryGroup = $event.group">
         </app-category-select>
+      </div>
+
+      <!-- Income Month Allocation (only for Income transactions) -->
+      <div *ngIf="tx.type === 'INCOME'" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        <label class="input-label" style="color: #10b981; font-weight: 600; margin: 0;">📅 Budget Month Attribution</label>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+          Specify which month's budget and savings this income funds (e.g. salary at end of month funding next month):
+        </div>
+        <div class="toggle-group" style="width: 100%; height: 32px;">
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.active]="!editIncomeMonth || editIncomeMonth === editDate.slice(0, 7)"
+            (click)="editIncomeMonth = editDate.slice(0, 7)"
+            style="flex: 1; font-size: 0.76rem;">
+            Receipt Month ({{ service.formatMonth(editDate.slice(0, 7)) }})
+          </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.active]="editIncomeMonth === service.getNextMonth(editDate.slice(0, 7))"
+            (click)="editIncomeMonth = service.getNextMonth(editDate.slice(0, 7))"
+            style="flex: 1; font-size: 0.76rem;">
+            Next Month ({{ service.formatMonth(service.getNextMonth(editDate.slice(0, 7))) }})
+          </button>
+        </div>
       </div>
 
       <!-- Split Allocation (only for non-transfers) -->

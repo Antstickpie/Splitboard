@@ -302,6 +302,7 @@ export class LedgerComponent {
   public cashCustomP1Amount = 0;
   public cashCustomP2Amount = 0;
   public cashCustomPercentage = 50;
+  public cashIncomeMonth = '';
 
   // Edit Transaction Modal State
   public editingTx = signal<Transaction | null>(null);
@@ -317,6 +318,7 @@ export class LedgerComponent {
   public editCustomP2Amount = 0;
   public editCustomPercentage = 50;
   public editNote = '';
+  public editIncomeMonth = '';
 
   // Split customization modal
   public activeCustomSplitTx = signal<Transaction | null>(null);
@@ -429,6 +431,7 @@ export class LedgerComponent {
     this.cashCustomPercentage = 50;
     this.cashCustomP1Amount = 0;
     this.cashCustomP2Amount = 0;
+    this.cashIncomeMonth = this.cashDate.slice(0, 7);
     this.isCashModalOpen.set(true);
   }
 
@@ -496,6 +499,11 @@ export class LedgerComponent {
       }
     }
 
+    const receiptMonth = (this.cashDate || '').slice(0, 7);
+    const assignedIncomeMonth = isIncome && this.cashIncomeMonth && this.cashIncomeMonth !== receiptMonth
+      ? this.cashIncomeMonth
+      : undefined;
+
     const tx: Transaction = {
       id: 'cash-' + Date.now(),
       date: this.cashDate,
@@ -518,6 +526,7 @@ export class LedgerComponent {
       originalAmount,
       originalCurrency,
       exchangeRate: rate,
+      incomeMonth: assignedIncomeMonth,
       createdAt: new Date().toISOString()
     };
 
@@ -844,6 +853,7 @@ export class LedgerComponent {
     this.editCategoryItem = tx.categoryItem || '';
     this.editCategoryGroup = tx.categoryGroup || '';
     this.editNote = tx.note || '';
+    this.editIncomeMonth = tx.incomeMonth || (tx.date ? tx.date.slice(0, 7) : '');
 
     if (tx.splitType === 'SELF') {
       this.editSplitOption = 'PAYER_ONLY';
@@ -953,6 +963,11 @@ export class LedgerComponent {
       }
     }
 
+    const receiptMonth = (this.editDate || '').slice(0, 7);
+    const updatedIncomeMonth = tx.type === 'INCOME'
+      ? (this.editIncomeMonth && this.editIncomeMonth !== receiptMonth ? this.editIncomeMonth : undefined)
+      : undefined;
+
     this.service.updateTransaction(tx.id, {
       date: this.editDate,
       amount: this.editAmount,
@@ -964,11 +979,23 @@ export class LedgerComponent {
       splitMode,
       splitPercentage,
       customSplitAmounts,
-      note: this.editNote
+      note: this.editNote,
+      incomeMonth: updatedIncomeMonth
     });
 
     this.editingTx.set(null);
     this.service.showToast('Transaction updated', 'success');
+  }
+
+  public toggleTxIncomeMonth(tx: Transaction): void {
+    const curM = (tx.date || '').slice(0, 7);
+    const nextM = this.service.getNextMonth(curM);
+    const newMonth = (!tx.incomeMonth || tx.incomeMonth === curM) ? nextM : undefined;
+    this.service.updateTransaction(tx.id, { incomeMonth: newMonth });
+    this.service.showToast(
+      newMonth ? `Marked for ${this.service.formatMonth(newMonth)}` : `Reset to ${this.service.formatMonth(curM)}`,
+      'info'
+    );
   }
 
   public updateSplitType(tx: Transaction, type: SplitType) {

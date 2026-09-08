@@ -1138,6 +1138,41 @@ export class ImportComponent {
     return 'Source';
   }
 
+  public toggleIncomeMonth(tx: Transaction): void {
+    const curM = (tx.date || '').slice(0, 7);
+    const nextM = this.service.getNextMonth(curM);
+    tx.incomeMonth = (!tx.incomeMonth || tx.incomeMonth === curM) ? nextM : undefined;
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.service.showToast(
+      tx.incomeMonth ? `Marked for ${this.service.formatMonth(tx.incomeMonth)}` : `Reset to ${this.service.formatMonth(curM)}`,
+      'info'
+    );
+  }
+
+  public isGroupIncomeNextMonth(group: DescriptionGroup): boolean {
+    if (!group.items.length) return false;
+    return group.items.every((t) => {
+      const curM = (t.date || '').slice(0, 7);
+      return Boolean(t.incomeMonth && t.incomeMonth !== curM);
+    });
+  }
+
+  public toggleGroupIncomeMonth(group: DescriptionGroup): void {
+    const isAllNext = this.isGroupIncomeNextMonth(group);
+    group.items.forEach((t) => {
+      const curM = (t.date || '').slice(0, 7);
+      const nextM = this.service.getNextMonth(curM);
+      t.incomeMonth = isAllNext ? undefined : nextM;
+    });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.service.showToast(
+      isAllNext ? 'Reset group to receipt month' : 'Marked all group items for next month',
+      'info'
+    );
+  }
+
   public includeIncome(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;

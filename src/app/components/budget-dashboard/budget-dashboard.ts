@@ -70,7 +70,7 @@ export class BudgetDashboardComponent {
   public getItemTransactions(groupId: string, itemName: string): Transaction[] {
     const month = this.selectedMonth();
     const monthTxs = this.service.transactions().filter(
-      (tx) => tx.date && tx.date.startsWith(month)
+      (tx) => this.service.isTransactionInMonth(tx, month)
     );
 
     if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
@@ -249,7 +249,7 @@ export class BudgetDashboardComponent {
     const q = this.sidebarSearch().toLowerCase().trim();
     const filter = this.transactionFilter();
 
-    let list = this.service.transactions().filter((t) => t.date && t.date.startsWith(month));
+    let list = this.service.transactions().filter((t) => this.service.isTransactionInMonth(t, month));
 
     if (filter === 'uncategorized') {
       list = list.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized');
@@ -291,7 +291,7 @@ export class BudgetDashboardComponent {
   public groupSummaries = computed<CategoryGroupSummary[]>(() => {
     const month = this.selectedMonth();
     const txsInMonth = this.service.transactions().filter(
-      (tx) => tx.date && tx.date.startsWith(month)
+      (tx) => this.service.isTransactionInMonth(tx, month)
     );
 
     // Compute actuals per category (excluding cash transfers and reimbursed expenses)
@@ -446,7 +446,7 @@ export class BudgetDashboardComponent {
     let totalIncomeActual = 0;
     let totalExpenseActual = 0;
 
-    this.service.transactions().filter((tx) => tx.date && tx.date.startsWith(month)).forEach((tx) => {
+    this.service.transactions().filter((tx) => this.service.isTransactionInMonth(tx, month)).forEach((tx) => {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
       if (tx.type === 'INCOME') {
@@ -476,7 +476,7 @@ export class BudgetDashboardComponent {
     let p1Spend = 0;
     let p2Spend = 0;
 
-    this.service.transactions().filter((tx) => tx.date && tx.date.startsWith(month) && !tx.isCashTransfer && tx.type === 'EXPENSE').forEach((tx) => {
+    this.service.transactions().filter((tx) => this.service.isTransactionInMonth(tx, month) && !tx.isCashTransfer && tx.type === 'EXPENSE').forEach((tx) => {
       if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
       if (tx.paidBy === p1) p1Spend += Number(tx.amount) || 0;
       else if (tx.paidBy === p2) p2Spend += Number(tx.amount) || 0;
@@ -509,7 +509,7 @@ export class BudgetDashboardComponent {
     };
 
     // 1. Current Month Actuals
-    const monthTxs = allTxs.filter((tx) => tx.date && tx.date.startsWith(currentMonth));
+    const monthTxs = allTxs.filter((tx) => this.service.isTransactionInMonth(tx, currentMonth));
     let p1IncomeMonth = 0;
     let p2IncomeMonth = 0;
     let p1SpentShareMonth = 0;
@@ -598,7 +598,10 @@ export class BudgetDashboardComponent {
     let p1PriorSavings = 0;
     let p2PriorSavings = 0;
 
-    const priorTxs = allTxs.filter((tx) => tx.date && tx.date.slice(0, 7) < currentMonth);
+    const priorTxs = allTxs.filter((tx) => {
+      const m = tx.type === 'INCOME' && tx.incomeMonth ? tx.incomeMonth : (tx.date ? tx.date.slice(0, 7) : '');
+      return Boolean(m && m < currentMonth);
+    });
     priorTxs.forEach((tx) => {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
