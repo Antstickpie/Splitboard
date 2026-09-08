@@ -174,10 +174,13 @@ export class TransactionService {
   public isGoogleSyncing = signal<boolean>(false);
   public syncAction = signal<'idle' | 'push' | 'pull'>('idle');
   public lastGoogleSyncTime = signal<number | null>(null);
+  public googleUserEmail = signal<string | null>(null);
   private driveToken: string | null = null;
   private tokenClient: any = null;
   private driveFileIdCache: string | null = null;
   private pendingGoogleDriveAction: (() => Promise<void> | void) | null = null;
+  private readonly GDRIVE_TOKEN_KEY = 'splitboard_gdrive_token';
+  private readonly GDRIVE_USER_KEY = 'splitboard_gdrive_user';
 
   // Computed Values
   public personOne = computed(() => this.persons()[0] || { id: 'p1', name: 'Person 1' });
@@ -756,6 +759,15 @@ export class TransactionService {
   constructor() {
     this.loadFromStorage();
     this.applyTheme();
+
+    // Restore cached Google Drive connection & token if valid
+    const savedEmail = localStorage.getItem(this.GDRIVE_USER_KEY);
+    if (savedEmail) this.googleUserEmail.set(savedEmail);
+    if (this.getValidDriveToken()) {
+      this.isGoogleConnected.set(true);
+      this.fetchGoogleAccountProfile();
+    }
+
     this.initGoogleAuthIfPossible();
     this.fetchExchangeRates(true);
 
@@ -1751,6 +1763,47 @@ export class TransactionService {
   }
 
   // Google Drive Direct Integration
+  public getValidDriveToken(): string | null {
+    if (this.driveToken) return this.driveToken;
+    try {
+      const raw = localStorage.getItem(this.GDRIVE_TOKEN_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Ensure token is valid for at least 60 seconds into the future
+      if (parsed.token && parsed.expiresAt && parsed.expiresAt > Date.now() + 60000) {
+        this.driveToken = parsed.token;
+        this.isGoogleConnected.set(true);
+        return this.driveToken;
+      } else {
+        localStorage.removeItem(this.GDRIVE_TOKEN_KEY);
+        this.driveToken = null;
+      }
+    } catch {
+      localStorage.removeItem(this.GDRIVE_TOKEN_KEY);
+      this.driveToken = null;
+    }
+    return null;
+  }
+
+  public async fetchGoogleAccountProfile(): Promise<void> {
+    const token = this.getValidDriveToken();
+    if (!token) return;
+    try {
+      const resp = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.user?.emailAddress) {
+          this.googleUserEmail.set(data.user.emailAddress);
+          localStorage.setItem(this.GDRIVE_USER_KEY, data.user.emailAddress);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch Google profile', e);
+    }
+  }
+
   private initGoogleAuthIfPossible(): boolean {
     if (typeof google === 'undefined' || !google.accounts?.oauth2) return false;
     try {
@@ -1766,7 +1819,11 @@ export class TransactionService {
             return;
           }
           this.driveToken = response.access_token;
+          const expiresInSec = parseInt(response.expires_in, 10) || 3600;
+          const expiresAt = Date.now() + expiresInSec * 1000;
+          localStorage.setItem(this.GDRIVE_TOKEN_KEY, JSON.stringify({ token: this.driveToken, expiresAt }));
           this.isGoogleConnected.set(true);
+          this.fetchGoogleAccountProfile();
 
           if (this.pendingGoogleDriveAction) {
             const nextAction = this.pendingGoogleDriveAction;
@@ -1793,7 +1850,12 @@ export class TransactionService {
       this.initGoogleAuthIfPossible();
     }
     if (this.tokenClient) {
-      this.tokenClient.requestAccessToken({ prompt: '' });
+      const requestConfig: any = { prompt: '' };
+      const email = this.googleUserEmail() || localStorage.getItem(this.GDRIVE_USER_KEY);
+      if (email) {
+        requestConfig.hint = email;
+      }
+      this.tokenClient.requestAccessToken(requestConfig);
     } else {
       this.pendingGoogleDriveAction = null;
       this.isGoogleSyncing.set(false);
@@ -1802,8 +1864,27 @@ export class TransactionService {
     }
   }
 
+  public disconnectGoogleDrive(): void {
+    const token = this.getValidDriveToken();
+    if (token && typeof google !== 'undefined' && google.accounts?.oauth2?.revoke) {
+      try {
+        google.accounts.oauth2.revoke(token, () => {});
+      } catch (e) {
+        console.warn('Revoke failed', e);
+      }
+    }
+    this.driveToken = null;
+    this.driveFileIdCache = null;
+    this.isGoogleConnected.set(false);
+    this.googleUserEmail.set(null);
+    localStorage.removeItem(this.GDRIVE_TOKEN_KEY);
+    localStorage.removeItem(this.GDRIVE_USER_KEY);
+    this.showToast('Disconnected from Google Drive.', 'info');
+  }
+
   public async uploadToGoogleDrive(): Promise<void> {
-    if (!this.driveToken) {
+    const token = this.getValidDriveToken();
+    if (!token) {
       this.syncAction.set('push');
       this.isGoogleSyncing.set(true);
       this.connectGoogleDrive(() => this.uploadToGoogleDrive());
@@ -1860,7 +1941,7 @@ export class TransactionService {
       const resp = await fetch(url, {
         method,
         headers: {
-          Authorization: `Bearer ${this.driveToken}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': `multipart/related; boundary=${boundary}`
         },
         body: multipartRequestBody
@@ -1868,6 +1949,7 @@ export class TransactionService {
 
       if (resp.status === 401) {
         this.driveToken = null;
+        localStorage.removeItem(this.GDRIVE_TOKEN_KEY);
         this.isGoogleConnected.set(false);
         throw new Error('Google session expired. Please sign in again.');
       }
@@ -1886,7 +1968,8 @@ export class TransactionService {
   }
 
   public async downloadFromGoogleDrive(): Promise<void> {
-    if (!this.driveToken) {
+    const token = this.getValidDriveToken();
+    if (!token) {
       this.syncAction.set('pull');
       this.isGoogleSyncing.set(true);
       this.connectGoogleDrive(() => this.downloadFromGoogleDrive());
@@ -1903,11 +1986,12 @@ export class TransactionService {
       }
 
       const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { Authorization: `Bearer ${this.driveToken}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (resp.status === 401) {
         this.driveToken = null;
+        localStorage.removeItem(this.GDRIVE_TOKEN_KEY);
         this.isGoogleConnected.set(false);
         throw new Error('Google session expired. Please sign in again.');
       }
@@ -1948,12 +2032,15 @@ export class TransactionService {
 
   private async findGoogleDriveFileId(fileName: string): Promise<string | null> {
     if (this.driveFileIdCache) return this.driveFileIdCache;
+    const token = this.getValidDriveToken();
+    if (!token) return null;
     const q = encodeURIComponent(`name='${fileName}' and trashed=false`);
     const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
-      headers: { Authorization: `Bearer ${this.driveToken}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
     if (resp.status === 401) {
       this.driveToken = null;
+      localStorage.removeItem(this.GDRIVE_TOKEN_KEY);
       this.isGoogleConnected.set(false);
       throw new Error('Google session expired. Please sign in again.');
     }
@@ -1967,7 +2054,7 @@ export class TransactionService {
   }
 
   private triggerAutoSyncIfEnabled(): void {
-    if (this.autoSyncGoogleDrive() && this.isGoogleConnected() && this.driveToken) {
+    if (this.autoSyncGoogleDrive() && this.isGoogleConnected() && this.getValidDriveToken()) {
       this.uploadToGoogleDrive();
     }
   }

@@ -208,9 +208,15 @@
             </svg>
             <strong style="font-size: 0.88rem; color: #00e5ff; font-weight: 700;">Cloud (Google Drive)</strong>
           </div>
-          <span *ngIf="service.isGoogleConnected()" style="color: #22c55e; font-size: 0.78rem; font-weight: 700; display: flex; align-items: center; gap: 0.25rem;">
-            ● Connected
-          </span>
+          <div *ngIf="service.isGoogleConnected()" style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: #22c55e; font-size: 0.78rem; font-weight: 700; display: flex; align-items: center; gap: 0.25rem;">
+              ● Connected
+              <span *ngIf="service.googleUserEmail()" style="color: var(--text-muted); font-size: 0.74rem; font-weight: 500; font-family: var(--font-sans);">({{ service.googleUserEmail() }})</span>
+            </span>
+            <button class="btn btn-secondary btn-xs" style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);" (click)="service.disconnectGoogleDrive()" title="Disconnect Google account">
+              Disconnect
+            </button>
+          </div>
           <button *ngIf="!service.isGoogleConnected()" class="btn btn-secondary btn-xs" (click)="service.connectGoogleDrive()">
             Connect
           </button>
