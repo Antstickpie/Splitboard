@@ -308,6 +308,7 @@ export class BudgetDashboardComponent {
     txsInMonth.forEach((tx) => {
       if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
       if (tx.type === 'INCOME') return;
+      if (tx.isCashTransfer || tx.type === 'TRANSFER') return;
 
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
@@ -446,13 +447,22 @@ export class BudgetDashboardComponent {
     let totalIncomeActual = 0;
     let totalExpenseActual = 0;
 
+    const isSavingsCategory = (tx: Transaction) => {
+      const grp = (tx.categoryGroup || '').toLowerCase();
+      const item = (tx.categoryItem || '').toLowerCase();
+      return grp.includes('saving') || item.includes('saving');
+    };
+
     this.service.transactions().filter((tx) => this.service.isTransactionInMonth(tx, month)).forEach((tx) => {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
+      if (tx.isCashTransfer || tx.type === 'TRANSFER') return;
+
       if (tx.type === 'INCOME') {
         totalIncomeActual += amt;
       } else if (tx.type === 'EXPENSE') {
         if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
+        if (isSavingsCategory(tx)) return;
         totalExpenseActual += amt;
       }
     });
@@ -476,7 +486,18 @@ export class BudgetDashboardComponent {
     let p1Spend = 0;
     let p2Spend = 0;
 
-    this.service.transactions().filter((tx) => this.service.isTransactionInMonth(tx, month) && !tx.isCashTransfer && tx.type === 'EXPENSE').forEach((tx) => {
+    const isSavingsCategory = (tx: Transaction) => {
+      const grp = (tx.categoryGroup || '').toLowerCase();
+      const item = (tx.categoryItem || '').toLowerCase();
+      return grp.includes('saving') || item.includes('saving');
+    };
+
+    this.service.transactions().filter((tx) => 
+      this.service.isTransactionInMonth(tx, month) && 
+      !tx.isCashTransfer && 
+      tx.type === 'EXPENSE' && 
+      !isSavingsCategory(tx)
+    ).forEach((tx) => {
       if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
       if (tx.paidBy === p1) p1Spend += Number(tx.amount) || 0;
       else if (tx.paidBy === p2) p2Spend += Number(tx.amount) || 0;
@@ -518,8 +539,9 @@ export class BudgetDashboardComponent {
     monthTxs.forEach((tx) => {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
+      if (tx.isCashTransfer || tx.type === 'TRANSFER') return;
 
-      if (tx.type === 'INCOME' || isSavingsCategory(tx)) {
+      if (tx.type === 'INCOME') {
         if (tx.splitType === 'SELF') {
           if (tx.paidBy === p1) p1IncomeMonth += amt;
           else if (tx.paidBy === p2) p2IncomeMonth += amt;
@@ -555,7 +577,7 @@ export class BudgetDashboardComponent {
             }
           }
         }
-      } else if (tx.type === 'EXPENSE' && !tx.isCashTransfer) {
+      } else if (tx.type === 'EXPENSE' && !tx.isCashTransfer && !isSavingsCategory(tx)) {
         if (tx.splitType === 'SELF') {
           if (tx.paidBy === p1) p1SpentShareMonth += amt;
           else p2SpentShareMonth += amt;
@@ -634,8 +656,9 @@ export class BudgetDashboardComponent {
     priorTxs.forEach((tx) => {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
+      if (tx.type === 'TRANSFER') return;
 
-      if (tx.type === 'INCOME' || isSavingsCategory(tx)) {
+      if (tx.type === 'INCOME') {
         if (tx.splitType === 'SELF') {
           if (tx.paidBy === p1) p1PriorSavings += amt;
           else if (tx.paidBy === p2) p2PriorSavings += amt;
@@ -680,7 +703,7 @@ export class BudgetDashboardComponent {
           p2PriorSavings -= amt;
           p1PriorSavings += amt;
         }
-      } else if (tx.type === 'EXPENSE') {
+      } else if (tx.type === 'EXPENSE' && !isSavingsCategory(tx)) {
         if (tx.splitType === 'SELF') {
           if (tx.paidBy === p1) p1PriorSavings -= amt;
           else p2PriorSavings -= amt;
@@ -739,7 +762,10 @@ export class BudgetDashboardComponent {
   // Category Expense Distribution Analytics
   public categoryBreakdown = computed(() => {
     const summaries = this.groupSummaries().filter(
-      (g) => g.id !== 'grp-income' && !g.name.toLowerCase().includes('income')
+      (g) => g.id !== 'grp-income' && 
+             !g.name.toLowerCase().includes('income') &&
+             g.id !== 'grp-savings' && 
+             !g.name.toLowerCase().includes('saving')
     );
     const totalSpent = summaries.reduce((sum, g) => sum + g.actualTotal, 0);
 
