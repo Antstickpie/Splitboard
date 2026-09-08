@@ -186,6 +186,8 @@
 
 .everydollar-month-container {
   position: relative;
+  min-width: 175px;
+  flex-shrink: 0;
 }
 
 .everydollar-month-trigger {
@@ -202,6 +204,7 @@
   align-items: center;
   gap: 0.45rem;
   box-sizing: border-box;
+  white-space: nowrap;
   transition: all 0.15s ease;
 }
 
@@ -253,9 +256,12 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 1.3rem;
-  line-height: 1;
-  padding: 0.2rem 0.5rem;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s;
@@ -275,52 +281,47 @@
 .popover-months-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.45rem;
 }
 
 .month-cell-btn {
-  font-family: var(--font-sans);
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  padding: 0.5rem 0.2rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.month-cell-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.month-cell-btn.has-data {
-  border-style: solid;
-  border-color: rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.04);
-}
-
-.month-cell-btn.selected {
-  background: #0284c7 !important;
-  border: 1px solid #38bdf8 !important;
-  color: #ffffff !important;
-  font-weight: 700 !important;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
-}
-
-.btn-today {
-  background: none;
-  border: none;
-  color: var(--primary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  padding: 0.5rem 0.2rem;
+  border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.month-cell-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.month-cell-btn.selected {
+  background: var(--primary);
+  color: #0d1117;
+  font-weight: 700;
+  border-color: var(--primary);
+}
+
+.month-cell-btn.has-data:not(.selected) {
+  border-color: rgba(0, 229, 255, 0.3);
+  color: var(--text-main);
+}
+
+.btn-today {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0;
 }
 
 .btn-today:hover {
@@ -334,10 +335,10 @@
   border-radius: 6px;
   width: 28px;
   height: 28px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  padding: 0;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -345,6 +346,12 @@
 .btn-nav-arrow:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--primary);
+}
+
+.btn-nav-arrow svg,
+.popover-nav-btn svg {
+  display: block;
+  pointer-events: none;
 }
 
 .toolbar-filters-row {

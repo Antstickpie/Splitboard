@@ -5,7 +5,7 @@
       <!-- Month Navigation & Controls Group -->
       <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
         <!-- Month Trigger Popover (First) -->
-        <div class="everydollar-month-container" style="position: relative;">
+        <div class="everydollar-month-container">
           <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
             <span class="month-title-text">{{ service.formatMonth(selectedMonth()) }}</span>
             <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
@@ -14,9 +14,17 @@
           <!-- Month Picker Popover Grid -->
           <div class="everydollar-month-popover" *ngIf="isMonthPickerOpen()">
             <div class="popover-year-bar">
-              <button class="popover-nav-btn" (click)="prevYear()">&lsaquo;</button>
+              <button class="popover-nav-btn" (click)="prevYear()" title="Previous year" aria-label="Previous year">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
               <span class="popover-year-text">{{ pickerYear() }}</span>
-              <button class="popover-nav-btn" (click)="nextYear()">&rsaquo;</button>
+              <button class="popover-nav-btn" (click)="nextYear()" title="Next year" aria-label="Next year">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
             </div>
 
             <div class="popover-months-grid">
@@ -40,8 +48,16 @@
 
         <!-- Navigation Arrows (Second) -->
         <div class="month-arrows-group">
-          <button class="btn-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
-          <button class="btn-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
+          <button class="btn-arrow" (click)="prevMonth()" title="Previous month" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button class="btn-arrow" (click)="nextMonth()" title="Next month" aria-label="Next month">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
         </div>
 
         <!-- Today Button -->
