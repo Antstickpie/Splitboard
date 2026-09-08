@@ -96,6 +96,30 @@
         </div>
       </div>
     </div>
+
+    <!-- Top Bar Right: Global Search for Dashboard -->
+    <div class="top-bar-right">
+      <div class="dashboard-search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="text"
+          placeholder="Search spending..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          class="dashboard-search-input">
+        <button
+          *ngIf="searchQuery()"
+          type="button"
+          (click)="searchQuery.set('')"
+          class="search-clear-btn"
+          title="Clear search">
+          ✕
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Main 2-Column Analytics Workspace -->
@@ -104,11 +128,21 @@
     <div class="everydollar-budget-col">
       <!-- Empty State when no transactions or groups in this month -->
       <div *ngIf="activeGroupSummaries().length === 0" class="glass-card" style="text-align: center; padding: 4rem 2rem;">
-        <div style="font-size: 3rem; margin-bottom: 0.8rem;">📊</div>
-        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem;">No spending or income recorded for {{ service.formatMonth(selectedMonth()) }}</h3>
+        <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">{{ searchQuery() ? '🔍' : '📊' }}</div>
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.4rem;">
+          {{ searchQuery() ? 'No categories or transactions matching "' + searchQuery() + '"' : 'No spending or income recorded for ' + service.formatMonth(selectedMonth()) }}
+        </h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto; line-height: 1.5;">
-          No transactions logged for this month yet. Import statements or log cash to view analytics.
+          {{ searchQuery() ? 'Try a different search keyword or clear the search filter.' : 'No transactions logged for this month yet. Import statements or log cash to view analytics.' }}
         </p>
+        <button
+          *ngIf="searchQuery()"
+          type="button"
+          class="btn btn-secondary btn-sm"
+          style="margin-top: 1rem;"
+          (click)="searchQuery.set('')">
+          Clear Search
+        </button>
       </div>
 
       <!-- Category Group Cards (Only shown when active groups exist) -->
@@ -253,101 +287,16 @@
       </ng-container>
     </div>
 
-    <!-- RIGHT COLUMN: EveryDollar Sidebar Panel (Summary & Transactions) -->
+    <!-- RIGHT COLUMN: EveryDollar Sidebar Panel (Summary & Analytics) -->
     <div class="everydollar-sidebar-col glass-card">
-      <!-- Top Pill Tabs: Summary vs Transactions -->
-      <div class="sidebar-top-tabs">
-        <button
-          class="sidebar-tab-btn"
-          [class.active]="sidebarTab() === 'summary'"
-          (click)="sidebarTab.set('summary')">
-          ⟳ Summary
-        </button>
-        <button
-          class="sidebar-tab-btn"
-          [class.active]="sidebarTab() === 'transactions'"
-          (click)="sidebarTab.set('transactions')">
-          $ Transactions ({{ sidebarTransactions().length }})
-        </button>
+      <div class="sidebar-header">
+        <h3 class="sidebar-header-title">
+          📊 Month Overview & Analytics
+        </h3>
       </div>
 
-      <!-- TAB 1: Transactions Feed -->
-      <div class="sidebar-body" *ngIf="sidebarTab() === 'transactions'">
-        <!-- Sub-filters: All, Categorized, Uncategorized -->
-        <div class="tx-subfilters-bar">
-          <button
-            class="subfilter-btn"
-            [class.active]="transactionFilter() === 'all'"
-            (click)="transactionFilter.set('all')">
-            All
-          </button>
-          <button
-            class="subfilter-btn"
-            [class.active]="transactionFilter() === 'categorized'"
-            (click)="transactionFilter.set('categorized')">
-            Categorized
-          </button>
-          <button
-            class="subfilter-btn"
-            [class.active]="transactionFilter() === 'uncategorized'"
-            (click)="transactionFilter.set('uncategorized')">
-            Uncategorized
-          </button>
-        </div>
-
-        <!-- Search Box -->
-        <div class="sidebar-search-wrap">
-          <input
-            type="text"
-            placeholder="Search transactions..."
-            [ngModel]="sidebarSearch()"
-            (ngModelChange)="sidebarSearch.set($event)"
-            class="sidebar-search-input">
-        </div>
-
-        <!-- Transactions List -->
-        <div class="sidebar-tx-feed">
-          <div class="sidebar-tx-card" *ngFor="let tx of sidebarTransactions()">
-            <div class="tx-card-left">
-              <div class="tx-card-desc font-medium">{{ tx.description }}</div>
-              <div class="tx-card-meta">
-                <span class="tx-date">{{ service.formatDate(tx.date) }}</span>
-                <span class="tx-bank-dot">•</span>
-                <span class="tx-bank">{{ tx.bank }}</span>
-                <span class="tx-bank-dot" *ngIf="tx.categoryItem">•</span>
-                <span class="badge badge-neutral" *ngIf="tx.categoryItem" style="font-size: 0.65rem;">
-                  {{ tx.categoryItem }}
-                </span>
-                <span class="badge" *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" [title]="'Received on ' + service.formatDate(tx.date) + ', funding this month'">
-                  📅 From {{ service.formatMonthName(tx.date.slice(0, 7)) }}
-                </span>
-              </div>
-            </div>
-
-            <div class="tx-card-right font-mono">
-              <span class="tx-amount" [class.text-success]="tx.type === 'INCOME'">
-                {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
-              </span>
-              <select
-                [ngModel]="tx.splitType"
-                (ngModelChange)="service.updateTransaction(tx.id, { splitType: $event })"
-                class="tx-inline-select"
-                style="width: 80px;">
-                <option value="SPLIT">Split</option>
-                <option value="SELF">Self</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-          </div>
-
-          <div *ngIf="sidebarTransactions().length === 0" class="no-tx-msg">
-            No transactions found for this month.
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 2: Summary / Analytics -->
-      <div class="sidebar-body" *ngIf="sidebarTab() === 'summary'">
+      <!-- Summary / Analytics Body -->
+      <div class="sidebar-body">
         <!-- Key Metrics Cards -->
         <div class="sidebar-summary-box">
           <div class="summary-kpi-row">

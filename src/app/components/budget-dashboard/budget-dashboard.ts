@@ -46,10 +46,8 @@ export class BudgetDashboardComponent {
   );
   public monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  // EveryDollar Sidebar State
-  public sidebarTab = signal<'summary' | 'transactions'>('summary');
-  public transactionFilter = signal<'all' | 'categorized' | 'uncategorized'>('all');
-  public sidebarSearch = signal<string>('');
+  // Dashboard Search State
+  public searchQuery = signal<string>('');
   public viewMode = signal<'remaining' | 'spent'>('remaining');
 
   // Quick Add Item inline
@@ -73,24 +71,42 @@ export class BudgetDashboardComponent {
       (tx) => this.service.isTransactionInMonth(tx, month)
     );
 
+    let baseTxs: Transaction[] = [];
+
     if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
-      return monthTxs.filter((tx) => {
+      baseTxs = monthTxs.filter((tx) => {
         if (tx.type === 'INCOME') return false;
         const cat = (tx.categoryItem || '').trim().toLowerCase();
         return !cat || cat === 'uncategorized';
       });
+    } else {
+      const isIncomeTarget = groupId === 'grp-income' || itemName.toLowerCase().includes('income') || itemName.toLowerCase() === 'salary';
+
+      baseTxs = monthTxs.filter((tx) => {
+        const cat = (tx.categoryItem || '').trim();
+        if (cat.toLowerCase() === itemName.toLowerCase()) return true;
+        if (isIncomeTarget && (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income'))) {
+          return true;
+        }
+        return false;
+      });
     }
 
-    const isIncomeTarget = groupId === 'grp-income' || itemName.toLowerCase().includes('income') || itemName.toLowerCase() === 'salary';
-
-    return monthTxs.filter((tx) => {
-      const cat = (tx.categoryItem || '').trim();
-      if (cat.toLowerCase() === itemName.toLowerCase()) return true;
-      if (isIncomeTarget && (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income'))) {
-        return true;
+    const q = this.searchQuery().toLowerCase().trim();
+    if (q) {
+      const itemMatches = itemName.toLowerCase().includes(q) || groupId.toLowerCase().includes(q);
+      if (!itemMatches) {
+        return baseTxs.filter((tx) =>
+          (tx.description || '').toLowerCase().includes(q) ||
+          (tx.bank || '').toLowerCase().includes(q) ||
+          (tx.paidBy || '').toLowerCase().includes(q) ||
+          (tx.merchant || '').toLowerCase().includes(q) ||
+          String(tx.amount).includes(q)
+        );
       }
-      return false;
-    });
+    }
+
+    return baseTxs;
   }
 
   public onInlineCategoryChange(tx: Transaction, itemCategoryName: string, groupName?: string): void {
@@ -243,31 +259,6 @@ export class BudgetDashboardComponent {
     this.activeCategoryItem.set(null);
   }
 
-  // Sidebar Transactions
-  public sidebarTransactions = computed(() => {
-    const month = this.selectedMonth();
-    const q = this.sidebarSearch().toLowerCase().trim();
-    const filter = this.transactionFilter();
-
-    let list = this.service.transactions().filter((t) => this.service.isTransactionInMonth(t, month));
-
-    if (filter === 'uncategorized') {
-      list = list.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized');
-    } else if (filter === 'categorized') {
-      list = list.filter((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
-    }
-
-    if (q) {
-      list = list.filter((t) =>
-        (t.description || '').toLowerCase().includes(q) ||
-        (t.bank || '').toLowerCase().includes(q) ||
-        (t.categoryItem || '').toLowerCase().includes(q) ||
-        (t.paidBy || '').toLowerCase().includes(q)
-      );
-    }
-
-    return list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  });
 
   public startAddingItem(groupId: string): void {
     this.activeAddingGroupId.set(groupId);
@@ -439,7 +430,42 @@ export class BudgetDashboardComponent {
   });
 
   public activeGroupSummaries = computed(() => {
-    return this.groupSummaries().filter((grp) => grp.actualTotal > 0);
+    const q = this.searchQuery().toLowerCase().trim();
+    const active = this.groupSummaries().filter((grp) => grp.actualTotal > 0);
+
+    if (!q) return active;
+
+    return active
+      .map((grp) => {
+        const groupMatches = grp.name.toLowerCase().includes(q);
+
+        const matchingItems = grp.items.filter((item) => {
+          if (item.actual <= 0) return false;
+          if (groupMatches) return true;
+          if (item.name.toLowerCase().includes(q)) return true;
+
+          const txs = this.getItemTransactions(grp.id, item.name);
+          return txs.some(
+            (tx) =>
+              (tx.description || '').toLowerCase().includes(q) ||
+              (tx.bank || '').toLowerCase().includes(q) ||
+              (tx.paidBy || '').toLowerCase().includes(q) ||
+              (tx.merchant || '').toLowerCase().includes(q) ||
+              String(tx.amount).includes(q)
+          );
+        });
+
+        if (matchingItems.length === 0) return null;
+
+        const groupActual = matchingItems.reduce((sum, it) => sum + it.actual, 0);
+
+        return {
+          ...grp,
+          actualTotal: groupActual,
+          items: matchingItems
+        };
+      })
+      .filter((grp): grp is CategoryGroupSummary => grp !== null);
   });
 
   public budgetTotals = computed(() => {
