@@ -1939,4 +1939,16 @@ export class TransactionService {
     if (fmt === 'MMMM d, yyyy') return `${monthName} ${y}`;
     return `${y}-${m}`;
   }
+
+  public formatMonthName(monthStr: string): string {
+    if (!monthStr || monthStr === 'ALL') return monthStr;
+    const parts = monthStr.split('-');
+    if (parts.length < 2) return monthStr;
+    const m = parts[1];
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return monthNames[parseInt(m, 10) - 1] || m;
+  }
 }

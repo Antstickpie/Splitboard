@@ -987,13 +987,65 @@ export class LedgerComponent {
     this.service.showToast('Transaction updated', 'success');
   }
 
+  public isIncomeShifted(tx: Transaction): boolean {
+    const curM = (tx.date || '').slice(0, 7);
+    return Boolean(tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== curM);
+  }
+
+  public getIncomeMonthBadgeLabel(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    if (!tx.incomeMonth || tx.incomeMonth === curM) return '';
+    const selMonth = this.service.selectedMonth();
+    const prevMonthName = this.service.formatMonthName(curM);
+    const targetMonthName = this.service.formatMonthName(tx.incomeMonth);
+    if (selMonth === tx.incomeMonth) {
+      return `📅 From ${prevMonthName}`;
+    }
+    return `📅 For ${targetMonthName}`;
+  }
+
+  public getIncomeMonthBadgeTooltip(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    if (!tx.incomeMonth || tx.incomeMonth === curM) return '';
+    const selMonth = this.service.selectedMonth();
+    const prevMonth = this.service.formatMonth(curM);
+    const targetMonth = this.service.formatMonth(tx.incomeMonth);
+    if (selMonth === tx.incomeMonth) {
+      return `Received in ${prevMonth}, assigned to fund this month's budget. Click to move back to ${prevMonth}.`;
+    }
+    return `Assigned to fund ${targetMonth}'s budget. Click to move back to ${prevMonth}.`;
+  }
+
+  public getIncomeMonthButtonLabel(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    const isShifted = Boolean(tx.incomeMonth && tx.incomeMonth !== curM);
+    if (!isShifted) {
+      return '📅 Next Month';
+    }
+    const prevMonthName = this.service.formatMonthName(curM);
+    return `↩ Back to ${prevMonthName}`;
+  }
+
+  public getIncomeMonthButtonTooltip(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    const isShifted = Boolean(tx.incomeMonth && tx.incomeMonth !== curM);
+    const prevMonth = this.service.formatMonth(curM);
+    const nextMonth = this.service.formatMonth(this.service.getNextMonth(curM));
+    if (!isShifted) {
+      return `Shift this income to fund ${nextMonth}'s budget`;
+    }
+    return `Currently assigned to ${this.service.formatMonth(tx.incomeMonth || '')}. Click to move back to ${prevMonth}`;
+  }
+
   public toggleTxIncomeMonth(tx: Transaction): void {
     const curM = (tx.date || '').slice(0, 7);
     const nextM = this.service.getNextMonth(curM);
     const newMonth = (!tx.incomeMonth || tx.incomeMonth === curM) ? nextM : undefined;
     this.service.updateTransaction(tx.id, { incomeMonth: newMonth });
     this.service.showToast(
-      newMonth ? `Marked for ${this.service.formatMonth(newMonth)}` : `Reset to ${this.service.formatMonth(curM)}`,
+      newMonth
+        ? `Shifted to ${this.service.formatMonth(newMonth)} budget`
+        : `Moved back to ${this.service.formatMonth(curM)} budget`,
       'info'
     );
   }

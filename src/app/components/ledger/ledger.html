@@ -580,13 +580,13 @@
             [class.tx-row-review]="tx.isUnderReview">
             <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">
               <div>{{ service.formatDate(tx.date) }}</div>
-              <div *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)" style="margin-top: 0.2rem;">
+              <div *ngIf="isIncomeShifted(tx)" style="margin-top: 0.2rem;">
                 <span
                   class="badge"
                   (click)="toggleTxIncomeMonth(tx)"
                   style="cursor: pointer; font-size: 0.68rem; padding: 0.1rem 0.35rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
-                  [title]="'Funds ' + service.formatMonth(tx.incomeMonth) + ' budget (click to reset to ' + service.formatMonth(tx.date.slice(0, 7)) + ')'">
-                  📅 For {{ service.formatMonth(tx.incomeMonth) }}
+                  [title]="getIncomeMonthBadgeTooltip(tx)">
+                  {{ getIncomeMonthBadgeLabel(tx) }}
                 </span>
               </div>
             </td>
@@ -695,12 +695,15 @@
                   *ngIf="tx.type === 'INCOME'"
                   type="button"
                   class="btn btn-xs"
-                  [class.btn-primary]="tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)"
-                  [class.btn-secondary]="!tx.incomeMonth || tx.incomeMonth === tx.date?.slice(0, 7)"
+                  [class.btn-secondary]="isIncomeShifted(tx)"
+                  [class.btn-primary]="!isIncomeShifted(tx)"
+                  [style.color]="isIncomeShifted(tx) ? '#10b981' : ''"
+                  [style.borderColor]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.35)' : ''"
+                  [style.background]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.1)' : ''"
                   (click)="toggleTxIncomeMonth(tx)"
-                  style="padding: 0.2rem 0.45rem; font-size: 0.72rem; white-space: nowrap;"
-                  [title]="'Set income month to ' + (tx.incomeMonth ? service.formatMonth(tx.date.slice(0, 7)) : service.formatMonth(service.getNextMonth(tx.date.slice(0, 7))))">
-                  📅 {{ (tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)) ? 'For ' + service.formatMonth(tx.incomeMonth) : 'Next Month' }}
+                  style="padding: 0.18rem 0.4rem; font-size: 0.71rem; white-space: nowrap;"
+                  [title]="getIncomeMonthButtonTooltip(tx)">
+                  {{ getIncomeMonthButtonLabel(tx) }}
                 </button>
                 <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
                   ✏ Edit

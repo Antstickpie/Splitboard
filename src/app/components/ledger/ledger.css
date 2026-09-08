@@ -611,9 +611,26 @@
   font-size: 0.8rem;
 }
 
+.ledger-table-wrapper {
+  overflow-x: hidden;
+  border-radius: 10px;
+}
+
+@media (max-width: 1100px) {
+  .ledger-table-wrapper {
+    overflow-x: auto;
+  }
+}
+
+.ledger-table-wrapper table {
+  width: 100%;
+  table-layout: auto;
+}
+
 .ledger-table-wrapper table td,
 .ledger-table-wrapper table th {
   overflow: visible !important;
+  padding: 0.45rem 0.45rem;
 }
 
 .ledger-table-wrapper table tr:has(.cat-select-container.open) {

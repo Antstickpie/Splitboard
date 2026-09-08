@@ -139,9 +139,11 @@ body.light-theme {
 
 /* Layout Utilities */
 .container {
-  max-width: 1440px;
+  max-width: 1840px;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
 }
 
 /* Premium Card / Glassmorphism */

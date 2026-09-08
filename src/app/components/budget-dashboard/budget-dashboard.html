@@ -175,8 +175,8 @@
                       <td style="padding: 0.3rem 0.4rem; white-space: nowrap; color: var(--text-muted);">
                         <div>{{ service.formatDate(tx.date) }}</div>
                         <div *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)">
-                          <span class="badge" style="font-size: 0.62rem; padding: 0.1rem 0.3rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
-                            📅 Received {{ tx.date }}
+                          <span class="badge" style="font-size: 0.62rem; padding: 0.1rem 0.3rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" [title]="'Received on ' + service.formatDate(tx.date) + ', funding this month'">
+                            📅 From {{ service.formatMonthName(tx.date.slice(0, 7)) }}
                           </span>
                         </div>
                       </td>
@@ -302,8 +302,8 @@
                 <span class="badge badge-neutral" *ngIf="tx.categoryItem" style="font-size: 0.65rem;">
                   {{ tx.categoryItem }}
                 </span>
-                <span class="badge" *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
-                  📅 Received {{ service.formatDate(tx.date) }}
+                <span class="badge" *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" [title]="'Received on ' + service.formatDate(tx.date) + ', funding this month'">
+                  📅 From {{ service.formatMonthName(tx.date.slice(0, 7)) }}
                 </span>
               </div>
             </div>

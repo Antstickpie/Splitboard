@@ -1138,6 +1138,45 @@ export class ImportComponent {
     return 'Source';
   }
 
+  public isIncomeShifted(tx: Transaction): boolean {
+    const curM = (tx.date || '').slice(0, 7);
+    return Boolean(tx.incomeMonth && tx.incomeMonth !== curM);
+  }
+
+  public getIncomeMonthBadgeLabel(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    if (!tx.incomeMonth || tx.incomeMonth === curM) return '';
+    const targetMonthName = this.service.formatMonthName(tx.incomeMonth);
+    return `📅 For ${targetMonthName}`;
+  }
+
+  public getIncomeMonthBadgeTooltip(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    if (!tx.incomeMonth || tx.incomeMonth === curM) return '';
+    const prevMonth = this.service.formatMonth(curM);
+    const targetMonth = this.service.formatMonth(tx.incomeMonth);
+    return `Assigned to fund ${targetMonth}'s budget. Click to move back to ${prevMonth}.`;
+  }
+
+  public getIncomeMonthButtonLabel(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    if (this.isIncomeShifted(tx)) {
+      const prevMonthName = this.service.formatMonthName(curM);
+      return `↩ Back to ${prevMonthName}`;
+    }
+    return '📅 Next Month';
+  }
+
+  public getIncomeMonthButtonTooltip(tx: Transaction): string {
+    const curM = (tx.date || '').slice(0, 7);
+    if (this.isIncomeShifted(tx)) {
+      const prevMonth = this.service.formatMonth(curM);
+      return `Currently assigned to ${this.service.formatMonth(tx.incomeMonth || '')}. Click to move back to ${prevMonth}`;
+    }
+    const nextMonth = this.service.formatMonth(this.service.getNextMonth(curM));
+    return `Shift this income to fund ${nextMonth}'s budget`;
+  }
+
   public toggleIncomeMonth(tx: Transaction): void {
     const curM = (tx.date || '').slice(0, 7);
     const nextM = this.service.getNextMonth(curM);
@@ -1145,7 +1184,9 @@ export class ImportComponent {
     const res = this.previewResult();
     if (res) this.previewResult.set({ ...res });
     this.service.showToast(
-      tx.incomeMonth ? `Marked for ${this.service.formatMonth(tx.incomeMonth)}` : `Reset to ${this.service.formatMonth(curM)}`,
+      tx.incomeMonth
+        ? `Shifted to ${this.service.formatMonth(tx.incomeMonth)} budget`
+        : `Moved back to ${this.service.formatMonth(curM)} budget`,
       'info'
     );
   }
