@@ -202,15 +202,11 @@
   <!-- Transactions Table Card with Integrated Header Controls -->
   <div class="glass-card ledger-table-card">
     <div class="table-header-info" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
-      <!-- LEFT: Title & Month Navigation -->
-      <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
-        <h3 style="margin: 0; font-size: 0.92rem; font-weight: 700; color: var(--text-main); white-space: nowrap;">
-          Transactions ({{ service.filteredTransactions().length }}<span *ngIf="service.searchQuery()" style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ totalMonthTxs() }}</span>)
-        </h3>
-
-        <!-- Custom Month / Year / Date Range Trigger & Popover -->
-        <div class="everydollar-month-container">
-          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()" style="font-size: 0.82rem; padding: 0.2rem 0.45rem;">
+      <!-- LEFT: Month Navigation & Controls Group -->
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Custom Month / Year / Date Range Trigger & Popover (First) -->
+        <div class="everydollar-month-container" [class.is-range]="service.dateFilterMode() === 'RANGE'">
+          <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
             <span class="month-title-text">{{ getEffectiveDateRangeLabel() }}</span>
             <span class="month-chevron">{{ isMonthPickerOpen() ? '▲' : '▼' }}</span>
           </button>
@@ -355,21 +351,21 @@
         </div>
 
         <!-- Month Navigation Arrows (Second) -->
-        <div class="month-nav-btns" style="display: inline-flex; align-items: center; gap: 0.25rem;" *ngIf="service.dateFilterMode() === 'MONTH'">
-          <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month" aria-label="Previous month">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <div class="month-arrows-group" *ngIf="service.dateFilterMode() === 'MONTH'">
+          <button class="btn-arrow" (click)="prevMonth()" title="Previous month" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
           </button>
-          <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month" aria-label="Next month">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <button class="btn-arrow" (click)="nextMonth()" title="Next month" aria-label="Next month">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </button>
         </div>
 
         <!-- Today Button -->
-        <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.dateFilterMode() !== 'MONTH' || service.selectedMonth() !== service.getCurrentMonthString()" style="font-size: 0.72rem; padding: 0.15rem 0.4rem;">
+        <button class="btn btn-secondary btn-xs" (click)="goToCurrentMonth()" *ngIf="service.dateFilterMode() !== 'MONTH' || service.selectedMonth() !== service.getCurrentMonthString()" style="font-size: 0.72rem; padding: 0.15rem 0.4rem; height: 28px;">
           Today
         </button>
 
@@ -377,6 +373,11 @@
         <span class="past-month-badge" *ngIf="service.dateFilterMode() === 'MONTH' && isPastMonth()" style="font-size: 0.68rem; padding: 0.15rem 0.4rem;">⏱ Past</span>
         <span class="past-month-badge" style="background: rgba(139, 92, 246, 0.12); color: #a78bfa; border-color: rgba(139, 92, 246, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="service.dateFilterMode() === 'MONTH' && isFutureMonth()">🔮 Future</span>
         <span class="past-month-badge" style="background: rgba(0, 229, 255, 0.12); color: var(--primary); border-color: rgba(0, 229, 255, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="service.dateFilterMode() === 'RANGE' || service.dateFilterMode() === 'YEAR'">🗓️ Multi-Period</span>
+
+        <!-- Transactions Count (Appended after controls) -->
+        <h3 style="margin: 0 0 0 0.4rem; font-size: 0.92rem; font-weight: 700; color: var(--text-main); white-space: nowrap;">
+          Transactions ({{ service.filteredTransactions().length }}<span *ngIf="service.searchQuery()" style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ totalMonthTxs() }}</span>)
+        </h3>
       </div>
 
       <!-- RIGHT: Quick Search, Review Filter, More Filters & Actions -->
