@@ -230,11 +230,17 @@
 
         <div class="cloud-action-buttons-row">
           <button class="btn cloud-pull-btn" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            <span style="font-size: 0.95rem;">☁️</span> Pull Cloud
+            <span style="font-size: 0.95rem;">{{ service.syncAction() === 'pull' ? '⏳' : '☁️' }}</span>
+            {{ service.syncAction() === 'pull' ? 'Pulling Cloud...' : 'Pull Cloud' }}
           </button>
           <button class="btn cloud-push-btn" (click)="service.uploadToGoogleDrive()" [disabled]="service.isGoogleSyncing()">
-            <span style="font-size: 0.95rem;">☁️</span> Push Cloud
+            <span style="font-size: 0.95rem;">{{ service.syncAction() === 'push' ? '⏳' : '☁️' }}</span>
+            {{ service.syncAction() === 'push' ? 'Pushing Cloud...' : 'Push Cloud' }}
           </button>
+        </div>
+        <div *ngIf="service.lastGoogleSyncTime()" class="last-sync-caption" style="font-size: 0.73rem; color: #94a3b8; margin-top: 0.45rem; display: flex; align-items: center; gap: 0.35rem;">
+          <span style="color: #22c55e;">✓</span>
+          <span>Last cloud sync: <strong style="color: var(--text-main); font-family: var(--font-mono); font-weight: 600;">{{ service.formatDateTime(service.lastGoogleSyncTime()) }}</strong></span>
         </div>
       </div>
 

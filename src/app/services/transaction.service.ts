@@ -172,10 +172,12 @@ export class TransactionService {
   // Google Drive State
   public isGoogleConnected = signal<boolean>(false);
   public isGoogleSyncing = signal<boolean>(false);
+  public syncAction = signal<'idle' | 'push' | 'pull'>('idle');
   public lastGoogleSyncTime = signal<number | null>(null);
   private driveToken: string | null = null;
   private tokenClient: any = null;
   private driveFileIdCache: string | null = null;
+  private pendingGoogleDriveAction: (() => Promise<void> | void) | null = null;
 
   // Computed Values
   public personOne = computed(() => this.persons()[0] || { id: 'p1', name: 'Person 1' });
@@ -1749,43 +1751,65 @@ export class TransactionService {
   }
 
   // Google Drive Direct Integration
-  private initGoogleAuthIfPossible(): void {
-    if (typeof google === 'undefined' || !google.accounts?.oauth2) return;
+  private initGoogleAuthIfPossible(): boolean {
+    if (typeof google === 'undefined' || !google.accounts?.oauth2) return false;
     try {
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.googleClientId(),
         scope: 'https://www.googleapis.com/auth/drive.file',
         callback: (response: any) => {
           if (response.error) {
-            this.showToast('Google Auth Failed: ' + response.error, 'error');
+            this.showToast('Google Auth Failed: ' + (response.error_description || response.error), 'error');
+            this.pendingGoogleDriveAction = null;
+            this.isGoogleSyncing.set(false);
+            this.syncAction.set('idle');
             return;
           }
           this.driveToken = response.access_token;
           this.isGoogleConnected.set(true);
-          this.showToast('Connected to Google Drive!', 'success');
+
+          if (this.pendingGoogleDriveAction) {
+            const nextAction = this.pendingGoogleDriveAction;
+            this.pendingGoogleDriveAction = null;
+            this.showToast('Connected to Google Drive! Proceeding with sync...', 'info');
+            nextAction();
+          } else {
+            this.showToast('Connected to Google Drive!', 'success');
+          }
         }
       });
+      return true;
     } catch (e) {
       console.warn('Google client init failed', e);
+      return false;
     }
   }
 
-  public connectGoogleDrive(): void {
+  public connectGoogleDrive(pendingAction?: () => Promise<void> | void): void {
+    if (pendingAction) {
+      this.pendingGoogleDriveAction = pendingAction;
+    }
     if (!this.tokenClient) {
       this.initGoogleAuthIfPossible();
     }
     if (this.tokenClient) {
-      this.tokenClient.requestAccessToken({ prompt: 'consent' });
+      this.tokenClient.requestAccessToken({ prompt: '' });
     } else {
-      this.showToast('Google Auth script not loaded.', 'error');
+      this.pendingGoogleDriveAction = null;
+      this.isGoogleSyncing.set(false);
+      this.syncAction.set('idle');
+      this.showToast('Google Auth script is loading or unavailable. Please check your connection.', 'error');
     }
   }
 
   public async uploadToGoogleDrive(): Promise<void> {
     if (!this.driveToken) {
-      this.connectGoogleDrive();
+      this.syncAction.set('push');
+      this.isGoogleSyncing.set(true);
+      this.connectGoogleDrive(() => this.uploadToGoogleDrive());
       return;
     }
+    this.syncAction.set('push');
     this.isGoogleSyncing.set(true);
     try {
       const fileName = this.googleFileName() || 'transactions_processor_backup.json';
@@ -1842,6 +1866,12 @@ export class TransactionService {
         body: multipartRequestBody
       });
 
+      if (resp.status === 401) {
+        this.driveToken = null;
+        this.isGoogleConnected.set(false);
+        throw new Error('Google session expired. Please sign in again.');
+      }
+
       if (!resp.ok) throw new Error('Upload HTTP status ' + resp.status);
       const resJson = await resp.json();
       this.driveFileIdCache = resJson.id;
@@ -1851,14 +1881,18 @@ export class TransactionService {
       this.showToast('Google Drive upload failed: ' + e.message, 'error');
     } finally {
       this.isGoogleSyncing.set(false);
+      this.syncAction.set('idle');
     }
   }
 
   public async downloadFromGoogleDrive(): Promise<void> {
     if (!this.driveToken) {
-      this.connectGoogleDrive();
+      this.syncAction.set('pull');
+      this.isGoogleSyncing.set(true);
+      this.connectGoogleDrive(() => this.downloadFromGoogleDrive());
       return;
     }
+    this.syncAction.set('pull');
     this.isGoogleSyncing.set(true);
     try {
       const fileName = this.googleFileName() || 'transactions_processor_backup.json';
@@ -1871,6 +1905,12 @@ export class TransactionService {
       const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
         headers: { Authorization: `Bearer ${this.driveToken}` }
       });
+
+      if (resp.status === 401) {
+        this.driveToken = null;
+        this.isGoogleConnected.set(false);
+        throw new Error('Google session expired. Please sign in again.');
+      }
 
       if (!resp.ok) throw new Error('Download HTTP status ' + resp.status);
       const data: AppDataBackup = await resp.json();
@@ -1902,6 +1942,7 @@ export class TransactionService {
       this.showToast('Google Drive download failed: ' + e.message, 'error');
     } finally {
       this.isGoogleSyncing.set(false);
+      this.syncAction.set('idle');
     }
   }
 
@@ -1911,6 +1952,11 @@ export class TransactionService {
     const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
       headers: { Authorization: `Bearer ${this.driveToken}` }
     });
+    if (resp.status === 401) {
+      this.driveToken = null;
+      this.isGoogleConnected.set(false);
+      throw new Error('Google session expired. Please sign in again.');
+    }
     if (!resp.ok) return null;
     const data = await resp.json();
     if (data.files && data.files.length > 0) {
@@ -2014,4 +2060,15 @@ export class TransactionService {
     ];
     return monthNames[parseInt(m, 10) - 1] || m;
   }
+
+  public formatDateTime(timestamp: number | null): string {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    const dateStr = d.toISOString().slice(0, 10);
+    const formattedDate = this.formatDate(dateStr);
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${formattedDate} at ${hours}:${mins}`;
+  }
 }
+
