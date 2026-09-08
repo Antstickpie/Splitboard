@@ -520,11 +520,40 @@ export class BudgetDashboardComponent {
       if (amt <= 0) return;
 
       if (tx.type === 'INCOME' || isSavingsCategory(tx)) {
-        if (tx.paidBy === p1) p1IncomeMonth += amt;
-        else if (tx.paidBy === p2) p2IncomeMonth += amt;
-        else {
-          p1IncomeMonth += amt / 2;
-          p2IncomeMonth += amt / 2;
+        if (tx.splitType === 'SELF') {
+          if (tx.paidBy === p1) p1IncomeMonth += amt;
+          else if (tx.paidBy === p2) p2IncomeMonth += amt;
+          else {
+            p1IncomeMonth += amt / 2;
+            p2IncomeMonth += amt / 2;
+          }
+        } else if (tx.splitType === 'OTHER') {
+          if (tx.paidBy === p1) p2IncomeMonth += amt;
+          else if (tx.paidBy === p2) p1IncomeMonth += amt;
+          else {
+            p1IncomeMonth += amt / 2;
+            p2IncomeMonth += amt / 2;
+          }
+        } else {
+          // SPLIT
+          if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+            p1IncomeMonth += Number(tx.customSplitAmounts[p1]) || 0;
+            p2IncomeMonth += Number(tx.customSplitAmounts[p2]) || 0;
+          } else {
+            const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
+            if (tx.paidBy === p1) {
+              const p1s = parseFloat(((amt * pct) / 100).toFixed(2));
+              p1IncomeMonth += p1s;
+              p2IncomeMonth += parseFloat((amt - p1s).toFixed(2));
+            } else if (tx.paidBy === p2) {
+              const p2s = parseFloat(((amt * pct) / 100).toFixed(2));
+              p2IncomeMonth += p2s;
+              p1IncomeMonth += parseFloat((amt - p2s).toFixed(2));
+            } else {
+              p1IncomeMonth += amt / 2;
+              p2IncomeMonth += amt / 2;
+            }
+          }
         }
       } else if (tx.type === 'EXPENSE' && !tx.isCashTransfer) {
         if (tx.splitType === 'SELF') {
@@ -607,11 +636,40 @@ export class BudgetDashboardComponent {
       if (amt <= 0) return;
 
       if (tx.type === 'INCOME' || isSavingsCategory(tx)) {
-        if (tx.paidBy === p1) p1PriorSavings += amt;
-        else if (tx.paidBy === p2) p2PriorSavings += amt;
-        else {
-          p1PriorSavings += amt / 2;
-          p2PriorSavings += amt / 2;
+        if (tx.splitType === 'SELF') {
+          if (tx.paidBy === p1) p1PriorSavings += amt;
+          else if (tx.paidBy === p2) p2PriorSavings += amt;
+          else {
+            p1PriorSavings += amt / 2;
+            p2PriorSavings += amt / 2;
+          }
+        } else if (tx.splitType === 'OTHER') {
+          if (tx.paidBy === p1) p2PriorSavings += amt;
+          else if (tx.paidBy === p2) p1PriorSavings += amt;
+          else {
+            p1PriorSavings += amt / 2;
+            p2PriorSavings += amt / 2;
+          }
+        } else {
+          // SPLIT
+          if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+            p1PriorSavings += Number(tx.customSplitAmounts[p1]) || 0;
+            p2PriorSavings += Number(tx.customSplitAmounts[p2]) || 0;
+          } else {
+            const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
+            if (tx.paidBy === p1) {
+              const p1s = parseFloat(((amt * pct) / 100).toFixed(2));
+              p1PriorSavings += p1s;
+              p2PriorSavings += parseFloat((amt - p1s).toFixed(2));
+            } else if (tx.paidBy === p2) {
+              const p2s = parseFloat(((amt * pct) / 100).toFixed(2));
+              p2PriorSavings += p2s;
+              p1PriorSavings += parseFloat((amt - p2s).toFixed(2));
+            } else {
+              p1PriorSavings += amt / 2;
+              p2PriorSavings += amt / 2;
+            }
+          }
         }
       } else if (tx.isCashTransfer) {
         // Direct cash transfer

@@ -460,9 +460,7 @@ export class LedgerComponent {
     let splitPercentage = 50;
     let customSplitAmounts: Record<string, number> | undefined = undefined;
 
-    if (isIncome) {
-      splitType = 'SELF';
-    } else if (this.cashIsTransfer) {
+    if (this.cashIsTransfer) {
       splitType = 'OTHER';
     } else if (this.cashSplitOption === 'PAYER_ONLY') {
       splitType = 'SELF';

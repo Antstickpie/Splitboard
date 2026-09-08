@@ -353,12 +353,56 @@ export class TransactionService {
   });
 
   public calculateTxDebt(tx: Transaction, p1: string, p2: string): { p1OwesP2: number; p2OwesP1: number; p1Paid: number; p2Paid: number; p1Share: number; p2Share: number } {
-    if (tx.type === 'INCOME') return { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
     const amount = Number(tx.amount) || 0;
     if (amount <= 0) return { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
 
     const isP1 = tx.paidBy === p1;
     const isP2 = tx.paidBy === p2;
+
+    if (tx.type === 'INCOME') {
+      if (tx.isCashTransfer) {
+        return { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
+      }
+      let p1Share = 0;
+      let p2Share = 0;
+      if (tx.splitType === 'SELF') {
+        if (isP1) p1Share = amount;
+        else if (isP2) p2Share = amount;
+      } else if (tx.splitType === 'OTHER') {
+        if (isP1) p2Share = amount;
+        else if (isP2) p1Share = amount;
+      } else {
+        // SPLIT (default or custom)
+        if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+          p1Share = Number(tx.customSplitAmounts[p1]) || 0;
+          p2Share = Number(tx.customSplitAmounts[p2]) || 0;
+        } else {
+          const pct = tx.splitPercentage != null ? tx.splitPercentage : 50;
+          if (isP1) {
+            p1Share = parseFloat(((amount * pct) / 100).toFixed(2));
+            p2Share = parseFloat((amount - p1Share).toFixed(2));
+          } else if (isP2) {
+            p2Share = parseFloat(((amount * pct) / 100).toFixed(2));
+            p1Share = parseFloat((amount - p2Share).toFixed(2));
+          } else {
+            p1Share = parseFloat(((amount * 50) / 100).toFixed(2));
+            p2Share = parseFloat((amount - p1Share).toFixed(2));
+          }
+        }
+      }
+
+      // If P1 received income split with P2, P1 holds P2's share in their account and owes it to P2!
+      // If P2 received income split with P1, P2 holds P1's share in their account and owes it to P1!
+      let p1OwesP2 = 0;
+      let p2OwesP1 = 0;
+      if (isP1) {
+        p1OwesP2 = p2Share;
+      } else if (isP2) {
+        p2OwesP1 = p1Share;
+      }
+
+      return { p1OwesP2, p2OwesP1, p1Paid: 0, p2Paid: 0, p1Share, p2Share };
+    }
 
     const p1Paid = isP1 ? amount : 0;
     const p2Paid = isP2 ? amount : 0;
@@ -458,12 +502,14 @@ export class TransactionService {
       } else if (isCurrent) {
         currP1Paid += res.p1Paid;
         currP2Paid += res.p2Paid;
-        currP1TotalShare += res.p1Share;
-        currP2TotalShare += res.p2Share;
+        if (tx.type !== 'INCOME') {
+          currP1TotalShare += res.p1Share;
+          currP2TotalShare += res.p2Share;
+        }
         currP1OwesP2 += res.p1OwesP2;
         currP2OwesP1 += res.p2OwesP1;
 
-        if (tx.type !== 'INCOME' && (Number(tx.amount) || 0) > 0) {
+        if ((tx.type !== 'INCOME' || res.p1OwesP2 > 0 || res.p2OwesP1 > 0) && (Number(tx.amount) || 0) > 0) {
           itemized.push({
             id: tx.id,
             date: tx.date,
