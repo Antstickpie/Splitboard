@@ -232,15 +232,11 @@ export class TransactionService {
     if (mode === 'MONTH') {
       const m = this.selectedMonth();
       if (m === 'ALL') return true;
-      if (tx.type === 'INCOME') {
-        return this.getTransactionIncomeMonth(tx) === m;
-      }
       return Boolean(tx.date && tx.date.startsWith(m));
     }
     if (mode === 'YEAR') {
       const y = this.selectedYear();
-      const incM = tx.type === 'INCOME' ? this.getTransactionIncomeMonth(tx).slice(0, 4) : '';
-      return (Boolean(incM) && incM === y) || (Boolean(tx.date) && tx.date.startsWith(y));
+      return Boolean(tx.date && tx.date.startsWith(y));
     }
     if (mode === 'RANGE') {
       return this.isDateInActiveRange(tx.date);
@@ -249,26 +245,26 @@ export class TransactionService {
   }
 
   public isTransactionPriorToActiveRange(tx: Transaction): boolean {
-    const mode = this.dateFilterMode();
-    if (mode === 'ALL') return false;
-    if (mode === 'MONTH') {
-      const m = this.selectedMonth();
-      if (m === 'ALL') return false;
-      const effectiveMonth = tx.type === 'INCOME' ? this.getTransactionIncomeMonth(tx) : (tx.date ? tx.date.slice(0, 7) : '');
-      return Boolean(effectiveMonth && effectiveMonth < m);
-    }
-    if (mode === 'YEAR') {
-      const y = this.selectedYear();
-      const effectiveYear = tx.type === 'INCOME' ? this.getTransactionIncomeMonth(tx).slice(0, 4) : (tx.date ? tx.date.slice(0, 4) : '');
-      return Boolean(effectiveYear && effectiveYear < y);
-    }
-    if (mode === 'RANGE') {
-      const start = this.dateRangeStart();
-      if (!start) return false;
-      return tx.date ? tx.date.slice(0, 10) < start : false;
-    }
-    return false;
+    return this.isDatePriorToActiveRange(tx.date);
   }
+
+  // Income transactions from prior months that are allocated to fund the currently selected month
+  public allocatedIncomeFromPriorMonths = computed(() => {
+    const mode = this.dateFilterMode();
+    if (mode !== 'MONTH') return [];
+    const m = this.selectedMonth();
+    if (!m || m === 'ALL') return [];
+
+    return this.transactions().filter((tx) => {
+      if (tx.type !== 'INCOME') return false;
+      const receiptMonth = (tx.date || '').slice(0, 7);
+      return tx.incomeMonth === m && receiptMonth !== m;
+    });
+  });
+
+  public allocatedIncomeFromPriorMonthsTotal = computed(() => {
+    return this.allocatedIncomeFromPriorMonths().reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  });
 
   public isDatePriorToActiveRange(txDate: string): boolean {
     if (!txDate) return false;

@@ -993,25 +993,15 @@ export class LedgerComponent {
   public getIncomeMonthBadgeLabel(tx: Transaction): string {
     const curM = (tx.date || '').slice(0, 7);
     if (!tx.incomeMonth || tx.incomeMonth === curM) return '';
-    const selMonth = this.service.selectedMonth();
-    const prevMonthName = this.service.formatMonthName(curM);
     const targetMonthName = this.service.formatMonthName(tx.incomeMonth);
-    if (selMonth === tx.incomeMonth) {
-      return `📅 From ${prevMonthName}`;
-    }
-    return `📅 For ${targetMonthName}`;
+    return `📅 Funds ${targetMonthName}`;
   }
 
   public getIncomeMonthBadgeTooltip(tx: Transaction): string {
     const curM = (tx.date || '').slice(0, 7);
     if (!tx.incomeMonth || tx.incomeMonth === curM) return '';
-    const selMonth = this.service.selectedMonth();
-    const prevMonth = this.service.formatMonth(curM);
     const targetMonth = this.service.formatMonth(tx.incomeMonth);
-    if (selMonth === tx.incomeMonth) {
-      return `Received in ${prevMonth}, assigned to fund this month's budget. Click to move back to ${prevMonth}.`;
-    }
-    return `Assigned to fund ${targetMonth}'s budget. Click to move back to ${prevMonth}.`;
+    return `Assigned to fund ${targetMonth}'s budget. Click to keep in ${this.service.formatMonth(curM)}.`;
   }
 
   public getIncomeMonthButtonLabel(tx: Transaction): string {
@@ -1020,8 +1010,7 @@ export class LedgerComponent {
     if (!isShifted) {
       return '📅 Next Month';
     }
-    const prevMonthName = this.service.formatMonthName(curM);
-    return `↩ Back to ${prevMonthName}`;
+    return `↩ Keep in ${this.service.formatMonthName(curM)}`;
   }
 
   public getIncomeMonthButtonTooltip(tx: Transaction): string {

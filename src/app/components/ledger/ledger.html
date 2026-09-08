@@ -534,6 +534,36 @@
       </button>
     </div>
 
+    <!-- Month Highlight Banner: Income Allocated From Prior Month Statement -->
+    <div
+      *ngIf="service.allocatedIncomeFromPriorMonths().length > 0"
+      class="glass-card animate-fade-in"
+      style="margin-top: 0.65rem; padding: 0.55rem 0.95rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem;">
+        <span style="font-size: 1.15rem;">💰</span>
+        <div>
+          <div style="font-size: 0.83rem; font-weight: 700; color: #10b981;">
+            {{ service.formatMonthName(service.selectedMonth()) }} budget includes {{ service.formatCurrency(service.allocatedIncomeFromPriorMonthsTotal()) }} income from prior statement:
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-top: 0.15rem;">
+            <span *ngFor="let itx of service.allocatedIncomeFromPriorMonths(); let last = last">
+              <strong>{{ itx.description }}</strong> ({{ service.formatDate(itx.date) }} • {{ service.formatCurrency(itx.amount) }}){{ last ? '' : ' • ' }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.4rem;">
+        <button
+          *ngFor="let itx of service.allocatedIncomeFromPriorMonths()"
+          class="btn btn-xs btn-secondary"
+          (click)="toggleTxIncomeMonth(itx)"
+          [title]="'Move ' + itx.description + ' back to ' + service.formatMonth(itx.date.slice(0, 7))"
+          style="font-size: 0.72rem; padding: 0.2rem 0.55rem; color: #10b981; border-color: rgba(16, 185, 129, 0.4);">
+          ↩ Move back to {{ service.formatMonthName(itx.date.slice(0, 7)) }}
+        </button>
+      </div>
+    </div>
+
     <!-- Month Highlight Banner: Needs Review -->
     <div *ngIf="service.reviewTransactionsForSelectedMonth().length > 0" class="glass-card animate-fade-in" style="margin-top: 0.65rem; padding: 0.65rem 0.95rem; background: rgba(245, 158, 11, 0.09); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
       <div style="display: flex; align-items: center; gap: 0.6rem;">
@@ -594,9 +624,14 @@
               <span class="badge badge-neutral">{{ tx.bank }}</span>
             </td>
             <td>
-              <span class="badge" [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-weight: 600;">
-                {{ tx.paidBy }}
-              </span>
+              <ng-container *ngIf="tx.type !== 'INCOME'">
+                <span class="badge" [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-weight: 600;">
+                  {{ tx.paidBy }}
+                </span>
+              </ng-container>
+              <ng-container *ngIf="tx.type === 'INCOME'">
+                <span style="color: var(--text-muted); font-size: 0.85rem;" [title]="tx.paidBy ? 'Deposited to ' + tx.paidBy : 'Income Inflow'">—</span>
+              </ng-container>
             </td>
             <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
               <div class="tx-description-cell">
@@ -785,8 +820,9 @@
           </select>
         </div>
         <div style="flex: 1;">
-          <label class="input-label">{{ cashTxType === 'INCOME' ? 'Received By (Earner)' : (cashIsTransfer ? 'Paid By (Sender)' : 'Paid By') }}</label>
+          <label class="input-label">{{ cashTxType === 'INCOME' ? 'Deposited To / Earner (Optional)' : (cashIsTransfer ? 'Sender' : 'Paid By') }}</label>
           <select [(ngModel)]="cashPaidBy" style="width: 100%;">
+            <option *ngIf="cashTxType === 'INCOME'" value="">Shared / Household</option>
             <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
           </select>
         </div>
@@ -970,8 +1006,9 @@
           <input type="number" step="0.01" [(ngModel)]="editAmount" style="width: 100%;">
         </div>
         <div style="flex: 1;">
-          <label class="input-label">{{ tx.type === 'INCOME' ? 'Received By (Earner)' : (tx.isCashTransfer ? 'Sender' : 'Paid By') }}</label>
+          <label class="input-label">{{ tx.type === 'INCOME' ? 'Deposited To / Earner (Optional)' : (tx.isCashTransfer ? 'Sender' : 'Paid By') }}</label>
           <select [(ngModel)]="editPaidBy" style="width: 100%;">
+            <option *ngIf="tx.type === 'INCOME'" value="">Shared / Household</option>
             <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
           </select>
         </div>
