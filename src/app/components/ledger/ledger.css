@@ -185,7 +185,6 @@
 }
 
 .everydollar-month-container {
-  width: 220px;
   position: relative;
 }
 
@@ -201,11 +200,8 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  width: 220px;
-  min-width: 220px;
+  gap: 0.45rem;
   box-sizing: border-box;
-  gap: 0.5rem;
   transition: all 0.15s ease;
 }
 
@@ -218,6 +214,7 @@
   font-size: 0.75rem;
   color: var(--primary);
   opacity: 0.8;
+  margin-left: 0.15rem;
 }
 
 .everydollar-month-popover {

@@ -32,7 +32,6 @@
 
 /* EveryDollar Month Picker */
 .everydollar-month-container {
-  width: 245px;
   position: relative;
 }
 
@@ -48,11 +47,8 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  width: 245px;
-  min-width: 245px;
+  gap: 0.45rem;
   box-sizing: border-box;
-  gap: 0.5rem;
 }
 
 .everydollar-month-trigger:hover, .everydollar-month-trigger.active {
@@ -64,6 +60,7 @@
   font-size: 0.75rem;
   color: var(--primary);
   opacity: 0.8;
+  margin-left: 0.15rem;
 }
 
 .everydollar-month-popover {

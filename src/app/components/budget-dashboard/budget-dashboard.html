@@ -4,6 +4,12 @@
     <div class="top-bar-left">
       <!-- Month Navigation & Controls Group -->
       <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Navigation Arrows (Anchored on the left so buttons never move under the cursor) -->
+        <div class="month-arrows-group">
+          <button class="btn-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
+          <button class="btn-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
+        </div>
+
         <!-- Month Trigger Popover -->
         <div class="everydollar-month-container" style="position: relative;">
           <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()">
@@ -36,12 +42,6 @@
               </button>
             </div>
           </div>
-        </div>
-
-        <!-- Stable Navigation Arrows -->
-        <div class="month-arrows-group">
-          <button class="btn-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
-          <button class="btn-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
         </div>
 
         <!-- Today Button -->

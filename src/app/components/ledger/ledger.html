@@ -208,6 +208,12 @@
           Transactions ({{ service.filteredTransactions().length }}<span *ngIf="service.searchQuery()" style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ totalMonthTxs() }}</span>)
         </h3>
 
+        <!-- Month Navigation Arrows (Anchored on the left so buttons never move under the cursor) -->
+        <div class="month-nav-btns" style="display: flex; gap: 0.2rem;" *ngIf="service.dateFilterMode() === 'MONTH'">
+          <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
+          <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
+        </div>
+
         <!-- Custom Month / Year / Date Range Trigger & Popover -->
         <div class="everydollar-month-container" style="position: relative;">
           <button class="everydollar-month-trigger" (click)="toggleMonthPicker()" [class.active]="isMonthPickerOpen()" style="font-size: 0.82rem; padding: 0.2rem 0.45rem;">
@@ -344,12 +350,6 @@
               </button>
             </div>
           </div>
-        </div>
-
-        <!-- Month Navigation Arrows (Active in single month mode) -->
-        <div class="month-nav-btns" style="display: flex; gap: 0.2rem;" *ngIf="service.dateFilterMode() === 'MONTH'">
-          <button class="btn-nav-arrow" (click)="prevMonth()" title="Previous month">&lsaquo;</button>
-          <button class="btn-nav-arrow" (click)="nextMonth()" title="Next month">&rsaquo;</button>
         </div>
 
         <!-- Today Button -->
