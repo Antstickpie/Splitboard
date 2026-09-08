@@ -232,21 +232,42 @@ export class TransactionService {
     if (mode === 'MONTH') {
       const m = this.selectedMonth();
       if (m === 'ALL') return true;
-      if (tx.type === 'INCOME' && tx.incomeMonth) {
-        // Appears in the month it funds (incomeMonth) AND its statement receipt month
-        return tx.incomeMonth === m || (Boolean(tx.date) && tx.date.startsWith(m));
+      if (tx.type === 'INCOME') {
+        return this.getTransactionIncomeMonth(tx) === m;
       }
       return Boolean(tx.date && tx.date.startsWith(m));
     }
     if (mode === 'YEAR') {
       const y = this.selectedYear();
-      const incM = tx.type === 'INCOME' && tx.incomeMonth ? tx.incomeMonth.slice(0, 4) : '';
+      const incM = tx.type === 'INCOME' ? this.getTransactionIncomeMonth(tx).slice(0, 4) : '';
       return (Boolean(incM) && incM === y) || (Boolean(tx.date) && tx.date.startsWith(y));
     }
     if (mode === 'RANGE') {
       return this.isDateInActiveRange(tx.date);
     }
     return true;
+  }
+
+  public isTransactionPriorToActiveRange(tx: Transaction): boolean {
+    const mode = this.dateFilterMode();
+    if (mode === 'ALL') return false;
+    if (mode === 'MONTH') {
+      const m = this.selectedMonth();
+      if (m === 'ALL') return false;
+      const effectiveMonth = tx.type === 'INCOME' ? this.getTransactionIncomeMonth(tx) : (tx.date ? tx.date.slice(0, 7) : '');
+      return Boolean(effectiveMonth && effectiveMonth < m);
+    }
+    if (mode === 'YEAR') {
+      const y = this.selectedYear();
+      const effectiveYear = tx.type === 'INCOME' ? this.getTransactionIncomeMonth(tx).slice(0, 4) : (tx.date ? tx.date.slice(0, 4) : '');
+      return Boolean(effectiveYear && effectiveYear < y);
+    }
+    if (mode === 'RANGE') {
+      const start = this.dateRangeStart();
+      if (!start) return false;
+      return tx.date ? tx.date.slice(0, 10) < start : false;
+    }
+    return false;
   }
 
   public isDatePriorToActiveRange(txDate: string): boolean {
@@ -489,8 +510,8 @@ export class TransactionService {
     const itemized: SettlementSummary['itemizedDetails'] = [];
 
     this.transactions().forEach((tx) => {
-      const isPrior = this.isDatePriorToActiveRange(tx.date);
-      const isCurrent = this.isDateInActiveRange(tx.date);
+      const isPrior = this.isTransactionPriorToActiveRange(tx);
+      const isCurrent = this.isTransactionInActiveRange(tx);
 
       if (!isPrior && !isCurrent) return; // Ignore future transactions relative to active range
 
