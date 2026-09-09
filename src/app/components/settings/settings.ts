@@ -15,6 +15,17 @@ export interface EveryDollarCategoryMapping {
   selectedSplitType: SplitType;
 }
 
+export interface EveryDollarDescriptionMapping {
+  description: string;
+  count: number;
+  totalAmount: number;
+  selectedItem: string;
+  selectedGroup: string;
+  selectedPerson: string;
+  selectedSplitType: SplitType;
+  rawCategories: string[];
+}
+
 @Component({
   selector: 'app-settings',
   standalone: true,
@@ -916,7 +927,8 @@ export class SettingsComponent {
     reader.readAsText(file);
   }
 
-  // EveryDollar Category Mapping State
+  // EveryDollar View Mode & Category Mapping State
+  public edGroupByMode = signal<'category' | 'description'>('category');
   public edCategoryMappings = signal<EveryDollarCategoryMapping[]>([]);
   public edExpandedCategory = signal<string | null>(null);
   public edSelectedCategoryFilter = signal<string | null>(null);
@@ -925,6 +937,88 @@ export class SettingsComponent {
   public edTypeBatchItem = signal<string>('');
   public edTypeBatchGroup = signal<string>('');
   public edEditingBatchFileName = signal<string | null>(null);
+
+  // Description Grouping & Matching State
+  public edDescriptionMatchKeyword = signal<string>('');
+  public edDescriptionBatchItem = signal<string>('');
+  public edDescriptionBatchGroup = signal<string>('');
+  public edExpandedDescription = signal<string | null>(null);
+  public edSelectedDescriptionFilter = signal<string | null>(null);
+
+  public edDescriptionMappings = computed<EveryDollarDescriptionMapping[]>(() => {
+    const txs = this.edPreviewTransactions();
+    if (txs.length === 0) return [];
+
+    const map = new Map<string, {
+      count: number;
+      totalAmount: number;
+      categories: Set<string>;
+      item: string;
+      group: string;
+      person: string;
+      splitType: SplitType;
+    }>();
+
+    for (const t of txs) {
+      const desc = (t.description || 'No Description').trim();
+      let entry = map.get(desc);
+      if (!entry) {
+        entry = {
+          count: 0,
+          totalAmount: 0,
+          categories: new Set<string>(),
+          item: t.categoryItem || 'Uncategorized',
+          group: t.categoryGroup || 'Uncategorized',
+          person: t.paidBy || this.service.personOne().name,
+          splitType: t.splitType || 'SELF',
+        };
+        map.set(desc, entry);
+      }
+      entry.count += 1;
+      entry.totalAmount += t.amount;
+      if (t.rawCategory) {
+        entry.categories.add(t.rawCategory);
+      }
+      if (entry.item === 'Uncategorized' && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+        entry.item = t.categoryItem;
+        entry.group = t.categoryGroup || 'Uncategorized';
+      }
+    }
+
+    const result: EveryDollarDescriptionMapping[] = [];
+    map.forEach((val, desc) => {
+      result.push({
+        description: desc,
+        count: val.count,
+        totalAmount: Math.round(val.totalAmount * 100) / 100,
+        selectedItem: val.item,
+        selectedGroup: val.group,
+        selectedPerson: val.person,
+        selectedSplitType: val.splitType,
+        rawCategories: Array.from(val.categories),
+      });
+    });
+
+    result.sort((a, b) => b.count - a.count);
+    return result;
+  });
+
+  public displayedDescriptionMappings = computed(() => {
+    const list = this.edDescriptionMappings();
+    const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return list;
+
+    const matched: EveryDollarDescriptionMapping[] = [];
+    const unmatched: EveryDollarDescriptionMapping[] = [];
+    for (const m of list) {
+      if (m.description.toLowerCase().includes(q)) {
+        matched.push(m);
+      } else {
+        unmatched.push(m);
+      }
+    }
+    return [...matched, ...unmatched];
+  });
 
   public displayedCategoryMappings = computed(() => {
     const list = this.edCategoryMappings();
@@ -1120,6 +1214,383 @@ export class SettingsComponent {
       `Assigned ${matchedCount} categories containing "${this.edTypeMatchKeyword().trim()}" to ${chosenItem}!`,
       'success'
     );
+  }
+
+  public setGroupByMode(mode: 'category' | 'description'): void {
+    this.edGroupByMode.set(mode);
+    this.edExpandedCategory.set(null);
+    this.edExpandedDescription.set(null);
+  }
+
+  public onDescriptionKeywordChange(keyword: string): void {
+    this.edDescriptionMatchKeyword.set(keyword);
+    this.edDescriptionBatchItem.set('');
+    this.edDescriptionBatchGroup.set('');
+  }
+
+  public clearDescriptionMatchKeyword(): void {
+    this.edDescriptionMatchKeyword.set('');
+    this.edDescriptionBatchItem.set('');
+    this.edDescriptionBatchGroup.set('');
+  }
+
+  public isDescriptionMatched(desc: string): boolean {
+    const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return false;
+    return (desc || '').toLowerCase().includes(q);
+  }
+
+  public isFirstUnmatchedDescription(desc: string, idx: number): boolean {
+    const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
+    if (!q || idx === 0) return false;
+    if (this.isDescriptionMatched(desc)) return false;
+    const prev = this.displayedDescriptionMappings()[idx - 1];
+    return prev ? this.isDescriptionMatched(prev.description) : false;
+  }
+
+  public getMatchingDescriptionsCount(keyword: string): number {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return 0;
+    return this.edDescriptionMappings().filter((m) =>
+      m.description.toLowerCase().includes(q)
+    ).length;
+  }
+
+  public getMatchingTransactionsByDescriptionCount(keyword: string): number {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return 0;
+    return this.edPreviewTransactions().filter((t) =>
+      (t.description || '').toLowerCase().includes(q)
+    ).length;
+  }
+
+  public toggleExpandDescription(desc: string): void {
+    if (this.edExpandedDescription() === desc) {
+      this.edExpandedDescription.set(null);
+    } else {
+      this.edExpandedDescription.set(desc);
+    }
+  }
+
+  public getTransactionsForDescription(desc: string): Transaction[] {
+    return this.edPreviewTransactions().filter(
+      (t) => (t.description || 'No Description').trim() === desc
+    );
+  }
+
+  public setDescriptionFilter(desc: string | null): void {
+    this.edSelectedDescriptionFilter.set(desc);
+    if (desc) {
+      this.edSelectedCategoryFilter.set(null);
+    }
+  }
+
+  public onDescriptionMappingCategoryChange(desc: string, selection: { item: string; group: string }): void {
+    const chosenItem = selection.item || 'Uncategorized';
+    const chosenGroup = selection.group || 'Uncategorized';
+
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.description || 'No Description').trim() === desc) {
+          return { ...tx, categoryItem: chosenItem, categoryGroup: chosenGroup };
+        }
+        return tx;
+      })
+    );
+    this.syncCategoryMappingsFromPreview();
+  }
+
+  public onDescriptionPersonChange(desc: string, personName: string): void {
+    if (!personName) return;
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.description || 'No Description').trim() === desc) {
+          return { ...tx, paidBy: personName, splitType: 'SELF' };
+        }
+        return tx;
+      })
+    );
+    this.syncCategoryMappingsFromPreview();
+    this.service.showToast(`Assigned transactions in "${desc}" to ${personName}.`, 'info');
+  }
+
+  public onDescriptionSplitTypeChange(desc: string, splitType: SplitType): void {
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.description || 'No Description').trim() === desc) {
+          return { ...tx, splitType };
+        }
+        return tx;
+      })
+    );
+    this.syncCategoryMappingsFromPreview();
+    this.service.showToast(`Set split for "${desc}" to ${splitType === 'SPLIT' ? '50/50' : splitType}.`, 'info');
+  }
+
+  public assignMatchingDescriptionsToType(selection: { item: string; group: string }): void {
+    const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a description in the box to match.', 'info');
+      return;
+    }
+    const chosenItem = selection.item || 'Uncategorized';
+    const chosenGroup = selection.group || 'Uncategorized';
+
+    let matchedCount = 0;
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.description || '').toLowerCase().includes(q)) {
+          matchedCount++;
+          return { ...tx, categoryItem: chosenItem, categoryGroup: chosenGroup };
+        }
+        return tx;
+      })
+    );
+
+    if (matchedCount === 0) {
+      this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.edDescriptionBatchItem.set(chosenItem);
+    this.edDescriptionBatchGroup.set(chosenGroup);
+    this.syncCategoryMappingsFromPreview();
+    this.service.showToast(
+      `Assigned ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to ${chosenItem}!`,
+      'success'
+    );
+  }
+
+  public assignMatchingDescriptionsToPerson(personName: string): void {
+    const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a description in the box to match.', 'info');
+      return;
+    }
+
+    let matchedCount = 0;
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.description || '').toLowerCase().includes(q)) {
+          matchedCount++;
+          return { ...tx, paidBy: personName, splitType: 'SELF' };
+        }
+        return tx;
+      })
+    );
+
+    if (matchedCount === 0) {
+      this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.syncCategoryMappingsFromPreview();
+    this.service.showToast(
+      `Assigned ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to ${personName}!`,
+      'success'
+    );
+  }
+
+  public assignMatchingDescriptionsToSplit(): void {
+    const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a description in the box to match.', 'info');
+      return;
+    }
+
+    let matchedCount = 0;
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.description || '').toLowerCase().includes(q)) {
+          matchedCount++;
+          return { ...tx, splitType: 'SPLIT' };
+        }
+        return tx;
+      })
+    );
+
+    if (matchedCount === 0) {
+      this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.syncCategoryMappingsFromPreview();
+    this.service.showToast(
+      `Set ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to 50/50 Split!`,
+      'success'
+    );
+  }
+
+  public syncCategoryMappingsFromPreview(): void {
+    const txs = this.edPreviewTransactions();
+    if (txs.length === 0) return;
+    this.edCategoryMappings.update((curr) =>
+      curr.map((m) => {
+        const catTxs = txs.filter((t) => (t.rawCategory || 'Uncategorized') === m.rawCategory);
+        if (catTxs.length === 0) return m;
+        const defined = catTxs.find((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
+        return {
+          ...m,
+          selectedItem: defined ? defined.categoryItem! : m.selectedItem,
+          selectedGroup: defined ? (defined.categoryGroup || 'Uncategorized') : m.selectedGroup,
+          selectedPerson: catTxs[0].paidBy || m.selectedPerson,
+          selectedSplitType: catTxs[0].splitType || m.selectedSplitType,
+        };
+      })
+    );
+  }
+
+  public autoMatchAllCategories(): void {
+    const groups = this.service.categoryGroups();
+    const allCandidates: { item: string; group: string; normItem: string; normGroup: string }[] = [];
+    for (const g of groups) {
+      const normGroup = this.normalizeCategoryText(g.name);
+      for (const it of g.items) {
+        allCandidates.push({
+          item: it.name,
+          group: g.name,
+          normItem: this.normalizeCategoryText(it.name),
+          normGroup,
+        });
+      }
+    }
+
+    let matchedCatCount = 0;
+    const currentMappings = this.edCategoryMappings();
+    const updatedMappings = currentMappings.map((m) => {
+      const match = this.findBestCategoryMatch(m.rawCategory, allCandidates);
+      if (match) {
+        matchedCatCount++;
+        return {
+          ...m,
+          selectedItem: match.item,
+          selectedGroup: match.group,
+        };
+      }
+      return m;
+    });
+
+    this.edCategoryMappings.set(updatedMappings);
+
+    // Update preview transactions from category matches
+    const categoryToTypeMap = new Map(
+      updatedMappings.map((m) => [m.rawCategory, { item: m.selectedItem, group: m.selectedGroup }])
+    );
+
+    let txsUpdated = 0;
+    this.edPreviewTransactions.update((txs) =>
+      txs.map((t) => {
+        const typeInfo = categoryToTypeMap.get(t.rawCategory || 'Uncategorized');
+        if (typeInfo && typeInfo.item !== 'Uncategorized') {
+          txsUpdated++;
+          return { ...t, categoryItem: typeInfo.item, categoryGroup: typeInfo.group };
+        }
+        // Fallback: If still uncategorized, attempt matching against description
+        const descMatch = this.findBestCategoryMatch(t.description || '', allCandidates);
+        if (descMatch) {
+          txsUpdated++;
+          return { ...t, categoryItem: descMatch.item, categoryGroup: descMatch.group };
+        }
+        return t;
+      })
+    );
+
+    this.syncCategoryMappingsFromPreview();
+
+    if (matchedCatCount > 0 || txsUpdated > 0) {
+      this.service.showToast(
+        `✨ Auto-matched ${matchedCatCount} categories (${txsUpdated} transactions) to Splitboard categories!`,
+        'success'
+      );
+    } else {
+      this.service.showToast('No automatic category matches found.', 'info');
+    }
+  }
+
+  private normalizeCategoryText(s: string): string {
+    if (!s) return '';
+    return s
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private findBestCategoryMatch(
+    text: string,
+    candidates: { item: string; group: string; normItem: string; normGroup: string }[]
+  ): { item: string; group: string } | null {
+    const normText = this.normalizeCategoryText(text);
+    if (!normText || normText === 'uncategorized') return null;
+
+    let bestMatch: { item: string; group: string } | null = null;
+    let highestScore = 0;
+
+    const stopWords = new Set(['and', '&', 'the', 'for', 'of', 'in', 'an', 'ai', 'to', 'a', 'or', 'on', 'at', 'with', 'inc', 'llc']);
+    const rawWords = normText.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
+
+    for (const cand of candidates) {
+      let score = 0;
+
+      // 1. Exact match with item name
+      if (normText === cand.normItem) {
+        score = 1000;
+      }
+      // 2. Exact match with group name
+      else if (normText === cand.normGroup) {
+        score = 800;
+      }
+      // 3. Raw text contains the full item name (e.g. "Groceries (An)" contains "groceries")
+      else if (normText.includes(cand.normItem) && cand.normItem.length >= 3) {
+        score = 600 + cand.normItem.length * 10;
+      }
+      // 4. Item contains the full raw text (e.g. "Rent and Utilities" contains "rent" or "utilities")
+      else if (cand.normItem.includes(normText) && normText.length >= 3) {
+        score = 500 + normText.length * 10;
+      }
+      // 5. Raw text contains full group name
+      else if (normText.includes(cand.normGroup) && cand.normGroup.length >= 3) {
+        score = 400 + cand.normGroup.length * 5;
+      }
+      // 6. Group contains full raw text
+      else if (cand.normGroup.includes(normText) && normText.length >= 3) {
+        score = 350 + normText.length * 5;
+      }
+      // 7. Word overlap / stem partial matching
+      else if (rawWords.length > 0) {
+        const itemWords = cand.normItem.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
+        const groupWords = cand.normGroup.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
+
+        let matchedWords = 0;
+        for (const rw of rawWords) {
+          const itemHit = itemWords.some(
+            (iw) => iw === rw || iw.startsWith(rw) || rw.startsWith(iw) || this.isFuzzyWordMatch(rw, iw)
+          );
+          const groupHit = groupWords.some(
+            (gw) => gw === rw || gw.startsWith(rw) || rw.startsWith(gw) || this.isFuzzyWordMatch(rw, gw)
+          );
+          if (itemHit) matchedWords += 2;
+          else if (groupHit) matchedWords += 1;
+        }
+
+        if (matchedWords > 0) {
+          score = 200 + matchedWords * 50;
+        }
+      }
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = { item: cand.item, group: cand.group };
+      }
+    }
+
+    return highestScore >= 200 ? bestMatch : null;
+  }
+
+  private isFuzzyWordMatch(w1: string, w2: string): boolean {
+    if (w1.length < 4 || w2.length < 4) return false;
+    const prefixLen = Math.min(4, Math.min(w1.length, w2.length));
+    return w1.slice(0, prefixLen) === w2.slice(0, prefixLen);
   }
 
   public autoDetectOwnerForCategory(rawCategory: string): string {
@@ -1482,6 +1953,9 @@ export class SettingsComponent {
     this.edCategoryMappings.set([]);
     this.edCategoryMatchKeyword.set('');
     this.clearTypeMatchKeyword();
+    this.clearDescriptionMatchKeyword();
+    this.edSelectedCategoryFilter.set(null);
+    this.edSelectedDescriptionFilter.set(null);
   }
 
   public cancelEditEveryDollarBatch(): void {
@@ -1490,6 +1964,9 @@ export class SettingsComponent {
     this.edCategoryMappings.set([]);
     this.edCategoryMatchKeyword.set('');
     this.clearTypeMatchKeyword();
+    this.clearDescriptionMatchKeyword();
+    this.edSelectedCategoryFilter.set(null);
+    this.edSelectedDescriptionFilter.set(null);
     this.service.showToast('Edit cancelled; no changes were saved.', 'info');
   }
 
@@ -1499,6 +1976,9 @@ export class SettingsComponent {
     this.edCategoryMappings.set([]);
     this.edCategoryMatchKeyword.set('');
     this.clearTypeMatchKeyword();
+    this.clearDescriptionMatchKeyword();
+    this.edSelectedCategoryFilter.set(null);
+    this.edSelectedDescriptionFilter.set(null);
     this.edImportResult.set(null);
   }
 
@@ -1512,9 +1992,13 @@ export class SettingsComponent {
   public filteredPreviewTransactions = computed(() => {
     let txs = this.edPreviewTransactions();
     const catFilter = this.edSelectedCategoryFilter();
+    const descFilter = this.edSelectedDescriptionFilter();
     if (catFilter) {
       txs = txs.filter((t) => (t.rawCategory || 'Uncategorized') === catFilter);
+    } else if (descFilter) {
+      txs = txs.filter((t) => (t.description || 'No Description').trim() === descFilter);
     }
+
     const filter = this.edPreviewFilter();
     if (filter === 'new') {
       txs = txs.filter((t) => !this.isTransactionDuplicate(t));
@@ -1522,23 +2006,41 @@ export class SettingsComponent {
       txs = txs.filter((t) => this.isTransactionDuplicate(t));
     }
 
-    // If matcher keyword is active and not isolated to a single category filter,
+    // If matcher keyword is active and not isolated to a single category/desc filter,
     // sort matching transactions to the top and the rest below
-    const qOwner = this.edCategoryMatchKeyword().trim().toLowerCase();
-    const qType = this.edTypeMatchKeyword().trim().toLowerCase();
-    if (!catFilter && (qOwner || qType)) {
-      const matched: typeof txs = [];
-      const unmatched: typeof txs = [];
-      for (const t of txs) {
-        const cat = (t.rawCategory || '').toLowerCase();
-        const isMatched = (qOwner && cat.includes(qOwner)) || (qType && cat.includes(qType));
-        if (isMatched) {
-          matched.push(t);
-        } else {
-          unmatched.push(t);
+    if (!catFilter && !descFilter) {
+      if (this.edGroupByMode() === 'category') {
+        const qOwner = this.edCategoryMatchKeyword().trim().toLowerCase();
+        const qType = this.edTypeMatchKeyword().trim().toLowerCase();
+        if (qOwner || qType) {
+          const matched: typeof txs = [];
+          const unmatched: typeof txs = [];
+          for (const t of txs) {
+            const cat = (t.rawCategory || '').toLowerCase();
+            const isMatched = (qOwner && cat.includes(qOwner)) || (qType && cat.includes(qType));
+            if (isMatched) {
+              matched.push(t);
+            } else {
+              unmatched.push(t);
+            }
+          }
+          return [...matched, ...unmatched];
+        }
+      } else if (this.edGroupByMode() === 'description') {
+        const qDesc = this.edDescriptionMatchKeyword().trim().toLowerCase();
+        if (qDesc) {
+          const matched: typeof txs = [];
+          const unmatched: typeof txs = [];
+          for (const t of txs) {
+            if ((t.description || '').toLowerCase().includes(qDesc)) {
+              matched.push(t);
+            } else {
+              unmatched.push(t);
+            }
+          }
+          return [...matched, ...unmatched];
         }
       }
-      return [...matched, ...unmatched];
     }
 
     return txs;
