@@ -1117,6 +1117,100 @@
       </div>
     </div>
 
+    <!-- Setup & Import Methods Guide Card -->
+    <div class="glass-card ed-guide-card">
+      <div class="ed-guide-header" (click)="isEveryDollarGuideOpen.set(!isEveryDollarGuideOpen())" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.15rem;">📖</span>
+          <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">
+            Which Import Method Should You Use?
+          </h4>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 0.76rem; color: var(--text-muted);">{{ isEveryDollarGuideOpen() ? 'Hide Guide ▲' : 'Show Guide ▼' }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="isEveryDollarGuideOpen()" class="ed-guide-content">
+        <!-- 500-Transaction Limit Alert -->
+        <div class="ed-limit-alert">
+          <span style="font-size: 1.25rem; line-height: 1;">⚠️</span>
+          <div>
+            <strong>Important — EveryDollar 500-Transaction Limit:</strong>
+            EveryDollar's backend API caps individual searches at ~500 transactions. For 100% data completeness, <strong>keep requests to max 1 month per query</strong>. Both Splitboard's Proxy and the Console Script automatically slice multi-month ranges into 1-month chunks with <code>&size=1000</code> so you never miss transactions!
+          </div>
+        </div>
+
+        <!-- Method Switcher Pills -->
+        <div class="ed-methods-switcher">
+          <button
+            class="ed-method-tab"
+            [class.active]="activeGuideMethod() === 'script'"
+            (click)="activeGuideMethod.set('script')">
+            <span>⚡ Browser Console Script</span>
+            <span class="ed-method-badge recommended">Recommended (1–6 Mos)</span>
+          </button>
+          <button
+            class="ed-method-tab"
+            [class.active]="activeGuideMethod() === 'proxy'"
+            (click)="activeGuideMethod.set('proxy')">
+            <span>🖥️ Puppeteer Local Proxy</span>
+            <span class="ed-method-badge automated">Bulk Multi-Year</span>
+          </button>
+        </div>
+
+        <!-- Method 1: Browser Console Script -->
+        <div *ngIf="activeGuideMethod() === 'script'" class="ed-method-body">
+          <p style="margin: 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.4;">
+            <strong>Best for:</strong> 1 to 6 months, quick exports, and using Splitboard on the <strong>hosted website</strong>. 
+            Requires zero setup, zero terminal commands, and zero Node dependencies.
+          </p>
+          <ol class="ed-steps-list">
+            <li>Open <a href="https://www.everydollar.com" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">everydollar.com</a> in your browser where you are already signed in.</li>
+            <li>Press <strong>F12</strong> (or <strong>Cmd + Option + I</strong> on Mac) to open Developer Tools, then click the <strong>Console</strong> tab.</li>
+            <li>Copy the script below, paste it into the console, and press <strong>Enter</strong>.</li>
+            <li>Enter your start and end dates when prompted. It automatically queries month-by-month and saves <code>everydollar_...json</code> to your Downloads.</li>
+            <li>Come back here, expand <strong>"📋 Alternative: Paste EveryDollar JSON or Drop File"</strong> below, and drop your JSON file!</li>
+          </ol>
+
+          <div class="ed-code-block-wrap">
+            <div class="ed-code-header">
+              <span>EveryDollar Browser Console Script</span>
+              <button class="btn btn-xs" [class.btn-success]="isScriptCopied()" [class.btn-primary]="!isScriptCopied()" (click)="copyConsoleSnippet()">
+                <span>{{ isScriptCopied() ? '✓ Copied!' : '📋 Copy Script' }}</span>
+              </button>
+            </div>
+            <pre class="ed-code-pre"><code>{{ everyDollarConsoleSnippet }}</code></pre>
+          </div>
+        </div>
+
+        <!-- Method 2: Puppeteer Local Proxy -->
+        <div *ngIf="activeGuideMethod() === 'proxy'" class="ed-method-body">
+          <p style="margin: 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.4;">
+            <strong>Best for:</strong> Full multi-year historical migrations (e.g. 2020–2026). 
+            Automates the Chrome browser session and queries EveryDollar month-by-month sequentially directly into this app.
+          </p>
+          <ol class="ed-steps-list">
+            <li>
+              Clone or download the repo from GitHub: 
+              <a href="https://github.com/Antstickpie/Splitboard" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline; font-weight: 600;">
+                github.com/Antstickpie/Splitboard
+              </a>
+            </li>
+            <li>
+              In your terminal inside the <code>Splitboard</code> folder, run:
+              <div style="margin: 0.35rem 0;">
+                <code class="terminal-code" style="font-size: 0.82rem; padding: 0.3rem 0.6rem;">npm install && npm run start:proxy</code>
+              </div>
+            </li>
+            <li>A Chrome browser window will launch. Log into your EveryDollar / Ramsey account once.</li>
+            <li>Verify the status badge above shows <strong style="color: #22c55e;">Proxy Online</strong>.</li>
+            <li>Select your date range or preset below, and click <strong style="color: #38bdf8;">🚀 Fetch from EveryDollar</strong>!</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
     <!-- Date Range & Controls Card -->
     <div class="glass-card ed-controls-card">
       <h4 style="margin: 0 0 0.8rem 0; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">

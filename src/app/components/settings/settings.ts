@@ -605,6 +605,9 @@ export class SettingsComponent {
   public edImportResult = signal<{ added: number; skipped: number } | null>(null);
   public edPreviewFilter = signal<'all' | 'new' | 'duplicate'>('all');
   public isJsonPasteOpen = signal<boolean>(false);
+  public isEveryDollarGuideOpen = signal<boolean>(true);
+  public activeGuideMethod = signal<'script' | 'proxy'>('script');
+  public isScriptCopied = signal<boolean>(false);
   private edAbortController: AbortController | null = null;
 
   public async checkEveryDollarProxy(): Promise<boolean> {
@@ -842,10 +845,82 @@ export class SettingsComponent {
     return txs;
   });
 
+  public readonly everyDollarConsoleSnippet: string = `(async () => {
+  const start = prompt('Start Date (YYYY-MM-DD):', '2025-01-01');
+  const end = prompt('End Date (YYYY-MM-DD):', '2025-01-31');
+  if (!start || !end) return;
+
+  function getMonthRanges(s, e) {
+    const cur = new Date(s + 'T00:00:00');
+    const stop = new Date(e + 'T23:59:59');
+    const ranges = [];
+    while (cur <= stop) {
+      const y = cur.getFullYear();
+      const m = cur.getMonth();
+      const startStr = y + '-' + String(m + 1).padStart(2, '0') + '-01';
+      const lastDay = new Date(y, m + 1, 0).getDate();
+      const endStr = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+      ranges.push({ start: startStr < s ? s : startStr, end: endStr > e ? e : endStr });
+      cur.setMonth(cur.getMonth() + 1);
+      cur.setDate(1);
+    }
+    return ranges;
+  }
+
+  const ranges = getMonthRanges(start, end);
+  let allTxs = [];
+  console.log(\`🚀 Slicing \${ranges.length} month(s) to stay safely under EveryDollar's 500-transaction query limit...\`);
+
+  for (let i = 0; i < ranges.length; i++) {
+    const r = ranges[i];
+    console.log(\`[\${i + 1}/\${ranges.length}] Fetching \${r.start} to \${r.end}...\`);
+    try {
+      const url = \`https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=\${r.start}&endDate=\${r.end}&size=1000\`;
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) {
+        console.warn(\`Failed \${r.start} - status \${res.status}\`);
+        continue;
+      }
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data?._embedded?.transactions || []);
+      allTxs.push(...items);
+    } catch (err) {
+      console.error(\`Error fetching \${r.start}:\`, err);
+    }
+  }
+
+  const seen = new Set();
+  const deduped = allTxs.filter(t => {
+    if (!t || !t.id) return true;
+    if (seen.has(t.id)) return false;
+    seen.add(t.id);
+    return true;
+  });
+
+  const blob = new Blob([JSON.stringify(deduped, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = \`everydollar_\${start}_to_\${end}.json\`;
+  a.click();
+  alert(\`✅ Done! Downloaded \${deduped.length} transactions into everydollar_\${start}_to_\${end}.json. Now import it into Splitboard!\`);
+})();`;
+
+  public copyConsoleSnippet(): void {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(this.everyDollarConsoleSnippet).then(() => {
+        this.isScriptCopied.set(true);
+        this.service.showToast('📋 EveryDollar console script copied to clipboard!', 'success');
+        setTimeout(() => this.isScriptCopied.set(false), 3000);
+      }).catch(() => {
+        this.service.showToast('Could not copy to clipboard automatically.', 'error');
+      });
+    }
+  }
+
   public openEveryDollarUrl(): void {
     const start = this.edStartDate();
     const end = this.edEndDate();
-    const url = `https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=${start}&endDate=${end}`;
+    const url = `https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=${start}&endDate=${end}&size=1000`;
     window.open(url, '_blank');
   }
 }

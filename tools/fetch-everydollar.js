@@ -14,7 +14,7 @@ async function main() {
 
   const url = `https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=${encodeURIComponent(
     start
-  )}&endDate=${encodeURIComponent(end)}`;
+  )}&endDate=${encodeURIComponent(end)}&size=1000`;
 
   try {
     const cookieHeader = await getCookieHeader('https://www.everydollar.com');

@@ -86,7 +86,7 @@ app.get('/everydollar', async (req, res) => {
 
   const url = `https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=${encodeURIComponent(
     start
-  )}&endDate=${encodeURIComponent(end)}`;
+  )}&endDate=${encodeURIComponent(end)}&size=1000`;
 
   let page = null;
   try {
