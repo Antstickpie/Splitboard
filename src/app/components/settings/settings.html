@@ -1619,8 +1619,7 @@
                 <div class="ed-mapping-main-row">
                   <!-- Source Category Info -->
                   <div class="ed-mapping-source">
-                    <div class="ed-source-name" [title]="m.rawCategory">
-                      {{ m.rawCategory }}
+                    <div class="ed-source-name" [title]="m.rawCategory" [innerHTML]="getHighlightedCategoryHtml(m.rawCategory)">
                     </div>
                     <div class="ed-source-meta">
                       <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
@@ -1698,7 +1697,7 @@
                     <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50)" class="ed-drawer-tx-item">
                       <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ tx.date }}</span>
                       <div class="ed-drawer-tx-desc">
-                        <span style="font-weight: 500; color: #f1f5f9;">{{ tx.description }}</span>
+                        <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
                         <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                       </div>
                       <span class="font-mono" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
@@ -1828,7 +1827,7 @@
                   <!-- Description Info -->
                   <div class="ed-mapping-source">
                     <div class="ed-source-name" [title]="d.description" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-                      <span>{{ d.description }}</span>
+                      <span [innerHTML]="getHighlightedDescriptionHtml(d.description)"></span>
                       <span
                         *ngIf="d.rawCategories.length > 0"
                         class="badge"
@@ -1913,7 +1912,7 @@
                     <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50)" class="ed-drawer-tx-item">
                       <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ tx.date }}</span>
                       <div class="ed-drawer-tx-desc">
-                        <span style="font-weight: 500; color: #f1f5f9;">{{ tx.rawCategory || 'Uncategorized' }}</span>
+                        <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || 'Uncategorized')"></span>
                         <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                       </div>
                       <span class="font-mono" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
@@ -2032,7 +2031,7 @@
               [class.is-matched-row]="(edGroupByMode() === 'category' && (edCategoryMatchKeyword().trim() || edTypeMatchKeyword().trim()) && isCategoryMatched(tx.rawCategory || '')) || (edGroupByMode() === 'description' && edDescriptionMatchKeyword().trim() && isDescriptionMatched(tx.description))">
               <td class="font-mono">{{ tx.date }}</td>
               <td>
-                <div style="font-weight: 600; color: var(--text-main);">{{ tx.description }}</div>
+                <div style="font-weight: 600; color: var(--text-main);" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></div>
                 <div *ngIf="tx.note" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">{{ tx.note }}</div>
               </td>
               <td>
@@ -2041,7 +2040,7 @@
                   style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); cursor: pointer;"
                   [title]="'Click to filter table to ' + (tx.rawCategory || 'Uncategorized')"
                   (click)="setCategoryFilter(tx.rawCategory || 'Uncategorized')">
-                  {{ tx.rawCategory || 'Uncategorized' }} 🔍
+                  <span [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || 'Uncategorized')"></span> 🔍
                 </span>
               </td>
               <td>

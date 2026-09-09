@@ -1114,6 +1114,53 @@ export class SettingsComponent {
     return false;
   }
 
+  public getHighlightedCategoryHtml(text: string): string {
+    const q1 = this.edCategoryMatchKeyword().trim();
+    const q2 = this.edTypeMatchKeyword().trim();
+    return this.highlightText(text, [q1, q2].filter(Boolean));
+  }
+
+  public getHighlightedDescriptionHtml(text: string): string {
+    const q = this.edDescriptionMatchKeyword().trim();
+    return this.highlightText(text, [q].filter(Boolean));
+  }
+
+  public highlightText(text: string, keywords: string[]): string {
+    if (!text) return '';
+    const valid = keywords.map((k) => k.trim()).filter((k) => k.length > 0);
+    if (valid.length === 0) {
+      return this.escapeHtml(text);
+    }
+
+    const escaped = valid
+      .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .sort((a, b) => b.length - a.length);
+
+    if (escaped.length === 0) return this.escapeHtml(text);
+
+    const regex = new RegExp(`(${escaped.join('|')})`, 'gi');
+    const parts = text.split(regex);
+    const validLower = new Set(valid.map((k) => k.toLowerCase()));
+
+    return parts
+      .map((part) => {
+        if (validLower.has(part.toLowerCase())) {
+          return `<mark class="ed-highlight-mark">${this.escapeHtml(part)}</mark>`;
+        }
+        return this.escapeHtml(part);
+      })
+      .join('');
+  }
+
+  public escapeHtml(str: string): string {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   public assignMatchingCategoriesToPerson(personName: string): void {
     const q = this.edCategoryMatchKeyword().trim().toLowerCase();
     if (!q) {
