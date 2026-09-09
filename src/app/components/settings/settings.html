@@ -1225,7 +1225,7 @@
             <span class="status-dot"></span>
             <span>{{ edProxyStatus() === 'running' ? 'Proxy Online (Port 4000)' : edProxyStatus() === 'offline' ? 'Proxy Offline' : 'Proxy Status: Click Check' }}</span>
           </div>
-          <button class="btn btn-secondary btn-xs" (click)="checkEveryDollarProxy()" title="Check connection to EveryDollar proxy on port 4000">
+          <button class="btn btn-secondary btn-xs" (click)="checkEveryDollarProxy(true)" title="Check connection to EveryDollar proxy on port 4000">
             ⟳ Check Proxy
           </button>
         </div>
@@ -1297,7 +1297,7 @@
         <div class="ed-actions-field">
           <button
             class="btn btn-secondary ed-check-btn"
-            (click)="checkEveryDollarProxy()"
+            (click)="checkEveryDollarProxy(true)"
             title="Check connection to EveryDollar proxy on port 4000">
             ⟳ Check Proxy
           </button>

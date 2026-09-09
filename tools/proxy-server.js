@@ -71,21 +71,22 @@ function resetIdleTimer(seconds = 30) {
   }, seconds * 1000);
 }
 
-app.use(
-  cors({
-    origin: '*',
-  })
-);
-
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Private-Network', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.header('Access-Control-Allow-Headers', '*');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
   next();
 });
+
+app.use(
+  cors({
+    origin: '*',
+  })
+);
 
 app.get('/', (_req, res) => {
   res.type('text/plain').send('EveryDollar proxy is running. Use /everydollar?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD');
@@ -344,8 +345,8 @@ process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`EveryDollar proxy running on http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`EveryDollar proxy running on http://localhost:${PORT} (and http://127.0.0.1:${PORT})`);
   console.log('Ready to fetch EveryDollar transactions via Puppeteer session.');
 });
 

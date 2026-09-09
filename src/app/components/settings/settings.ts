@@ -619,17 +619,36 @@ export class SettingsComponent {
   public activeGuideMethod = signal<'script' | 'proxy'>('script');
   public isScriptCopied = signal<boolean>(false);
   private edAbortController: AbortController | null = null;
+  public edProxyBaseUrl: string = 'http://localhost:4000';
 
-  public async checkEveryDollarProxy(): Promise<boolean> {
-    try {
-      const res = await fetch('http://localhost:4000/health', { signal: AbortSignal.timeout(2000) });
-      const ok = res.ok;
-      this.edProxyStatus.set(ok ? 'running' : 'offline');
-      return ok;
-    } catch {
-      this.edProxyStatus.set('offline');
-      return false;
+  public async checkEveryDollarProxy(showToast = false): Promise<boolean> {
+    const urls = ['http://localhost:4000', 'http://127.0.0.1:4000'];
+    let workingUrl: string | null = null;
+
+    for (const u of urls) {
+      try {
+        const res = await fetch(`${u}/health`, { signal: AbortSignal.timeout(2500) });
+        if (res.ok) {
+          workingUrl = u;
+          break;
+        }
+      } catch (_) {}
     }
+
+    const ok = Boolean(workingUrl);
+    if (workingUrl) {
+      this.edProxyBaseUrl = workingUrl;
+      this.edProxyStatus.set('running');
+      if (showToast) {
+        this.service.showToast('✅ EveryDollar proxy is connected and online!', 'success');
+      }
+    } else {
+      this.edProxyStatus.set('offline');
+      if (showToast) {
+        this.service.showToast('❌ Proxy offline. Run "npm run start:proxy" in your terminal.', 'error');
+      }
+    }
+    return ok;
   }
 
   public setEveryDollarPreset(preset: '12m' | '24m' | '60m' | '2024' | '2025' | '2026'): void {
@@ -789,7 +808,7 @@ export class SettingsComponent {
         this.edProgressPercent.set(pct);
         this.edProgressMessage.set(`Fetching month ${i + 1} of ${ranges.length} (${r.month})...`);
 
-        const proxyUrl = `http://localhost:4000/everydollar?startDate=${encodeURIComponent(r.start)}&endDate=${encodeURIComponent(r.end)}`;
+        const proxyUrl = `${this.edProxyBaseUrl}/everydollar?startDate=${encodeURIComponent(r.start)}&endDate=${encodeURIComponent(r.end)}`;
 
         let res: Response | null = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
@@ -827,10 +846,18 @@ export class SettingsComponent {
       this.edProgressPercent.set(100);
       this.edPreviewTransactions.set(allParsed);
       this.updateCategoryMappingsFromPreview();
-      this.service.showToast(
-        `Fetched ${allParsed.length} transactions across ${ranges.length} month(s)! Review categories and click Save.`,
-        'success'
-      );
+
+      if (allParsed.length > 0) {
+        this.service.showToast(
+          `Fetched ${allParsed.length} transactions across ${ranges.length} month(s)! Review categories and click Save.`,
+          'success'
+        );
+      } else {
+        this.service.showToast(
+          'No transactions returned. Please verify that the proxy is running and you are logged into EveryDollar.',
+          'error'
+        );
+      }
     } catch (err: any) {
       this.service.showToast(err.message, 'error');
     } finally {
@@ -838,7 +865,7 @@ export class SettingsComponent {
       this.edAbortController = null;
       // Tell proxy to cleanly quit Chrome now that fetch is done
       try {
-        await fetch('http://localhost:4000/close-browser');
+        await fetch(`${this.edProxyBaseUrl}/close-browser`);
       } catch (_) {}
     }
   }
