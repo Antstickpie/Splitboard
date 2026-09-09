@@ -304,20 +304,8 @@ app.get('/everydollar', async (req, res) => {
 
     if (status >= 400) {
       console.error(`=== ERROR RESPONSE ${status} ===\n${text}\n=====================`);
-    } else if (status >= 200 && status < 300 && text) {
-      try {
-        const jsonPath = path.join(__dirname, '..', 'src', 'data', 'selected-transactions.json');
-        const jsonDir = path.dirname(jsonPath);
-        if (!fs.existsSync(jsonDir)) {
-          fs.mkdirSync(jsonDir, { recursive: true });
-        }
-        const jsonData = JSON.parse(text);
-        fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
-        console.log(`✓ Saved latest response to src/data/selected-transactions.json`);
-      } catch (saveError) {
-        console.warn('Notice: Could not save to selected-transactions.json:', saveError.message);
-      }
     }
+
 
     res.status(status || 500);
     try {
