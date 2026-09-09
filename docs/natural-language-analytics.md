@@ -193,41 +193,52 @@ For complex, unstructured natural language queries that rule-based engines might
 
 ---
 
-## 6. Storage Evolution & Cloud Sync Strategy (Decision: Approach A)
+---
 
-### Phase 1: In-Memory JSON (Current)
-- The natural language query engine executes directly against `TransactionService.transactions()`.
-- For datasets up to ~10,000 transactions, execution times are under 2 milliseconds with zero external database dependencies.
-- Persisted locally in `localStorage` under `tx_processor_data_v1`.
+## 6. Storage Architecture & Multi-Year Scaling (Decision: Approach A)
 
-### Phase 2: In-Browser Database Migration (IndexedDB)
-- When data history spans 5–10+ years and approaches the browser's ~5MB `localStorage` limit, the storage engine will transparently migrate to native browser **IndexedDB**.
-- IndexedDB provides gigabytes of local storage and indexed search capabilities without requiring an external backend.
+### Phase 1: In-Browser Database Migration (IndexedDB with Dedicated Indexes)
+Given a 9-year historical dataset (2017–2026, ~10,000+ transactions), browser `localStorage` (5MB–10MB) is insufficient and prone to `QuotaExceededError`. The persistence layer will use native browser **IndexedDB**:
+- **Multi-Gigabyte Capacity**: Provides gigabytes of storage directly in the browser with zero external servers.
+- **Dedicated Indexes for Instant Analytics Queries**:
+  - `date`: For instant range slicing (e.g., `IDBKeyRange.bound('2019-06-01', '2019-08-31')`).
+  - `categoryGroup` / `categoryItem`: Fast category filtering without full-table scans.
+  - `paidBy`: Rapid per-person aggregation.
+  - `merchant`: Instant merchant-level lookups.
 
-### Cloud Backup Strategy: Approach A (Portable JSON Dump)
-- Regardless of the underlying local storage engine (in-memory JSON or IndexedDB), backups to **Google Drive** will strictly adhere to **Approach A**:
-  1. On backup / auto-sync, the database serializes its state into a standardized, portable JSON payload (`splitboard_backup.json`).
-  2. The JSON payload is pushed directly to the user's personal Google Drive via the Google Drive REST API.
-  3. On restore, the JSON file is pulled and hydrates the local database.
-- **Benefits**:
-  - 100% portable across Chrome, Safari, Firefox, and mobile browsers.
-  - Human-readable and future-proof against database schema migrations.
-  - Zero server overhead or proprietary database locking.
+### Phase 2: 9-Year Historical Dataset Considerations
+
+1. **Category Drift & Historical Aliasing**:
+   - Over 9 years, category naming conventions change (e.g., 2017 *"Electric"* vs. 2021 *"Electricity & Gas"* vs. 2024 *"Utilities / Electricity"*).
+   - The query compiler includes an **Alias Resolver** mapping historical labels to modern unified categories.
+2. **Merchant Normalization & Fuzzy Clustering**:
+   - Raw bank descriptions fluctuate across statement providers (e.g., `AMZN MKTP US*2K4...`, `Amazon.com`, `Amazon Prime`, `Uber *TRIP 1234`, `Uber BV`).
+   - The query compiler uses prefix matching and fuzzy string distance to cluster merchant variants under a canonical merchant name.
+3. **UI Virtualization & Result Limiting**:
+   - In-memory aggregation on 10,000 transactions executes in under 2 milliseconds, but rendering 1,000+ DOM table rows can freeze the browser UI.
+   - The Analytics Result Card displays the aggregated KPI, the visual trend chart, and a **"Top / Recent 10 Preview"** with a `[ View all N in Ledger ]` button, preserving a silky-smooth 60fps experience.
+4. **Debounced Google Drive Auto-Sync (Approach A)**:
+   - 9 years of uncompressed JSON is approximately 4 MB to 6 MB.
+   - Google Drive sync strictly follows **Approach A (Portable JSON Dump `splitboard_backup.json`)**.
+   - Auto-sync requests are debounced with a 20–30 second cooldown and triggered after batch imports complete, preventing repeated multi-megabyte network transfers on minor edits.
 
 ---
 
-## 7. Implementation Phases
+## 7. Phased Implementation Roadmap
 
-- [ ] **Phase 1: Query Compiler Service (`src/app/services/analytics-nlp.service.ts`)**
-  - Implement regex date range parser for relative and seasonal expressions.
-  - Implement category/merchant fuzzy matcher with local Trie/Levenshtein matching.
-  - Build the deterministic array calculation engine directly on `transactions()`.
-- [ ] **Phase 2: UI Component (`src/app/components/analytics-search/`)**
-  - Search input with autocomplete and quick-prompt suggestion chips.
-  - Answer card rendering with KPI highlight, mini SVG sparkline/bar, and drilldown table.
-- [ ] **Phase 3: Integration with Budget Dashboard & Command Palette**
-  - Embed in dashboard and connect keyboard shortcut (`Cmd+K`).
-- [ ] **Phase 4: Optional WebGPU / Chrome `window.ai` Hook**
-  - Detect on-device model availability for fallback natural language handling.
-- [ ] **Phase 5: Storage Layer Upgrade (IndexedDB Adapter)**
-  - Seamless migration from `localStorage` to IndexedDB when transaction count exceeds capacity threshold, maintaining Approach A Google Drive sync.
+- [ ] **Phase 1: IndexedDB Storage Engine Upgrade**
+  - Implement zero-dependency native IndexedDB storage adapter (`storage.service.ts`).
+  - Add auto-migration: transparently copies data from `localStorage` on first load with zero data loss.
+  - Setup IndexedDB indexes: `date`, `categoryGroup`, `categoryItem`, `paidBy`, `merchant`.
+  - Ensure Google Drive sync pushes/pulls `splitboard_backup.json` (Approach A) with debounced saves.
+- [ ] **Phase 2: Query Compiler Service (`src/app/services/analytics-nlp.service.ts`)**
+  - Implement temporal date engine (relative expressions, quarters, multi-year comparisons like 2018 vs 2023).
+  - Implement category drift alias resolver and merchant normalization.
+  - Build deterministic array calculation engine.
+- [ ] **Phase 3: Interactive UI Component (`src/app/components/analytics-search/`)**
+  - Natural language search input with autocomplete and starter pills.
+  - Answer card rendering: hero KPI, SVG trend/comparison bars, preview drawer (top 10), and follow-up suggestion chips.
+- [ ] **Phase 4: Dashboard Integration & Global Command Palette**
+  - Integrate search into Budget Dashboard and bind global `Cmd+K` / `Ctrl+K` shortcut.
+- [ ] **Phase 5: Optional WebGPU / Chrome `window.ai` Hook**
+  - Detect on-device model availability for fallback handling of complex, conversational edge cases.
