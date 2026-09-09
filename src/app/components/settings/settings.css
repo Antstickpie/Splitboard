@@ -1090,15 +1090,17 @@
 }
 
 .ed-mapping-card {
+  flex-shrink: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   transition: border-color 0.15s ease, background 0.15s ease;
   overflow: hidden;
 }
 
 .ed-mapping-card:hover {
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .ed-mapping-main-row {
@@ -1106,7 +1108,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
-  padding: 0.55rem 0.8rem;
+  padding: 0.65rem 0.85rem;
+  min-height: 48px;
   flex-wrap: wrap;
 }
 

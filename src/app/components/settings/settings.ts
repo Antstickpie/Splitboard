@@ -894,12 +894,20 @@ export class SettingsComponent {
   public edSelectedCategoryFilter = signal<string | null>(null);
   public edAutoMatchedCount = signal<number>(0);
 
+  public matchesPersonName(text: string, personName: string): boolean {
+    if (!text || !personName) return false;
+    const trimmed = personName.trim();
+    if (!trimmed) return false;
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(?:^|[^a-zA-Z0-9À-ÿ])${escaped}(?:$|[^a-zA-Z0-9À-ÿ])`, 'i');
+    return regex.test(text);
+  }
+
   public autoDetectOwnerForCategory(rawCategory: string): string {
     const p1 = this.service.personOne().name;
     const p2 = this.service.personTwo().name;
-    const catLower = (rawCategory || '').toLowerCase();
-    if (p2 && catLower.includes(p2.toLowerCase())) return p2;
-    if (p1 && catLower.includes(p1.toLowerCase())) return p1;
+    if (this.matchesPersonName(rawCategory, p2)) return p2;
+    if (this.matchesPersonName(rawCategory, p1)) return p1;
     return p1;
   }
 
@@ -925,12 +933,11 @@ export class SettingsComponent {
     let matchedCount = 0;
 
     const updatedMappings = this.edCategoryMappings().map((m) => {
-      const catLower = (m.rawCategory || '').toLowerCase();
       let targetPerson = m.selectedPerson;
-      if (p2 && catLower.includes(p2.toLowerCase())) {
+      if (this.matchesPersonName(m.rawCategory, p2)) {
         targetPerson = p2;
         matchedCount++;
-      } else if (p1 && catLower.includes(p1.toLowerCase())) {
+      } else if (this.matchesPersonName(m.rawCategory, p1)) {
         targetPerson = p1;
         matchedCount++;
       }
