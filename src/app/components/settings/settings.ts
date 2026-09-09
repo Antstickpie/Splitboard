@@ -890,11 +890,78 @@ export class SettingsComponent {
 
   // EveryDollar Category Mapping State
   public edCategoryMappings = signal<EveryDollarCategoryMapping[]>([]);
+  public edExpandedCategory = signal<string | null>(null);
+  public edSelectedCategoryFilter = signal<string | null>(null);
+  public edAutoMatchedCount = signal<number>(0);
+
+  public autoDetectOwnerForCategory(rawCategory: string): string {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    const catLower = (rawCategory || '').toLowerCase();
+    if (p2 && catLower.includes(p2.toLowerCase())) return p2;
+    if (p1 && catLower.includes(p1.toLowerCase())) return p1;
+    return p1;
+  }
+
+  public toggleExpandCategory(rawCategory: string): void {
+    if (this.edExpandedCategory() === rawCategory) {
+      this.edExpandedCategory.set(null);
+    } else {
+      this.edExpandedCategory.set(rawCategory);
+    }
+  }
+
+  public getTransactionsForCategory(rawCategory: string): Transaction[] {
+    return this.edPreviewTransactions().filter((t) => (t.rawCategory || 'Uncategorized') === rawCategory);
+  }
+
+  public setCategoryFilter(rawCategory: string | null): void {
+    this.edSelectedCategoryFilter.set(rawCategory);
+  }
+
+  public autoMatchAllCategoriesByName(): void {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    let matchedCount = 0;
+
+    const updatedMappings = this.edCategoryMappings().map((m) => {
+      const catLower = (m.rawCategory || '').toLowerCase();
+      let targetPerson = m.selectedPerson;
+      if (p2 && catLower.includes(p2.toLowerCase())) {
+        targetPerson = p2;
+        matchedCount++;
+      } else if (p1 && catLower.includes(p1.toLowerCase())) {
+        targetPerson = p1;
+        matchedCount++;
+      }
+      return { ...m, selectedPerson: targetPerson };
+    });
+
+    this.edCategoryMappings.set(updatedMappings);
+
+    // Also update all staged preview transactions
+    const categoryToPersonMap = new Map(updatedMappings.map((m) => [m.rawCategory, m.selectedPerson]));
+    this.edPreviewTransactions.update((txs) =>
+      txs.map((t) => {
+        const person = categoryToPersonMap.get(t.rawCategory || 'Uncategorized');
+        return person ? { ...t, paidBy: person, splitType: 'SELF' } : t;
+      })
+    );
+
+    this.edAutoMatchedCount.set(matchedCount);
+    if (matchedCount > 0) {
+      this.service.showToast(`Auto-assigned ${matchedCount} categories matching "${p1}" or "${p2}"!`, 'success');
+    } else {
+      this.service.showToast(`No category names matched "${p1}" or "${p2}".`, 'info');
+    }
+  }
 
   public updateCategoryMappingsFromPreview(): void {
     const txs = this.edPreviewTransactions();
     if (txs.length === 0) {
       this.edCategoryMappings.set([]);
+      this.edExpandedCategory.set(null);
+      this.edSelectedCategoryFilter.set(null);
       return;
     }
 
@@ -914,13 +981,17 @@ export class SettingsComponent {
       groupMap.set(cat, existing);
     }
 
+    let autoMatches = 0;
     const result: EveryDollarCategoryMapping[] = [];
     groupMap.forEach((val, rawCategory) => {
       const existingMap = currentMappings.get(rawCategory);
-      // Default to Uncategorized for category, default personOne for person
+      // Auto-detect person based on category name if not already manually set
+      const detectedPerson = this.autoDetectOwnerForCategory(rawCategory);
       const selectedItem = existingMap?.item || 'Uncategorized';
       const selectedGroup = existingMap?.group || 'Uncategorized';
-      const selectedPerson = existingMap?.person || defaultPerson;
+      const selectedPerson = existingMap?.person || detectedPerson;
+
+      if (selectedPerson !== defaultPerson) autoMatches++;
 
       result.push({
         rawCategory,
@@ -934,6 +1005,16 @@ export class SettingsComponent {
 
     result.sort((a, b) => b.count - a.count);
     this.edCategoryMappings.set(result);
+    this.edAutoMatchedCount.set(autoMatches);
+
+    // Propagate assigned person and SELF split to all staged transactions
+    const catPersonMap = new Map(result.map((m) => [m.rawCategory, m.selectedPerson]));
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((t) => {
+        const p = catPersonMap.get(t.rawCategory || 'Uncategorized') || defaultPerson;
+        return { ...t, paidBy: p, splitType: 'SELF' };
+      })
+    );
   }
 
   public onCategoryMappingChange(rawCategory: string, selection: { item: string; group: string }): void {
@@ -989,6 +1070,8 @@ export class SettingsComponent {
         return tx;
       })
     );
+
+    this.service.showToast(`Assigned all transactions in "${rawCategory}" to ${personName}.`, 'info');
   }
 
   public assignAllMappingsToPerson(personName: string): void {
@@ -1084,7 +1167,11 @@ export class SettingsComponent {
   }
 
   public filteredPreviewTransactions = computed(() => {
-    const txs = this.edPreviewTransactions();
+    let txs = this.edPreviewTransactions();
+    const catFilter = this.edSelectedCategoryFilter();
+    if (catFilter) {
+      txs = txs.filter((t) => (t.rawCategory || 'Uncategorized') === catFilter);
+    }
     const filter = this.edPreviewFilter();
     if (filter === 'all') return txs;
     if (filter === 'new') return txs.filter((t) => !this.isTransactionDuplicate(t));

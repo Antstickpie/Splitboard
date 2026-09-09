@@ -1405,14 +1405,21 @@
       <div *ngIf="edCategoryMappings().length > 0" class="ed-category-mapping-box">
         <div class="ed-mapping-header">
           <div>
-            <h5 style="margin: 0; font-size: 0.92rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
-              <span>🏷️</span> Map Categories &amp; Assign Person ({{ edCategoryMappings().length }})
+            <h5 style="margin: 0; font-size: 0.95rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
+              <span>🏷️</span> Group by EveryDollar Category: Assign Owner
             </h5>
             <p class="subtitle" style="margin: 0.2rem 0 0 0; font-size: 0.78rem;">
-              Grouped by EveryDollar category. Choose a Splitboard category and assign who paid (defaults to {{ service.personOne().name }}). Split is always SELF.
+              Categorized by EveryDollar label. Assign the owner to <strong>all</strong> transactions in a category, or expand to adjust <strong>individual</strong> transactions. Split is always 100% SELF.
             </p>
           </div>
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <!-- Auto-match by Person Name Button -->
+            <button
+              class="btn btn-secondary btn-xs"
+              (click)="autoMatchAllCategoriesByName()"
+              title="Auto-assign categories containing person names">
+              ⚡️ Auto-Match by Name
+            </button>
             <div style="display: flex; align-items: center; gap: 0.35rem;">
               <span style="font-size: 0.74rem; color: var(--text-muted);">Assign all to:</span>
               <button
@@ -1433,56 +1440,119 @@
         </div>
 
         <div class="ed-mapping-grid">
-          <div class="ed-mapping-row glass-card" *ngFor="let m of edCategoryMappings()">
-            <div class="ed-mapping-source">
-              <div class="ed-source-name" [title]="m.rawCategory">
-                {{ m.rawCategory }}
-              </div>
-              <div class="ed-source-meta">
-                <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
-                <span>•</span>
-                <span class="font-mono">{{ service.formatCurrency(m.totalAmount) }}</span>
-              </div>
-            </div>
-
-            <div class="ed-mapping-arrow">➔</div>
-
-            <div class="ed-mapping-controls">
-              <!-- Splitboard Category Selector -->
-              <div class="ed-control-group" title="Splitboard Category">
-                <span class="ed-control-label">Category:</span>
-                <app-category-select
-                  [value]="m.selectedItem"
-                  [group]="m.selectedGroup"
-                  placeholder="📁 Uncategorized"
-                  minWidth="175px"
-                  (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)">
-                </app-category-select>
-              </div>
-
-              <!-- Person Selector (Click-to-Select, No Dropdown) -->
-              <div class="ed-control-group" title="Assigned Person">
-                <span class="ed-control-label">Person:</span>
-                <div class="split-button-group">
-                  <button
-                    type="button"
-                    *ngFor="let p of service.persons(); let idx = index"
-                    class="split-btn"
-                    [class.split-btn-p1]="idx === 0"
-                    [class.split-btn-p2]="idx === 1"
-                    [class.active]="m.selectedPerson === p.name"
-                    (click)="onCategoryPersonChange(m.rawCategory, p.name)">
-                    {{ p.name }}
-                  </button>
+          <div class="ed-mapping-card glass-card" *ngFor="let m of edCategoryMappings()">
+            <div class="ed-mapping-main-row">
+              <!-- Source Category Info -->
+              <div class="ed-mapping-source">
+                <div class="ed-source-name" [title]="m.rawCategory">
+                  {{ m.rawCategory }}
+                </div>
+                <div class="ed-source-meta">
+                  <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
+                  <span>•</span>
+                  <span class="font-mono">{{ service.formatCurrency(m.totalAmount) }}</span>
                 </div>
               </div>
 
-              <span class="badge badge-neutral" style="font-size: 0.68rem; padding: 0.2rem 0.45rem; opacity: 0.85;" title="Split is 100% personal (no partner debt)">
-                SELF
-              </span>
+              <!-- Owner & Category Controls -->
+              <div class="ed-mapping-controls">
+                <!-- Assign All in Category to Person -->
+                <div class="ed-control-group" title="Assign all transactions in this category to this person">
+                  <span class="ed-control-label">Owner:</span>
+                  <div class="split-button-group">
+                    <button
+                      type="button"
+                      *ngFor="let p of service.persons(); let idx = index"
+                      class="split-btn"
+                      [class.split-btn-p1]="idx === 0"
+                      [class.split-btn-p2]="idx === 1"
+                      [class.active]="m.selectedPerson === p.name"
+                      (click)="onCategoryPersonChange(m.rawCategory, p.name)">
+                      {{ p.name }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Secondary Splitboard Category Picker (Defaults to Uncategorized) -->
+                <div class="ed-control-group" title="Optional: Map to a Splitboard category (defaults to Uncategorized)">
+                  <span class="ed-control-label">Type:</span>
+                  <app-category-select
+                    [value]="m.selectedItem"
+                    [group]="m.selectedGroup"
+                    placeholder="📁 Uncategorized"
+                    minWidth="150px"
+                    (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)">
+                  </app-category-select>
+                </div>
+
+                <!-- Inspect Individual Transactions Toggle -->
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  (click)="toggleExpandCategory(m.rawCategory)"
+                  [title]="edExpandedCategory() === m.rawCategory ? 'Hide transactions' : 'Inspect individual transactions'">
+                  {{ edExpandedCategory() === m.rawCategory ? '▲ Hide' : '▼ Inspect (' + m.count + ')' }}
+                </button>
+
+                <!-- Filter Preview Table Below -->
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  [class.btn-primary]="edSelectedCategoryFilter() === m.rawCategory"
+                  (click)="setCategoryFilter(edSelectedCategoryFilter() === m.rawCategory ? null : m.rawCategory)"
+                  title="Filter table below to this category">
+                  {{ edSelectedCategoryFilter() === m.rawCategory ? '✓ Filtering' : '🔍 Table' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Expandable Individual Transactions Drawer -->
+            <div *ngIf="edExpandedCategory() === m.rawCategory" class="ed-category-drawer animate-fade-in">
+              <div class="ed-drawer-header">
+                <span>Individual Transactions in "{{ m.rawCategory }}" ({{ getTransactionsForCategory(m.rawCategory).length }})</span>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner if needed</span>
+              </div>
+              <div class="ed-drawer-list">
+                <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory)" class="ed-drawer-tx-item">
+                  <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ tx.date }}</span>
+                  <div class="ed-drawer-tx-desc">
+                    <span style="font-weight: 500; color: #f1f5f9;">{{ tx.description }}</span>
+                    <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
+                  </div>
+                  <span class="font-mono" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                    {{ service.formatCurrency(tx.amount) }}
+                  </span>
+                  <div class="split-button-group">
+                    <button
+                      type="button"
+                      *ngFor="let p of service.persons(); let idx = index"
+                      class="split-btn split-btn-xs"
+                      [class.split-btn-p1]="idx === 0"
+                      [class.split-btn-p2]="idx === 1"
+                      [class.active]="tx.paidBy === p.name"
+                      (click)="setTxPerson(tx, p.name)">
+                      {{ p.name }}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Active Category Filter Indicator -->
+      <div *ngIf="edSelectedCategoryFilter() as catFilter" class="animate-fade-in" style="margin-bottom: 0.6rem; padding: 0.4rem 0.8rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem;">
+        <div style="display: flex; align-items: center; gap: 0.45rem;">
+          <span style="color: #38bdf8; font-weight: 600;">🔍 Filtering table by category:</span>
+          <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.8rem;">
+            "{{ catFilter }}"
+          </span>
+          <span style="color: var(--text-muted); font-size: 0.74rem;">({{ filteredPreviewTransactions().length }} transactions)</span>
+        </div>
+        <button class="btn btn-secondary btn-xs" (click)="setCategoryFilter(null)" style="padding: 0.2rem 0.5rem;">
+          ✕ Show All Categories
+        </button>
       </div>
 
       <!-- Preview Table -->
@@ -1507,8 +1577,12 @@
                 <div *ngIf="tx.note" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">{{ tx.note }}</div>
               </td>
               <td>
-                <span class="badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);">
-                  {{ tx.rawCategory || 'Uncategorized' }}
+                <span
+                  class="badge"
+                  style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); cursor: pointer;"
+                  [title]="'Click to filter table to ' + (tx.rawCategory || 'Uncategorized')"
+                  (click)="setCategoryFilter(tx.rawCategory || 'Uncategorized')">
+                  {{ tx.rawCategory || 'Uncategorized' }} 🔍
                 </span>
               </td>
               <td>

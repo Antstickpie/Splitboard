@@ -1083,26 +1083,82 @@
 .ed-mapping-grid {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-height: 280px;
+  gap: 0.6rem;
+  max-height: 420px;
   overflow-y: auto;
   padding-right: 0.25rem;
 }
 
-.ed-mapping-row {
+.ed-mapping-card {
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  overflow: hidden;
+}
+
+.ed-mapping-card:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.ed-mapping-main-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
   padding: 0.55rem 0.8rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
 }
 
-.ed-mapping-row:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(56, 189, 248, 0.25);
+/* Category Drawer for inspecting individual transactions */
+.ed-category-drawer {
+  background: rgba(0, 0, 0, 0.35);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0.6rem 0.8rem;
+}
+
+.ed-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #38bdf8;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ed-drawer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ed-drawer-tx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.5rem;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.78rem;
+}
+
+.ed-drawer-tx-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ed-drawer-tx-desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ed-mapping-source {
