@@ -1610,7 +1610,7 @@
 
           <!-- Category Mapping Cards Grid -->
           <div class="ed-mapping-grid">
-            <ng-container *ngFor="let m of displayedCategoryMappings(); let idx = index">
+            <ng-container *ngFor="let m of displayedCategoryMappings().slice(0, edCategoryDisplayLimit()); let idx = index">
               <!-- Unmatched Divider when keyword is active and items matched -->
               <div *ngIf="isFirstUnmatched(m, idx)" class="ed-unmatched-divider">
                 <span>Other Categories (Non-matching)</span>
@@ -1695,7 +1695,7 @@
                     <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner if needed</span>
                   </div>
                   <div class="ed-drawer-list">
-                    <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory)" class="ed-drawer-tx-item">
+                    <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50)" class="ed-drawer-tx-item">
                       <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ tx.date }}</span>
                       <div class="ed-drawer-tx-desc">
                         <span style="font-weight: 500; color: #f1f5f9;">{{ tx.description }}</span>
@@ -1725,10 +1725,23 @@
                         </button>
                       </div>
                     </div>
+                    <div *ngIf="getTransactionsForCategory(m.rawCategory).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
+                      Showing first 50 of {{ getTransactionsForCategory(m.rawCategory).length }} transactions
+                    </div>
                   </div>
                 </div>
               </div>
             </ng-container>
+
+            <!-- Load More Categories Button -->
+            <div *ngIf="displayedCategoryMappings().length > edCategoryDisplayLimit()" style="text-align: center; padding: 0.75rem 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="loadMoreCategories()">
+                ▼ Load More Categories (showing {{ edCategoryDisplayLimit() }} of {{ displayedCategoryMappings().length }})
+              </button>
+              <button type="button" class="btn btn-ghost btn-xs" (click)="loadAllCategories()">
+                Show All
+              </button>
+            </div>
           </div>
         </ng-container>
 
@@ -1800,7 +1813,7 @@
 
           <!-- Description Mapping Grid -->
           <div class="ed-mapping-grid">
-            <ng-container *ngFor="let d of displayedDescriptionMappings(); let i = index">
+            <ng-container *ngFor="let d of displayedDescriptionMappings().slice(0, edDescriptionDisplayLimit()); let i = index">
               <!-- Divider between matching and unmatched descriptions -->
               <div
                 *ngIf="isFirstUnmatchedDescription(d.description, i)"
@@ -1897,7 +1910,7 @@
                     <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
                   </div>
                   <div class="ed-drawer-list">
-                    <div *ngFor="let tx of getTransactionsForDescription(d.description)" class="ed-drawer-tx-item">
+                    <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50)" class="ed-drawer-tx-item">
                       <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ tx.date }}</span>
                       <div class="ed-drawer-tx-desc">
                         <span style="font-weight: 500; color: #f1f5f9;">{{ tx.rawCategory || 'Uncategorized' }}</span>
@@ -1927,16 +1940,51 @@
                         </button>
                       </div>
                     </div>
+                    <div *ngIf="getTransactionsForDescription(d.description).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
+                      Showing first 50 of {{ getTransactionsForDescription(d.description).length }} transactions
+                    </div>
                   </div>
                 </div>
               </div>
             </ng-container>
+
+            <!-- Load More Descriptions Button -->
+            <div *ngIf="displayedDescriptionMappings().length > edDescriptionDisplayLimit()" style="text-align: center; padding: 0.75rem 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="loadMoreDescriptions()">
+                ▼ Load More Descriptions (showing {{ edDescriptionDisplayLimit() }} of {{ displayedDescriptionMappings().length }})
+              </button>
+              <button type="button" class="btn btn-ghost btn-xs" (click)="loadAllDescriptions()">
+                Show All
+              </button>
+            </div>
           </div>
         </ng-container>
       </div>
 
-      <!-- Active Category Filter Indicator -->
-      <div *ngIf="edSelectedCategoryFilter() as catFilter" class="animate-fade-in" style="margin-bottom: 0.6rem; padding: 0.4rem 0.8rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem;">
+      <!-- Preview Table On-Demand Toggle -->
+      <div class="glass-card" style="padding: 0.85rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-color: rgba(255, 255, 255, 0.08); margin-top: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+          <span style="font-size: 1.2rem;">📋</span>
+          <div>
+            <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-main);">
+              Transaction Details Table ({{ edPreviewTransactions().length }} transactions)
+            </div>
+            <div style="font-size: 0.74rem; color: var(--text-muted);">
+              {{ edShowPreviewTable() ? 'Table loaded into DOM. Click button to hide.' : 'Hidden to keep performance ultra fast. Click button to load raw transactions table.' }}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          (click)="togglePreviewTable()"
+          style="display: flex; align-items: center; gap: 0.4rem;">
+          <span>{{ edShowPreviewTable() ? '✕ Hide Table' : '👁️ Load Transaction Table' }}</span>
+        </button>
+      </div>
+
+      <!-- Active Category Filter Indicator (Only shown when table is loaded) -->
+      <div *ngIf="edShowPreviewTable() && edSelectedCategoryFilter() as catFilter" class="animate-fade-in" style="margin-top: 0.6rem; margin-bottom: 0.6rem; padding: 0.4rem 0.8rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem;">
         <div style="display: flex; align-items: center; gap: 0.45rem;">
           <span style="color: #38bdf8; font-weight: 600;">🔍 Filtering table by category:</span>
           <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.8rem;">
@@ -1949,8 +1997,8 @@
         </button>
       </div>
 
-      <!-- Active Description Filter Indicator -->
-      <div *ngIf="edSelectedDescriptionFilter() as descFilter" class="animate-fade-in" style="margin-bottom: 0.6rem; padding: 0.4rem 0.8rem; background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem;">
+      <!-- Active Description Filter Indicator (Only shown when table is loaded) -->
+      <div *ngIf="edShowPreviewTable() && edSelectedDescriptionFilter() as descFilter" class="animate-fade-in" style="margin-top: 0.6rem; margin-bottom: 0.6rem; padding: 0.4rem 0.8rem; background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem;">
         <div style="display: flex; align-items: center; gap: 0.45rem;">
           <span style="color: #a78bfa; font-weight: 600;">🔍 Filtering table by description:</span>
           <span class="badge" style="background: rgba(167, 139, 250, 0.2); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.4); font-size: 0.8rem;">
@@ -1963,8 +2011,8 @@
         </button>
       </div>
 
-      <!-- Preview Table -->
-      <div class="ed-table-wrap">
+      <!-- Preview Table (Only rendered when edShowPreviewTable() is true) -->
+      <div *ngIf="edShowPreviewTable()" class="ed-table-wrap animate-fade-in" style="margin-top: 0.5rem;">
         <table class="ed-preview-table">
           <thead>
             <tr>

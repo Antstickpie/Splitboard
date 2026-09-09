@@ -945,7 +945,37 @@ export class SettingsComponent {
   public edExpandedDescription = signal<string | null>(null);
   public edSelectedDescriptionFilter = signal<string | null>(null);
 
+  // Performance & DOM Optimization Limits
+  public edCategoryDisplayLimit = signal<number>(40);
+  public edDescriptionDisplayLimit = signal<number>(30);
+  public edShowPreviewTable = signal<boolean>(false);
+
+  public togglePreviewTable(): void {
+    this.edShowPreviewTable.update((v) => !v);
+  }
+
+  public loadMoreCategories(): void {
+    this.edCategoryDisplayLimit.update((c) => c + 40);
+  }
+
+  public loadAllCategories(): void {
+    this.edCategoryDisplayLimit.set(99999);
+  }
+
+  public loadMoreDescriptions(): void {
+    this.edDescriptionDisplayLimit.update((c) => c + 40);
+  }
+
+  public loadAllDescriptions(): void {
+    this.edDescriptionDisplayLimit.set(99999);
+  }
+
   public edDescriptionMappings = computed<EveryDollarDescriptionMapping[]>(() => {
+    // Ultra-fast optimization: only compute heavy description aggregation when in description mode
+    if (this.edGroupByMode() !== 'description') {
+      return [];
+    }
+
     const txs = this.edPreviewTransactions();
     if (txs.length === 0) return [];
 
@@ -1282,6 +1312,7 @@ export class SettingsComponent {
     this.edSelectedDescriptionFilter.set(desc);
     if (desc) {
       this.edSelectedCategoryFilter.set(null);
+      this.edShowPreviewTable.set(true);
     }
   }
 
@@ -1616,6 +1647,10 @@ export class SettingsComponent {
 
   public setCategoryFilter(rawCategory: string | null): void {
     this.edSelectedCategoryFilter.set(rawCategory);
+    if (rawCategory) {
+      this.edSelectedDescriptionFilter.set(null);
+      this.edShowPreviewTable.set(true);
+    }
   }
 
   public updateCategoryMappingsFromPreview(): void {
@@ -1982,14 +2017,24 @@ export class SettingsComponent {
     this.edImportResult.set(null);
   }
 
+  public existingTxSignatures = computed(() => {
+    return new Set(this.service.transactions().map((t) => this.service.getTransactionSignature(t)));
+  });
+  public existingTxIds = computed(() => {
+    return new Set(this.service.transactions().map((t) => t.id));
+  });
+
   public isTransactionDuplicate(tx: Transaction): boolean {
     const sig = this.service.getTransactionSignature(tx);
-    const existingSigs = new Set(this.service.transactions().map((t) => this.service.getTransactionSignature(t)));
-    const existingIds = new Set(this.service.transactions().map((t) => t.id));
-    return existingIds.has(tx.id) || existingSigs.has(sig);
+    return this.existingTxIds().has(tx.id) || this.existingTxSignatures().has(sig);
   }
 
   public filteredPreviewTransactions = computed(() => {
+    // Ultra-fast optimization: don't compute expensive table filtering/matching when table is hidden
+    if (!this.edShowPreviewTable()) {
+      return [];
+    }
+
     let txs = this.edPreviewTransactions();
     const catFilter = this.edSelectedCategoryFilter();
     const descFilter = this.edSelectedDescriptionFilter();
