@@ -32,6 +32,7 @@ export class CategorySelectComponent implements OnDestroy {
   @Input() placeholder: string = '📁 Uncategorized';
   @Input() customTitle?: string;
   @Input() compact: boolean = false;
+  @Input() disabled: boolean = false;
   @Input() allowAddNew: boolean = true;
   @Input() minWidth: string = '140px';
 
@@ -196,6 +197,7 @@ export class CategorySelectComponent implements OnDestroy {
   }
 
   public openDropdown(event?: MouseEvent): void {
+    if (this.disabled) return;
     if (event) event.stopPropagation();
     this.searchQuery.set('');
     this.highlightedIndex.set(0);
@@ -222,6 +224,7 @@ export class CategorySelectComponent implements OnDestroy {
   }
 
   public toggleDropdown(event?: MouseEvent): void {
+    if (this.disabled) return;
     if (this.isOpen()) {
       this.closeDropdown();
     } else {

@@ -920,6 +920,44 @@ export class SettingsComponent {
   public edExpandedCategory = signal<string | null>(null);
   public edSelectedCategoryFilter = signal<string | null>(null);
   public edCategoryMatchKeyword = signal<string>('');
+  public edTypeMatchKeyword = signal<string>('');
+  public edTypeBatchItem = signal<string>('');
+  public edTypeBatchGroup = signal<string>('');
+
+  public displayedCategoryMappings = computed(() => {
+    const list = this.edCategoryMappings();
+    const qOwner = this.edCategoryMatchKeyword().trim().toLowerCase();
+    const qType = this.edTypeMatchKeyword().trim().toLowerCase();
+
+    if (!qOwner && !qType) {
+      return list;
+    }
+
+    const matched: EveryDollarCategoryMapping[] = [];
+    const unmatched: EveryDollarCategoryMapping[] = [];
+
+    for (const m of list) {
+      const cat = (m.rawCategory || '').toLowerCase();
+      const isMatched = (qOwner && cat.includes(qOwner)) || (qType && cat.includes(qType));
+      if (isMatched) {
+        matched.push(m);
+      } else {
+        unmatched.push(m);
+      }
+    }
+
+    return [...matched, ...unmatched];
+  });
+
+  public isFirstUnmatched(m: EveryDollarCategoryMapping, idx: number): boolean {
+    const qOwner = this.edCategoryMatchKeyword().trim().toLowerCase();
+    const qType = this.edTypeMatchKeyword().trim().toLowerCase();
+    if (!qOwner && !qType) return false;
+    if (idx === 0) return false;
+    if (this.isCategoryMatched(m.rawCategory)) return false;
+    const prev = this.displayedCategoryMappings()[idx - 1];
+    return prev ? this.isCategoryMatched(prev.rawCategory) : false;
+  }
 
   public getMatchingCategoriesCount(keyword: string): number {
     const q = keyword.trim().toLowerCase();
@@ -929,10 +967,25 @@ export class SettingsComponent {
     ).length;
   }
 
-  public isCategoryMatched(rawCategory: string): boolean {
+  public isOwnerMatched(rawCategory: string): boolean {
     const q = this.edCategoryMatchKeyword().trim().toLowerCase();
     if (!q) return false;
     return (rawCategory || '').toLowerCase().includes(q);
+  }
+
+  public isTypeMatched(rawCategory: string): boolean {
+    const q = this.edTypeMatchKeyword().trim().toLowerCase();
+    if (!q) return false;
+    return (rawCategory || '').toLowerCase().includes(q);
+  }
+
+  public isCategoryMatched(rawCategory: string): boolean {
+    const q1 = this.edCategoryMatchKeyword().trim().toLowerCase();
+    const q2 = this.edTypeMatchKeyword().trim().toLowerCase();
+    const cat = (rawCategory || '').toLowerCase();
+    if (q1 && cat.includes(q1)) return true;
+    if (q2 && cat.includes(q2)) return true;
+    return false;
   }
 
   public assignMatchingCategoriesToPerson(personName: string): void {
@@ -969,6 +1022,62 @@ export class SettingsComponent {
 
     this.service.showToast(
       `Assigned ${matchedCount} categories containing "${this.edCategoryMatchKeyword().trim()}" to ${personName}!`,
+      'success'
+    );
+  }
+
+  public onTypeKeywordChange(keyword: string): void {
+    this.edTypeMatchKeyword.set(keyword);
+    this.edTypeBatchItem.set('');
+    this.edTypeBatchGroup.set('');
+  }
+
+  public clearTypeMatchKeyword(): void {
+    this.edTypeMatchKeyword.set('');
+    this.edTypeBatchItem.set('');
+    this.edTypeBatchGroup.set('');
+  }
+
+  public assignMatchingCategoriesToType(selection: { item: string; group: string }): void {
+    const q = this.edTypeMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please enter text in the category matcher box.', 'info');
+      return;
+    }
+    const chosenItem = selection.item || 'Uncategorized';
+    const chosenGroup = selection.group || 'Uncategorized';
+
+    let matchedCount = 0;
+    const updatedMappings = this.edCategoryMappings().map((m) => {
+      if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        matchedCount++;
+        return { ...m, selectedItem: chosenItem, selectedGroup: chosenGroup };
+      }
+      return m;
+    });
+
+    if (matchedCount === 0) {
+      this.service.showToast(`No categories contain "${this.edTypeMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.edTypeBatchItem.set(chosenItem);
+    this.edTypeBatchGroup.set(chosenGroup);
+    this.edCategoryMappings.set(updatedMappings);
+
+    // Also update all staged preview transactions
+    const categoryToTypeMap = new Map(
+      updatedMappings.map((m) => [m.rawCategory, { item: m.selectedItem, group: m.selectedGroup }])
+    );
+    this.edPreviewTransactions.update((txs) =>
+      txs.map((t) => {
+        const typeInfo = categoryToTypeMap.get(t.rawCategory || 'Uncategorized');
+        return typeInfo ? { ...t, categoryItem: typeInfo.item, categoryGroup: typeInfo.group } : t;
+      })
+    );
+
+    this.service.showToast(
+      `Assigned ${matchedCount} categories containing "${this.edTypeMatchKeyword().trim()}" to ${chosenItem}!`,
       'success'
     );
   }
@@ -1194,6 +1303,8 @@ export class SettingsComponent {
   public clearEveryDollarPreview(): void {
     this.edPreviewTransactions.set([]);
     this.edCategoryMappings.set([]);
+    this.edCategoryMatchKeyword.set('');
+    this.clearTypeMatchKeyword();
     this.edImportResult.set(null);
   }
 
@@ -1211,9 +1322,31 @@ export class SettingsComponent {
       txs = txs.filter((t) => (t.rawCategory || 'Uncategorized') === catFilter);
     }
     const filter = this.edPreviewFilter();
-    if (filter === 'all') return txs;
-    if (filter === 'new') return txs.filter((t) => !this.isTransactionDuplicate(t));
-    if (filter === 'duplicate') return txs.filter((t) => this.isTransactionDuplicate(t));
+    if (filter === 'new') {
+      txs = txs.filter((t) => !this.isTransactionDuplicate(t));
+    } else if (filter === 'duplicate') {
+      txs = txs.filter((t) => this.isTransactionDuplicate(t));
+    }
+
+    // If matcher keyword is active and not isolated to a single category filter,
+    // sort matching transactions to the top and the rest below
+    const qOwner = this.edCategoryMatchKeyword().trim().toLowerCase();
+    const qType = this.edTypeMatchKeyword().trim().toLowerCase();
+    if (!catFilter && (qOwner || qType)) {
+      const matched: typeof txs = [];
+      const unmatched: typeof txs = [];
+      for (const t of txs) {
+        const cat = (t.rawCategory || '').toLowerCase();
+        const isMatched = (qOwner && cat.includes(qOwner)) || (qType && cat.includes(qType));
+        if (isMatched) {
+          matched.push(t);
+        } else {
+          unmatched.push(t);
+        }
+      }
+      return [...matched, ...unmatched];
+    }
+
     return txs;
   });
 

@@ -1460,7 +1460,7 @@
           </div>
         </div>
 
-        <!-- Keyword Contains Matcher Bar -->
+        <!-- Keyword Contains Matcher Bar (Owner) -->
         <div class="ed-matcher-bar">
           <div class="ed-matcher-input-wrap">
             <span class="ed-matcher-icon">🔍</span>
@@ -1469,8 +1469,8 @@
               class="ed-matcher-text-input"
               [ngModel]="edCategoryMatchKeyword()"
               (ngModelChange)="edCategoryMatchKeyword.set($event)"
-              placeholder="Type text to match category (contains)..."
-              title="Type keyword to match categories containing this text" />
+              placeholder="Type text to match category for owner (contains)..."
+              title="Type keyword to match categories and assign owner" />
             <button
               *ngIf="edCategoryMatchKeyword()"
               type="button"
@@ -1502,105 +1502,151 @@
           </div>
         </div>
 
-        <div class="ed-mapping-grid">
-          <div class="ed-mapping-card" *ngFor="let m of edCategoryMappings()" [class.is-matched]="isCategoryMatched(m.rawCategory)">
-            <div class="ed-mapping-main-row">
-              <!-- Source Category Info -->
-              <div class="ed-mapping-source">
-                <div class="ed-source-name" [title]="m.rawCategory">
-                  {{ m.rawCategory }}
-                </div>
-                <div class="ed-source-meta">
-                  <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
-                  <span>•</span>
-                  <span class="font-mono">{{ service.formatCurrency(m.totalAmount) }}</span>
-                </div>
-              </div>
-
-              <!-- Owner & Category Controls -->
-              <div class="ed-mapping-controls">
-                <!-- Assign All in Category to Person -->
-                <div class="ed-control-group" title="Assign all transactions in this category to this person">
-                  <span class="ed-control-label">Owner:</span>
-                  <div class="split-button-group">
-                    <button
-                      type="button"
-                      *ngFor="let p of service.persons(); let idx = index"
-                      class="split-btn"
-                      [class.split-btn-p1]="idx === 0"
-                      [class.split-btn-p2]="idx === 1"
-                      [class.active]="m.selectedPerson === p.name"
-                      (click)="onCategoryPersonChange(m.rawCategory, p.name)">
-                      {{ p.name }}
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Secondary Splitboard Category Picker (Defaults to Uncategorized) -->
-                <div class="ed-control-group" title="Optional: Map to a Splitboard category (defaults to Uncategorized)">
-                  <span class="ed-control-label">Type:</span>
-                  <app-category-select
-                    [value]="m.selectedItem"
-                    [group]="m.selectedGroup"
-                    placeholder="📁 Uncategorized"
-                    minWidth="150px"
-                    (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)">
-                  </app-category-select>
-                </div>
-
-                <!-- Inspect Individual Transactions Toggle -->
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-xs"
-                  (click)="toggleExpandCategory(m.rawCategory)"
-                  [title]="edExpandedCategory() === m.rawCategory ? 'Hide transactions' : 'Inspect individual transactions'">
-                  {{ edExpandedCategory() === m.rawCategory ? '▲ Hide' : '▼ Inspect (' + m.count + ')' }}
-                </button>
-
-                <!-- Filter Preview Table Below -->
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-xs"
-                  [class.btn-primary]="edSelectedCategoryFilter() === m.rawCategory"
-                  (click)="setCategoryFilter(edSelectedCategoryFilter() === m.rawCategory ? null : m.rawCategory)"
-                  title="Filter table below to this category">
-                  {{ edSelectedCategoryFilter() === m.rawCategory ? '✓ Filtering' : '🔍 Table' }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Expandable Individual Transactions Drawer -->
-            <div *ngIf="edExpandedCategory() === m.rawCategory" class="ed-category-drawer animate-fade-in">
-              <div class="ed-drawer-header">
-                <span>Individual Transactions in "{{ m.rawCategory }}" ({{ getTransactionsForCategory(m.rawCategory).length }})</span>
-                <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner if needed</span>
-              </div>
-              <div class="ed-drawer-list">
-                <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory)" class="ed-drawer-tx-item">
-                  <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ tx.date }}</span>
-                  <div class="ed-drawer-tx-desc">
-                    <span style="font-weight: 500; color: #f1f5f9;">{{ tx.description }}</span>
-                    <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
-                  </div>
-                  <span class="font-mono" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
-                    {{ service.formatCurrency(tx.amount) }}
-                  </span>
-                  <div class="split-button-group">
-                    <button
-                      type="button"
-                      *ngFor="let p of service.persons(); let idx = index"
-                      class="split-btn split-btn-xs"
-                      [class.split-btn-p1]="idx === 0"
-                      [class.split-btn-p2]="idx === 1"
-                      [class.active]="tx.paidBy === p.name"
-                      (click)="setTxPerson(tx, p.name)">
-                      {{ p.name }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <!-- Keyword Contains Matcher Bar (Category / Splitboard Type) -->
+        <div class="ed-matcher-bar">
+          <div class="ed-matcher-input-wrap">
+            <span class="ed-matcher-icon">🔍</span>
+            <input
+              type="text"
+              class="ed-matcher-text-input"
+              [ngModel]="edTypeMatchKeyword()"
+              (ngModelChange)="onTypeKeywordChange($event)"
+              placeholder="Type text to match category for Splitboard type (contains)..."
+              title="Type keyword to match categories and set Splitboard category" />
+            <button
+              *ngIf="edTypeMatchKeyword()"
+              type="button"
+              class="ed-matcher-clear-btn"
+              (click)="clearTypeMatchKeyword()"
+              title="Clear text">
+              ✕
+            </button>
           </div>
+
+          <div class="ed-matcher-actions">
+            <span class="ed-matcher-label">Set category for matches:</span>
+            <div style="min-width: 175px;">
+              <app-category-select
+                [value]="edTypeBatchItem()"
+                [group]="edTypeBatchGroup()"
+                [disabled]="!edTypeMatchKeyword().trim() || getMatchingCategoriesCount(edTypeMatchKeyword()) === 0"
+                placeholder="📁 Choose Category..."
+                minWidth="175px"
+                [compact]="true"
+                (categoryChange)="assignMatchingCategoriesToType($event)">
+              </app-category-select>
+            </div>
+            <span *ngIf="edTypeMatchKeyword().trim()" class="ed-match-counter">
+              ({{ getMatchingCategoriesCount(edTypeMatchKeyword()) }})
+            </span>
+          </div>
+        </div>
+
+        <div class="ed-mapping-grid">
+          <ng-container *ngFor="let m of displayedCategoryMappings(); let idx = index">
+            <!-- Unmatched Divider when keyword is active and items matched -->
+            <div *ngIf="isFirstUnmatched(m, idx)" class="ed-unmatched-divider">
+              <span>Other Categories (Non-matching)</span>
+            </div>
+            <div class="ed-mapping-card" [class.is-matched]="isCategoryMatched(m.rawCategory)">
+              <div class="ed-mapping-main-row">
+                <!-- Source Category Info -->
+                <div class="ed-mapping-source">
+                  <div class="ed-source-name" [title]="m.rawCategory">
+                    {{ m.rawCategory }}
+                  </div>
+                  <div class="ed-source-meta">
+                    <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
+                    <span>•</span>
+                    <span class="font-mono">{{ service.formatCurrency(m.totalAmount) }}</span>
+                  </div>
+                </div>
+
+                <!-- Owner & Category Controls -->
+                <div class="ed-mapping-controls">
+                  <!-- Assign All in Category to Person -->
+                  <div class="ed-control-group" title="Assign all transactions in this category to this person">
+                    <span class="ed-control-label">Owner:</span>
+                    <div class="split-button-group">
+                      <button
+                        type="button"
+                        *ngFor="let p of service.persons(); let idx = index"
+                        class="split-btn"
+                        [class.split-btn-p1]="idx === 0"
+                        [class.split-btn-p2]="idx === 1"
+                        [class.active]="m.selectedPerson === p.name"
+                        (click)="onCategoryPersonChange(m.rawCategory, p.name)">
+                        {{ p.name }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Secondary Splitboard Category Picker (Defaults to Uncategorized) -->
+                  <div class="ed-control-group" title="Optional: Map to a Splitboard category (defaults to Uncategorized)">
+                    <span class="ed-control-label">Type:</span>
+                    <app-category-select
+                      [value]="m.selectedItem"
+                      [group]="m.selectedGroup"
+                      placeholder="📁 Uncategorized"
+                      minWidth="150px"
+                      (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)">
+                    </app-category-select>
+                  </div>
+
+                  <!-- Inspect Individual Transactions Toggle -->
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="toggleExpandCategory(m.rawCategory)"
+                    [title]="edExpandedCategory() === m.rawCategory ? 'Hide transactions' : 'Inspect individual transactions'">
+                    {{ edExpandedCategory() === m.rawCategory ? '▲ Hide' : '▼ Inspect (' + m.count + ')' }}
+                  </button>
+
+                  <!-- Filter Preview Table Below -->
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    [class.btn-primary]="edSelectedCategoryFilter() === m.rawCategory"
+                    (click)="setCategoryFilter(edSelectedCategoryFilter() === m.rawCategory ? null : m.rawCategory)"
+                    title="Filter table below to this category">
+                    {{ edSelectedCategoryFilter() === m.rawCategory ? '✓ Filtering' : '🔍 Table' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Expandable Individual Transactions Drawer -->
+              <div *ngIf="edExpandedCategory() === m.rawCategory" class="ed-category-drawer animate-fade-in">
+                <div class="ed-drawer-header">
+                  <span>Individual Transactions in "{{ m.rawCategory }}" ({{ getTransactionsForCategory(m.rawCategory).length }})</span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner if needed</span>
+                </div>
+                <div class="ed-drawer-list">
+                  <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory)" class="ed-drawer-tx-item">
+                    <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ tx.date }}</span>
+                    <div class="ed-drawer-tx-desc">
+                      <span style="font-weight: 500; color: #f1f5f9;">{{ tx.description }}</span>
+                      <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
+                    </div>
+                    <span class="font-mono" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                      {{ service.formatCurrency(tx.amount) }}
+                    </span>
+                    <div class="split-button-group">
+                      <button
+                        type="button"
+                        *ngFor="let p of service.persons(); let idx = index"
+                        class="split-btn split-btn-xs"
+                        [class.split-btn-p1]="idx === 0"
+                        [class.split-btn-p2]="idx === 1"
+                        [class.active]="tx.paidBy === p.name"
+                        (click)="setTxPerson(tx, p.name)">
+                        {{ p.name }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ng-container>
         </div>
       </div>
 
@@ -1633,7 +1679,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let tx of filteredPreviewTransactions().slice(0, 100)" [class.dup-row]="isTransactionDuplicate(tx)">
+            <tr
+              *ngFor="let tx of filteredPreviewTransactions().slice(0, 100)"
+              [class.dup-row]="isTransactionDuplicate(tx)"
+              [class.is-matched-row]="(edCategoryMatchKeyword().trim() || edTypeMatchKeyword().trim()) && isCategoryMatched(tx.rawCategory || '')">
               <td class="font-mono">{{ tx.date }}</td>
               <td>
                 <div style="font-weight: 600; color: var(--text-main);">{{ tx.description }}</div>

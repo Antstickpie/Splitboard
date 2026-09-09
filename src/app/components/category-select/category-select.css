@@ -30,6 +30,13 @@
   color: #ffffff;
 }
 
+.cat-select-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
 .cat-select-trigger.compact {
   padding: 0.15rem 0.35rem;
   font-size: 0.73rem;

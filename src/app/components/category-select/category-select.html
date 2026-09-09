@@ -6,6 +6,7 @@
     class="cat-select-trigger"
     [class.compact]="compact"
     [class.open]="isOpen()"
+    [disabled]="disabled"
     (click)="toggleDropdown($event)"
     [title]="fullTooltip"
     [style.minWidth]="minWidth">
