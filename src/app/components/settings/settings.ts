@@ -942,6 +942,8 @@ export class SettingsComponent {
   public edTypeBatchItem = signal<string>('');
   public edTypeBatchGroup = signal<string>('');
   public edEditingBatchFileName = signal<string | null>(null);
+  public edTypeExcludeAssigned = signal<boolean>(false);
+  public edDescExcludeAssigned = signal<boolean>(false);
 
   // EveryDollar Period Currency Rules State
   public edShowCurrencyPeriods = signal<boolean>(false);
@@ -1128,8 +1130,20 @@ export class SettingsComponent {
     return result;
   });
 
+  public isCategoryMappingAssigned(m: EveryDollarCategoryMapping): boolean {
+    return Boolean(m.selectedItem && m.selectedItem !== 'Uncategorized');
+  }
+
+  public isCategoryAssigned(rawCategory: string): boolean {
+    const m = this.edCategoryMappings().find((c) => c.rawCategory === rawCategory);
+    return m ? this.isCategoryMappingAssigned(m) : false;
+  }
+
   public displayedDescriptionMappings = computed(() => {
-    const list = this.edDescriptionMappings();
+    let list = this.edDescriptionMappings();
+    if (this.edDescExcludeAssigned()) {
+      list = list.filter((m) => !m.selectedItem || m.selectedItem === 'Uncategorized');
+    }
     const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
     if (!q) return list;
 
@@ -1146,7 +1160,10 @@ export class SettingsComponent {
   });
 
   public displayedCategoryMappings = computed(() => {
-    const list = this.edCategoryMappings();
+    let list = this.edCategoryMappings();
+    if (this.edTypeExcludeAssigned()) {
+      list = list.filter((m) => !this.isCategoryMappingAssigned(m));
+    }
     const qOwner = this.edCategoryMatchKeyword().trim().toLowerCase();
     const qType = this.edTypeMatchKeyword().trim().toLowerCase();
 
@@ -1159,8 +1176,9 @@ export class SettingsComponent {
 
     for (const m of list) {
       const cat = (m.rawCategory || '').toLowerCase();
-      const isMatched = (qOwner && cat.includes(qOwner)) || (qType && cat.includes(qType));
-      if (isMatched) {
+      const isOwnerHit = qOwner ? cat.includes(qOwner) : false;
+      const isTypeHit = qType ? cat.includes(qType) : false;
+      if (isOwnerHit || isTypeHit) {
         matched.push(m);
       } else {
         unmatched.push(m);
@@ -1188,6 +1206,16 @@ export class SettingsComponent {
     ).length;
   }
 
+  public getTypeMatchingCategoriesCount(keyword: string): number {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return 0;
+    const excludeAssigned = this.edTypeExcludeAssigned();
+    return this.edCategoryMappings().filter((m) => {
+      if (excludeAssigned && this.isCategoryMappingAssigned(m)) return false;
+      return (m.rawCategory || '').toLowerCase().includes(q);
+    }).length;
+  }
+
   public isOwnerMatched(rawCategory: string): boolean {
     const q = this.edCategoryMatchKeyword().trim().toLowerCase();
     if (!q) return false;
@@ -1197,21 +1225,22 @@ export class SettingsComponent {
   public isTypeMatched(rawCategory: string): boolean {
     const q = this.edTypeMatchKeyword().trim().toLowerCase();
     if (!q) return false;
+    if (this.edTypeExcludeAssigned() && this.isCategoryAssigned(rawCategory)) return false;
     return (rawCategory || '').toLowerCase().includes(q);
   }
 
   public isCategoryMatched(rawCategory: string): boolean {
     const q1 = this.edCategoryMatchKeyword().trim().toLowerCase();
-    const q2 = this.edTypeMatchKeyword().trim().toLowerCase();
-    const cat = (rawCategory || '').toLowerCase();
-    if (q1 && cat.includes(q1)) return true;
-    if (q2 && cat.includes(q2)) return true;
-    return false;
+    const isOwnerHit = q1 ? (rawCategory || '').toLowerCase().includes(q1) : false;
+    const isTypeHit = this.isTypeMatched(rawCategory);
+    return isOwnerHit || isTypeHit;
   }
 
   public getHighlightedCategoryHtml(text: string): string {
     const q1 = this.edCategoryMatchKeyword().trim();
-    const q2 = this.edTypeMatchKeyword().trim();
+    const q2 = (this.edTypeExcludeAssigned() && this.isCategoryAssigned(text))
+      ? ''
+      : this.edTypeMatchKeyword().trim();
     return this.highlightText(text, [q1, q2].filter(Boolean));
   }
 
@@ -1352,10 +1381,17 @@ export class SettingsComponent {
     }
     const chosenItem = selection.item || 'Uncategorized';
     const chosenGroup = selection.group || 'Uncategorized';
+    const excludeAssigned = this.edTypeExcludeAssigned();
 
     let matchedCount = 0;
+    let skippedCount = 0;
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        const isAssigned = this.isCategoryMappingAssigned(m);
+        if (excludeAssigned && isAssigned) {
+          skippedCount++;
+          return m;
+        }
         matchedCount++;
         return { ...m, selectedItem: chosenItem, selectedGroup: chosenGroup };
       }
@@ -1363,7 +1399,14 @@ export class SettingsComponent {
     });
 
     if (matchedCount === 0) {
-      this.service.showToast(`No categories contain "${this.edTypeMatchKeyword().trim()}".`, 'info');
+      if (skippedCount > 0) {
+        this.service.showToast(
+          `All categories containing "${this.edTypeMatchKeyword().trim()}" are already assigned (${skippedCount} excluded).`,
+          'info'
+        );
+      } else {
+        this.service.showToast(`No categories contain "${this.edTypeMatchKeyword().trim()}".`, 'info');
+      }
       return;
     }
 
@@ -1389,8 +1432,9 @@ export class SettingsComponent {
       })
     );
 
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} already assigned excluded)` : '';
     this.service.showToast(
-      `Assigned ${matchedCount} categories containing "${this.edTypeMatchKeyword().trim()}" to ${chosenItem}!`,
+      `Assigned ${matchedCount} categories containing "${this.edTypeMatchKeyword().trim()}" to ${chosenItem}!${skippedMsg}`,
       'success'
     );
   }
@@ -1441,6 +1485,16 @@ export class SettingsComponent {
     return this.edPreviewTransactions().filter((t) =>
       (t.description || '').toLowerCase().includes(q)
     ).length;
+  }
+
+  public getDescriptionMatchingCount(keyword: string): number {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return 0;
+    const excludeAssigned = this.edDescExcludeAssigned();
+    return this.edPreviewTransactions().filter((t) => {
+      if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') return false;
+      return (t.description || '').toLowerCase().includes(q);
+    }).length;
   }
 
   public toggleExpandDescription(desc: string): void {
@@ -1522,11 +1576,18 @@ export class SettingsComponent {
     const chosenItem = selection.item || 'Uncategorized';
     const chosenGroup = selection.group || 'Uncategorized';
     const isIncomeGroup = chosenGroup.toLowerCase().includes('income');
+    const excludeAssigned = this.edDescExcludeAssigned();
 
     let matchedCount = 0;
+    let skippedCount = 0;
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.description || '').toLowerCase().includes(q)) {
+          const isAssigned = Boolean(tx.categoryItem && tx.categoryItem !== 'Uncategorized');
+          if (excludeAssigned && isAssigned) {
+            skippedCount++;
+            return tx;
+          }
           matchedCount++;
           return {
             ...tx,
@@ -1540,15 +1601,23 @@ export class SettingsComponent {
     );
 
     if (matchedCount === 0) {
-      this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      if (skippedCount > 0) {
+        this.service.showToast(
+          `All transactions matching "${this.edDescriptionMatchKeyword().trim()}" already have a category assigned (${skippedCount} excluded).`,
+          'info'
+        );
+      } else {
+        this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      }
       return;
     }
 
     this.edDescriptionBatchItem.set(chosenItem);
     this.edDescriptionBatchGroup.set(chosenGroup);
     this.syncCategoryMappingsFromPreview();
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} already assigned excluded)` : '';
     this.service.showToast(
-      `Assigned ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to ${chosenItem}!`,
+      `Assigned ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to ${chosenItem}!${skippedMsg}`,
       'success'
     );
   }

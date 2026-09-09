@@ -1340,6 +1340,35 @@
   margin-left: 0.2rem;
 }
 
+.ed-matcher-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.15s ease;
+}
+
+.ed-matcher-checkbox-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.ed-matcher-checkbox-label input[type="checkbox"] {
+  accent-color: #38bdf8;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
 .ed-mapping-grid {
   display: flex;
   flex-direction: column;

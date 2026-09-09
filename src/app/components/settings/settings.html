@@ -1713,7 +1713,9 @@
             </div>
 
             <div class="ed-matcher-actions">
-              <span class="ed-matcher-label">Set category for matches:</span>
+              <span class="ed-matcher-label">
+                Set category for matches<span *ngIf="edTypeMatchKeyword().trim()" class="ed-match-counter">({{ getTypeMatchingCategoriesCount(edTypeMatchKeyword()) }})</span>:
+              </span>
               <div style="min-width: 175px;">
                 <app-category-select
                   [value]="edTypeBatchItem()"
@@ -1723,6 +1725,14 @@
                   (categoryChange)="assignMatchingCategoriesToType($event)">
                 </app-category-select>
               </div>
+
+              <label class="ed-matcher-checkbox-label" title="Exclude categories that already have a category assigned (only match and assign unassigned categories)">
+                <input
+                  type="checkbox"
+                  [ngModel]="edTypeExcludeAssigned()"
+                  (ngModelChange)="edTypeExcludeAssigned.set($event)" />
+                <span>Exclude already assigned</span>
+              </label>
             </div>
           </div>
 
@@ -1887,7 +1897,9 @@
             </div>
 
             <div class="ed-matcher-actions">
-              <span class="ed-matcher-label">Set category for matches:</span>
+              <span class="ed-matcher-label">
+                Set category for matches<span *ngIf="edDescriptionMatchKeyword().trim()" class="ed-match-counter">({{ getDescriptionMatchingCount(edDescriptionMatchKeyword()) }})</span>:
+              </span>
               <div style="min-width: 175px;">
                 <app-category-select
                   [value]="edDescriptionBatchItem()"
@@ -1897,6 +1909,14 @@
                   (categoryChange)="assignMatchingDescriptionsToType($event)">
                 </app-category-select>
               </div>
+
+              <label class="ed-matcher-checkbox-label" title="Exclude transactions that already have a category assigned (only match and assign unassigned)">
+                <input
+                  type="checkbox"
+                  [ngModel]="edDescExcludeAssigned()"
+                  (ngModelChange)="edDescExcludeAssigned.set($event)" />
+                <span>Exclude already assigned</span>
+              </label>
 
               <span class="ed-matcher-label" style="margin-left: 0.4rem;">Owner / Split:</span>
               <div class="split-button-group">
