@@ -50,6 +50,18 @@ export class BudgetDashboardComponent {
   public searchQuery = signal<string>('');
   public viewMode = signal<'remaining' | 'spent'>('remaining');
 
+  // Upcoming Natural Language Analytics Banner
+  public showUpcomingBanner = signal<boolean>(
+    typeof localStorage !== 'undefined' ? localStorage.getItem('sb_dismiss_nl_analytics') !== 'true' : true
+  );
+
+  public dismissUpcomingBanner(): void {
+    this.showUpcomingBanner.set(false);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sb_dismiss_nl_analytics', 'true');
+    }
+  }
+
   // Quick Add Item inline
   public activeAddingGroupId = signal<string | null>(null);
   public newCategoryItemName = signal<string>('');
