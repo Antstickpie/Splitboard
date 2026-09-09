@@ -43,3 +43,7 @@ Thumbs.db
 
 # EveryDollar Proxy Session
 .everydollar-chrome-session/
+
+# Data & Transaction Logs
+/src/data/
+*.log
