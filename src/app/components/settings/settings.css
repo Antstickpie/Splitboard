@@ -9,13 +9,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  padding: 1.1rem 1.4rem;
+}
+
+.settings-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .settings-header-left h2 {
-  margin: 0 0 0.3rem 0;
+  margin: 0;
   font-size: 1.35rem;
   letter-spacing: -0.02em;
+}
+
+.settings-header-left .subtitle {
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--text-muted);
 }
 
 /* Sections */
@@ -503,8 +517,11 @@
 .settings-tabs-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.6rem;
+  gap: 0.35rem;
+  padding: 0.3rem 0.4rem;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   overflow-x: auto;
   flex-wrap: wrap;
 }
@@ -513,10 +530,10 @@
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.5rem 0.9rem;
-  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  border-radius: 7px;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -527,21 +544,21 @@
 
 .settings-tab-btn:hover {
   color: var(--text-main);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .settings-tab-btn.active {
   color: var(--primary);
-  background: rgba(0, 229, 255, 0.08);
-  border-color: rgba(0, 229, 255, 0.25);
-  box-shadow: 0 2px 8px rgba(0, 229, 255, 0.1);
+  background: rgba(0, 229, 255, 0.12);
+  border-color: rgba(0, 229, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 229, 255, 0.15);
 }
 
 .settings-tab-btn.ed-tab-btn.active {
   color: #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.3);
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.18);
 }
 
 /* EveryDollar Tab Styles */

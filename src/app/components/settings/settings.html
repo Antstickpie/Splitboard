@@ -1,38 +1,38 @@
 <div class="animate-fade-in settings-container">
-  <!-- Header -->
+  <!-- Unified Header & Settings Navigation Bar -->
   <div class="glass-card settings-header">
     <div class="settings-header-left">
       <h2>⚙ Settings & Preferences</h2>
       <p class="subtitle">Manage split members, multi-currency exchange rates, category tree, auto-rules, and cloud backup.</p>
     </div>
-  </div>
 
-  <!-- Settings Navigation Tabs -->
-  <div class="settings-tabs-bar glass-card">
-    <button
-      class="settings-tab-btn"
-      [class.active]="activeSettingsTab() === 'general'"
-      (click)="activeSettingsTab.set('general')">
-      ⚙️ General & Cloud
-    </button>
-    <button
-      class="settings-tab-btn"
-      [class.active]="activeSettingsTab() === 'categories'"
-      (click)="activeSettingsTab.set('categories')">
-      📁 Categories & Rules
-    </button>
-    <button
-      class="settings-tab-btn"
-      [class.active]="activeSettingsTab() === 'banks'"
-      (click)="activeSettingsTab.set('banks')">
-      🏦 Bank Profiles & Batches
-    </button>
-    <button
-      class="settings-tab-btn ed-tab-btn"
-      [class.active]="activeSettingsTab() === 'everydollar'"
-      (click)="activeSettingsTab.set('everydollar')">
-      💵 EveryDollar Import
-    </button>
+    <!-- Settings Navigation Tabs -->
+    <div class="settings-tabs-bar">
+      <button
+        class="settings-tab-btn"
+        [class.active]="activeSettingsTab() === 'general'"
+        (click)="activeSettingsTab.set('general')">
+        ⚙️ General & Cloud
+      </button>
+      <button
+        class="settings-tab-btn"
+        [class.active]="activeSettingsTab() === 'categories'"
+        (click)="activeSettingsTab.set('categories')">
+        📁 Categories & Rules
+      </button>
+      <button
+        class="settings-tab-btn"
+        [class.active]="activeSettingsTab() === 'banks'"
+        (click)="activeSettingsTab.set('banks')">
+        🏦 Bank Profiles & Batches
+      </button>
+      <button
+        class="settings-tab-btn ed-tab-btn"
+        [class.active]="activeSettingsTab() === 'everydollar'"
+        (click)="activeSettingsTab.set('everydollar')">
+        💵 EveryDollar Import
+      </button>
+    </div>
   </div>
 
   <!-- TOP COMPACT GRID (4 Compact Cards: Members, Currency, Rates, Cloud Backup) -->
