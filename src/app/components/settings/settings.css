@@ -1229,6 +1229,19 @@
   border-radius: 10px;
 }
 
+.ed-editing-alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.65rem 0.95rem;
+  margin-bottom: 0.9rem;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
 .ed-mapping-header {
   display: flex;
   justify-content: space-between;

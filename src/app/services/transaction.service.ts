@@ -1248,6 +1248,15 @@ export class TransactionService {
     this.triggerAutoSyncIfEnabled();
   }
 
+  public updateTransactionsBatch(updatedTxs: Transaction[]): void {
+    if (!updatedTxs || updatedTxs.length === 0) return;
+    const updateMap = new Map<string, Transaction>(updatedTxs.map((t) => [t.id, t]));
+    this.transactions.update((curr) =>
+      curr.map((tx) => updateMap.get(tx.id) || tx)
+    );
+    this.triggerAutoSyncIfEnabled();
+  }
+
   public toggleTransactionReview(id: string): void {
     let nowReview = false;
     this.transactions.update((curr) =>

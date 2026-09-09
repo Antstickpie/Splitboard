@@ -923,6 +923,7 @@ export class SettingsComponent {
   public edTypeMatchKeyword = signal<string>('');
   public edTypeBatchItem = signal<string>('');
   public edTypeBatchGroup = signal<string>('');
+  public edEditingBatchFileName = signal<string | null>(null);
 
   public displayedCategoryMappings = computed(() => {
     const list = this.edCategoryMappings();
@@ -1135,11 +1136,17 @@ export class SettingsComponent {
     const result: EveryDollarCategoryMapping[] = [];
     groupMap.forEach((val, rawCategory) => {
       const existingMap = currentMappings.get(rawCategory);
+      // If transactions already carry person and category info (e.g. editing an existing batch)
+      const sampleTx = txs.find((t) => (t.rawCategory || 'Uncategorized') === rawCategory);
+      const txPerson = sampleTx?.paidBy;
+      const txItem = sampleTx?.categoryItem && sampleTx.categoryItem !== 'Uncategorized' ? sampleTx.categoryItem : null;
+      const txGroup = sampleTx?.categoryGroup && sampleTx.categoryGroup !== 'Uncategorized' ? sampleTx.categoryGroup : null;
+
       // Auto-detect person based on category name if not already manually set
       const detectedPerson = this.autoDetectOwnerForCategory(rawCategory);
-      const selectedItem = existingMap?.item || 'Uncategorized';
-      const selectedGroup = existingMap?.group || 'Uncategorized';
-      const selectedPerson = existingMap?.person || detectedPerson;
+      const selectedItem = existingMap?.item || txItem || 'Uncategorized';
+      const selectedGroup = existingMap?.group || txGroup || 'Uncategorized';
+      const selectedPerson = existingMap?.person || txPerson || detectedPerson;
 
       result.push({
         rawCategory,
@@ -1154,12 +1161,16 @@ export class SettingsComponent {
     result.sort((a, b) => b.count - a.count);
     this.edCategoryMappings.set(result);
 
-    // Propagate assigned person and SELF split to all staged transactions
+    // Propagate assigned person and category to all staged transactions
     const catPersonMap = new Map(result.map((m) => [m.rawCategory, m.selectedPerson]));
+    const catTypeMap = new Map(result.map((m) => [m.rawCategory, { item: m.selectedItem, group: m.selectedGroup }]));
     this.edPreviewTransactions.update((curr) =>
       curr.map((t) => {
         const p = catPersonMap.get(t.rawCategory || 'Uncategorized') || defaultPerson;
-        return { ...t, paidBy: p, splitType: 'SELF' };
+        const typeInfo = catTypeMap.get(t.rawCategory || 'Uncategorized');
+        const catItem = typeInfo?.item || t.categoryItem || 'Uncategorized';
+        const catGroup = typeInfo?.group || t.categoryGroup || 'Uncategorized';
+        return { ...t, paidBy: p, splitType: 'SELF', categoryItem: catItem, categoryGroup: catGroup };
       })
     );
   }
@@ -1300,7 +1311,80 @@ export class SettingsComponent {
     return this.service.importedBatches().filter((b) => b.fileName.startsWith('EveryDollar'));
   }
 
+  public editEveryDollarBatch(batchFileName: string): void {
+    const batchTxs = this.service.transactions().filter((t) => t.sourceFile === batchFileName);
+    if (batchTxs.length === 0) {
+      this.service.showToast(`No transactions found for batch "${batchFileName}".`, 'info');
+      return;
+    }
+
+    // Clone to isolate edits until explicitly saved
+    const clonedTxs: Transaction[] = batchTxs.map((t) => ({ ...t }));
+
+    this.edEditingBatchFileName.set(batchFileName);
+    this.edPreviewTransactions.set(clonedTxs);
+    this.updateCategoryMappingsFromPreview();
+    this.edImportResult.set(null);
+    this.activeSettingsTab.set('everydollar');
+
+    setTimeout(() => {
+      const el = document.getElementById('ed-category-mapping-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+
+    this.service.showToast(`Loaded ${batchTxs.length} transactions from "${batchFileName}" for editing.`, 'info');
+  }
+
+  public editLastEveryDollarImport(): void {
+    const last = this.service.lastEveryDollarImport();
+    if (!last || last.ids.length === 0) {
+      this.service.showToast('No recent EveryDollar import to edit.', 'info');
+      return;
+    }
+    const idSet = new Set(last.ids);
+    const txs = this.service.transactions().filter((t) => idSet.has(t.id));
+    if (txs.length === 0) {
+      this.service.showToast('Transactions from the last import could not be found.', 'info');
+      return;
+    }
+    const batchName = txs[0]?.sourceFile || 'Last EveryDollar Import';
+    this.editEveryDollarBatch(batchName);
+  }
+
+  public saveEditedEveryDollarBatch(): void {
+    const batchName = this.edEditingBatchFileName();
+    if (!batchName) return;
+
+    const updatedTxs = this.edPreviewTransactions();
+    if (updatedTxs.length === 0) {
+      this.cancelEditEveryDollarBatch();
+      return;
+    }
+
+    this.service.updateTransactionsBatch(updatedTxs);
+    this.service.showToast(
+      `✓ Successfully updated ${updatedTxs.length} transactions in "${batchName}"!`,
+      'success'
+    );
+
+    this.edEditingBatchFileName.set(null);
+    this.edPreviewTransactions.set([]);
+    this.edCategoryMappings.set([]);
+    this.edCategoryMatchKeyword.set('');
+    this.clearTypeMatchKeyword();
+  }
+
+  public cancelEditEveryDollarBatch(): void {
+    this.edEditingBatchFileName.set(null);
+    this.edPreviewTransactions.set([]);
+    this.edCategoryMappings.set([]);
+    this.edCategoryMatchKeyword.set('');
+    this.clearTypeMatchKeyword();
+    this.service.showToast('Edit cancelled; no changes were saved.', 'info');
+  }
+
   public clearEveryDollarPreview(): void {
+    this.edEditingBatchFileName.set(null);
     this.edPreviewTransactions.set([]);
     this.edCategoryMappings.set([]);
     this.edCategoryMatchKeyword.set('');
