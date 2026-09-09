@@ -2,7 +2,7 @@ import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService, ImportedBatch } from '../../services/transaction.service';
-import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem } from '../../models';
+import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem, Transaction } from '../../models';
 
 @Component({
   selector: 'app-settings',
@@ -589,4 +589,264 @@ export class SettingsComponent {
     if (hrs < 24) return `${hrs}h ago`;
     return new Date(timestamp).toLocaleDateString();
   }
+
+  // Settings Tab Navigation
+  public activeSettingsTab = signal<'general' | 'categories' | 'banks' | 'everydollar'>('general');
+
+  // EveryDollar Historical Importer State
+  public edStartDate = signal<string>('2023-01-01');
+  public edEndDate = signal<string>(new Date().toISOString().slice(0, 10));
+  public edIsFetching = signal<boolean>(false);
+  public edProgressMessage = signal<string>('');
+  public edProgressPercent = signal<number>(0);
+  public edPreviewTransactions = signal<Transaction[]>([]);
+  public edRawJsonInput = signal<string>('');
+  public edProxyStatus = signal<'unknown' | 'running' | 'offline'>('unknown');
+  public edImportResult = signal<{ added: number; skipped: number } | null>(null);
+  public edPreviewFilter = signal<'all' | 'new' | 'duplicate'>('all');
+  public isJsonPasteOpen = signal<boolean>(false);
+  private edAbortController: AbortController | null = null;
+
+  public async checkEveryDollarProxy(): Promise<boolean> {
+    try {
+      const res = await fetch('http://localhost:4000/health', { signal: AbortSignal.timeout(2000) });
+      const ok = res.ok;
+      this.edProxyStatus.set(ok ? 'running' : 'offline');
+      return ok;
+    } catch {
+      this.edProxyStatus.set('offline');
+      return false;
+    }
+  }
+
+  public setEveryDollarPreset(preset: '12m' | '24m' | '60m' | '2024' | '2025' | '2026'): void {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const today = `${y}-${m}-${String(now.getDate()).padStart(2, '0')}`;
+
+    if (preset === '12m') {
+      this.edStartDate.set(`${y - 1}-${m}-01`);
+      this.edEndDate.set(today);
+    } else if (preset === '24m') {
+      this.edStartDate.set(`${y - 2}-${m}-01`);
+      this.edEndDate.set(today);
+    } else if (preset === '60m') {
+      this.edStartDate.set(`${y - 5}-01-01`);
+      this.edEndDate.set(today);
+    } else if (preset === '2024') {
+      this.edStartDate.set('2024-01-01');
+      this.edEndDate.set('2024-12-31');
+    } else if (preset === '2025') {
+      this.edStartDate.set('2025-01-01');
+      this.edEndDate.set('2025-12-31');
+    } else if (preset === '2026') {
+      this.edStartDate.set('2026-01-01');
+      this.edEndDate.set('2026-12-31');
+    }
+  }
+
+  public generateMonthRanges(startStr: string, endStr: string): { start: string; end: string; month: string }[] {
+    const ranges: { start: string; end: string; month: string }[] = [];
+    if (!startStr || !endStr) return ranges;
+
+    const [startYear, startMonth] = startStr.split('-').map(Number);
+    const [endYear, endMonth] = endStr.split('-').map(Number);
+
+    let currentYear = startYear;
+    let currentMonth = startMonth;
+
+    while (
+      currentYear < endYear ||
+      (currentYear === endYear && currentMonth <= endMonth)
+    ) {
+      const monthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+      const firstDayOfMonth = `${monthStr}-01`;
+      const chunkStart = ranges.length === 0 && startStr > firstDayOfMonth ? startStr : firstDayOfMonth;
+
+      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+      const lastDayOfMonth = `${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
+      const chunkEnd =
+        currentYear === endYear && currentMonth === endMonth && endStr < lastDayOfMonth
+          ? endStr
+          : lastDayOfMonth;
+
+      ranges.push({
+        start: chunkStart,
+        end: chunkEnd,
+        month: monthStr
+      });
+
+      currentMonth++;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+      }
+    }
+
+    return ranges;
+  }
+
+  public async fetchEveryDollarFromProxy(): Promise<void> {
+    const start = this.edStartDate();
+    const end = this.edEndDate();
+    if (!start || !end) {
+      this.service.showToast('Please select both start and end dates', 'error');
+      return;
+    }
+
+    const ranges = this.generateMonthRanges(start, end);
+    if (ranges.length === 0) {
+      this.service.showToast('Invalid date range selected', 'error');
+      return;
+    }
+
+    const isAlive = await this.checkEveryDollarProxy();
+    if (!isAlive) {
+      this.service.showToast(
+        'EveryDollar proxy is not running. Please run "npm run start:proxy" in your terminal first.',
+        'error'
+      );
+      return;
+    }
+
+    this.edIsFetching.set(true);
+    this.edProgressPercent.set(0);
+    this.edProgressMessage.set(`Connecting to EveryDollar for ${ranges.length} month(s)...`);
+    this.edAbortController = new AbortController();
+    this.edImportResult.set(null);
+
+    const allParsed: Transaction[] = [];
+
+    try {
+      for (let i = 0; i < ranges.length; i++) {
+        if (this.edAbortController.signal.aborted) {
+          this.service.showToast('EveryDollar fetch cancelled', 'info');
+          break;
+        }
+
+        const r = ranges[i];
+        const pct = Math.round((i / ranges.length) * 100);
+        this.edProgressPercent.set(pct);
+        this.edProgressMessage.set(`Fetching month ${i + 1} of ${ranges.length} (${r.month})...`);
+
+        const proxyUrl = `http://localhost:4000/everydollar?startDate=${encodeURIComponent(r.start)}&endDate=${encodeURIComponent(r.end)}`;
+
+        let res: Response;
+        try {
+          res = await fetch(proxyUrl, { signal: this.edAbortController.signal });
+        } catch (fetchErr: any) {
+          if (this.edAbortController.signal.aborted) break;
+          throw new Error(`Connection error on ${r.month}: ${fetchErr.message}`);
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} from proxy on ${r.month}`);
+        }
+
+        const data = await res.json();
+        const rawTxs = Array.isArray(data) ? data : (data.transactions || []);
+        const parsed = this.service.parseEveryDollarTransactions(rawTxs);
+        allParsed.push(...parsed);
+      }
+
+      this.edProgressPercent.set(100);
+      this.edPreviewTransactions.set(allParsed);
+      this.service.showToast(
+        `Fetched ${allParsed.length} transactions across ${ranges.length} month(s)! Review and click Save.`,
+        'success'
+      );
+    } catch (err: any) {
+      this.service.showToast(err.message, 'error');
+    } finally {
+      this.edIsFetching.set(false);
+      this.edAbortController = null;
+    }
+  }
+
+  public cancelEveryDollarFetch(): void {
+    if (this.edAbortController) {
+      this.edAbortController.abort();
+    }
+  }
+
+  public parsePastedEveryDollarJson(): void {
+    const raw = this.edRawJsonInput().trim();
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      const rawTxs = Array.isArray(data) ? data : (data.transactions || []);
+      const parsed = this.service.parseEveryDollarTransactions(rawTxs);
+      this.edPreviewTransactions.set(parsed);
+      this.edImportResult.set(null);
+      this.service.showToast(`Parsed ${parsed.length} EveryDollar transactions!`, 'success');
+    } catch (e: any) {
+      this.service.showToast('Invalid JSON: ' + e.message, 'error');
+    }
+  }
+
+  public onEveryDollarJsonFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      try {
+        const data = JSON.parse(content);
+        const rawTxs = Array.isArray(data) ? data : (data.transactions || []);
+        const parsed = this.service.parseEveryDollarTransactions(rawTxs);
+        this.edPreviewTransactions.set(parsed);
+        this.edImportResult.set(null);
+        this.service.showToast(`Loaded ${parsed.length} transactions from ${file.name}!`, 'success');
+      } catch (err: any) {
+        this.service.showToast('Could not parse JSON file: ' + err.message, 'error');
+      }
+      input.value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  public commitEveryDollarImport(): void {
+    const preview = this.edPreviewTransactions();
+    if (preview.length === 0) return;
+
+    const result = this.service.importEveryDollarTransactions(preview);
+    this.edImportResult.set(result);
+    this.edPreviewTransactions.set([]);
+    this.service.showToast(
+      `Successfully saved ${result.added} transactions (${result.skipped} duplicates skipped)!`,
+      'success'
+    );
+  }
+
+  public clearEveryDollarPreview(): void {
+    this.edPreviewTransactions.set([]);
+    this.edImportResult.set(null);
+  }
+
+  public isTransactionDuplicate(tx: Transaction): boolean {
+    const sig = this.service.getTransactionSignature(tx);
+    const existingSigs = new Set(this.service.transactions().map((t) => this.service.getTransactionSignature(t)));
+    const existingIds = new Set(this.service.transactions().map((t) => t.id));
+    return existingIds.has(tx.id) || existingSigs.has(sig);
+  }
+
+  public filteredPreviewTransactions = computed(() => {
+    const txs = this.edPreviewTransactions();
+    const filter = this.edPreviewFilter();
+    if (filter === 'all') return txs;
+    if (filter === 'new') return txs.filter((t) => !this.isTransactionDuplicate(t));
+    if (filter === 'duplicate') return txs.filter((t) => this.isTransactionDuplicate(t));
+    return txs;
+  });
+
+  public openEveryDollarUrl(): void {
+    const start = this.edStartDate();
+    const end = this.edEndDate();
+    const url = `https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=${start}&endDate=${end}`;
+    window.open(url, '_blank');
+  }
 }
+

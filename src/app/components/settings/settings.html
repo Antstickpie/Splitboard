@@ -7,8 +7,36 @@
     </div>
   </div>
 
+  <!-- Settings Navigation Tabs -->
+  <div class="settings-tabs-bar glass-card">
+    <button
+      class="settings-tab-btn"
+      [class.active]="activeSettingsTab() === 'general'"
+      (click)="activeSettingsTab.set('general')">
+      ⚙️ General & Cloud
+    </button>
+    <button
+      class="settings-tab-btn"
+      [class.active]="activeSettingsTab() === 'categories'"
+      (click)="activeSettingsTab.set('categories')">
+      📁 Categories & Rules
+    </button>
+    <button
+      class="settings-tab-btn"
+      [class.active]="activeSettingsTab() === 'banks'"
+      (click)="activeSettingsTab.set('banks')">
+      🏦 Bank Profiles & Batches
+    </button>
+    <button
+      class="settings-tab-btn ed-tab-btn"
+      [class.active]="activeSettingsTab() === 'everydollar'"
+      (click)="activeSettingsTab.set('everydollar')">
+      💵 EveryDollar Import
+    </button>
+  </div>
+
   <!-- TOP COMPACT GRID (4 Compact Cards: Members, Currency, Rates, Cloud Backup) -->
-  <div class="settings-top-grid">
+  <div class="settings-top-grid" *ngIf="activeSettingsTab() === 'general'">
     <!-- Card 1: Split Members -->
     <div class="glass-card setting-box">
       <div class="box-header">
@@ -271,7 +299,7 @@
   </div>
 
   <!-- WIDE SECTION 1: Spending Categories Hierarchy (Full Width) -->
-  <div class="settings-section wide-section">
+  <div class="settings-section wide-section" *ngIf="activeSettingsTab() === 'categories'">
     <div class="section-title">
       <span class="section-icon">📁</span>
       <span>Spending Categories Hierarchy</span>
@@ -358,7 +386,7 @@
   </div>
 
   <!-- WIDE SECTION 2: Auto-Categorization Rules Engine (Full Width) -->
-  <div class="settings-section wide-section">
+  <div class="settings-section wide-section" *ngIf="activeSettingsTab() === 'categories'">
     <div class="section-title">
       <span class="section-icon">⚡</span>
       <span>Auto-Categorization Rules</span>
@@ -564,7 +592,7 @@
   </div>
 
   <!-- WIDE SECTION 3: Bank Exclusion Rules (Ignore List) -->
-  <div class="settings-section wide-section">
+  <div class="settings-section wide-section" *ngIf="activeSettingsTab() === 'categories'">
     <div class="section-title">
       <span class="section-icon">🚫</span>
       <span>Bank Exclusion Rules (Ignore from Split Ledger)</span>
@@ -714,7 +742,7 @@
   </div>
 
   <!-- WIDE SECTION 4: Supported Banks & Statement Parsers -->
-  <div class="settings-section wide-section">
+  <div class="settings-section wide-section" *ngIf="activeSettingsTab() === 'banks'">
     <div class="section-title">
       <span class="section-icon">🏛</span>
       <span>Configured Banks & Custom Statement Parsers</span>
@@ -918,7 +946,7 @@
   </div>
 
   <!-- WIDE SECTION 5: Imported Bank Statements & Data Batches -->
-  <div class="settings-section wide-section" *ngIf="service.importedBatches().length > 0">
+  <div class="settings-section wide-section" *ngIf="activeSettingsTab() === 'banks' && service.importedBatches().length > 0">
     <div class="section-title">
       <span class="section-icon">📜</span>
       <span>Imported Bank Statements</span>
@@ -1041,7 +1069,7 @@
   </div>
 
   <!-- BOTTOM DANGER ZONE -->
-  <div class="settings-section">
+  <div class="settings-section" *ngIf="activeSettingsTab() === 'general'">
     <div class="glass-card danger-zone-card">
       <div class="danger-zone-content">
         <div class="danger-zone-info">
@@ -1056,6 +1084,234 @@
         <button class="btn btn-danger btn-sm" (click)="clearAllData()">
           🗑 Clear All Transactions
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: EveryDollar Historical Import -->
+  <div *ngIf="activeSettingsTab() === 'everydollar'" class="everydollar-tab-content">
+    <!-- Intro Card -->
+    <div class="glass-card ed-header-card">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span style="font-size: 1.5rem;">💵</span>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #38bdf8;">EveryDollar Historical Import</h3>
+          </div>
+          <p class="subtitle" style="margin: 0.35rem 0 0 0; max-width: 680px;">
+            Migrate historical transactions from EveryDollar across any multi-year date range into Splitboard.
+            Transactions are fetched month-by-month through your EveryDollar proxy or loaded directly from JSON.
+          </p>
+        </div>
+
+        <!-- Proxy Status Badge -->
+        <div class="ed-proxy-badge-wrap">
+          <div class="ed-proxy-badge" [class.online]="edProxyStatus() === 'running'" [class.offline]="edProxyStatus() === 'offline'">
+            <span class="status-dot"></span>
+            <span>{{ edProxyStatus() === 'running' ? 'Proxy Online (Port 4000)' : edProxyStatus() === 'offline' ? 'Proxy Offline' : 'Proxy Status: Click Check' }}</span>
+          </div>
+          <button class="btn btn-secondary btn-xs" (click)="checkEveryDollarProxy()" style="margin-top: 0.35rem;">
+            ⟳ Check Proxy
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date Range & Controls Card -->
+    <div class="glass-card ed-controls-card">
+      <h4 style="margin: 0 0 0.8rem 0; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
+        📅 Select Date Range (Month-by-Month)
+      </h4>
+
+      <!-- Quick Presets -->
+      <div class="ed-presets-row">
+        <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Presets:</span>
+        <button class="preset-btn" (click)="setEveryDollarPreset('12m')">Last 12 Months</button>
+        <button class="preset-btn" (click)="setEveryDollarPreset('24m')">Last 2 Years</button>
+        <button class="preset-btn" (click)="setEveryDollarPreset('60m')">Last 5 Years</button>
+        <button class="preset-btn" (click)="setEveryDollarPreset('2024')">Year 2024</button>
+        <button class="preset-btn" (click)="setEveryDollarPreset('2025')">Year 2025</button>
+        <button class="preset-btn" (click)="setEveryDollarPreset('2026')">Year 2026</button>
+      </div>
+
+      <!-- Date Inputs & Actions -->
+      <div class="ed-inputs-row">
+        <div class="ed-input-field">
+          <label>Start Date</label>
+          <input type="date" [ngModel]="edStartDate()" (ngModelChange)="edStartDate.set($event)" class="date-picker-input">
+        </div>
+
+        <div class="ed-input-field">
+          <label>End Date</label>
+          <input type="date" [ngModel]="edEndDate()" (ngModelChange)="edEndDate.set($event)" class="date-picker-input">
+        </div>
+
+        <div class="ed-actions-field">
+          <button
+            class="btn btn-primary ed-fetch-btn"
+            (click)="fetchEveryDollarFromProxy()"
+            [disabled]="edIsFetching()">
+            <span *ngIf="!edIsFetching()">🚀 Fetch from EveryDollar</span>
+            <span *ngIf="edIsFetching()">⏳ Fetching Months...</span>
+          </button>
+
+          <button
+            *ngIf="edIsFetching()"
+            class="btn btn-secondary ed-cancel-btn"
+            (click)="cancelEveryDollarFetch()">
+            ✕ Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Proxy Hint / Instruction Banner -->
+      <div class="proxy-hint-banner" *ngIf="edProxyStatus() !== 'running'">
+        <span style="font-size: 1.1rem;">💡</span>
+        <div>
+          <strong>How to run the EveryDollar proxy:</strong>
+          <span style="color: var(--text-muted);"> In your Splitboard terminal, run </span>
+          <code class="terminal-code">npm run start:proxy</code>
+          <span style="color: var(--text-muted);">. It opens Chrome, signs you into EveryDollar once, and Splitboard queries each month automatically.</span>
+        </div>
+      </div>
+
+      <!-- Progress Bar (Active Fetch) -->
+      <div *ngIf="edIsFetching()" class="ed-progress-container">
+        <div class="ed-progress-bar-wrap">
+          <div class="ed-progress-bar-fill" [style.width.%]="edProgressPercent()"></div>
+        </div>
+        <div class="ed-progress-info">
+          <span>{{ edProgressMessage() }}</span>
+          <span class="font-mono">{{ edProgressPercent() }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alternative: Direct JSON Paste or File Drop -->
+    <div class="glass-card ed-json-card">
+      <div class="ed-json-header" (click)="isJsonPasteOpen.set(!isJsonPasteOpen())" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+          <span>📋</span> Alternative: Paste EveryDollar JSON or Drop File
+        </h4>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button class="btn btn-secondary btn-xs" (click)="$event.stopPropagation(); openEveryDollarUrl()" title="Open API query in your browser">
+            🔗 Open EveryDollar API in Browser
+          </button>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">{{ isJsonPasteOpen() ? '▲' : '▼' }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="isJsonPasteOpen()" style="margin-top: 1rem;">
+        <textarea
+          class="ed-json-textarea"
+          rows="5"
+          placeholder='Paste JSON response from EveryDollar /app/api/transactions/search/findByDateRange here...'
+          [ngModel]="edRawJsonInput()"
+          (ngModelChange)="edRawJsonInput.set($event)">
+        </textarea>
+        <div style="display: flex; gap: 0.6rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap;">
+          <button class="btn btn-secondary btn-sm" (click)="parsePastedEveryDollarJson()" [disabled]="!edRawJsonInput().trim()">
+            Parse Pasted JSON
+          </button>
+          <button class="btn btn-secondary btn-sm" (click)="edFileInput.click()">
+            📁 Choose JSON File
+          </button>
+          <input #edFileInput type="file" accept=".json" (change)="onEveryDollarJsonFileSelected($event)" style="display: none;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview / Staging Area -->
+    <div *ngIf="edPreviewTransactions().length > 0" class="glass-card ed-preview-card">
+      <div class="ed-preview-header">
+        <div>
+          <h4 style="margin: 0; font-size: 1rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
+            <span>🔍</span> Staged EveryDollar Transactions ({{ filteredPreviewTransactions().length }})
+          </h4>
+          <p class="subtitle" style="margin: 0.2rem 0 0 0;">
+            Review your transactions before saving. Existing records in Splitboard are automatically detected.
+          </p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+          <!-- Filter pills -->
+          <div class="preview-filter-pill-group">
+            <button class="pill-btn" [class.active]="edPreviewFilter() === 'all'" (click)="edPreviewFilter.set('all')">
+              All ({{ edPreviewTransactions().length }})
+            </button>
+            <button class="pill-btn" [class.active]="edPreviewFilter() === 'new'" (click)="edPreviewFilter.set('new')">
+              New
+            </button>
+            <button class="pill-btn" [class.active]="edPreviewFilter() === 'duplicate'" (click)="edPreviewFilter.set('duplicate')">
+              Duplicates
+            </button>
+          </div>
+
+          <button class="btn btn-secondary btn-sm" (click)="clearEveryDollarPreview()">
+            Clear
+          </button>
+
+          <button class="btn btn-primary btn-sm" (click)="commitEveryDollarImport()">
+            💾 Save to Splitboard ({{ edPreviewTransactions().length }})
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview Table -->
+      <div class="ed-table-wrap">
+        <table class="ed-preview-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description / Merchant</th>
+              <th>Category</th>
+              <th>Group</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of filteredPreviewTransactions().slice(0, 100)" [class.dup-row]="isTransactionDuplicate(tx)">
+              <td class="font-mono">{{ tx.date }}</td>
+              <td>
+                <div style="font-weight: 600; color: var(--text-main);">{{ tx.description }}</div>
+                <div *ngIf="tx.note" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">{{ tx.note }}</div>
+              </td>
+              <td><span class="badge badge-neutral">{{ tx.categoryItem }}</span></td>
+              <td><span class="badge badge-info">{{ tx.categoryGroup }}</span></td>
+              <td class="font-mono" [class.text-success]="tx.type === 'INCOME'" style="font-weight: 700;">
+                {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
+              </td>
+              <td>
+                <span *ngIf="isTransactionDuplicate(tx)" class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+                  Duplicate
+                </span>
+                <span *ngIf="!isTransactionDuplicate(tx)" class="badge badge-success">
+                  New
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div *ngIf="filteredPreviewTransactions().length > 100" style="text-align: center; padding: 0.6rem; font-size: 0.78rem; color: var(--text-muted);">
+          Showing first 100 of {{ filteredPreviewTransactions().length }} staged transactions. Click "Save to Splitboard" to import all of them.
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Result Banner -->
+    <div *ngIf="edImportResult() as res" class="glass-card ed-result-card">
+      <div style="display: flex; align-items: center; gap: 0.8rem;">
+        <span style="font-size: 1.8rem;">🎉</span>
+        <div>
+          <h4 style="margin: 0; color: #22c55e;">Import Completed Successfully!</h4>
+          <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-main);">
+            Added <strong>{{ res.added }}</strong> new transactions to Splitboard.
+            <span *ngIf="res.skipped > 0" style="color: var(--text-muted);">
+              ({{ res.skipped }} existing duplicates skipped)
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   </div>

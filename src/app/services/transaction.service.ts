@@ -1268,6 +1268,109 @@ export class TransactionService {
     this.recordDeletedSignature(sig);
   }
 
+  // EveryDollar Data Parsing & Import
+  public parseEveryDollarTransactions(rawItems: any[]): Transaction[] {
+    if (!Array.isArray(rawItems)) return [];
+
+    // Build category map: itemName (lowercase) -> groupName
+    const catMap = new Map<string, string>();
+    for (const group of this.categoryGroups()) {
+      for (const item of group.items) {
+        catMap.set(item.name.toLowerCase().trim(), group.name);
+      }
+    }
+
+    const defaultPayer = this.personOne().name;
+    const result: Transaction[] = [];
+
+    for (const raw of rawItems) {
+      if (!raw || raw.deletedAt) continue;
+
+      const id = raw.id
+        ? (String(raw.id).startsWith('ed_') ? String(raw.id) : `ed_${raw.id}`)
+        : `ed-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      const date = raw.date ? String(raw.date).slice(0, 10) : '';
+      if (!date) continue;
+
+      // EveryDollar amounts are in cents
+      const rawAmt = typeof raw.amount === 'number' ? raw.amount : parseFloat(raw.amount) || 0;
+      const amount = Math.round(Math.abs(rawAmt)) / 100;
+
+      const firstAlloc = Array.isArray(raw.allocations) && raw.allocations.length > 0 ? raw.allocations[0] : null;
+      const categoryItem = (firstAlloc?.label || raw.category || 'Uncategorized').trim();
+
+      // Determine category group
+      let categoryGroup = catMap.get(categoryItem.toLowerCase()) || '';
+      const isIncomeLike =
+        categoryItem.toLowerCase().includes('income') ||
+        categoryItem.toLowerCase().includes('salary') ||
+        raw.type === 'INCOME';
+
+      if (!categoryGroup) {
+        if (isIncomeLike) {
+          const incGrp = this.categoryGroups().find((g) => g.name.toLowerCase().includes('income'));
+          categoryGroup = incGrp ? incGrp.name : 'Income';
+        } else {
+          categoryGroup = 'Imported EveryDollar';
+        }
+      }
+
+      const description = (raw.merchant || raw.description || categoryItem || 'EveryDollar Transaction').trim();
+      const noteParts: string[] = [];
+      if (raw.note) noteParts.push(String(raw.note));
+      if (raw.checkNumber) noteParts.push(`Check: ${raw.checkNumber}`);
+      const note = noteParts.join(' | ');
+
+      result.push({
+        id,
+        date,
+        amount,
+        type: isIncomeLike ? 'INCOME' : 'EXPENSE',
+        description,
+        merchant: (raw.merchant || '').trim(),
+        bank: 'EveryDollar',
+        paidBy: defaultPayer,
+        categoryGroup,
+        categoryItem,
+        splitType: 'SELF',
+        note,
+        sourceFile: `EveryDollar (${date.slice(0, 7)})`
+      });
+    }
+
+    return result;
+  }
+
+  public importEveryDollarTransactions(newTxs: Transaction[]): { added: number; skipped: number } {
+    if (!newTxs || newTxs.length === 0) return { added: 0, skipped: 0 };
+
+    const existingIds = new Set(this.transactions().map((t) => t.id));
+    const existingSigs = new Set(this.transactions().map((t) => this.getTransactionSignature(t)));
+
+    const toAdd: Transaction[] = [];
+    let skipped = 0;
+
+    for (const tx of newTxs) {
+      const sig = this.getTransactionSignature(tx);
+      if (existingIds.has(tx.id) || existingSigs.has(sig)) {
+        skipped++;
+      } else {
+        toAdd.push(tx);
+        existingIds.add(tx.id);
+        existingSigs.add(sig);
+      }
+    }
+
+    if (toAdd.length > 0) {
+      this.transactions.update((curr) => [...toAdd, ...curr]);
+      this.triggerAutoSyncIfEnabled();
+    }
+
+    return { added: toAdd.length, skipped };
+  }
+
+
   public recordDeletedTransactions(txs: Transaction[]): void {
     if (!txs || txs.length === 0) return;
     const sigs = txs.map((t) => this.getTransactionSignature(t)).filter(Boolean);
