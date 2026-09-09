@@ -951,13 +951,24 @@ export class SettingsComponent {
   public newRuleCustomCurrency = signal<string>('');
 
   public async addEdCurrencyRule(): Promise<void> {
-    const from = this.newRuleFromMonth().trim();
-    const to = this.newRuleToMonth().trim();
+    let from = this.newRuleFromMonth().trim();
+    let to = this.newRuleToMonth().trim();
+
+    // Auto-normalize if user typed 201708 or 2017-8
+    if (/^\d{4}\d{2}$/.test(from)) from = `${from.slice(0, 4)}-${from.slice(4, 6)}`;
+    if (/^\d{4}\d{2}$/.test(to)) to = `${to.slice(0, 4)}-${to.slice(4, 6)}`;
+    if (/^\d{4}-\d{1}$/.test(from)) from = `${from.slice(0, 5)}0${from.slice(5)}`;
+    if (/^\d{4}-\d{1}$/.test(to)) to = `${to.slice(0, 5)}0${to.slice(5)}`;
+
     let curr = (this.newRuleCurrency() === 'CUSTOM' ? this.newRuleCustomCurrency() : this.newRuleCurrency()).trim().toUpperCase();
     if (!curr) curr = 'EUR';
 
     if (!from || !to) {
-      this.service.showToast('Please specify both From Month and To Month (YYYY-MM).', 'info');
+      this.service.showToast('Please specify both From Month and To Month (format: YYYY-MM).', 'info');
+      return;
+    }
+    if (!/^\d{4}-\d{2}$/.test(from) || !/^\d{4}-\d{2}$/.test(to)) {
+      this.service.showToast('Please use YYYY-MM format (e.g. 2017-08).', 'error');
       return;
     }
     if (from > to) {
