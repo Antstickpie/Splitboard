@@ -222,23 +222,117 @@
                 *ngIf="expandedItemKey() === (grp.id + '::' + item.name)"
                 class="animate-fade-in"
                 style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; margin: 0.2rem 0 0.5rem 0; padding: 0.5rem; overflow-x: auto;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: flex; justify-content: space-between;">
-                  <span>Transactions for {{ item.name }} ({{ getItemTransactions(grp.id, item.name).length }})</span>
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>Transactions for {{ item.name }} ({{ getExpandedFilteredTransactions(grp.id, item.name).length }} of {{ getItemTransactions(grp.id, item.name).length }})</span>
+                    <button
+                      *ngIf="expandedTableSearch() || expandedTableOwnerFilter() !== 'ALL' || expandedTableSplitFilter() !== 'ALL'"
+                      class="btn btn-secondary btn-xs"
+                      (click)="clearExpandedTableFilters()"
+                      style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">
+                      ✕ Reset Filters
+                    </button>
+                  </div>
                   <span class="font-mono" style="color: var(--primary);">{{ service.formatCurrency(item.actual) }}</span>
                 </div>
+
+                <!-- Filter & Search Toolbar for Expanded View -->
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; font-size: 0.74rem;">
+                  <!-- Search Input -->
+                  <div style="position: relative; display: flex; align-items: center; flex: 1; min-width: 160px; max-width: 260px;">
+                    <span style="position: absolute; left: 8px; font-size: 0.75rem; color: var(--text-muted); pointer-events: none;">🔍</span>
+                    <input
+                      type="text"
+                      [ngModel]="expandedTableSearch()"
+                      (ngModelChange)="expandedTableSearch.set($event)"
+                      placeholder="Search transactions..."
+                      style="width: 100%; padding: 0.25rem 1.6rem 0.25rem 1.7rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; color: var(--text-main); font-size: 0.74rem; outline: none;" />
+                    <button
+                      *ngIf="expandedTableSearch()"
+                      type="button"
+                      (click)="expandedTableSearch.set('')"
+                      style="position: absolute; right: 6px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.7rem; padding: 0;">✕</button>
+                  </div>
+
+                  <!-- Owner Filter Pills -->
+                  <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <span style="color: var(--text-muted); font-size: 0.7rem;">Owner:</span>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="expandedTableOwnerFilter() === 'ALL'"
+                      [class.btn-secondary]="expandedTableOwnerFilter() !== 'ALL'"
+                      (click)="expandedTableOwnerFilter.set('ALL')"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">All</button>
+                    <button
+                      *ngFor="let p of service.persons()"
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="expandedTableOwnerFilter() === p.name"
+                      [class.btn-secondary]="expandedTableOwnerFilter() !== p.name"
+                      (click)="expandedTableOwnerFilter.set(p.name)"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">{{ p.name }}</button>
+                  </div>
+
+                  <!-- Split Filter Pills -->
+                  <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <span style="color: var(--text-muted); font-size: 0.7rem;">Split:</span>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="expandedTableSplitFilter() === 'ALL'"
+                      [class.btn-secondary]="expandedTableSplitFilter() !== 'ALL'"
+                      (click)="expandedTableSplitFilter.set('ALL')"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">All</button>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="expandedTableSplitFilter() === 'SPLIT'"
+                      [class.btn-secondary]="expandedTableSplitFilter() !== 'SPLIT'"
+                      (click)="expandedTableSplitFilter.set('SPLIT')"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">50/50</button>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="expandedTableSplitFilter() === 'SELF'"
+                      [class.btn-secondary]="expandedTableSplitFilter() !== 'SELF'"
+                      (click)="expandedTableSplitFilter.set('SELF')"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">SELF</button>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="expandedTableSplitFilter() === 'OTHER'"
+                      [class.btn-secondary]="expandedTableSplitFilter() !== 'OTHER'"
+                      (click)="expandedTableSplitFilter.set('OTHER')"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">OTHER</button>
+                  </div>
+                </div>
+
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.74rem;">
                   <thead>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-muted); text-align: left;">
-                      <th style="padding: 0.25rem 0.4rem;">Date</th>
-                      <th style="padding: 0.25rem 0.4rem;">Description</th>
-                      <th style="padding: 0.25rem 0.4rem;">Category</th>
-                      <th style="padding: 0.25rem 0.4rem; white-space: nowrap;">Paid By / Owner</th>
-                      <th style="padding: 0.25rem 0.4rem;">Split</th>
-                      <th style="padding: 0.25rem 0.4rem; text-align: right;">Amount</th>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-muted); text-align: left; user-select: none;">
+                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('date')" title="Click to sort by date">
+                        Date <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'date' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                      </th>
+                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('description')" title="Click to sort by description">
+                        Description <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'description' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                      </th>
+                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('category')" title="Click to sort by category">
+                        Category <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'category' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                      </th>
+                      <th style="padding: 0.3rem 0.4rem; white-space: nowrap; cursor: pointer;" (click)="toggleExpandedSort('paidBy')" title="Click to sort by owner">
+                        Paid By / Owner <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'paidBy' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                      </th>
+                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('splitType')" title="Click to sort by split">
+                        Split <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'splitType' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                      </th>
+                      <th style="padding: 0.3rem 0.4rem; text-align: right; cursor: pointer;" (click)="toggleExpandedSort('amount')" title="Click to sort by amount">
+                        Amount <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'amount' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let tx of getItemTransactions(grp.id, item.name)" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <tr *ngFor="let tx of getExpandedFilteredTransactions(grp.id, item.name)" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                       <td style="padding: 0.3rem 0.4rem; white-space: nowrap; color: var(--text-muted);">
                         <div>{{ service.formatDate(tx.date) }}</div>
                         <div *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)">

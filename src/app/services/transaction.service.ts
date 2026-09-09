@@ -1514,19 +1514,16 @@ export class TransactionService {
     if (!newTxs || newTxs.length === 0) return { added: 0, skipped: 0, addedIds: [] };
 
     const existingIds = new Set(this.transactions().map((t) => t.id));
-    const existingSigs = new Set(this.transactions().map((t) => this.getTransactionSignature(t)));
 
     const toAdd: Transaction[] = [];
     let skipped = 0;
 
     for (const tx of newTxs) {
-      const sig = this.getTransactionSignature(tx);
-      if (existingIds.has(tx.id) || existingSigs.has(sig)) {
+      if (existingIds.has(tx.id)) {
         skipped++;
       } else {
         toAdd.push(tx);
         existingIds.add(tx.id);
-        existingSigs.add(sig);
       }
     }
 

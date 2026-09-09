@@ -77,6 +77,75 @@ export class BudgetDashboardComponent {
     }
   }
 
+  // Expanded Item Transactions Sorting & Filtering
+  public expandedTableSearch = signal<string>('');
+  public expandedTableOwnerFilter = signal<string>('ALL');
+  public expandedTableSplitFilter = signal<string>('ALL');
+  public expandedTableSortField = signal<'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount'>('date');
+  public expandedTableSortAsc = signal<boolean>(false);
+
+  public toggleExpandedSort(field: 'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount'): void {
+    if (this.expandedTableSortField() === field) {
+      this.expandedTableSortAsc.update((asc) => !asc);
+    } else {
+      this.expandedTableSortField.set(field);
+      this.expandedTableSortAsc.set(field === 'description' || field === 'category' || field === 'paidBy');
+    }
+  }
+
+  public clearExpandedTableFilters(): void {
+    this.expandedTableSearch.set('');
+    this.expandedTableOwnerFilter.set('ALL');
+    this.expandedTableSplitFilter.set('ALL');
+  }
+
+  public getExpandedFilteredTransactions(groupId: string, itemName: string): Transaction[] {
+    let txs = this.getItemTransactions(groupId, itemName);
+
+    const q = this.expandedTableSearch().toLowerCase().trim();
+    if (q) {
+      txs = txs.filter((t) =>
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.bank || '').toLowerCase().includes(q) ||
+        (t.note || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q) ||
+        String(t.amount).includes(q)
+      );
+    }
+
+    const owner = this.expandedTableOwnerFilter();
+    if (owner !== 'ALL') {
+      txs = txs.filter((t) => t.paidBy === owner);
+    }
+
+    const split = this.expandedTableSplitFilter();
+    if (split !== 'ALL') {
+      txs = txs.filter((t) => t.splitType === split);
+    }
+
+    const field = this.expandedTableSortField();
+    const asc = this.expandedTableSortAsc();
+
+    return [...txs].sort((a, b) => {
+      let cmp = 0;
+      if (field === 'date') {
+        cmp = (a.date || '').localeCompare(b.date || '');
+      } else if (field === 'description') {
+        cmp = (a.description || '').localeCompare(b.description || '');
+      } else if (field === 'category') {
+        cmp = (a.categoryItem || '').localeCompare(b.categoryItem || '');
+      } else if (field === 'paidBy') {
+        cmp = (a.paidBy || '').localeCompare(b.paidBy || '');
+      } else if (field === 'splitType') {
+        cmp = (a.splitType || '').localeCompare(b.splitType || '');
+      } else if (field === 'amount') {
+        cmp = (a.amount || 0) - (b.amount || 0);
+      }
+      return asc ? cmp : -cmp;
+    });
+  }
+
   public getItemTransactions(groupId: string, itemName: string): Transaction[] {
     const month = this.selectedMonth();
     const monthTxs = this.service.transactions().filter(

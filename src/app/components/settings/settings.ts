@@ -1857,9 +1857,17 @@ export class SettingsComponent {
   public autoDetectOwnerForCategory(rawCategory: string): string {
     const p1 = this.service.personOne().name;
     const p2 = this.service.personTwo().name;
-    const catLower = (rawCategory || '').toLowerCase();
-    if (p2 && catLower.includes(p2.toLowerCase())) return p2;
-    if (p1 && catLower.includes(p1.toLowerCase())) return p1;
+    const text = rawCategory || '';
+
+    const matchesName = (name: string, str: string): boolean => {
+      if (!name || !str) return false;
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}([^a-zA-Z0-9]|$)`, 'i');
+      return regex.test(str);
+    };
+
+    if (p1 && matchesName(p1, text)) return p1;
+    if (p2 && matchesName(p2, text)) return p2;
     return p1;
   }
 
@@ -2261,8 +2269,35 @@ export class SettingsComponent {
   });
 
   public isTransactionDuplicate(tx: Transaction): boolean {
+    if (tx.id && tx.id.startsWith('ed_')) {
+      return this.existingTxIds().has(tx.id);
+    }
     const sig = this.service.getTransactionSignature(tx);
     return this.existingTxIds().has(tx.id) || this.existingTxSignatures().has(sig);
+  }
+
+  // EveryDollar Staged Preview Table Sorting & Filtering
+  public edTableSearch = signal<string>('');
+  public edTableOwnerFilter = signal<string>('ALL');
+  public edTableSplitFilter = signal<string>('ALL');
+  public edTableSortField = signal<'date' | 'description' | 'rawCategory' | 'category' | 'paidBy' | 'amount' | 'status' | null>(null);
+  public edTableSortAsc = signal<boolean>(false);
+
+  public toggleEdTableSort(field: 'date' | 'description' | 'rawCategory' | 'category' | 'paidBy' | 'amount' | 'status'): void {
+    if (this.edTableSortField() === field) {
+      this.edTableSortAsc.update((asc) => !asc);
+    } else {
+      this.edTableSortField.set(field);
+      this.edTableSortAsc.set(field === 'description' || field === 'rawCategory' || field === 'category' || field === 'paidBy');
+    }
+  }
+
+  public clearEdTableFilters(): void {
+    this.edTableSearch.set('');
+    this.edTableOwnerFilter.set('ALL');
+    this.edTableSplitFilter.set('ALL');
+    this.edPreviewFilter.set('all');
+    this.edTableSortField.set(null);
   }
 
   public filteredPreviewTransactions = computed(() => {
@@ -2285,6 +2320,60 @@ export class SettingsComponent {
       txs = txs.filter((t) => !this.isTransactionDuplicate(t));
     } else if (filter === 'duplicate') {
       txs = txs.filter((t) => this.isTransactionDuplicate(t));
+    }
+
+    // Apply text search
+    const search = this.edTableSearch().trim().toLowerCase();
+    if (search) {
+      txs = txs.filter((t) =>
+        (t.description || '').toLowerCase().includes(search) ||
+        (t.merchant || '').toLowerCase().includes(search) ||
+        (t.rawCategory || '').toLowerCase().includes(search) ||
+        (t.categoryItem || '').toLowerCase().includes(search) ||
+        (t.categoryGroup || '').toLowerCase().includes(search) ||
+        (t.paidBy || '').toLowerCase().includes(search) ||
+        (t.note || '').toLowerCase().includes(search) ||
+        String(t.amount).includes(search)
+      );
+    }
+
+    // Apply owner filter
+    const owner = this.edTableOwnerFilter();
+    if (owner !== 'ALL') {
+      txs = txs.filter((t) => t.paidBy === owner);
+    }
+
+    // Apply split filter
+    const split = this.edTableSplitFilter();
+    if (split !== 'ALL') {
+      txs = txs.filter((t) => t.splitType === split);
+    }
+
+    // Apply explicit column sort if active
+    const sortField = this.edTableSortField();
+    const sortAsc = this.edTableSortAsc();
+    if (sortField) {
+      return [...txs].sort((a, b) => {
+        let cmp = 0;
+        if (sortField === 'date') {
+          cmp = (a.date || '').localeCompare(b.date || '');
+        } else if (sortField === 'description') {
+          cmp = (a.description || '').localeCompare(b.description || '');
+        } else if (sortField === 'rawCategory') {
+          cmp = (a.rawCategory || '').localeCompare(b.rawCategory || '');
+        } else if (sortField === 'category') {
+          cmp = (a.categoryItem || '').localeCompare(b.categoryItem || '');
+        } else if (sortField === 'paidBy') {
+          cmp = (a.paidBy || '').localeCompare(b.paidBy || '');
+        } else if (sortField === 'amount') {
+          cmp = (a.amount || 0) - (b.amount || 0);
+        } else if (sortField === 'status') {
+          const aDup = this.isTransactionDuplicate(a) ? 1 : 0;
+          const bDup = this.isTransactionDuplicate(b) ? 1 : 0;
+          cmp = aDup - bDup;
+        }
+        return sortAsc ? cmp : -cmp;
+      });
     }
 
     // If matcher keyword is active and not isolated to a single category/desc filter,

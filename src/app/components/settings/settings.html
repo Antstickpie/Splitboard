@@ -2152,16 +2152,134 @@
 
       <!-- Preview Table (Only rendered when edShowPreviewTable() is true) -->
       <div *ngIf="edShowPreviewTable()" class="ed-table-wrap animate-fade-in" style="margin-top: 0.5rem;">
+        <!-- Table Search, Filter, and Sort Controls -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.6rem; flex-wrap: wrap; background: rgba(255,255,255,0.02); padding: 0.45rem 0.65rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); font-size: 0.74rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
+            <!-- Quick Search Input -->
+            <div style="position: relative; display: flex; align-items: center; min-width: 170px; max-width: 260px; flex: 1;">
+              <span style="position: absolute; left: 8px; font-size: 0.75rem; color: var(--text-muted); pointer-events: none;">🔍</span>
+              <input
+                type="text"
+                [ngModel]="edTableSearch()"
+                (ngModelChange)="edTableSearch.set($event)"
+                placeholder="Search table..."
+                style="width: 100%; padding: 0.25rem 1.6rem 0.25rem 1.7rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; color: var(--text-main); font-size: 0.74rem; outline: none;" />
+              <button
+                *ngIf="edTableSearch()"
+                type="button"
+                (click)="edTableSearch.set('')"
+                style="position: absolute; right: 6px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.7rem; padding: 0;">✕</button>
+            </div>
+
+            <!-- Owner Filter Pills -->
+            <div style="display: flex; align-items: center; gap: 0.25rem;">
+              <span style="color: var(--text-muted); font-size: 0.7rem;">Owner:</span>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edTableOwnerFilter() === 'ALL'"
+                [class.btn-secondary]="edTableOwnerFilter() !== 'ALL'"
+                (click)="edTableOwnerFilter.set('ALL')"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">All</button>
+              <button
+                *ngFor="let p of service.persons()"
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edTableOwnerFilter() === p.name"
+                [class.btn-secondary]="edTableOwnerFilter() !== p.name"
+                (click)="edTableOwnerFilter.set(p.name)"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">{{ p.name }}</button>
+            </div>
+
+            <!-- Split Filter Pills -->
+            <div style="display: flex; align-items: center; gap: 0.25rem;">
+              <span style="color: var(--text-muted); font-size: 0.7rem;">Split:</span>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edTableSplitFilter() === 'ALL'"
+                [class.btn-secondary]="edTableSplitFilter() !== 'ALL'"
+                (click)="edTableSplitFilter.set('ALL')"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">All</button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edTableSplitFilter() === 'SPLIT'"
+                [class.btn-secondary]="edTableSplitFilter() !== 'SPLIT'"
+                (click)="edTableSplitFilter.set('SPLIT')"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">50/50</button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edTableSplitFilter() === 'SELF'"
+                [class.btn-secondary]="edTableSplitFilter() !== 'SELF'"
+                (click)="edTableSplitFilter.set('SELF')"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">SELF</button>
+            </div>
+
+            <!-- Status Filter Pills -->
+            <div style="display: flex; align-items: center; gap: 0.25rem;">
+              <span style="color: var(--text-muted); font-size: 0.7rem;">Status:</span>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edPreviewFilter() === 'all'"
+                [class.btn-secondary]="edPreviewFilter() !== 'all'"
+                (click)="edPreviewFilter.set('all')"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">All</button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edPreviewFilter() === 'new'"
+                [class.btn-secondary]="edPreviewFilter() !== 'new'"
+                (click)="edPreviewFilter.set('new')"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">New</button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                [class.btn-primary]="edPreviewFilter() === 'duplicate'"
+                [class.btn-secondary]="edPreviewFilter() !== 'duplicate'"
+                (click)="edPreviewFilter.set('duplicate')"
+                style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">Duplicates</button>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span style="color: var(--text-muted); font-size: 0.72rem;">{{ filteredPreviewTransactions().length }} shown</span>
+            <button
+              *ngIf="edTableSearch() || edTableOwnerFilter() !== 'ALL' || edTableSplitFilter() !== 'ALL' || edPreviewFilter() !== 'all' || edTableSortField()"
+              class="btn btn-secondary btn-xs"
+              (click)="clearEdTableFilters()"
+              style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">
+              ✕ Reset
+            </button>
+          </div>
+        </div>
+
         <table class="ed-preview-table">
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description / Merchant</th>
-              <th>EveryDollar Category</th>
-              <th>Mapped Category</th>
-              <th>Owner / Split</th>
-              <th>Amount</th>
-              <th>Status</th>
+            <tr style="user-select: none;">
+              <th style="cursor: pointer;" (click)="toggleEdTableSort('date')" title="Click to sort by date">
+                Date <span style="font-size: 0.65rem;">{{ edTableSortField() === 'date' ? (edTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th style="cursor: pointer;" (click)="toggleEdTableSort('description')" title="Click to sort by description">
+                Description / Merchant <span style="font-size: 0.65rem;">{{ edTableSortField() === 'description' ? (edTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th style="cursor: pointer;" (click)="toggleEdTableSort('rawCategory')" title="Click to sort by EveryDollar category">
+                EveryDollar Category <span style="font-size: 0.65rem;">{{ edTableSortField() === 'rawCategory' ? (edTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th style="cursor: pointer;" (click)="toggleEdTableSort('category')" title="Click to sort by mapped category">
+                Mapped Category <span style="font-size: 0.65rem;">{{ edTableSortField() === 'category' ? (edTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th style="cursor: pointer;" (click)="toggleEdTableSort('paidBy')" title="Click to sort by owner">
+                Owner / Split <span style="font-size: 0.65rem;">{{ edTableSortField() === 'paidBy' ? (edTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th style="cursor: pointer;" (click)="toggleEdTableSort('amount')" title="Click to sort by amount">
+                Amount <span style="font-size: 0.65rem;">{{ edTableSortField() === 'amount' ? (edTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th style="cursor: pointer;" (click)="toggleEdTableSort('status')" title="Click to sort by status">
+                Status <span style="font-size: 0.65rem;">{{ edTableSortField() === 'status' ? (edTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
