@@ -121,6 +121,8 @@ export interface AppDataBackup {
   settings: {
     currency: string;
     dateFormat: string;
+    fullDateFormat?: string;
+    numericDateFormat?: string;
     numberFormat?: string; // '1,234.56' | '1.234,56' | '1 234.56' | '1 234,56'
     visibleCurrencies?: string[];
     exchangeRates?: Record<string, number>;

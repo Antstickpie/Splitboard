@@ -660,6 +660,40 @@ export class SettingsComponent {
     }
   }
 
+  public onEdStartDateTextChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input) return;
+    const parsed = this.service.parseNumericDate(input.value);
+    if (parsed) {
+      this.onEdStartDateChange(parsed);
+    } else {
+      input.value = this.service.formatNumericDate(this.edStartDate());
+    }
+  }
+
+  public onEdEndDateTextChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input) return;
+    const parsed = this.service.parseNumericDate(input.value);
+    if (parsed) {
+      this.edEndDate.set(parsed);
+    } else {
+      input.value = this.service.formatNumericDate(this.edEndDate());
+    }
+  }
+
+  public openNativeDatePicker(el: HTMLInputElement): void {
+    try {
+      if (el && typeof el.showPicker === 'function') {
+        el.showPicker();
+      } else {
+        el?.focus();
+      }
+    } catch {
+      el?.focus();
+    }
+  }
+
   public generateMonthRanges(startStr: string, endStr: string): { start: string; end: string; month: string }[] {
     const ranges: { start: string; end: string; month: string }[] = [];
     if (!startStr || !endStr) return ranges;

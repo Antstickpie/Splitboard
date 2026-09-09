@@ -836,6 +836,54 @@
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
 }
 
+.custom-date-picker-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 175px;
+}
+
+.custom-date-text-input {
+  width: 100%;
+  padding-right: 2.2rem !important;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  font-size: 0.88rem;
+}
+
+.date-picker-calendar-btn {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.date-picker-calendar-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.hidden-native-date-picker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
 .ed-actions-field {
   display: flex;
   align-items: center;

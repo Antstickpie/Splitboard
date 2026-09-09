@@ -125,7 +125,9 @@ export class TransactionService {
 
   // Settings Signals
   public theme = signal<'dark' | 'light'>('dark');
-  public dateFormat = signal<string>('yyyy-MM-dd');
+  public dateFormat = signal<string>('dd/MM/yyyy');
+  public fullDateFormat = signal<string>('MMMM d, yyyy');
+  public numericDateFormat = signal<string>('dd/MM/yyyy');
   public currency = signal<string>('EUR');
   public numberFormat = signal<string>('1,234.56');
   public autoSyncGoogleDrive = signal<boolean>(false);
@@ -787,6 +789,8 @@ export class TransactionService {
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
+          fullDateFormat: this.fullDateFormat(),
+          numericDateFormat: this.numericDateFormat(),
           numberFormat: this.numberFormat(),
           visibleCurrencies: this.visibleCurrencies(),
           exchangeRates: this.exchangeRates(),
@@ -909,9 +913,16 @@ export class TransactionService {
         this.deletedSignatures.set([]);
       }
       if (data.settings) {
-        if (data.settings.currency) this.currency.set(data.settings.currency);
-        if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
-        if (data.settings.numberFormat) this.numberFormat.set(data.settings.numberFormat);
+        if (data.settings.dateFormat) {
+          this.dateFormat.set(data.settings.dateFormat);
+          if (data.settings.dateFormat.includes('MMMM') || data.settings.dateFormat.includes('MMM')) {
+            this.fullDateFormat.set(data.settings.dateFormat);
+          } else {
+            this.numericDateFormat.set(data.settings.dateFormat);
+          }
+        }
+        if (data.settings.fullDateFormat) this.fullDateFormat.set(data.settings.fullDateFormat);
+        if (data.settings.numericDateFormat) this.numericDateFormat.set(data.settings.numericDateFormat);
         if (data.settings.visibleCurrencies && data.settings.visibleCurrencies.length > 0) {
           this.visibleCurrencies.set(data.settings.visibleCurrencies);
         }
@@ -1815,6 +1826,8 @@ export class TransactionService {
       settings: {
         currency: this.currency(),
         dateFormat: this.dateFormat(),
+        fullDateFormat: this.fullDateFormat(),
+        numericDateFormat: this.numericDateFormat(),
         visibleCurrencies: this.visibleCurrencies(),
         exchangeRates: this.exchangeRates(),
         lastRatesRefresh: this.lastRatesRefresh(),
@@ -1849,6 +1862,8 @@ export class TransactionService {
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.fullDateFormat) this.fullDateFormat.set(data.settings.fullDateFormat);
+        if (data.settings.numericDateFormat) this.numericDateFormat.set(data.settings.numericDateFormat);
         if (data.settings.visibleCurrencies) this.visibleCurrencies.set(data.settings.visibleCurrencies);
         if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
         if (data.settings.lastRatesRefresh !== undefined) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
@@ -2013,6 +2028,8 @@ export class TransactionService {
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
+          fullDateFormat: this.fullDateFormat(),
+          numericDateFormat: this.numericDateFormat(),
           visibleCurrencies: this.visibleCurrencies(),
           exchangeRates: this.exchangeRates(),
           lastRatesRefresh: this.lastRatesRefresh(),
@@ -2113,6 +2130,8 @@ export class TransactionService {
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.fullDateFormat) this.fullDateFormat.set(data.settings.fullDateFormat);
+        if (data.settings.numericDateFormat) this.numericDateFormat.set(data.settings.numericDateFormat);
         if (data.settings.visibleCurrencies) this.visibleCurrencies.set(data.settings.visibleCurrencies);
         if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
         if (data.settings.lastRatesRefresh !== undefined) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
@@ -2201,6 +2220,15 @@ export class TransactionService {
 
   public formatDate(dateStr: string): string {
     if (!dateStr) return '';
+    const fmt = this.dateFormat();
+    if (fmt === 'MMMM d, yyyy' || fmt === 'd MMMM yyyy' || fmt === 'MMM d, yyyy' || fmt === 'd MMM yyyy') {
+      return this.formatFullDate(dateStr);
+    }
+    return this.formatNumericDate(dateStr);
+  }
+
+  public formatFullDate(dateStr: string): string {
+    if (!dateStr) return '';
     const clean = dateStr.slice(0, 10);
     const parts = clean.split('-');
     if (parts.length !== 3) return dateStr;
@@ -2222,23 +2250,14 @@ export class TransactionService {
     const monthName = monthNames[monthNum - 1] || m;
     const shortMonth = shortMonthNames[monthNum - 1] || m;
 
-    const fmt = this.dateFormat();
-    // Numeric formats
-    if (fmt === 'dd/MM/yyyy') return `${d}/${m}/${y}`;
-    if (fmt === 'MM/dd/yyyy') return `${m}/${d}/${y}`;
-    if (fmt === 'yyyy-MM-dd') return `${y}-${m}-${d}`;
-    if (fmt === 'dd.MM.yyyy') return `${d}.${m}.${y}`;
-
-    // Full / Word formats
-    if (fmt === 'MMMM d, yyyy') return `${monthName} ${dayNum}, ${y}`;
+    const fmt = this.fullDateFormat();
     if (fmt === 'd MMMM yyyy') return `${dayNum} ${monthName} ${y}`;
     if (fmt === 'MMM d, yyyy') return `${shortMonth} ${dayNum}, ${y}`;
     if (fmt === 'd MMM yyyy') return `${dayNum} ${shortMonth} ${y}`;
-
     return `${monthName} ${dayNum}, ${y}`;
   }
 
-  public formatFullDate(dateStr: string): string {
+  public formatNumericDate(dateStr: string): string {
     if (!dateStr) return '';
     const clean = dateStr.slice(0, 10);
     const parts = clean.split('-');
@@ -2247,15 +2266,46 @@ export class TransactionService {
     const y = parts[0];
     const m = parts[1];
     const d = parts[2];
-    const dayNum = parseInt(d, 10);
-    const monthNum = parseInt(m, 10);
 
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const monthName = monthNames[monthNum - 1] || m;
-    return `${monthName} ${dayNum}, ${y}`;
+    const fmt = this.numericDateFormat();
+    if (fmt === 'MM/dd/yyyy') return `${m}/${d}/${y}`;
+    if (fmt === 'yyyy-MM-dd') return `${y}-${m}-${d}`;
+    if (fmt === 'dd.MM.yyyy') return `${d}.${m}.${y}`;
+    // Default: dd/MM/yyyy (Day/Month/Year)
+    return `${d}/${m}/${y}`;
+  }
+
+  public parseNumericDate(input: string): string | null {
+    if (!input) return null;
+    const clean = input.trim();
+    const parts = clean.split(/[\/\-\.\s]+/);
+    if (parts.length !== 3) return null;
+
+    let y = 0;
+    let m = 0;
+    let d = 0;
+
+    const fmt = this.numericDateFormat();
+    if (fmt === 'yyyy-MM-dd') {
+      y = parseInt(parts[0], 10);
+      m = parseInt(parts[1], 10);
+      d = parseInt(parts[2], 10);
+    } else if (fmt === 'MM/dd/yyyy') {
+      m = parseInt(parts[0], 10);
+      d = parseInt(parts[1], 10);
+      y = parseInt(parts[2], 10);
+    } else {
+      // Default: dd/MM/yyyy or dd.MM.yyyy (Day Month Year)
+      d = parseInt(parts[0], 10);
+      m = parseInt(parts[1], 10);
+      y = parseInt(parts[2], 10);
+    }
+
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    if (y < 100) y += 2000;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
 
   public formatMonth(monthStr: string): string {
