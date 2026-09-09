@@ -11,6 +11,7 @@ export interface EveryDollarCategoryMapping {
   totalAmount: number;
   selectedItem: string;
   selectedGroup: string;
+  selectedPerson: string;
 }
 
 @Component({
@@ -882,10 +883,12 @@ export class SettingsComponent {
       return;
     }
 
-    const currentMappings = new Map<string, { item: string; group: string }>();
+    const currentMappings = new Map<string, { item: string; group: string; person: string }>();
     for (const m of this.edCategoryMappings()) {
-      currentMappings.set(m.rawCategory, { item: m.selectedItem, group: m.selectedGroup });
+      currentMappings.set(m.rawCategory, { item: m.selectedItem, group: m.selectedGroup, person: m.selectedPerson });
     }
+
+    const defaultPerson = this.service.personOne().name;
 
     const groupMap = new Map<string, { count: number; totalAmount: number }>();
     for (const tx of txs) {
@@ -899,9 +902,10 @@ export class SettingsComponent {
     const result: EveryDollarCategoryMapping[] = [];
     groupMap.forEach((val, rawCategory) => {
       const existingMap = currentMappings.get(rawCategory);
-      // Default to Uncategorized as requested
+      // Default to Uncategorized for category, default personOne for person
       const selectedItem = existingMap?.item || 'Uncategorized';
       const selectedGroup = existingMap?.group || 'Uncategorized';
+      const selectedPerson = existingMap?.person || defaultPerson;
 
       result.push({
         rawCategory,
@@ -909,6 +913,7 @@ export class SettingsComponent {
         totalAmount: Math.round(val.totalAmount * 100) / 100,
         selectedItem,
         selectedGroup,
+        selectedPerson,
       });
     });
 
@@ -942,6 +947,47 @@ export class SettingsComponent {
         return tx;
       })
     );
+  }
+
+  public onCategoryPersonChange(rawCategory: string, personName: string): void {
+    if (!personName) return;
+
+    // Update in mapping array
+    this.edCategoryMappings.update((curr) =>
+      curr.map((m) =>
+        m.rawCategory === rawCategory
+          ? { ...m, selectedPerson: personName }
+          : m
+      )
+    );
+
+    // Update all matching staged preview transactions (split is always SELF)
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.rawCategory || 'Uncategorized') === rawCategory) {
+          return {
+            ...tx,
+            paidBy: personName,
+            splitType: 'SELF',
+          };
+        }
+        return tx;
+      })
+    );
+  }
+
+  public assignAllMappingsToPerson(personName: string): void {
+    if (!personName) return;
+
+    this.edCategoryMappings.update((curr) =>
+      curr.map((m) => ({ ...m, selectedPerson: personName }))
+    );
+
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => ({ ...tx, paidBy: personName, splitType: 'SELF' }))
+    );
+
+    this.service.showToast(`Assigned all EveryDollar transactions to ${personName} (split: SELF).`, 'info');
   }
 
   public resetAllCategoryMappingsToUncategorized(): void {

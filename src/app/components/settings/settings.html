@@ -1406,18 +1406,30 @@
         <div class="ed-mapping-header">
           <div>
             <h5 style="margin: 0; font-size: 0.92rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
-              <span>🏷️</span> Map EveryDollar Categories ({{ edCategoryMappings().length }})
+              <span>🏷️</span> Map Categories &amp; Assign Person ({{ edCategoryMappings().length }})
             </h5>
             <p class="subtitle" style="margin: 0.2rem 0 0 0; font-size: 0.78rem;">
-              Grouped by EveryDollar category. Choose a Splitboard category for each group (defaults to Uncategorized).
+              Grouped by EveryDollar category. Choose a Splitboard category and assign who paid (defaults to {{ service.personOne().name }}). Split is always SELF.
             </p>
           </div>
-          <button
-            class="btn btn-secondary btn-xs"
-            (click)="resetAllCategoryMappingsToUncategorized()"
-            title="Reset all mappings to Uncategorized">
-            ↺ Reset All to Uncategorized
-          </button>
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <span style="font-size: 0.74rem; color: var(--text-muted);">Assign all to:</span>
+              <button
+                *ngFor="let p of service.persons()"
+                class="btn btn-secondary btn-xs"
+                (click)="assignAllMappingsToPerson(p.name)"
+                [title]="'Assign all categories to ' + p.name">
+                👤 {{ p.name }}
+              </button>
+            </div>
+            <button
+              class="btn btn-secondary btn-xs"
+              (click)="resetAllCategoryMappingsToUncategorized()"
+              title="Reset all mappings to Uncategorized">
+              ↺ Reset Categories
+            </button>
+          </div>
         </div>
 
         <div class="ed-mapping-grid">
@@ -1435,14 +1447,35 @@
 
             <div class="ed-mapping-arrow">➔</div>
 
-            <div class="ed-mapping-target">
-              <app-category-select
-                [value]="m.selectedItem"
-                [group]="m.selectedGroup"
-                placeholder="📁 Uncategorized"
-                minWidth="200px"
-                (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)">
-              </app-category-select>
+            <div class="ed-mapping-controls">
+              <!-- Splitboard Category Selector -->
+              <div class="ed-control-group" title="Splitboard Category">
+                <span class="ed-control-label">Category:</span>
+                <app-category-select
+                  [value]="m.selectedItem"
+                  [group]="m.selectedGroup"
+                  placeholder="📁 Uncategorized"
+                  minWidth="175px"
+                  (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)">
+                </app-category-select>
+              </div>
+
+              <!-- Person Selector -->
+              <div class="ed-control-group" title="Assigned Person">
+                <span class="ed-control-label">Person:</span>
+                <select
+                  class="ed-person-select"
+                  [ngModel]="m.selectedPerson"
+                  (ngModelChange)="onCategoryPersonChange(m.rawCategory, $event)">
+                  <option *ngFor="let p of service.persons()" [value]="p.name">
+                    👤 {{ p.name }}
+                  </option>
+                </select>
+              </div>
+
+              <span class="badge badge-neutral" style="font-size: 0.68rem; padding: 0.2rem 0.45rem; opacity: 0.85;" title="Split is 100% personal (no partner debt)">
+                SELF
+              </span>
             </div>
           </div>
         </div>
@@ -1457,6 +1490,7 @@
               <th>Description / Merchant</th>
               <th>EveryDollar Category</th>
               <th>Mapped Category</th>
+              <th>Assigned Person</th>
               <th>Amount</th>
               <th>Status</th>
             </tr>
@@ -1477,6 +1511,11 @@
                 <span class="badge" [class.badge-neutral]="tx.categoryItem === 'Uncategorized'" [class.badge-info]="tx.categoryItem !== 'Uncategorized'">
                   {{ tx.categoryItem }}
                   <span *ngIf="tx.categoryGroup && tx.categoryGroup !== 'Uncategorized'" style="opacity: 0.7; font-size: 0.82em;">({{ tx.categoryGroup }})</span>
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-primary" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                  <span>👤</span> {{ tx.paidBy }}
                 </span>
               </td>
               <td class="font-mono" [class.text-success]="tx.type === 'INCOME'" style="font-weight: 700;">
