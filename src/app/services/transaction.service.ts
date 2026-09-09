@@ -131,7 +131,7 @@ export class TransactionService {
   public currency = signal<string>('EUR');
   public numberFormat = signal<string>('1,234.56');
   public autoSyncGoogleDrive = signal<boolean>(false);
-  public googleFileName = signal<string>('Splitboard_Backup.json');
+  public googleFileName = signal<string>('splitboard_backup.json');
   public googleClientId = signal<string>('309949315167-dfr5pfvogun0lq4lohg9v79g4cp3uvss.apps.googleusercontent.com');
 
   // Currency & Multi-Currency State
@@ -883,7 +883,14 @@ export class TransactionService {
       if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
       if (data.settings.lastRatesRefresh) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
       if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
-      if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
+      if (data.settings.googleFileName) {
+        const fn = data.settings.googleFileName;
+        if (fn.toLowerCase().includes('splitbunch') || fn.toLowerCase().includes('transactions_processor')) {
+          this.googleFileName.set('splitboard_backup.json');
+        } else {
+          this.googleFileName.set(fn);
+        }
+      }
       if (data.settings.theme) {
         this.theme.set(data.settings.theme);
         this.applyTheme();
@@ -894,6 +901,10 @@ export class TransactionService {
   constructor() {
     this.initDatabasePersistence();
     this.applyTheme();
+
+    if (this.googleFileName().toLowerCase().includes('splitbunch') || this.googleFileName().toLowerCase().includes('transactions_processor')) {
+      this.googleFileName.set('splitboard_backup.json');
+    }
 
     // Restore cached Google Drive connection & token if valid
     const savedEmail = localStorage.getItem(this.GDRIVE_USER_KEY);
@@ -2045,7 +2056,7 @@ export class TransactionService {
     this.syncAction.set('push');
     this.isGoogleSyncing.set(true);
     try {
-      const fileName = this.googleFileName() || 'Splitboard_Backup.json';
+      const fileName = this.googleFileName() || 'splitboard_backup.json';
       const fileId = await this.findGoogleDriveFileId(fileName);
 
       const content = JSON.stringify({
@@ -2132,10 +2143,13 @@ export class TransactionService {
     this.syncAction.set('pull');
     this.isGoogleSyncing.set(true);
     try {
-      const fileName = this.googleFileName() || 'Splitboard_Backup.json';
+      const fileName = this.googleFileName() || 'splitboard_backup.json';
       let fileId = await this.findGoogleDriveFileId(fileName);
       if (!fileId && fileName !== 'splitboard_backup.json') {
         fileId = await this.findGoogleDriveFileId('splitboard_backup.json');
+      }
+      if (!fileId && fileName !== 'splitbunch_backup.json') {
+        fileId = await this.findGoogleDriveFileId('splitbunch_backup.json');
       }
       if (!fileId && fileName !== 'transactions_processor_backup.json') {
         fileId = await this.findGoogleDriveFileId('transactions_processor_backup.json');
@@ -2176,7 +2190,14 @@ export class TransactionService {
         if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
         if (data.settings.lastRatesRefresh !== undefined) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
         if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
-        if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
+        if (data.settings.googleFileName) {
+          const fn = data.settings.googleFileName;
+          if (fn.toLowerCase().includes('splitbunch') || fn.toLowerCase().includes('transactions_processor')) {
+            this.googleFileName.set('splitboard_backup.json');
+          } else {
+            this.googleFileName.set(fn);
+          }
+        }
         if (data.settings.theme) {
           this.theme.set(data.settings.theme);
           this.applyTheme();
