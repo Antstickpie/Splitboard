@@ -1377,6 +1377,7 @@ export class TransactionService {
         const rawCategory = (raw.category || raw.budgetCategoryName || 'Uncategorized').trim();
 
         const isIncomeLike =
+          rawAmt > 0 ||
           rawCategory.toLowerCase().includes('income') ||
           rawCategory.toLowerCase().includes('salary') ||
           raw.type === 'INCOME';
@@ -1421,6 +1422,7 @@ export class TransactionService {
           const rawCategory = (alloc.label || alloc.category || raw.category || raw.budgetCategoryName || 'Uncategorized').trim();
 
           const isIncomeLike =
+            allocRaw > 0 ||
             rawCategory.toLowerCase().includes('income') ||
             rawCategory.toLowerCase().includes('salary') ||
             raw.type === 'INCOME' ||

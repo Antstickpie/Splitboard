@@ -1624,7 +1624,8 @@
                     <div class="ed-source-meta">
                       <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
                       <span>•</span>
-                      <span class="font-mono">{{ service.formatCurrency(m.totalAmount) }}</span>
+                      <span class="font-mono" [class.text-success]="m.isIncome">{{ m.isIncome ? '+' : '' }}{{ service.formatCurrency(m.totalAmount) }}</span>
+                      <span *ngIf="m.isIncome" class="badge badge-success" style="font-size: 0.65rem; padding: 1px 6px;">Income</span>
                     </div>
                   </div>
 
@@ -1700,8 +1701,8 @@
                         <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
                         <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                       </div>
-                      <span class="font-mono" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
-                        {{ service.formatCurrency(tx.amount) }}
+                      <span class="font-mono" [class.text-success]="tx.type === 'INCOME'" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                        {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                       </span>
                       <div class="split-button-group">
                         <button
@@ -1839,7 +1840,8 @@
                     <div class="ed-source-meta">
                       <span>{{ d.count }} {{ d.count === 1 ? 'tx' : 'txs' }}</span>
                       <span>•</span>
-                      <span class="font-mono">{{ service.formatCurrency(d.totalAmount) }}</span>
+                      <span class="font-mono" [class.text-success]="d.isIncome">{{ d.isIncome ? '+' : '' }}{{ service.formatCurrency(d.totalAmount) }}</span>
+                      <span *ngIf="d.isIncome" class="badge badge-success" style="font-size: 0.65rem; padding: 1px 6px;">Income</span>
                     </div>
                   </div>
 
@@ -1915,8 +1917,8 @@
                         <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || 'Uncategorized')"></span>
                         <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                       </div>
-                      <span class="font-mono" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
-                        {{ service.formatCurrency(tx.amount) }}
+                      <span class="font-mono" [class.text-success]="tx.type === 'INCOME'" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                        {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                       </span>
                       <div class="split-button-group">
                         <button

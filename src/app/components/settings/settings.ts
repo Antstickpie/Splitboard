@@ -13,6 +13,7 @@ export interface EveryDollarCategoryMapping {
   selectedGroup: string;
   selectedPerson: string;
   selectedSplitType: SplitType;
+  isIncome?: boolean;
 }
 
 export interface EveryDollarDescriptionMapping {
@@ -24,6 +25,7 @@ export interface EveryDollarDescriptionMapping {
   selectedPerson: string;
   selectedSplitType: SplitType;
   rawCategories: string[];
+  isIncome?: boolean;
 }
 
 @Component({
@@ -987,6 +989,7 @@ export class SettingsComponent {
       group: string;
       person: string;
       splitType: SplitType;
+      isIncome: boolean;
     }>();
 
     for (const t of txs) {
@@ -1001,11 +1004,15 @@ export class SettingsComponent {
           group: t.categoryGroup || 'Uncategorized',
           person: t.paidBy || this.service.personOne().name,
           splitType: t.splitType || 'SELF',
+          isIncome: false,
         };
         map.set(desc, entry);
       }
       entry.count += 1;
       entry.totalAmount += t.amount;
+      if (t.type === 'INCOME') {
+        entry.isIncome = true;
+      }
       if (t.rawCategory) {
         entry.categories.add(t.rawCategory);
       }
@@ -1026,6 +1033,7 @@ export class SettingsComponent {
         selectedPerson: val.person,
         selectedSplitType: val.splitType,
         rawCategories: Array.from(val.categories),
+        isIncome: val.isIncome,
       });
     });
 
@@ -1283,7 +1291,14 @@ export class SettingsComponent {
     this.edPreviewTransactions.update((txs) =>
       txs.map((t) => {
         const typeInfo = categoryToTypeMap.get(t.rawCategory || 'Uncategorized');
-        return typeInfo ? { ...t, categoryItem: typeInfo.item, categoryGroup: typeInfo.group } : t;
+        if (!typeInfo) return t;
+        const isIncomeGroup = (typeInfo.group || '').toLowerCase().includes('income');
+        return {
+          ...t,
+          categoryItem: typeInfo.item,
+          categoryGroup: typeInfo.group,
+          type: isIncomeGroup ? 'INCOME' : t.type
+        };
       })
     );
 
@@ -1366,11 +1381,17 @@ export class SettingsComponent {
   public onDescriptionMappingCategoryChange(desc: string, selection: { item: string; group: string }): void {
     const chosenItem = selection.item || 'Uncategorized';
     const chosenGroup = selection.group || 'Uncategorized';
+    const isIncomeGroup = chosenGroup.toLowerCase().includes('income');
 
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.description || 'No Description').trim() === desc) {
-          return { ...tx, categoryItem: chosenItem, categoryGroup: chosenGroup };
+          return {
+            ...tx,
+            categoryItem: chosenItem,
+            categoryGroup: chosenGroup,
+            type: isIncomeGroup ? 'INCOME' : tx.type
+          };
         }
         return tx;
       })
@@ -1413,13 +1434,19 @@ export class SettingsComponent {
     }
     const chosenItem = selection.item || 'Uncategorized';
     const chosenGroup = selection.group || 'Uncategorized';
+    const isIncomeGroup = chosenGroup.toLowerCase().includes('income');
 
     let matchedCount = 0;
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.description || '').toLowerCase().includes(q)) {
           matchedCount++;
-          return { ...tx, categoryItem: chosenItem, categoryGroup: chosenGroup };
+          return {
+            ...tx,
+            categoryItem: chosenItem,
+            categoryGroup: chosenGroup,
+            type: isIncomeGroup ? 'INCOME' : tx.type
+          };
         }
         return tx;
       })
@@ -1721,12 +1748,15 @@ export class SettingsComponent {
 
     const defaultPerson = this.service.personOne().name;
 
-    const groupMap = new Map<string, { count: number; totalAmount: number }>();
+    const groupMap = new Map<string, { count: number; totalAmount: number; isIncome: boolean }>();
     for (const tx of txs) {
       const cat = tx.rawCategory || 'Uncategorized';
-      const existing = groupMap.get(cat) || { count: 0, totalAmount: 0 };
+      const existing = groupMap.get(cat) || { count: 0, totalAmount: 0, isIncome: false };
       existing.count += 1;
       existing.totalAmount += tx.amount;
+      if (tx.type === 'INCOME') {
+        existing.isIncome = true;
+      }
       groupMap.set(cat, existing);
     }
 
@@ -1755,6 +1785,7 @@ export class SettingsComponent {
         selectedGroup,
         selectedPerson,
         selectedSplitType,
+        isIncome: val.isIncome,
       });
     });
 
@@ -1794,10 +1825,12 @@ export class SettingsComponent {
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.rawCategory || 'Uncategorized') === rawCategory) {
+          const isIncomeGroup = chosenGroup.toLowerCase().includes('income');
           return {
             ...tx,
             categoryItem: chosenItem,
             categoryGroup: chosenGroup,
+            type: isIncomeGroup ? 'INCOME' : tx.type
           };
         }
         return tx;
