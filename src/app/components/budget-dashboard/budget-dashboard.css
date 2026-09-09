@@ -667,6 +667,17 @@
   font-style: italic;
 }
 
+.upcoming-doc-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.76rem;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  color: #ddd6fe;
+  letter-spacing: 0.01em;
+}
+
 .upcoming-banner-close {
   background: transparent;
   border: none;
