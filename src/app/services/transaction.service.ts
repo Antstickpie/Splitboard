@@ -908,12 +908,17 @@ export class TransactionService {
     this.initGoogleAuthIfPossible();
     this.fetchExchangeRates(true);
 
-    // Auto-save effect: persists directly to native IndexedDB
+    // Auto-save effect: persists directly to native IndexedDB once initialized
     effect(() => {
       const data = this.getCurrentStateBackup();
+      if (!this.isPersistenceReady) {
+        return; // Guard against overwriting IndexedDB before initial hydration finishes
+      }
       this.storageService.saveAllDebounced(data);
     });
   }
+
+  private isPersistenceReady = false;
 
   public async initDatabasePersistence(): Promise<void> {
     try {
@@ -934,6 +939,8 @@ export class TransactionService {
       }
     } catch (err) {
       console.error('[Splitboard] Failed to initialize IndexedDB persistence:', err);
+    } finally {
+      this.isPersistenceReady = true;
     }
   }
 
