@@ -129,7 +129,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
           <div>
             <label class="input-label">Full Date Format (Words)</label>
-            <select [ngModel]="service.fullDateFormat()" (ngModelChange)="service.fullDateFormat.set($event); service.saveToStorage()" class="settings-select">
+            <select [ngModel]="service.fullDateFormat()" (ngModelChange)="service.fullDateFormat.set($event)" class="settings-select">
               <option value="MMMM d, yyyy">August 23, 2026 (US Full)</option>
               <option value="d MMMM yyyy">23 August 2026 (EU Full)</option>
               <option value="MMM d, yyyy">Aug 23, 2026 (US Short)</option>
@@ -139,7 +139,7 @@
 
           <div>
             <label class="input-label">Numeric Date (Numbers)</label>
-            <select [ngModel]="service.numericDateFormat()" (ngModelChange)="service.numericDateFormat.set($event); service.saveToStorage()" class="settings-select">
+            <select [ngModel]="service.numericDateFormat()" (ngModelChange)="service.numericDateFormat.set($event)" class="settings-select">
               <option value="dd/MM/yyyy">23/08/2026 (Day/Month/Year - EU)</option>
               <option value="MM/dd/yyyy">08/23/2026 (Month/Day/Year - US)</option>
               <option value="yyyy-MM-dd">2026-08-23 (Year-Month-Day - ISO)</option>
