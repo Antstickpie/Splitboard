@@ -649,6 +649,17 @@ export class SettingsComponent {
     }
   }
 
+  public onEdStartDateChange(val: string): void {
+    this.edStartDate.set(val);
+    if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      const parts = val.split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const lastDay = new Date(y, m, 0).getDate();
+      this.edEndDate.set(`${parts[0]}-${parts[1]}-${String(lastDay).padStart(2, '0')}`);
+    }
+  }
+
   public generateMonthRanges(startStr: string, endStr: string): { start: string; end: string; month: string }[] {
     const ranges: { start: string; end: string; month: string }[] = [];
     if (!startStr || !endStr) return ranges;
@@ -845,64 +856,185 @@ export class SettingsComponent {
     return txs;
   });
 
-  public readonly everyDollarConsoleSnippet: string = `(async () => {
-  const start = prompt('Start Date (YYYY-MM-DD):', '2025-01-01');
-  const end = prompt('End Date (YYYY-MM-DD):', '2025-01-31');
-  if (!start || !end) return;
+  public readonly everyDollarConsoleSnippet: string = `(() => {
+  const old = document.getElementById('splitboard-ed-modal');
+  if (old) old.remove();
 
-  function getMonthRanges(s, e) {
-    const cur = new Date(s + 'T00:00:00');
-    const stop = new Date(e + 'T23:59:59');
-    const ranges = [];
-    while (cur <= stop) {
-      const y = cur.getFullYear();
-      const m = cur.getMonth();
-      const startStr = y + '-' + String(m + 1).padStart(2, '0') + '-01';
-      const lastDay = new Date(y, m + 1, 0).getDate();
-      const endStr = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
-      ranges.push({ start: startStr < s ? s : startStr, end: endStr > e ? e : endStr });
-      cur.setMonth(cur.getMonth() + 1);
-      cur.setDate(1);
+  const now = new Date();
+  const defYear = now.getFullYear();
+  const defMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const lastDay = new Date(defYear, now.getMonth() + 1, 0).getDate();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'splitboard-ed-modal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.65);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;backdrop-filter:blur(3px);';
+
+  overlay.innerHTML = [
+    '<div style="background:#131722;color:#f8fafc;padding:24px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,0.6);border:1px solid rgba(56,189,248,0.3);width:420px;max-width:90vw;">',
+    '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">',
+    '    <div style="font-weight:700;font-size:15px;color:#38bdf8;display:flex;align-items:center;gap:6px;">',
+    '      <span>💵</span> EveryDollar Exporter for Splitboard',
+    '    </div>',
+    '    <button id="sb-close" style="background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;line-height:1;">✕</button>',
+    '  </div>',
+    '  <p style="font-size:12px;color:#94a3b8;margin:0 0 14px 0;line-height:1.4;">',
+    '    Select a date range. The end date auto-fills to the month end to ensure full monthly queries under EveryDollar\\'s 500-tx limit.',
+    '  </p>',
+    '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">',
+    '    <div>',
+    '      <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:4px;">START DATE</label>',
+    '      <input id="sb-start" type="date" value="' + defYear + '-' + defMonth + '-01" style="width:100%;box-sizing:border-box;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:13px;outline:none;">',
+    '    </div>',
+    '    <div>',
+    '      <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:4px;">END DATE (AUTO)</label>',
+    '      <input id="sb-end" type="date" value="' + defYear + '-' + defMonth + '-' + String(lastDay).padStart(2, '0') + '" style="width:100%;box-sizing:border-box;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:13px;outline:none;">',
+    '    </div>',
+    '  </div>',
+    '  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">',
+    '    <button id="sb-prev" style="background:#1e293b;border:1px solid #334155;color:#cbd5e1;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;">◀ Last Month</button>',
+    '    <button id="sb-cur" style="background:#1e293b;border:1px solid #334155;color:#cbd5e1;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;">This Month</button>',
+    '    <button id="sb-3m" style="background:#1e293b;border:1px solid #334155;color:#cbd5e1;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Last 3 Mos</button>',
+    '    <button id="sb-year" style="background:#1e293b;border:1px solid #334155;color:#cbd5e1;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;">Full Year</button>',
+    '  </div>',
+    '  <div id="sb-status" style="font-size:12px;color:#38bdf8;margin-bottom:12px;min-height:18px;"></div>',
+    '  <button id="sb-run" style="width:100%;background:#0284c7;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">',
+    '    🚀 Download Transactions JSON',
+    '  </button>',
+    '</div>'
+  ].join('');
+
+  document.body.appendChild(overlay);
+
+  const startInput = document.getElementById('sb-start');
+  const endInput = document.getElementById('sb-end');
+  const statusEl = document.getElementById('sb-status');
+  const runBtn = document.getElementById('sb-run');
+  const closeBtn = document.getElementById('sb-close');
+
+  closeBtn.onclick = () => overlay.remove();
+
+  // Auto fill end date to end of the month when start date is changed!
+  startInput.onchange = () => {
+    const val = startInput.value;
+    if (val) {
+      const parts = val.split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const last = new Date(y, m, 0).getDate();
+      endInput.value = parts[0] + '-' + parts[1] + '-' + String(last).padStart(2, '0');
     }
-    return ranges;
-  }
+  };
 
-  const ranges = getMonthRanges(start, end);
-  let allTxs = [];
-  console.log(\`🚀 Slicing \${ranges.length} month(s) to stay safely under EveryDollar's 500-transaction query limit...\`);
+  document.getElementById('sb-prev').onclick = () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const last = new Date(y, d.getMonth() + 1, 0).getDate();
+    startInput.value = y + '-' + m + '-01';
+    endInput.value = y + '-' + m + '-' + String(last).padStart(2, '0');
+  };
 
-  for (let i = 0; i < ranges.length; i++) {
-    const r = ranges[i];
-    console.log(\`[\${i + 1}/\${ranges.length}] Fetching \${r.start} to \${r.end}...\`);
-    try {
-      const url = \`https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=\${r.start}&endDate=\${r.end}&size=1000\`;
-      const res = await fetch(url, { credentials: 'include' });
-      if (!res.ok) {
-        console.warn(\`Failed \${r.start} - status \${res.status}\`);
-        continue;
+  document.getElementById('sb-cur').onclick = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const last = new Date(y, d.getMonth() + 1, 0).getDate();
+    startInput.value = y + '-' + m + '-01';
+    endInput.value = y + '-' + m + '-' + String(last).padStart(2, '0');
+  };
+
+  document.getElementById('sb-3m').onclick = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const last = new Date(y, d.getMonth() + 1, 0).getDate();
+    endInput.value = y + '-' + m + '-' + String(last).padStart(2, '0');
+    d.setMonth(d.getMonth() - 2);
+    const sy = d.getFullYear();
+    const sm = String(d.getMonth() + 1).padStart(2, '0');
+    startInput.value = sy + '-' + sm + '-01';
+  };
+
+  document.getElementById('sb-year').onclick = () => {
+    const y = new Date().getFullYear();
+    startInput.value = y + '-01-01';
+    endInput.value = y + '-12-31';
+  };
+
+  runBtn.onclick = async () => {
+    const start = startInput.value;
+    const end = endInput.value;
+    if (!start || !end) {
+      statusEl.textContent = '⚠️ Please select both start and end dates.';
+      statusEl.style.color = '#f87171';
+      return;
+    }
+
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ Fetching EveryDollar...';
+    runBtn.style.opacity = '0.6';
+
+    function getMonthRanges(s, e) {
+      const cur = new Date(s + 'T00:00:00');
+      const stop = new Date(e + 'T23:59:59');
+      const ranges = [];
+      while (cur <= stop) {
+        const y = cur.getFullYear();
+        const m = cur.getMonth();
+        const startStr = y + '-' + String(m + 1).padStart(2, '0') + '-01';
+        const lastDay = new Date(y, m + 1, 0).getDate();
+        const endStr = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+        ranges.push({ start: startStr < s ? s : startStr, end: endStr > e ? e : endStr });
+        cur.setMonth(cur.getMonth() + 1);
+        cur.setDate(1);
       }
-      const data = await res.json();
-      const items = Array.isArray(data) ? data : (data?._embedded?.transactions || []);
-      allTxs.push(...items);
-    } catch (err) {
-      console.error(\`Error fetching \${r.start}:\`, err);
+      return ranges;
     }
-  }
 
-  const seen = new Set();
-  const deduped = allTxs.filter(t => {
-    if (!t || !t.id) return true;
-    if (seen.has(t.id)) return false;
-    seen.add(t.id);
-    return true;
-  });
+    const ranges = getMonthRanges(start, end);
+    let allTxs = [];
 
-  const blob = new Blob([JSON.stringify(deduped, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = \`everydollar_\${start}_to_\${end}.json\`;
-  a.click();
-  alert(\`✅ Done! Downloaded \${deduped.length} transactions into everydollar_\${start}_to_\${end}.json. Now import it into Splitboard!\`);
+    for (let i = 0; i < ranges.length; i++) {
+      const r = ranges[i];
+      statusEl.style.color = '#38bdf8';
+      statusEl.textContent = 'Fetching [' + (i + 1) + '/' + ranges.length + '] ' + r.start + ' to ' + r.end + '...';
+      try {
+        const url = 'https://www.everydollar.com/app/api/transactions/search/findByDateRange?startDate=' + r.start + '&endDate=' + r.end + '&size=1000';
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) {
+          console.warn('Failed ' + r.start + ': ' + res.status);
+          continue;
+        }
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data?._embedded?.transactions || []);
+        allTxs.push(...items);
+      } catch (err) {
+        console.error('Error ' + r.start + ':', err);
+      }
+    }
+
+    const seen = new Set();
+    const deduped = allTxs.filter(t => {
+      if (!t || !t.id) return true;
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+
+    statusEl.style.color = '#4ade80';
+    statusEl.textContent = '✅ Complete! ' + deduped.length + ' transactions fetched. Downloading...';
+
+    const blob = new Blob([JSON.stringify(deduped, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'everydollar_' + start + '_to_' + end + '.json';
+    a.click();
+
+    setTimeout(() => {
+      overlay.remove();
+    }, 2500);
+  };
 })();`;
 
   public copyConsoleSnippet(): void {

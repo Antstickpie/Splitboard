@@ -1232,11 +1232,11 @@
       <div class="ed-inputs-row">
         <div class="ed-input-field">
           <label>Start Date</label>
-          <input type="date" [ngModel]="edStartDate()" (ngModelChange)="edStartDate.set($event)" class="date-picker-input">
+          <input type="date" [ngModel]="edStartDate()" (ngModelChange)="onEdStartDateChange($event)" class="date-picker-input">
         </div>
 
         <div class="ed-input-field">
-          <label>End Date</label>
+          <label>End Date <span style="font-size: 0.72rem; color: var(--primary); font-weight: normal;">(Auto month-end)</span></label>
           <input type="date" [ngModel]="edEndDate()" (ngModelChange)="edEndDate.set($event)" class="date-picker-input">
         </div>
 
