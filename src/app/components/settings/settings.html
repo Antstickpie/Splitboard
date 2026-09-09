@@ -235,7 +235,7 @@
 
       <div class="cloud-sync-box">
         <div class="sync-status-row">
-          <div style="display: flex; align-items: center; gap: 0.45rem;">
+          <div style="display: flex; align-items: center; gap: 0.45rem; min-width: 0;">
             <svg width="18" height="18" viewBox="0 0 87.3 78" style="vertical-align: middle; flex-shrink: 0;">
               <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#0066da"/>
               <path d="M43.65 25L29.9 1.2c-1.35.8-2.5 1.9-3.3 3.3L1.2 53.35C.4 54.75 0 56.3 0 57.85h27.5L43.65 25z" fill="#00ac47"/>
@@ -244,20 +244,22 @@
               <path d="M59.8 57.85H27.5L13.75 81.65c1.35.8 2.9 1.2 4.45 1.2h50.9c1.55 0 3.1-.4 4.45-1.2L59.8 57.85z" fill="#2684fc"/>
               <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 28h27.5c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z" fill="#ffba00"/>
             </svg>
-            <strong style="font-size: 0.88rem; color: #00e5ff; font-weight: 700;">Cloud (Google Drive)</strong>
+            <strong style="font-size: 0.88rem; color: #00e5ff; font-weight: 700; white-space: nowrap;">Google Drive</strong>
           </div>
-          <div *ngIf="service.isGoogleConnected()" style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="color: #22c55e; font-size: 0.78rem; font-weight: 700; display: flex; align-items: center; gap: 0.25rem;">
-              ● Connected
-              <span *ngIf="service.googleUserEmail()" style="color: var(--text-muted); font-size: 0.74rem; font-weight: 500; font-family: var(--font-sans);">({{ service.googleUserEmail() }})</span>
-            </span>
-            <button class="btn btn-secondary btn-xs" style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);" (click)="service.disconnectGoogleDrive()" title="Disconnect Google account">
+          <div style="display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;">
+            <button *ngIf="service.isGoogleConnected()" class="btn disconnect-btn" (click)="service.disconnectGoogleDrive()" title="Disconnect Google account">
               Disconnect
             </button>
+            <button *ngIf="!service.isGoogleConnected()" class="btn btn-primary btn-xs" (click)="service.connectGoogleDrive()">
+              Connect
+            </button>
           </div>
-          <button *ngIf="!service.isGoogleConnected()" class="btn btn-secondary btn-xs" (click)="service.connectGoogleDrive()">
-            Connect
-          </button>
+        </div>
+
+        <div *ngIf="service.isGoogleConnected()" class="gdrive-account-badge">
+          <span class="status-dot-green"></span>
+          <span class="account-connected-label">Connected</span>
+          <span *ngIf="service.googleUserEmail()" class="account-email" [title]="service.googleUserEmail()">({{ service.googleUserEmail() }})</span>
         </div>
 
         <div class="auto-sync-toggle-row">
@@ -272,6 +274,17 @@
           </label>
         </div>
 
+        <div class="gdrive-filename-row">
+          <span style="font-size: 0.78rem; color: #94a3b8;">Backup file name</span>
+          <input
+            type="text"
+            [ngModel]="service.googleFileName()"
+            (ngModelChange)="service.googleFileName.set($event)"
+            placeholder="Splitboard_Backup.json"
+            class="person-input font-mono"
+            style="width: 175px; font-size: 0.74rem; padding: 0.2rem 0.5rem; text-align: right;">
+        </div>
+
         <div class="cloud-action-buttons-row">
           <button class="btn cloud-pull-btn" (click)="service.downloadFromGoogleDrive()" [disabled]="service.isGoogleSyncing()">
             <span style="font-size: 0.95rem;">{{ service.syncAction() === 'pull' ? '⏳' : '☁️' }}</span>
@@ -282,7 +295,7 @@
             {{ service.syncAction() === 'push' ? 'Pushing Cloud...' : 'Push Cloud' }}
           </button>
         </div>
-        <div *ngIf="service.lastGoogleSyncTime()" class="last-sync-caption" style="font-size: 0.73rem; color: #94a3b8; margin-top: 0.45rem; display: flex; align-items: center; gap: 0.35rem;">
+        <div *ngIf="service.lastGoogleSyncTime()" class="last-sync-caption" style="font-size: 0.73rem; color: #94a3b8; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.35rem;">
           <span style="color: #22c55e;">✓</span>
           <span>Last cloud sync: <strong style="color: var(--text-main); font-family: var(--font-mono); font-weight: 600;">{{ service.formatDateTime(service.lastGoogleSyncTime()) }}</strong></span>
         </div>
@@ -290,26 +303,28 @@
 
       <!-- In-Browser Database (IndexedDB) & Offline Backup -->
       <div class="local-file-section">
-        <div class="local-file-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div class="local-file-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
           <div style="display: flex; align-items: center; gap: 0.4rem;">
             <span style="font-size: 0.95rem;">🗄️</span>
-            <strong style="font-size: 0.82rem; color: #cbd5e1;">In-Browser Database (IndexedDB)</strong>
+            <strong style="font-size: 0.82rem; color: #cbd5e1; white-space: nowrap;">IndexedDB Database</strong>
           </div>
-          <div class="db-status-pill" [class.active]="service.storageService.isDbReady()">
-            <span class="status-dot"></span>
-            <span>splitboard_db • {{ service.storageService.dbTxCount() }} txs</span>
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <div class="db-status-pill" [class.active]="service.storageService.isDbReady()">
+              <span class="status-dot"></span>
+              <span>splitboard_db • {{ service.storageService.dbTxCount() }} txs</span>
+            </div>
+            <button class="btn btn-secondary btn-xs" (click)="service.verifyDatabaseIntegrity()" title="Verify database integrity" style="padding: 0.18rem 0.45rem; font-size: 0.7rem; border-radius: 6px;">
+              ⟳ Verify
+            </button>
           </div>
         </div>
 
         <div class="local-action-buttons-row">
-          <button class="btn local-backup-btn" (click)="service.exportBackupJson()" title="Extract full database dump (SELECT * equivalent)">
-            <span style="font-size: 0.9rem;">💾</span> Full DB Export (SELECT *)
+          <button class="btn local-backup-btn" (click)="service.exportBackupJson()" title="Download full database JSON backup">
+            <span style="font-size: 0.9rem;">💾</span> Export Database
           </button>
           <button class="btn local-backup-btn" (click)="backupFileInput.click()" title="Restore database from an exported backup file">
-            <span style="font-size: 0.9rem;">📁</span> Import Database JSON
-          </button>
-          <button class="btn btn-secondary btn-xs" (click)="service.verifyDatabaseIntegrity()" title="Verify database integrity and synchronization" style="height: 34px; padding: 0 0.65rem;">
-            ⟳ Verify DB
+            <span style="font-size: 0.9rem;">📁</span> Import Database
           </button>
           <input #backupFileInput type="file" accept=".json" (change)="onBackupFileSelected($event)" style="display: none;">
         </div>

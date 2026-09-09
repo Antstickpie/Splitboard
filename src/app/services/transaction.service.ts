@@ -131,7 +131,7 @@ export class TransactionService {
   public currency = signal<string>('EUR');
   public numberFormat = signal<string>('1,234.56');
   public autoSyncGoogleDrive = signal<boolean>(false);
-  public googleFileName = signal<string>('splitboard_backup.json');
+  public googleFileName = signal<string>('Splitboard_Backup.json');
   public googleClientId = signal<string>('309949315167-dfr5pfvogun0lq4lohg9v79g4cp3uvss.apps.googleusercontent.com');
 
   // Currency & Multi-Currency State
@@ -179,7 +179,7 @@ export class TransactionService {
   public googleUserEmail = signal<string | null>(null);
   private driveToken: string | null = null;
   private tokenClient: any = null;
-  private driveFileIdCache: string | null = null;
+  private driveFileIdCache: { name: string; id: string } | null = null;
   private pendingGoogleDriveAction: (() => Promise<void> | void) | null = null;
   private readonly GDRIVE_TOKEN_KEY = 'splitboard_gdrive_token';
   private readonly GDRIVE_USER_KEY = 'splitboard_gdrive_user';
@@ -2045,7 +2045,7 @@ export class TransactionService {
     this.syncAction.set('push');
     this.isGoogleSyncing.set(true);
     try {
-      const fileName = this.googleFileName() || 'transactions_processor_backup.json';
+      const fileName = this.googleFileName() || 'Splitboard_Backup.json';
       const fileId = await this.findGoogleDriveFileId(fileName);
 
       const content = JSON.stringify({
@@ -2110,7 +2110,7 @@ export class TransactionService {
 
       if (!resp.ok) throw new Error('Upload HTTP status ' + resp.status);
       const resJson = await resp.json();
-      this.driveFileIdCache = resJson.id;
+      this.driveFileIdCache = { name: fileName, id: resJson.id };
       this.lastGoogleSyncTime.set(Date.now());
       this.showToast('Uploaded backup to Google Drive!', 'success');
     } catch (e: any) {
@@ -2132,8 +2132,14 @@ export class TransactionService {
     this.syncAction.set('pull');
     this.isGoogleSyncing.set(true);
     try {
-      const fileName = this.googleFileName() || 'transactions_processor_backup.json';
-      const fileId = await this.findGoogleDriveFileId(fileName);
+      const fileName = this.googleFileName() || 'Splitboard_Backup.json';
+      let fileId = await this.findGoogleDriveFileId(fileName);
+      if (!fileId && fileName !== 'splitboard_backup.json') {
+        fileId = await this.findGoogleDriveFileId('splitboard_backup.json');
+      }
+      if (!fileId && fileName !== 'transactions_processor_backup.json') {
+        fileId = await this.findGoogleDriveFileId('transactions_processor_backup.json');
+      }
       if (!fileId) {
         this.showToast(`File "${fileName}" not found in Google Drive.`, 'error');
         return;
@@ -2187,7 +2193,9 @@ export class TransactionService {
   }
 
   private async findGoogleDriveFileId(fileName: string): Promise<string | null> {
-    if (this.driveFileIdCache) return this.driveFileIdCache;
+    if (this.driveFileIdCache && this.driveFileIdCache.name === fileName) {
+      return this.driveFileIdCache.id;
+    }
     const token = this.getValidDriveToken();
     if (!token) return null;
     const q = encodeURIComponent(`name='${fileName}' and trashed=false`);
@@ -2203,8 +2211,8 @@ export class TransactionService {
     if (!resp.ok) return null;
     const data = await resp.json();
     if (data.files && data.files.length > 0) {
-      this.driveFileIdCache = data.files[0].id;
-      return this.driveFileIdCache;
+      this.driveFileIdCache = { name: fileName, id: data.files[0].id };
+      return this.driveFileIdCache.id;
     }
     return null;
   }
