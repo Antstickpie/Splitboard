@@ -9,3 +9,11 @@
   3. Commit directly with `BypassSandbox: true` (avoid running redundant chains of `git status`, `git diff`, `ls` beforehand).
 - **Dev-Server Compatibility**: `npm start` uses `splitboard:build:development`. A passing `npm run verify` guarantees that `npm start` will run cleanly without breaking watch mode.
 - Keep agent actions fast and direct: avoid background dev servers (`ng serve`), repetitive verification loops, or generating unprompted walkthrough artifacts.
+
+## Git Commit (MANDATORY)
+- Always stage and commit all changes to Git with a concise, descriptive commit message after verification passes before declaring done. Always commit.
+- In sandbox environments, use `GIT_CONFIG_GLOBAL=/dev/null git ...` to avoid gitconfig permission blocks.
+
+## Documentation & Files Policy (MANDATORY)
+- Do NOT produce, create, or generate documentation files, markdown plans, walkthroughs, or report documents unless the user explicitly asks for them.
+- Keep responses direct and focused on code changes without unsolicited documentation files.
