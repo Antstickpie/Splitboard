@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CategorySelectComponent } from '../category-select/category-select';
 import { TransactionService, ImportedBatch } from '../../services/transaction.service';
-import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem, Transaction, SplitType } from '../../models';
+import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem, Transaction, SplitType, EveryDollarPeriodCurrencyRule } from '../../models';
 
 export interface EveryDollarCategoryMapping {
   rawCategory: string;
@@ -858,7 +858,8 @@ export class SettingsComponent {
       }
 
       this.edProgressPercent.set(100);
-      this.edPreviewTransactions.set(allParsed);
+      const converted = await this.service.applyCurrencyConversionToTransactions(allParsed);
+      this.edPreviewTransactions.set(converted);
       this.updateCategoryMappingsFromPreview();
 
       if (allParsed.length > 0) {
@@ -890,17 +891,18 @@ export class SettingsComponent {
     }
   }
 
-  public parsePastedEveryDollarJson(): void {
+  public async parsePastedEveryDollarJson(): Promise<void> {
     const raw = this.edRawJsonInput().trim();
     if (!raw) return;
     try {
       const data = JSON.parse(raw);
       const rawTxs = Array.isArray(data) ? data : (data.transactions || []);
       const parsed = this.service.parseEveryDollarTransactions(rawTxs);
-      this.edPreviewTransactions.set(parsed);
+      const converted = await this.service.applyCurrencyConversionToTransactions(parsed);
+      this.edPreviewTransactions.set(converted);
       this.updateCategoryMappingsFromPreview();
       this.edImportResult.set(null);
-      this.service.showToast(`Parsed ${parsed.length} EveryDollar transactions!`, 'success');
+      this.service.showToast(`Parsed ${converted.length} EveryDollar transactions!`, 'success');
     } catch (e: any) {
       this.service.showToast('Invalid JSON: ' + e.message, 'error');
     }
@@ -911,16 +913,17 @@ export class SettingsComponent {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string;
       try {
         const data = JSON.parse(content);
         const rawTxs = Array.isArray(data) ? data : (data.transactions || []);
         const parsed = this.service.parseEveryDollarTransactions(rawTxs);
-        this.edPreviewTransactions.set(parsed);
+        const converted = await this.service.applyCurrencyConversionToTransactions(parsed);
+        this.edPreviewTransactions.set(converted);
         this.updateCategoryMappingsFromPreview();
         this.edImportResult.set(null);
-        this.service.showToast(`Loaded ${parsed.length} transactions from ${file.name}!`, 'success');
+        this.service.showToast(`Loaded ${converted.length} transactions from ${file.name}!`, 'success');
       } catch (err: any) {
         this.service.showToast('Could not parse JSON file: ' + err.message, 'error');
       }
@@ -939,6 +942,79 @@ export class SettingsComponent {
   public edTypeBatchItem = signal<string>('');
   public edTypeBatchGroup = signal<string>('');
   public edEditingBatchFileName = signal<string | null>(null);
+
+  // EveryDollar Period Currency Rules State
+  public edShowCurrencyPeriods = signal<boolean>(false);
+  public newRuleFromMonth = signal<string>('');
+  public newRuleToMonth = signal<string>('');
+  public newRuleCurrency = signal<string>('EUR');
+  public newRuleCustomCurrency = signal<string>('');
+
+  public async addEdCurrencyRule(): Promise<void> {
+    const from = this.newRuleFromMonth().trim();
+    const to = this.newRuleToMonth().trim();
+    let curr = (this.newRuleCurrency() === 'CUSTOM' ? this.newRuleCustomCurrency() : this.newRuleCurrency()).trim().toUpperCase();
+    if (!curr) curr = 'EUR';
+
+    if (!from || !to) {
+      this.service.showToast('Please specify both From Month and To Month (YYYY-MM).', 'info');
+      return;
+    }
+    if (from > to) {
+      this.service.showToast('From Month cannot be later than To Month.', 'error');
+      return;
+    }
+
+    // Automatically add to visible currencies if not already present
+    if (!this.service.visibleCurrencies().includes(curr)) {
+      this.service.addVisibleCurrency(curr);
+    }
+
+    const newRule: EveryDollarPeriodCurrencyRule = {
+      id: `rule_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      fromMonth: from,
+      toMonth: to,
+      currency: curr
+    };
+
+    const updated = [...this.service.edCurrencyRules(), newRule];
+    this.service.saveEdCurrencyRules(updated);
+    this.newRuleFromMonth.set('');
+    this.newRuleToMonth.set('');
+    this.newRuleCustomCurrency.set('');
+
+    await this.refreshPreviewCurrencyConversion();
+    this.service.showToast(`Added period rule: ${from} to ${to} is ${curr}!`, 'success');
+  }
+
+  public async removeEdCurrencyRule(id: string): Promise<void> {
+    const updated = this.service.edCurrencyRules().filter((r) => r.id !== id);
+    this.service.saveEdCurrencyRules(updated);
+    await this.refreshPreviewCurrencyConversion();
+    this.service.showToast('Period rule removed.', 'info');
+  }
+
+  public async onEdDefaultCurrencyChange(curr: string): Promise<void> {
+    this.service.saveEdDefaultCurrency(curr);
+    await this.refreshPreviewCurrencyConversion();
+  }
+
+  public async refreshPreviewCurrencyConversion(): Promise<void> {
+    const current = this.edPreviewTransactions();
+    if (current.length === 0) return;
+    const updated = await this.service.applyCurrencyConversionToTransactions(current);
+    this.edPreviewTransactions.set(updated);
+    this.updateCategoryMappingsFromPreview();
+  }
+
+  public async reapplyCurrencyRulesToExistingTransactions(): Promise<void> {
+    const count = await this.service.reapplyCurrencyConversionToAllEveryDollarTransactions();
+    if (count > 0) {
+      this.service.showToast(`Updated currency conversion on ${count} EveryDollar transactions in ledger!`, 'success');
+    } else {
+      this.service.showToast('No EveryDollar transactions found in ledger to update.', 'info');
+    }
+  }
 
   // Description Grouping & Matching State
   public edDescriptionMatchKeyword = signal<string>('');

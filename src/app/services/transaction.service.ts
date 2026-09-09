@@ -11,7 +11,8 @@ import {
   SplitMode,
   CategoryRule,
   ExcludeRule,
-  ImportDraft
+  ImportDraft,
+  EveryDollarPeriodCurrencyRule
 } from '../models';
 import { DEFAULT_PERSONS, DEFAULT_BANKS, DEFAULT_CATEGORY_GROUPS, DEFAULT_RULES } from '../constants/default-data';
 import { StorageService } from './storage.service';
@@ -152,6 +153,14 @@ export class TransactionService {
   });
   public lastRatesRefresh = signal<number | null>(null);
   public isFetchingRates = signal<boolean>(false);
+
+  // EveryDollar Period Currency Rules & Historical Rates
+  public edCurrencyRules = signal<EveryDollarPeriodCurrencyRule[]>([]);
+  public edDefaultCurrency = signal<string>('USD');
+  public yearlyExchangeRates = signal<Record<string, number>>({});
+  private readonly ED_RULES_STORAGE_KEY = 'splitboard_ed_currency_rules';
+  private readonly ED_DEF_CURR_STORAGE_KEY = 'splitboard_ed_default_currency';
+  private readonly YEARLY_RATES_STORAGE_KEY = 'splitboard_yearly_exchange_rates';
 
   // UI State Signals
   public toasts = signal<Toast[]>([]);
@@ -781,6 +790,9 @@ export class TransactionService {
         visibleCurrencies: this.visibleCurrencies(),
         exchangeRates: this.exchangeRates(),
         lastRatesRefresh: this.lastRatesRefresh(),
+        edCurrencyRules: this.edCurrencyRules(),
+        edDefaultCurrency: this.edDefaultCurrency(),
+        yearlyExchangeRates: this.yearlyExchangeRates(),
         autoSyncDrive: this.autoSyncGoogleDrive(),
         googleFileName: this.googleFileName(),
         theme: this.theme()
@@ -882,6 +894,9 @@ export class TransactionService {
       }
       if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
       if (data.settings.lastRatesRefresh) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
+      if (data.settings.edCurrencyRules) this.edCurrencyRules.set(data.settings.edCurrencyRules);
+      if (data.settings.edDefaultCurrency) this.edDefaultCurrency.set(data.settings.edDefaultCurrency);
+      if (data.settings.yearlyExchangeRates) this.yearlyExchangeRates.set(data.settings.yearlyExchangeRates);
       if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
       if (data.settings.googleFileName) {
         const fn = data.settings.googleFileName;
@@ -899,6 +914,16 @@ export class TransactionService {
   }
 
   constructor() {
+    // Restore locally saved EveryDollar currency rules and yearly rates
+    try {
+      const storedRules = localStorage.getItem(this.ED_RULES_STORAGE_KEY);
+      if (storedRules) this.edCurrencyRules.set(JSON.parse(storedRules));
+      const storedDef = localStorage.getItem(this.ED_DEF_CURR_STORAGE_KEY);
+      if (storedDef) this.edDefaultCurrency.set(storedDef);
+      const storedYearlyRates = localStorage.getItem(this.YEARLY_RATES_STORAGE_KEY);
+      if (storedYearlyRates) this.yearlyExchangeRates.set(JSON.parse(storedYearlyRates));
+    } catch (_) {}
+
     this.initDatabasePersistence();
     this.applyTheme();
 
@@ -1402,6 +1427,10 @@ export class TransactionService {
           rawCategory,
           splitType: 'SELF',
           note,
+          currency: this.currency(),
+          originalAmount: amount,
+          originalCurrency: this.edDefaultCurrency() || 'USD',
+          exchangeRate: 1.0,
           sourceFile: batchFileName
         });
       } else {
@@ -1462,6 +1491,10 @@ export class TransactionService {
             rawCategory,
             splitType: 'SELF',
             note,
+            currency: this.currency(),
+            originalAmount: amount,
+            originalCurrency: this.edDefaultCurrency() || 'USD',
+            exchangeRate: 1.0,
             sourceFile: batchFileName
           });
         });
@@ -1965,6 +1998,198 @@ export class TransactionService {
     } finally {
       this.isFetchingRates.set(false);
     }
+  }
+
+  public saveEdCurrencyRules(rules: EveryDollarPeriodCurrencyRule[]): void {
+    this.edCurrencyRules.set(rules);
+    try {
+      localStorage.setItem(this.ED_RULES_STORAGE_KEY, JSON.stringify(rules));
+    } catch (_) {}
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public saveEdDefaultCurrency(curr: string): void {
+    const clean = curr.toUpperCase().trim() || 'USD';
+    this.edDefaultCurrency.set(clean);
+    try {
+      localStorage.setItem(this.ED_DEF_CURR_STORAGE_KEY, clean);
+    } catch (_) {}
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public saveYearlyExchangeRates(rates: Record<string, number>): void {
+    this.yearlyExchangeRates.set(rates);
+    try {
+      localStorage.setItem(this.YEARLY_RATES_STORAGE_KEY, JSON.stringify(rates));
+    } catch (_) {}
+  }
+
+  /**
+   * Dynamically fetches or calculates the European Central Bank (ECB) yearly average exchange rate
+   * for any year (e.g. 2016, 2018, 2024) using the free Frankfurter API.
+   * Results are cached locally so each year/currency pair is queried at most once.
+   */
+  public async getYearlyAverageRate(year: string, from: string, to: string): Promise<number> {
+    const f = (from || 'USD').toUpperCase().trim();
+    const t = (to || this.currency()).toUpperCase().trim();
+    if (f === t) return 1.0;
+
+    const key = `${year}_${f}_${t}`;
+    const cached = this.yearlyExchangeRates()[key];
+    if (cached !== undefined && cached > 0) return cached;
+
+    // Check inverse in cache
+    const revKey = `${year}_${t}_${f}`;
+    const revCached = this.yearlyExchangeRates()[revKey];
+    if (revCached !== undefined && revCached > 0) {
+      const inv = parseFloat((1 / revCached).toFixed(6));
+      this.saveYearlyExchangeRates({ ...this.yearlyExchangeRates(), [key]: inv });
+      return inv;
+    }
+
+    // Query Frankfurter API for historical rates across the entire year
+    // Querying base=EUR guarantees coverage for all ECB currencies
+    try {
+      const symbolsToFetch = Array.from(new Set([f, t].filter((c) => c !== 'EUR'))).join(',');
+      const url = symbolsToFetch
+        ? `https://api.frankfurter.dev/v1/${year}-01-01..${year}-12-31?base=EUR&symbols=${symbolsToFetch}`
+        : `https://api.frankfurter.dev/v1/${year}-01-01..${year}-12-31?base=EUR`;
+
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.rates) {
+          const dates = Object.keys(data.rates);
+          if (dates.length > 0) {
+            let total = 0;
+            let count = 0;
+            for (const d of dates) {
+              const dayRates = data.rates[d];
+              if (!dayRates) continue;
+
+              const rateF = f === 'EUR' ? 1.0 : dayRates[f];
+              const rateT = t === 'EUR' ? 1.0 : dayRates[t];
+
+              if (typeof rateF === 'number' && rateF > 0 && typeof rateT === 'number' && rateT > 0) {
+                const dayRate = rateT / rateF;
+                total += dayRate;
+                count++;
+              }
+            }
+
+            if (count > 0) {
+              const avg = parseFloat((total / count).toFixed(6));
+              const updated = {
+                ...this.yearlyExchangeRates(),
+                [key]: avg,
+                [revKey]: parseFloat((1 / avg).toFixed(6))
+              };
+              this.saveYearlyExchangeRates(updated);
+              return avg;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[TransactionService] Could not fetch yearly average for ${year} ${f}->${t}:`, err);
+    }
+
+    // Fallback to current rate
+    const fallback = this.getExchangeRate(f, t);
+    const updated = { ...this.yearlyExchangeRates(), [key]: fallback };
+    this.saveYearlyExchangeRates(updated);
+    return fallback;
+  }
+
+  public async applyCurrencyConversionToTransactions(
+    txs: Transaction[],
+    rules?: EveryDollarPeriodCurrencyRule[],
+    defaultCurrency?: string
+  ): Promise<Transaction[]> {
+    if (!txs || txs.length === 0) return [];
+    const activeRules = rules !== undefined ? rules : this.edCurrencyRules();
+    const defCurr = (defaultCurrency !== undefined ? defaultCurrency : this.edDefaultCurrency() || 'USD').toUpperCase().trim();
+    const baseCurr = this.currency().toUpperCase().trim();
+
+    // Identify unique year + sourceCurr pairs needing rate lookup
+    const needed = new Set<string>();
+    for (const tx of txs) {
+      const ym = (tx.date || '').slice(0, 7);
+      const year = (tx.date || '').slice(0, 4);
+      let sourceCurr = defCurr;
+      for (const r of activeRules) {
+        if (r.fromMonth && r.toMonth && ym >= r.fromMonth && ym <= r.toMonth) {
+          sourceCurr = (r.currency || defCurr).toUpperCase().trim();
+          break;
+        }
+      }
+      if (sourceCurr !== baseCurr && year) {
+        needed.add(`${year}_${sourceCurr}`);
+      }
+    }
+
+    // Prefetch all rates in parallel
+    const rateMap = new Map<string, number>();
+    await Promise.all(
+      Array.from(needed).map(async (item) => {
+        const [year, sourceCurr] = item.split('_');
+        const rate = await this.getYearlyAverageRate(year, sourceCurr, baseCurr);
+        rateMap.set(item, rate);
+      })
+    );
+
+    return txs.map((tx) => {
+      const ym = (tx.date || '').slice(0, 7);
+      const year = (tx.date || '').slice(0, 4);
+      let sourceCurr = defCurr;
+      for (const r of activeRules) {
+        if (r.fromMonth && r.toMonth && ym >= r.fromMonth && ym <= r.toMonth) {
+          sourceCurr = (r.currency || defCurr).toUpperCase().trim();
+          break;
+        }
+      }
+
+      // Preserve raw face value in originalAmount
+      const origAmt = tx.originalAmount !== undefined ? tx.originalAmount : tx.amount;
+
+      if (sourceCurr === baseCurr) {
+        return {
+          ...tx,
+          amount: origAmt,
+          currency: baseCurr,
+          originalAmount: origAmt,
+          originalCurrency: baseCurr,
+          exchangeRate: 1.0
+        };
+      }
+
+      const rate = rateMap.get(`${year}_${sourceCurr}`) || this.getExchangeRate(sourceCurr, baseCurr);
+      const convertedAmt = parseFloat((origAmt * rate).toFixed(2));
+
+      return {
+        ...tx,
+        amount: convertedAmt,
+        currency: baseCurr,
+        originalAmount: origAmt,
+        originalCurrency: sourceCurr,
+        exchangeRate: rate
+      };
+    });
+  }
+
+  public async reapplyCurrencyConversionToAllEveryDollarTransactions(): Promise<number> {
+    const existing = this.transactions();
+    const edTxs = existing.filter((t) => t.bank === 'EveryDollar');
+    if (edTxs.length === 0) return 0;
+
+    const converted = await this.applyCurrencyConversionToTransactions(edTxs);
+    const convertedMap = new Map(converted.map((t) => [t.id, t]));
+
+    this.transactions.update((curr) =>
+      curr.map((t) => (convertedMap.has(t.id) ? convertedMap.get(t.id)! : t))
+    );
+    this.triggerAutoSyncIfEnabled();
+    return edTxs.length;
   }
 
   // Backup & Restore

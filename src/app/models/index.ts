@@ -128,11 +128,21 @@ export interface AppDataBackup {
     visibleCurrencies?: string[];
     exchangeRates?: Record<string, number>;
     lastRatesRefresh?: number | null;
+    edCurrencyRules?: EveryDollarPeriodCurrencyRule[];
+    edDefaultCurrency?: string;
+    yearlyExchangeRates?: Record<string, number>;
     autoSyncDrive: boolean;
     googleFileName: string;
     theme: 'dark' | 'light';
   };
   deletedSignatures?: string[];
+}
+
+export interface EveryDollarPeriodCurrencyRule {
+  id: string;
+  fromMonth: string; // YYYY-MM
+  toMonth: string;   // YYYY-MM
+  currency: string;  // e.g. EUR, USD, INR
 }
 
 export interface ParsedStatementResult {
