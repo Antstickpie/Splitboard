@@ -6,6 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "verify": "npm run typecheck && ng build --configuration development",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "start:proxy": "node tools/proxy-server.js"
