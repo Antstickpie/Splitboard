@@ -791,16 +791,31 @@ export class SettingsComponent {
 
         const proxyUrl = `http://localhost:4000/everydollar?startDate=${encodeURIComponent(r.start)}&endDate=${encodeURIComponent(r.end)}`;
 
-        let res: Response;
-        try {
-          res = await fetch(proxyUrl, { signal: this.edAbortController.signal });
-        } catch (fetchErr: any) {
-          if (this.edAbortController.signal.aborted) break;
-          throw new Error(`Connection error on ${r.month}: ${fetchErr.message}`);
+        let res: Response | null = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            res = await fetch(proxyUrl, { signal: this.edAbortController.signal });
+            if (res.ok) {
+              break;
+            } else if (attempt === 1) {
+              console.warn(`Attempt 1 failed for ${r.month} (HTTP ${res.status}), retrying in 1.2s...`);
+              await new Promise((resolve) => setTimeout(resolve, 1200));
+            }
+          } catch (fetchErr: any) {
+            if (this.edAbortController.signal.aborted) break;
+            if (attempt === 1) {
+              await new Promise((resolve) => setTimeout(resolve, 1200));
+            } else {
+              console.warn(`Connection error on ${r.month}:`, fetchErr.message);
+            }
+          }
         }
 
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status} from proxy on ${r.month}`);
+        if (this.edAbortController.signal.aborted) break;
+
+        if (!res || !res.ok) {
+          console.warn(`Skipping month ${r.month} due to error (${res ? res.status : 'no response'})`);
+          continue;
         }
 
         const data = await res.json();
@@ -988,6 +1003,13 @@ export class SettingsComponent {
     );
 
     this.service.showToast(`Assigned all EveryDollar transactions to ${personName} (split: SELF).`, 'info');
+  }
+
+  public setTxPerson(tx: Transaction, personName: string): void {
+    if (!personName) return;
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((t) => (t.id === tx.id ? { ...t, paidBy: personName, splitType: 'SELF' } : t))
+    );
   }
 
   public resetAllCategoryMappingsToUncategorized(): void {

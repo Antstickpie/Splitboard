@@ -1460,17 +1460,21 @@
                 </app-category-select>
               </div>
 
-              <!-- Person Selector -->
+              <!-- Person Selector (Click-to-Select, No Dropdown) -->
               <div class="ed-control-group" title="Assigned Person">
                 <span class="ed-control-label">Person:</span>
-                <select
-                  class="ed-person-select"
-                  [ngModel]="m.selectedPerson"
-                  (ngModelChange)="onCategoryPersonChange(m.rawCategory, $event)">
-                  <option *ngFor="let p of service.persons()" [value]="p.name">
-                    👤 {{ p.name }}
-                  </option>
-                </select>
+                <div class="split-button-group">
+                  <button
+                    type="button"
+                    *ngFor="let p of service.persons(); let idx = index"
+                    class="split-btn"
+                    [class.split-btn-p1]="idx === 0"
+                    [class.split-btn-p2]="idx === 1"
+                    [class.active]="m.selectedPerson === p.name"
+                    (click)="onCategoryPersonChange(m.rawCategory, p.name)">
+                    {{ p.name }}
+                  </button>
+                </div>
               </div>
 
               <span class="badge badge-neutral" style="font-size: 0.68rem; padding: 0.2rem 0.45rem; opacity: 0.85;" title="Split is 100% personal (no partner debt)">
@@ -1514,9 +1518,18 @@
                 </span>
               </td>
               <td>
-                <span class="badge badge-primary" style="display: inline-flex; align-items: center; gap: 0.3rem;">
-                  <span>👤</span> {{ tx.paidBy }}
-                </span>
+                <div class="split-button-group">
+                  <button
+                    type="button"
+                    *ngFor="let p of service.persons(); let idx = index"
+                    class="split-btn split-btn-xs"
+                    [class.split-btn-p1]="idx === 0"
+                    [class.split-btn-p2]="idx === 1"
+                    [class.active]="tx.paidBy === p.name"
+                    (click)="setTxPerson(tx, p.name)">
+                    {{ p.name }}
+                  </button>
+                </div>
               </td>
               <td class="font-mono" [class.text-success]="tx.type === 'INCOME'" style="font-weight: 700;">
                 {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}

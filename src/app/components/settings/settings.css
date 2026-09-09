@@ -1153,20 +1153,51 @@
   white-space: nowrap;
 }
 
-.ed-person-select {
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #f8fafc;
-  padding: 0.32rem 0.55rem;
+.split-button-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  font-size: 0.8rem;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.15s ease;
+  padding: 2px;
+  gap: 2px;
 }
 
-.ed-person-select:focus {
-  border-color: #38bdf8;
+.split-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.split-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.split-btn.split-btn-p1.active {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  font-weight: 700;
+}
+
+.split-btn.split-btn-p2.active {
+  background: rgba(167, 139, 250, 0.2);
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.4);
+  font-weight: 700;
+}
+
+.split-btn.split-btn-xs {
+  padding: 0.15rem 0.42rem;
+  font-size: 0.7rem;
 }
 
 .ed-batches-card {

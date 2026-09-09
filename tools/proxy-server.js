@@ -18,6 +18,27 @@ let browser = null;
 let activePage = null;
 let authPromise = null;
 let idleTimer = null;
+let inFlightCount = 0;
+
+function isBrowserAlive(b) {
+  if (!b) return false;
+  try {
+    if (typeof b.connected === 'boolean') return b.connected;
+    if (typeof b.isConnected === 'function') return b.isConnected();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function isPageAlive(p) {
+  if (!p) return false;
+  try {
+    return !p.isClosed();
+  } catch (_) {
+    return false;
+  }
+}
 
 async function closeBrowserInstance() {
   if (idleTimer) {
@@ -39,9 +60,12 @@ async function closeBrowserInstance() {
   }
 }
 
-function resetIdleTimer(seconds = 10) {
+function resetIdleTimer(seconds = 30) {
   if (idleTimer) clearTimeout(idleTimer);
+  if (inFlightCount > 0) return; // Do not auto-close while requests are being processed
+
   idleTimer = setTimeout(async () => {
+    if (inFlightCount > 0) return;
     console.log(`\nInactivity timeout (${seconds}s). Closing Chrome...`);
     await closeBrowserInstance();
   }, seconds * 1000);
@@ -76,13 +100,13 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     status: 'running',
-    browserConnected: Boolean(browser && browser.isConnected()),
-    hasActivePage: Boolean(activePage && !activePage.isClosed()),
+    browserConnected: isBrowserAlive(browser),
+    hasActivePage: isPageAlive(activePage),
   });
 });
 
 async function getBrowser() {
-  if (browser && browser.isConnected()) {
+  if (isBrowserAlive(browser)) {
     return browser;
   }
 
@@ -119,7 +143,7 @@ async function ensureAuthenticatedPage() {
   authPromise = (async () => {
     const browserInstance = await getBrowser();
 
-    if (!activePage || activePage.isClosed()) {
+    if (!isPageAlive(activePage)) {
       const pages = await browserInstance.pages();
       activePage = pages.length > 0 ? pages[0] : await browserInstance.newPage();
       await activePage.setUserAgent(
@@ -127,7 +151,13 @@ async function ensureAuthenticatedPage() {
       );
     }
 
-    let currentUrl = activePage.url();
+    let currentUrl = '';
+    try {
+      currentUrl = activePage.url();
+    } catch (_) {
+      currentUrl = '';
+    }
+
     if (currentUrl.includes('everydollar.com/app')) {
       return activePage;
     }
@@ -195,6 +225,34 @@ async function ensureAuthenticatedPage() {
   }
 }
 
+async function executeFetchOnPage(page, apiUrl) {
+  return await page.evaluate(async (url) => {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://www.everydollar.com/',
+          'Origin': 'https://www.everydollar.com',
+        },
+      });
+      const text = await response.text();
+      return {
+        status: response.status,
+        ok: response.ok,
+        text: text,
+      };
+    } catch (error) {
+      return {
+        status: 0,
+        ok: false,
+        text: `Fetch error: ${error.message}`,
+      };
+    }
+  }, apiUrl);
+}
+
 app.get('/everydollar', async (req, res) => {
   const start = req.query.startDate;
   const end = req.query.endDate;
@@ -207,41 +265,26 @@ app.get('/everydollar', async (req, res) => {
     start
   )}&endDate=${encodeURIComponent(end)}&size=1000`;
 
+  inFlightCount++;
   if (idleTimer) clearTimeout(idleTimer);
 
   try {
     console.log(`\n[Proxy Request] Fetching transactions from ${start} to ${end}...`);
     let page = await ensureAuthenticatedPage();
 
-    // Execute fetch directly within the authenticated EveryDollar page context
-    let apiResult = await page.evaluate(async (apiUrl) => {
-      try {
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'Referer': 'https://www.everydollar.com/',
-            'Origin': 'https://www.everydollar.com',
-          },
-        });
-        const text = await response.text();
-        return {
-          status: response.status,
-          ok: response.ok,
-          text: text,
-        };
-      } catch (error) {
-        return {
-          status: 0,
-          ok: false,
-          text: `Fetch error: ${error.message}`,
-        };
-      }
-    }, url);
+    // Execute fetch directly within the authenticated EveryDollar page context (with recovery retry)
+    let apiResult;
+    try {
+      apiResult = await executeFetchOnPage(page, url);
+    } catch (evalErr) {
+      console.warn('Page context error, re-establishing page session:', evalErr.message);
+      activePage = null;
+      page = await ensureAuthenticatedPage();
+      apiResult = await executeFetchOnPage(page, url);
+    }
 
     // If 401 Unauthorized, try refreshing page to regain session once
-    if (apiResult.status === 401) {
+    if (apiResult && apiResult.status === 401) {
       console.warn('Received 401 Unauthorized. Reloading EveryDollar page to re-establish session...');
       try {
         await page.goto('https://www.everydollar.com/app/budget', {
@@ -249,37 +292,13 @@ app.get('/everydollar', async (req, res) => {
           timeout: 30000,
         });
         page = await ensureAuthenticatedPage();
-        apiResult = await page.evaluate(async (apiUrl) => {
-          try {
-            const response = await fetch(apiUrl, {
-              method: 'GET',
-              credentials: 'include',
-              headers: {
-                'Accept': 'application/json, text/plain, */*',
-                'Referer': 'https://www.everydollar.com/',
-                'Origin': 'https://www.everydollar.com',
-              },
-            });
-            const text = await response.text();
-            return {
-              status: response.status,
-              ok: response.ok,
-              text: text,
-            };
-          } catch (error) {
-            return {
-              status: 0,
-              ok: false,
-              text: `Fetch error: ${error.message}`,
-            };
-          }
-        }, url);
+        apiResult = await executeFetchOnPage(page, url);
       } catch (retryErr) {
         console.error('Session refresh failed:', retryErr.message);
       }
     }
 
-    const { status, text } = apiResult;
+    const { status, text } = apiResult || { status: 500, text: 'No result from page' };
     console.log(`[Proxy Response] Status: ${status}`);
 
     if (status >= 400) {
@@ -287,6 +306,10 @@ app.get('/everydollar', async (req, res) => {
     } else if (status >= 200 && status < 300 && text) {
       try {
         const jsonPath = path.join(__dirname, '..', 'src', 'data', 'selected-transactions.json');
+        const jsonDir = path.dirname(jsonPath);
+        if (!fs.existsSync(jsonDir)) {
+          fs.mkdirSync(jsonDir, { recursive: true });
+        }
         const jsonData = JSON.parse(text);
         fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
         console.log(`✓ Saved latest response to src/data/selected-transactions.json`);
@@ -304,9 +327,11 @@ app.get('/everydollar', async (req, res) => {
     }
   } catch (e) {
     console.error('Proxy error:', e.message || e);
+    activePage = null;
     res.status(500).json({ error: 'Proxy error', message: String(e.message || e) });
   } finally {
-    resetIdleTimer(8);
+    inFlightCount = Math.max(0, inFlightCount - 1);
+    resetIdleTimer(30);
   }
 });
 
