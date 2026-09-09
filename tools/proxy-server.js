@@ -17,6 +17,35 @@ if (!fs.existsSync(sessionDir)) {
 let browser = null;
 let activePage = null;
 let authPromise = null;
+let idleTimer = null;
+
+async function closeBrowserInstance() {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  if (browser) {
+    console.log('\nClosing Chrome browser session...');
+    const b = browser;
+    browser = null;
+    activePage = null;
+    authPromise = null;
+    try {
+      await b.close();
+      console.log('Chrome closed.');
+    } catch (err) {
+      console.warn('Notice while closing browser:', err.message);
+    }
+  }
+}
+
+function resetIdleTimer(seconds = 10) {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(async () => {
+    console.log(`\nInactivity timeout (${seconds}s). Closing Chrome...`);
+    await closeBrowserInstance();
+  }, seconds * 1000);
+}
 
 app.use(
   cors({
@@ -36,6 +65,11 @@ app.use((req, res, next) => {
 
 app.get('/', (_req, res) => {
   res.type('text/plain').send('EveryDollar proxy is running. Use /everydollar?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD');
+});
+
+app.all('/close-browser', async (_req, res) => {
+  await closeBrowserInstance();
+  res.json({ ok: true, message: 'Browser session closed.' });
 });
 
 app.get('/health', (_req, res) => {
@@ -173,6 +207,8 @@ app.get('/everydollar', async (req, res) => {
     start
   )}&endDate=${encodeURIComponent(end)}&size=1000`;
 
+  if (idleTimer) clearTimeout(idleTimer);
+
   try {
     console.log(`\n[Proxy Request] Fetching transactions from ${start} to ${end}...`);
     let page = await ensureAuthenticatedPage();
@@ -269,6 +305,8 @@ app.get('/everydollar', async (req, res) => {
   } catch (e) {
     console.error('Proxy error:', e.message || e);
     res.status(500).json({ error: 'Proxy error', message: String(e.message || e) });
+  } finally {
+    resetIdleTimer(8);
   }
 });
 

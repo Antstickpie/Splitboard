@@ -34,6 +34,7 @@ export interface Transaction {
   paidBy: string; // Person name
   categoryGroup?: string;
   categoryItem?: string;
+  rawCategory?: string; // Original category name from source (e.g. EveryDollar)
   
   // Split logic
   splitType?: SplitType;

@@ -1,13 +1,22 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CategorySelectComponent } from '../category-select/category-select';
 import { TransactionService, ImportedBatch } from '../../services/transaction.service';
 import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem, Transaction } from '../../models';
+
+export interface EveryDollarCategoryMapping {
+  rawCategory: string;
+  count: number;
+  totalAmount: number;
+  selectedItem: string;
+  selectedGroup: string;
+}
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CategorySelectComponent],
   templateUrl: './settings.html',
   styleUrl: './settings.css'
 })
@@ -801,8 +810,9 @@ export class SettingsComponent {
 
       this.edProgressPercent.set(100);
       this.edPreviewTransactions.set(allParsed);
+      this.updateCategoryMappingsFromPreview();
       this.service.showToast(
-        `Fetched ${allParsed.length} transactions across ${ranges.length} month(s)! Review and click Save.`,
+        `Fetched ${allParsed.length} transactions across ${ranges.length} month(s)! Review categories and click Save.`,
         'success'
       );
     } catch (err: any) {
@@ -810,6 +820,10 @@ export class SettingsComponent {
     } finally {
       this.edIsFetching.set(false);
       this.edAbortController = null;
+      // Tell proxy to cleanly quit Chrome now that fetch is done
+      try {
+        await fetch('http://localhost:4000/close-browser');
+      } catch (_) {}
     }
   }
 
@@ -827,6 +841,7 @@ export class SettingsComponent {
       const rawTxs = Array.isArray(data) ? data : (data.transactions || []);
       const parsed = this.service.parseEveryDollarTransactions(rawTxs);
       this.edPreviewTransactions.set(parsed);
+      this.updateCategoryMappingsFromPreview();
       this.edImportResult.set(null);
       this.service.showToast(`Parsed ${parsed.length} EveryDollar transactions!`, 'success');
     } catch (e: any) {
@@ -846,6 +861,7 @@ export class SettingsComponent {
         const rawTxs = Array.isArray(data) ? data : (data.transactions || []);
         const parsed = this.service.parseEveryDollarTransactions(rawTxs);
         this.edPreviewTransactions.set(parsed);
+        this.updateCategoryMappingsFromPreview();
         this.edImportResult.set(null);
         this.service.showToast(`Loaded ${parsed.length} transactions from ${file.name}!`, 'success');
       } catch (err: any) {
@@ -856,6 +872,98 @@ export class SettingsComponent {
     reader.readAsText(file);
   }
 
+  // EveryDollar Category Mapping State
+  public edCategoryMappings = signal<EveryDollarCategoryMapping[]>([]);
+
+  public updateCategoryMappingsFromPreview(): void {
+    const txs = this.edPreviewTransactions();
+    if (txs.length === 0) {
+      this.edCategoryMappings.set([]);
+      return;
+    }
+
+    const currentMappings = new Map<string, { item: string; group: string }>();
+    for (const m of this.edCategoryMappings()) {
+      currentMappings.set(m.rawCategory, { item: m.selectedItem, group: m.selectedGroup });
+    }
+
+    const groupMap = new Map<string, { count: number; totalAmount: number }>();
+    for (const tx of txs) {
+      const cat = tx.rawCategory || 'Uncategorized';
+      const existing = groupMap.get(cat) || { count: 0, totalAmount: 0 };
+      existing.count += 1;
+      existing.totalAmount += tx.amount;
+      groupMap.set(cat, existing);
+    }
+
+    const result: EveryDollarCategoryMapping[] = [];
+    groupMap.forEach((val, rawCategory) => {
+      const existingMap = currentMappings.get(rawCategory);
+      // Default to Uncategorized as requested
+      const selectedItem = existingMap?.item || 'Uncategorized';
+      const selectedGroup = existingMap?.group || 'Uncategorized';
+
+      result.push({
+        rawCategory,
+        count: val.count,
+        totalAmount: Math.round(val.totalAmount * 100) / 100,
+        selectedItem,
+        selectedGroup,
+      });
+    });
+
+    result.sort((a, b) => b.count - a.count);
+    this.edCategoryMappings.set(result);
+  }
+
+  public onCategoryMappingChange(rawCategory: string, selection: { item: string; group: string }): void {
+    const chosenItem = selection.item || 'Uncategorized';
+    const chosenGroup = selection.group || 'Uncategorized';
+
+    // Update in mapping array
+    this.edCategoryMappings.update((curr) =>
+      curr.map((m) =>
+        m.rawCategory === rawCategory
+          ? { ...m, selectedItem: chosenItem, selectedGroup: chosenGroup }
+          : m
+      )
+    );
+
+    // Update all matching staged preview transactions
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.rawCategory || 'Uncategorized') === rawCategory) {
+          return {
+            ...tx,
+            categoryItem: chosenItem,
+            categoryGroup: chosenGroup,
+          };
+        }
+        return tx;
+      })
+    );
+  }
+
+  public resetAllCategoryMappingsToUncategorized(): void {
+    this.edCategoryMappings.update((curr) =>
+      curr.map((m) => ({
+        ...m,
+        selectedItem: 'Uncategorized',
+        selectedGroup: 'Uncategorized',
+      }))
+    );
+
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => ({
+        ...tx,
+        categoryItem: 'Uncategorized',
+        categoryGroup: 'Uncategorized',
+      }))
+    );
+
+    this.service.showToast('All EveryDollar categories reset to Uncategorized.', 'info');
+  }
+
   public commitEveryDollarImport(): void {
     const preview = this.edPreviewTransactions();
     if (preview.length === 0) return;
@@ -863,14 +971,40 @@ export class SettingsComponent {
     const result = this.service.importEveryDollarTransactions(preview);
     this.edImportResult.set(result);
     this.edPreviewTransactions.set([]);
+    this.edCategoryMappings.set([]);
     this.service.showToast(
       `Successfully saved ${result.added} transactions (${result.skipped} duplicates skipped)!`,
       'success'
     );
   }
 
+  public async undoLastEveryDollarImport(): Promise<void> {
+    const last = this.service.lastEveryDollarImport();
+    if (!last || last.ids.length === 0) {
+      this.service.showToast('No recent EveryDollar import to undo.', 'info');
+      return;
+    }
+
+    const ok = await this.service.showConfirm(
+      'Undo EveryDollar Import',
+      `Are you sure you want to delete all ${last.ids.length} imported transactions from Splitboard? They will be restored to your staging area.`
+    );
+    if (!ok) return;
+
+    const { removed } = this.service.undoEveryDollarImport(last.ids);
+    this.edPreviewTransactions.set(last.transactions);
+    this.updateCategoryMappingsFromPreview();
+    this.edImportResult.set(null);
+    this.service.showToast(`Import undone: removed ${removed} transactions and restored to preview.`, 'success');
+  }
+
+  public get everyDollarBatches(): ImportedBatch[] {
+    return this.service.importedBatches().filter((b) => b.fileName.startsWith('EveryDollar'));
+  }
+
   public clearEveryDollarPreview(): void {
     this.edPreviewTransactions.set([]);
+    this.edCategoryMappings.set([]);
     this.edImportResult.set(null);
   }
 

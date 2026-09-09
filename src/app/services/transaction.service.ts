@@ -1309,25 +1309,18 @@ export class TransactionService {
       const amount = Math.round(Math.abs(rawAmt)) / 100;
 
       const firstAlloc = Array.isArray(raw.allocations) && raw.allocations.length > 0 ? raw.allocations[0] : null;
-      const categoryItem = (firstAlloc?.label || raw.category || 'Uncategorized').trim();
+      const rawCategory = (firstAlloc?.label || raw.category || raw.budgetCategoryName || 'Uncategorized').trim();
 
-      // Determine category group
-      let categoryGroup = catMap.get(categoryItem.toLowerCase()) || '';
       const isIncomeLike =
-        categoryItem.toLowerCase().includes('income') ||
-        categoryItem.toLowerCase().includes('salary') ||
+        rawCategory.toLowerCase().includes('income') ||
+        rawCategory.toLowerCase().includes('salary') ||
         raw.type === 'INCOME';
 
-      if (!categoryGroup) {
-        if (isIncomeLike) {
-          const incGrp = this.categoryGroups().find((g) => g.name.toLowerCase().includes('income'));
-          categoryGroup = incGrp ? incGrp.name : 'Income';
-        } else {
-          categoryGroup = 'Imported EveryDollar';
-        }
-      }
+      // Default to 'Uncategorized' for both group and item as requested
+      const categoryGroup = 'Uncategorized';
+      const categoryItem = 'Uncategorized';
 
-      const description = (raw.merchant || raw.description || categoryItem || 'EveryDollar Transaction').trim();
+      const description = (raw.merchant || raw.description || rawCategory || 'EveryDollar Transaction').trim();
       const noteParts: string[] = [];
       if (raw.note) noteParts.push(String(raw.note));
       if (raw.checkNumber) noteParts.push(`Check: ${raw.checkNumber}`);
@@ -1344,6 +1337,7 @@ export class TransactionService {
         paidBy: defaultPayer,
         categoryGroup,
         categoryItem,
+        rawCategory,
         splitType: 'SELF',
         note,
         sourceFile: `EveryDollar (${date.slice(0, 7)})`
@@ -1353,8 +1347,14 @@ export class TransactionService {
     return result;
   }
 
-  public importEveryDollarTransactions(newTxs: Transaction[]): { added: number; skipped: number } {
-    if (!newTxs || newTxs.length === 0) return { added: 0, skipped: 0 };
+  public lastEveryDollarImport = signal<{
+    ids: string[];
+    transactions: Transaction[];
+    timestamp: string;
+  } | null>(null);
+
+  public importEveryDollarTransactions(newTxs: Transaction[]): { added: number; skipped: number; addedIds: string[] } {
+    if (!newTxs || newTxs.length === 0) return { added: 0, skipped: 0, addedIds: [] };
 
     const existingIds = new Set(this.transactions().map((t) => t.id));
     const existingSigs = new Set(this.transactions().map((t) => this.getTransactionSignature(t)));
@@ -1373,12 +1373,32 @@ export class TransactionService {
       }
     }
 
+    const addedIds = toAdd.map((t) => t.id);
+
     if (toAdd.length > 0) {
       this.transactions.update((curr) => [...toAdd, ...curr]);
+      this.lastEveryDollarImport.set({
+        ids: addedIds,
+        transactions: toAdd,
+        timestamp: new Date().toISOString()
+      });
       this.triggerAutoSyncIfEnabled();
     }
 
-    return { added: toAdd.length, skipped };
+    return { added: toAdd.length, skipped, addedIds };
+  }
+
+  public undoEveryDollarImport(ids: string[]): { removed: number } {
+    if (!ids || ids.length === 0) return { removed: 0 };
+    const idSet = new Set(ids);
+    const before = this.transactions().length;
+    this.transactions.update((curr) => curr.filter((t) => !idSet.has(t.id)));
+    const removed = before - this.transactions().length;
+    if (this.lastEveryDollarImport()?.ids.every((id) => idSet.has(id))) {
+      this.lastEveryDollarImport.set(null);
+    }
+    this.triggerAutoSyncIfEnabled();
+    return { removed };
   }
 
 

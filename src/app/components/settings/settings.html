@@ -1401,6 +1401,53 @@
         </div>
       </div>
 
+      <!-- Category Mapping Section (Grouped by EveryDollar Category) -->
+      <div *ngIf="edCategoryMappings().length > 0" class="ed-category-mapping-box">
+        <div class="ed-mapping-header">
+          <div>
+            <h5 style="margin: 0; font-size: 0.92rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
+              <span>🏷️</span> Map EveryDollar Categories ({{ edCategoryMappings().length }})
+            </h5>
+            <p class="subtitle" style="margin: 0.2rem 0 0 0; font-size: 0.78rem;">
+              Grouped by EveryDollar category. Choose a Splitboard category for each group (defaults to Uncategorized).
+            </p>
+          </div>
+          <button
+            class="btn btn-secondary btn-xs"
+            (click)="resetAllCategoryMappingsToUncategorized()"
+            title="Reset all mappings to Uncategorized">
+            ↺ Reset All to Uncategorized
+          </button>
+        </div>
+
+        <div class="ed-mapping-grid">
+          <div class="ed-mapping-row glass-card" *ngFor="let m of edCategoryMappings()">
+            <div class="ed-mapping-source">
+              <div class="ed-source-name" [title]="m.rawCategory">
+                {{ m.rawCategory }}
+              </div>
+              <div class="ed-source-meta">
+                <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
+                <span>•</span>
+                <span class="font-mono">{{ service.formatCurrency(m.totalAmount) }}</span>
+              </div>
+            </div>
+
+            <div class="ed-mapping-arrow">➔</div>
+
+            <div class="ed-mapping-target">
+              <app-category-select
+                [value]="m.selectedItem"
+                [group]="m.selectedGroup"
+                placeholder="📁 Uncategorized"
+                minWidth="200px"
+                (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)">
+              </app-category-select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Preview Table -->
       <div class="ed-table-wrap">
         <table class="ed-preview-table">
@@ -1408,8 +1455,8 @@
             <tr>
               <th>Date</th>
               <th>Description / Merchant</th>
-              <th>Category</th>
-              <th>Group</th>
+              <th>EveryDollar Category</th>
+              <th>Mapped Category</th>
               <th>Amount</th>
               <th>Status</th>
             </tr>
@@ -1421,8 +1468,17 @@
                 <div style="font-weight: 600; color: var(--text-main);">{{ tx.description }}</div>
                 <div *ngIf="tx.note" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">{{ tx.note }}</div>
               </td>
-              <td><span class="badge badge-neutral">{{ tx.categoryItem }}</span></td>
-              <td><span class="badge badge-info">{{ tx.categoryGroup }}</span></td>
+              <td>
+                <span class="badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);">
+                  {{ tx.rawCategory || 'Uncategorized' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" [class.badge-neutral]="tx.categoryItem === 'Uncategorized'" [class.badge-info]="tx.categoryItem !== 'Uncategorized'">
+                  {{ tx.categoryItem }}
+                  <span *ngIf="tx.categoryGroup && tx.categoryGroup !== 'Uncategorized'" style="opacity: 0.7; font-size: 0.82em;">({{ tx.categoryGroup }})</span>
+                </span>
+              </td>
               <td class="font-mono" [class.text-success]="tx.type === 'INCOME'" style="font-weight: 700;">
                 {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
               </td>
@@ -1443,18 +1499,46 @@
       </div>
     </div>
 
-    <!-- Success Result Banner -->
+    <!-- Success Result Banner with Undo Button -->
     <div *ngIf="edImportResult() as res" class="glass-card ed-result-card">
-      <div style="display: flex; align-items: center; gap: 0.8rem;">
-        <span style="font-size: 1.8rem;">🎉</span>
-        <div>
-          <h4 style="margin: 0; color: #22c55e;">Import Completed Successfully!</h4>
-          <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-main);">
-            Added <strong>{{ res.added }}</strong> new transactions to Splitboard.
-            <span *ngIf="res.skipped > 0" style="color: var(--text-muted);">
-              ({{ res.skipped }} existing duplicates skipped)
-            </span>
-          </p>
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.8rem;">
+          <span style="font-size: 1.8rem;">🎉</span>
+          <div>
+            <h4 style="margin: 0; color: #22c55e;">Import Completed Successfully!</h4>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-main);">
+              Added <strong>{{ res.added }}</strong> new transactions to Splitboard.
+              <span *ngIf="res.skipped > 0" style="color: var(--text-muted);">
+                ({{ res.skipped }} existing duplicates skipped)
+              </span>
+            </p>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" (click)="undoLastEveryDollarImport()" style="display: flex; align-items: center; gap: 0.45rem;">
+          <span>↩</span> Undo This Import
+        </button>
+      </div>
+    </div>
+
+    <!-- Previous EveryDollar Imports (Statement Batches) -->
+    <div *ngIf="everyDollarBatches.length > 0" class="glass-card ed-batches-card" style="margin-top: 1.5rem; padding: 1.25rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+          <span>📦</span> Previous EveryDollar Imports ({{ everyDollarBatches.length }})
+        </h4>
+      </div>
+      <div class="ed-batch-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <div *ngFor="let b of everyDollarBatches" class="ed-batch-row glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; border-radius: 8px;">
+          <div style="display: flex; align-items: center; gap: 0.8rem;">
+            <span style="font-size: 1.15rem;">📅</span>
+            <div>
+              <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-main);">{{ b.fileName }}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">{{ b.count }} transactions • {{ service.formatCurrency(b.totalAmount) }}</div>
+            </div>
+          </div>
+          <button class="btn btn-danger btn-xs" (click)="service.undoImportBatch(b.fileName)" title="Delete all transactions from this batch">
+            ↩ Undo Batch
+          </button>
         </div>
       </div>
     </div>
