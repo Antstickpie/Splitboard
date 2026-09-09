@@ -1217,16 +1217,18 @@
           📅 Select Date Range (Month-by-Month)
         </h4>
 
-        <!-- Proxy Status & Check Proxy Button right in this card -->
-        <div class="ed-proxy-inline-wrap">
-          <div class="ed-proxy-badge" [class.online]="edProxyStatus() === 'running'" [class.offline]="edProxyStatus() === 'offline'">
-            <span class="status-dot"></span>
-            <span>{{ edProxyStatus() === 'running' ? 'Proxy Online (Port 4000)' : edProxyStatus() === 'offline' ? 'Proxy Offline' : 'Proxy Status: Click Check' }}</span>
-          </div>
-          <button class="btn btn-secondary btn-xs" (click)="checkEveryDollarProxy(true)" title="Check connection to EveryDollar proxy on port 4000">
-            ⟳ Check Proxy
-          </button>
-        </div>
+        <!-- Unified Single Proxy Status Button -->
+        <button
+          type="button"
+          class="ed-proxy-status-btn"
+          [class.online]="edProxyStatus() === 'running'"
+          [class.offline]="edProxyStatus() === 'offline'"
+          (click)="checkEveryDollarProxy(true)"
+          title="Click to test connection to EveryDollar proxy (port 4000)">
+          <span class="status-dot"></span>
+          <span>{{ edProxyStatus() === 'running' ? 'Proxy Online (Port 4000)' : edProxyStatus() === 'offline' ? 'Proxy Offline (Click to Retry)' : 'Proxy Status: Click to Check' }}</span>
+          <span class="refresh-icon">⟳</span>
+        </button>
       </div>
 
       <!-- Quick Presets -->
@@ -1293,13 +1295,6 @@
         </div>
 
         <div class="ed-actions-field">
-          <button
-            class="btn btn-secondary ed-check-btn"
-            (click)="checkEveryDollarProxy(true)"
-            title="Check connection to EveryDollar proxy on port 4000">
-            ⟳ Check Proxy
-          </button>
-
           <button
             class="btn btn-primary ed-fetch-btn"
             (click)="fetchEveryDollarFromProxy()"

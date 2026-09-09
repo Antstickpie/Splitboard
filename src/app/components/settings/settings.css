@@ -578,44 +578,77 @@
   align-items: flex-end;
 }
 
-.ed-proxy-badge {
+.ed-proxy-status-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.65rem;
+  gap: 0.45rem;
+  padding: 0.35rem 0.8rem;
   border-radius: 20px;
   font-size: 0.76rem;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-muted);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
-.ed-proxy-badge .status-dot {
+.ed-proxy-status-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: var(--text-main);
+  transform: translateY(-1px);
+}
+
+.ed-proxy-status-btn .status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #94a3b8;
+  transition: all 0.2s ease;
 }
 
-.ed-proxy-badge.online {
+.ed-proxy-status-btn .refresh-icon {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  margin-left: 0.15rem;
+  transition: opacity 0.2s ease, transform 0.3s ease;
+}
+
+.ed-proxy-status-btn:hover .refresh-icon {
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+.ed-proxy-status-btn.online {
   background: rgba(34, 197, 94, 0.1);
   color: #22c55e;
   border-color: rgba(34, 197, 94, 0.3);
 }
 
-.ed-proxy-badge.online .status-dot {
+.ed-proxy-status-btn.online:hover {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.ed-proxy-status-btn.online .status-dot {
   background: #22c55e;
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
 }
 
-.ed-proxy-badge.offline {
+.ed-proxy-status-btn.offline {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.3);
 }
 
-.ed-proxy-badge.offline .status-dot {
+.ed-proxy-status-btn.offline:hover {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.ed-proxy-status-btn.offline .status-dot {
   background: #ef4444;
 }
 
