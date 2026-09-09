@@ -193,12 +193,35 @@ For complex, unstructured natural language queries that rule-based engines might
 
 ---
 
-## 6. Implementation Phases
+## 6. Storage Evolution & Cloud Sync Strategy (Decision: Approach A)
+
+### Phase 1: In-Memory JSON (Current)
+- The natural language query engine executes directly against `TransactionService.transactions()`.
+- For datasets up to ~10,000 transactions, execution times are under 2 milliseconds with zero external database dependencies.
+- Persisted locally in `localStorage` under `tx_processor_data_v1`.
+
+### Phase 2: In-Browser Database Migration (IndexedDB)
+- When data history spans 5–10+ years and approaches the browser's ~5MB `localStorage` limit, the storage engine will transparently migrate to native browser **IndexedDB**.
+- IndexedDB provides gigabytes of local storage and indexed search capabilities without requiring an external backend.
+
+### Cloud Backup Strategy: Approach A (Portable JSON Dump)
+- Regardless of the underlying local storage engine (in-memory JSON or IndexedDB), backups to **Google Drive** will strictly adhere to **Approach A**:
+  1. On backup / auto-sync, the database serializes its state into a standardized, portable JSON payload (`splitboard_backup.json`).
+  2. The JSON payload is pushed directly to the user's personal Google Drive via the Google Drive REST API.
+  3. On restore, the JSON file is pulled and hydrates the local database.
+- **Benefits**:
+  - 100% portable across Chrome, Safari, Firefox, and mobile browsers.
+  - Human-readable and future-proof against database schema migrations.
+  - Zero server overhead or proprietary database locking.
+
+---
+
+## 7. Implementation Phases
 
 - [ ] **Phase 1: Query Compiler Service (`src/app/services/analytics-nlp.service.ts`)**
   - Implement regex date range parser for relative and seasonal expressions.
   - Implement category/merchant fuzzy matcher with local Trie/Levenshtein matching.
-  - Build the deterministic array calculation engine.
+  - Build the deterministic array calculation engine directly on `transactions()`.
 - [ ] **Phase 2: UI Component (`src/app/components/analytics-search/`)**
   - Search input with autocomplete and quick-prompt suggestion chips.
   - Answer card rendering with KPI highlight, mini SVG sparkline/bar, and drilldown table.
@@ -206,3 +229,5 @@ For complex, unstructured natural language queries that rule-based engines might
   - Embed in dashboard and connect keyboard shortcut (`Cmd+K`).
 - [ ] **Phase 4: Optional WebGPU / Chrome `window.ai` Hook**
   - Detect on-device model availability for fallback natural language handling.
+- [ ] **Phase 5: Storage Layer Upgrade (IndexedDB Adapter)**
+  - Seamless migration from `localStorage` to IndexedDB when transaction count exceeds capacity threshold, maintaining Approach A Google Drive sync.
