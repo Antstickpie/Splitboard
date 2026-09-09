@@ -768,6 +768,31 @@
   gap: 0.9rem;
 }
 
+.ed-controls-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.ed-proxy-inline-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ed-check-btn {
+  height: 36px;
+  padding: 0 0.85rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
 .ed-presets-row {
   display: flex;
   align-items: center;
