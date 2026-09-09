@@ -130,10 +130,18 @@
           <div>
             <label class="input-label">Date Format</label>
             <select [ngModel]="service.dateFormat()" (ngModelChange)="service.dateFormat.set($event)" class="settings-select">
-              <option value="yyyy-MM-dd">2026-08-23 (ISO)</option>
-              <option value="dd/MM/yyyy">23/08/2026 (EU)</option>
-              <option value="MM/dd/yyyy">08/23/2026 (US)</option>
-              <option value="MMMM d, yyyy">August 23, 2026</option>
+              <optgroup label="── Full Date (Words) ──">
+                <option value="MMMM d, yyyy">August 23, 2026 (US Full)</option>
+                <option value="d MMMM yyyy">23 August 2026 (EU Full)</option>
+                <option value="MMM d, yyyy">Aug 23, 2026 (US Short)</option>
+                <option value="d MMM yyyy">23 Aug 2026 (EU Short)</option>
+              </optgroup>
+              <optgroup label="── Numbers Only (Numeric) ──">
+                <option value="dd/MM/yyyy">23/08/2026 (EU - DD/MM/YYYY)</option>
+                <option value="MM/dd/yyyy">08/23/2026 (US - MM/DD/YYYY)</option>
+                <option value="yyyy-MM-dd">2026-08-23 (ISO - YYYY-MM-DD)</option>
+                <option value="dd.MM.yyyy">23.08.2026 (DE - DD.MM.YYYY)</option>
+              </optgroup>
             </select>
           </div>
 
@@ -1231,12 +1239,18 @@
       <!-- Date Inputs & Actions -->
       <div class="ed-inputs-row">
         <div class="ed-input-field">
-          <label>Start Date</label>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;">
+            <label>Start Date</label>
+            <span class="ed-date-preview font-mono">{{ service.formatDate(edStartDate()) }}</span>
+          </div>
           <input type="date" [ngModel]="edStartDate()" (ngModelChange)="onEdStartDateChange($event)" class="date-picker-input">
         </div>
 
         <div class="ed-input-field">
-          <label>End Date <span style="font-size: 0.72rem; color: var(--primary); font-weight: normal;">(Auto month-end)</span></label>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;">
+            <label>End Date <span style="font-size: 0.72rem; color: var(--primary); font-weight: normal;">(Auto month-end)</span></label>
+            <span class="ed-date-preview font-mono">{{ service.formatDate(edEndDate()) }}</span>
+          </div>
           <input type="date" [ngModel]="edEndDate()" (ngModelChange)="edEndDate.set($event)" class="date-picker-input">
         </div>
 

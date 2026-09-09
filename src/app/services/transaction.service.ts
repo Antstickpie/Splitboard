@@ -2208,17 +2208,54 @@ export class TransactionService {
     const y = parts[0];
     const m = parts[1];
     const d = parts[2];
+    const dayNum = parseInt(d, 10);
+    const monthNum = parseInt(m, 10);
+
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
-    const monthName = monthNames[parseInt(m, 10) - 1] || m;
+    const shortMonthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    const monthName = monthNames[monthNum - 1] || m;
+    const shortMonth = shortMonthNames[monthNum - 1] || m;
 
     const fmt = this.dateFormat();
+    // Numeric formats
     if (fmt === 'dd/MM/yyyy') return `${d}/${m}/${y}`;
     if (fmt === 'MM/dd/yyyy') return `${m}/${d}/${y}`;
-    if (fmt === 'MMMM d, yyyy') return `${monthName} ${parseInt(d, 10)}, ${y}`;
-    return `${y}-${m}-${d}`;
+    if (fmt === 'yyyy-MM-dd') return `${y}-${m}-${d}`;
+    if (fmt === 'dd.MM.yyyy') return `${d}.${m}.${y}`;
+
+    // Full / Word formats
+    if (fmt === 'MMMM d, yyyy') return `${monthName} ${dayNum}, ${y}`;
+    if (fmt === 'd MMMM yyyy') return `${dayNum} ${monthName} ${y}`;
+    if (fmt === 'MMM d, yyyy') return `${shortMonth} ${dayNum}, ${y}`;
+    if (fmt === 'd MMM yyyy') return `${dayNum} ${shortMonth} ${y}`;
+
+    return `${monthName} ${dayNum}, ${y}`;
+  }
+
+  public formatFullDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const clean = dateStr.slice(0, 10);
+    const parts = clean.split('-');
+    if (parts.length !== 3) return dateStr;
+
+    const y = parts[0];
+    const m = parts[1];
+    const d = parts[2];
+    const dayNum = parseInt(d, 10);
+    const monthNum = parseInt(m, 10);
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthName = monthNames[monthNum - 1] || m;
+    return `${monthName} ${dayNum}, ${y}`;
   }
 
   public formatMonth(monthStr: string): string {
@@ -2232,11 +2269,8 @@ export class TransactionService {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     const monthName = monthNames[parseInt(m, 10) - 1] || m;
-
-    const fmt = this.dateFormat();
-    if (fmt === 'dd/MM/yyyy' || fmt === 'MM/dd/yyyy') return `${m}/${y}`;
-    if (fmt === 'MMMM d, yyyy') return `${monthName} ${y}`;
-    return `${y}-${m}`;
+    // Wherever it's full now, keep it full! e.g. "February 2026"
+    return `${monthName} ${y}`;
   }
 
   public formatMonthName(monthStr: string): string {

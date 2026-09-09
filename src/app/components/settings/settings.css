@@ -810,6 +810,16 @@
   font-weight: 600;
 }
 
+.ed-date-preview {
+  font-size: 0.74rem;
+  color: #38bdf8;
+  font-weight: 600;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
 .date-picker-input {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
