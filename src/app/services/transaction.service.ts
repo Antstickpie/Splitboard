@@ -1342,8 +1342,10 @@ export class TransactionService {
     let minMonth = '';
     let maxMonth = '';
     for (const raw of rawItems) {
-      if (!raw || raw.deletedAt || !raw.date) continue;
-      const m = String(raw.date).slice(0, 7);
+      if (!raw || raw.deletedAt) continue;
+      const d = raw.date || (Array.isArray(raw.allocations) && raw.allocations[0]?.date);
+      if (!d) continue;
+      const m = String(d).slice(0, 7);
       if (!minMonth || m < minMonth) minMonth = m;
       if (!maxMonth || m > maxMonth) maxMonth = m;
     }
@@ -1357,51 +1359,111 @@ export class TransactionService {
     for (const raw of rawItems) {
       if (!raw || raw.deletedAt) continue;
 
-      const id = raw.id
+      const baseId = raw.id
         ? (String(raw.id).startsWith('ed_') ? String(raw.id) : `ed_${raw.id}`)
         : `ed-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      const date = raw.date ? String(raw.date).slice(0, 10) : '';
-      if (!date) continue;
+      const activeAllocations = Array.isArray(raw.allocations) && raw.allocations.length > 0
+        ? raw.allocations.filter((a: any) => a && !a.deletedAt)
+        : [];
 
-      // EveryDollar amounts are in cents
-      const rawAmt = typeof raw.amount === 'number' ? raw.amount : parseFloat(raw.amount) || 0;
-      const amount = Math.round(Math.abs(rawAmt)) / 100;
+      if (activeAllocations.length === 0) {
+        // Non-allocated or raw transaction without allocations
+        const date = raw.date ? String(raw.date).slice(0, 10) : '';
+        if (!date) continue;
 
-      const firstAlloc = Array.isArray(raw.allocations) && raw.allocations.length > 0 ? raw.allocations[0] : null;
-      const rawCategory = (firstAlloc?.label || raw.category || raw.budgetCategoryName || 'Uncategorized').trim();
+        const rawAmt = typeof raw.amount === 'number' ? raw.amount : parseFloat(raw.amount) || 0;
+        const amount = Math.round(Math.abs(rawAmt)) / 100;
+        const rawCategory = (raw.category || raw.budgetCategoryName || 'Uncategorized').trim();
 
-      const isIncomeLike =
-        rawCategory.toLowerCase().includes('income') ||
-        rawCategory.toLowerCase().includes('salary') ||
-        raw.type === 'INCOME';
+        const isIncomeLike =
+          rawCategory.toLowerCase().includes('income') ||
+          rawCategory.toLowerCase().includes('salary') ||
+          raw.type === 'INCOME';
 
-      // Default to 'Uncategorized' for both group and item as requested
-      const categoryGroup = 'Uncategorized';
-      const categoryItem = 'Uncategorized';
+        const description = (raw.merchant || raw.description || rawCategory || 'EveryDollar Transaction').trim();
+        const noteParts: string[] = [];
+        if (raw.note) noteParts.push(String(raw.note));
+        if (raw.checkNumber) noteParts.push(`Check: ${raw.checkNumber}`);
+        const note = noteParts.join(' | ');
 
-      const description = (raw.merchant || raw.description || rawCategory || 'EveryDollar Transaction').trim();
-      const noteParts: string[] = [];
-      if (raw.note) noteParts.push(String(raw.note));
-      if (raw.checkNumber) noteParts.push(`Check: ${raw.checkNumber}`);
-      const note = noteParts.join(' | ');
+        result.push({
+          id: baseId,
+          date,
+          amount,
+          type: isIncomeLike ? 'INCOME' : 'EXPENSE',
+          description,
+          merchant: (raw.merchant || '').trim(),
+          bank: 'EveryDollar',
+          paidBy: defaultPayer,
+          categoryGroup: 'Uncategorized',
+          categoryItem: 'Uncategorized',
+          rawCategory,
+          splitType: 'SELF',
+          note,
+          sourceFile: batchFileName
+        });
+      } else {
+        // One or more allocations (supports EveryDollar split transactions)
+        const isMultiAlloc = activeAllocations.length > 1;
 
-      result.push({
-        id,
-        date,
-        amount,
-        type: isIncomeLike ? 'INCOME' : 'EXPENSE',
-        description,
-        merchant: (raw.merchant || '').trim(),
-        bank: 'EveryDollar',
-        paidBy: defaultPayer,
-        categoryGroup,
-        categoryItem,
-        rawCategory,
-        splitType: 'SELF',
-        note,
-        sourceFile: batchFileName
-      });
+        activeAllocations.forEach((alloc: any, idx: number) => {
+          const date = (alloc.date ? String(alloc.date).slice(0, 10) : '') || (raw.date ? String(raw.date).slice(0, 10) : '');
+          if (!date) return;
+
+          const allocRaw = (alloc && typeof alloc.amount === 'number')
+            ? alloc.amount
+            : (alloc && alloc.amount !== undefined && alloc.amount !== null)
+              ? parseFloat(alloc.amount) || 0
+              : (typeof raw.amount === 'number' ? raw.amount : parseFloat(raw.amount) || 0);
+
+          const amount = Math.round(Math.abs(allocRaw)) / 100;
+          const rawCategory = (alloc.label || alloc.category || raw.category || raw.budgetCategoryName || 'Uncategorized').trim();
+
+          const isIncomeLike =
+            rawCategory.toLowerCase().includes('income') ||
+            rawCategory.toLowerCase().includes('salary') ||
+            raw.type === 'INCOME' ||
+            alloc.type === 'INCOME';
+
+          const merchant = (alloc.merchant || raw.merchant || '').trim();
+          const description = (merchant || alloc.description || raw.description || rawCategory || 'EveryDollar Transaction').trim();
+
+          const noteParts: string[] = [];
+          if (raw.note) noteParts.push(String(raw.note));
+          if (alloc.note && alloc.note !== raw.note) noteParts.push(String(alloc.note));
+          if (raw.checkNumber) noteParts.push(`Check: ${raw.checkNumber}`);
+          if (isMultiAlloc) {
+            noteParts.push(`Split ${idx + 1}/${activeAllocations.length}`);
+          }
+          const note = noteParts.join(' | ');
+
+          let id = baseId;
+          if (isMultiAlloc) {
+            const allocSuffix = alloc.id
+              ? (String(alloc.id).includes(':') ? String(alloc.id).split(':').pop() : String(alloc.id))
+              : `alloc_${idx + 1}`;
+            id = `${baseId}_${allocSuffix}`;
+          }
+
+          result.push({
+            id,
+            date,
+            amount,
+            type: isIncomeLike ? 'INCOME' : 'EXPENSE',
+            description,
+            merchant,
+            bank: 'EveryDollar',
+            paidBy: defaultPayer,
+            categoryGroup: 'Uncategorized',
+            categoryItem: 'Uncategorized',
+            rawCategory,
+            splitType: 'SELF',
+            note,
+            sourceFile: batchFileName
+          });
+        });
+      }
     }
 
     return result;
@@ -1431,6 +1493,19 @@ export class TransactionService {
         existingIds.add(tx.id);
         existingSigs.add(sig);
       }
+    }
+
+    // If any new transaction is a split allocation of a previously imported unsplit transaction,
+    // remove the stale unsplit parent transaction so it doesn't double-count.
+    const staleParentIds = new Set<string>();
+    for (const tx of toAdd) {
+      const match = tx.id.match(/^(ed_[0-9a-fA-F-]+)_.+$/);
+      if (match && existingIds.has(match[1])) {
+        staleParentIds.add(match[1]);
+      }
+    }
+    if (staleParentIds.size > 0) {
+      this.transactions.update((curr) => curr.filter((t) => !staleParentIds.has(t.id)));
     }
 
     const addedIds = toAdd.map((t) => t.id);
