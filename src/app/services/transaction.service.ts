@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import {
   Person,
   CategoryGroup,
@@ -14,6 +14,7 @@ import {
   ImportDraft
 } from '../models';
 import { DEFAULT_PERSONS, DEFAULT_BANKS, DEFAULT_CATEGORY_GROUPS, DEFAULT_RULES } from '../constants/default-data';
+import { StorageService } from './storage.service';
 
 declare const google: any;
 
@@ -758,8 +759,142 @@ export class TransactionService {
     return result;
   });
 
+  public storageService = inject(StorageService);
+
+  public getCurrentStateBackup(): AppDataBackup {
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      persons: this.persons(),
+      categoryGroups: this.categoryGroups(),
+      transactions: this.transactions(),
+      monthlyBudgets: this.monthlyBudgets(),
+      bankConfigs: this.bankConfigs(),
+      rules: this.rules(),
+      excludeRules: this.excludeRules(),
+      deletedSignatures: this.deletedSignatures(),
+      settings: {
+        currency: this.currency(),
+        dateFormat: this.dateFormat(),
+        fullDateFormat: this.fullDateFormat(),
+        numericDateFormat: this.numericDateFormat(),
+        numberFormat: this.numberFormat(),
+        visibleCurrencies: this.visibleCurrencies(),
+        exchangeRates: this.exchangeRates(),
+        lastRatesRefresh: this.lastRatesRefresh(),
+        autoSyncDrive: this.autoSyncGoogleDrive(),
+        googleFileName: this.googleFileName(),
+        theme: this.theme()
+      }
+    };
+  }
+
+  public applyBackupData(data: AppDataBackup): void {
+    if (!data) return;
+    if (data.persons && data.persons.length > 0) this.persons.set(data.persons);
+    if (data.categoryGroups && data.categoryGroups.length > 0) {
+      const cleanedGroups = data.categoryGroups.map((g) => ({
+        ...g,
+        items: g.items.map((it) => {
+          if (it.name === 'Car Charging') return { ...it, name: 'Charging' };
+          if (it.name === 'Car Maintenance') return { ...it, name: 'Maintenance' };
+          if (it.name === 'Salary / Income') return { ...it, name: 'Salary' };
+          if (it.name === 'Dining Out and Food Chill') return { ...it, name: 'Food and Chill' };
+          if (it.name === 'Medical and Pharmacy') return { ...it, name: 'Medical' };
+          return it;
+        })
+      }));
+      this.categoryGroups.set(cleanedGroups);
+    }
+    if (data.transactions) {
+      const cleanedTxs = data.transactions.map((tx) => {
+        const updated: Transaction = {
+          ...tx,
+          description: this.fixMojibake(tx.description || '')
+        };
+        if (updated.categoryItem === 'Car Charging') updated.categoryItem = 'Charging';
+        if (updated.categoryItem === 'Car Maintenance') updated.categoryItem = 'Maintenance';
+        if (updated.categoryItem === 'Salary / Income') updated.categoryItem = 'Salary';
+        if (updated.categoryItem === 'Dining Out and Food Chill') updated.categoryItem = 'Food and Chill';
+        if (updated.categoryItem === 'Medical and Pharmacy') updated.categoryItem = 'Medical';
+        return updated;
+      });
+      this.transactions.set(cleanedTxs);
+    }
+    if (data.monthlyBudgets && data.monthlyBudgets.length > 0) {
+      this.monthlyBudgets.set(data.monthlyBudgets);
+    }
+    if (data.bankConfigs && data.bankConfigs.length > 0) {
+      const unwantedDefaults = new Set(['sparkasse', 'dkb', 'ing', 'n26', 'bunq']);
+      const cleaned = data.bankConfigs.filter((b) => !unwantedDefaults.has(b.name.toLowerCase()));
+      const merged = cleaned.map((b) => {
+        const def = DEFAULT_BANKS.find((d) => d.name.toLowerCase() === b.name.toLowerCase());
+        if (def) {
+          return {
+            ...def,
+            ...b,
+            dateColName: b.dateColName || def.dateColName,
+            descColName: b.descColName || def.descColName,
+            descColName2: b.descColName2 || def.descColName2,
+            amountColName: b.amountColName || def.amountColName,
+            currencyColName: b.currencyColName || def.currencyColName,
+            ignoreColName: b.ignoreColName || def.ignoreColName,
+            tableEndMarker: b.tableEndMarker || def.tableEndMarker,
+            maxDescLines: b.maxDescLines || def.maxDescLines,
+            defaultCurrency: b.defaultCurrency || def.defaultCurrency,
+            invertAmountSign: b.invertAmountSign !== undefined ? b.invertAmountSign : def.invertAmountSign
+          };
+        }
+        return b;
+      });
+      for (const def of DEFAULT_BANKS) {
+        if (!merged.some((b) => b.name.toLowerCase() === def.name.toLowerCase())) {
+          merged.push(def);
+        }
+      }
+      this.bankConfigs.set(merged.length > 0 ? merged : DEFAULT_BANKS);
+    } else if (this.bankConfigs().length === 0) {
+      this.bankConfigs.set(DEFAULT_BANKS);
+    }
+    if (data.rules !== undefined) {
+      this.rules.set(data.rules);
+    }
+    if (data.excludeRules !== undefined) {
+      this.excludeRules.set(data.excludeRules);
+    }
+    if (data.deletedSignatures !== undefined) {
+      this.deletedSignatures.set(data.deletedSignatures);
+    }
+    if (data.settings) {
+      if (data.settings.currency) this.currency.set(data.settings.currency);
+      if (data.settings.dateFormat) {
+        this.dateFormat.set(data.settings.dateFormat);
+        if (data.settings.dateFormat.includes('MMMM') || data.settings.dateFormat.includes('MMM')) {
+          this.fullDateFormat.set(data.settings.dateFormat);
+        } else {
+          this.numericDateFormat.set(data.settings.dateFormat);
+        }
+      }
+      if (data.settings.fullDateFormat) this.fullDateFormat.set(data.settings.fullDateFormat);
+      if (data.settings.numericDateFormat) this.numericDateFormat.set(data.settings.numericDateFormat);
+      if (data.settings.numberFormat) this.numberFormat.set(data.settings.numberFormat);
+      if (data.settings.visibleCurrencies && data.settings.visibleCurrencies.length > 0) {
+        this.visibleCurrencies.set(data.settings.visibleCurrencies);
+      }
+      if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
+      if (data.settings.lastRatesRefresh) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
+      if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
+      if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
+      if (data.settings.theme) {
+        this.theme.set(data.settings.theme);
+        this.applyTheme();
+      }
+    }
+  }
+
   constructor() {
     this.loadFromStorage();
+    this.initDatabasePersistence();
     this.applyTheme();
 
     // Restore cached Google Drive connection & token if valid
@@ -773,35 +908,41 @@ export class TransactionService {
     this.initGoogleAuthIfPossible();
     this.fetchExchangeRates(true);
 
-    // Auto-save effect
+    // Auto-save effect: writes to native IndexedDB + best-effort localStorage
     effect(() => {
-      const data: AppDataBackup = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        persons: this.persons(),
-        categoryGroups: this.categoryGroups(),
-        transactions: this.transactions(),
-        monthlyBudgets: this.monthlyBudgets(),
-        bankConfigs: this.bankConfigs(),
-        rules: this.rules(),
-        excludeRules: this.excludeRules(),
-        deletedSignatures: this.deletedSignatures(),
-        settings: {
-          currency: this.currency(),
-          dateFormat: this.dateFormat(),
-          fullDateFormat: this.fullDateFormat(),
-          numericDateFormat: this.numericDateFormat(),
-          numberFormat: this.numberFormat(),
-          visibleCurrencies: this.visibleCurrencies(),
-          exchangeRates: this.exchangeRates(),
-          lastRatesRefresh: this.lastRatesRefresh(),
-          autoSyncDrive: this.autoSyncGoogleDrive(),
-          googleFileName: this.googleFileName(),
-          theme: this.theme()
-        }
-      };
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+      const data = this.getCurrentStateBackup();
+      // 1. Debounced save to native IndexedDB (multi-gigabyte capacity)
+      this.storageService.saveAllDebounced(data);
+
+      // 2. Best-effort copy to localStorage, safely catching QuotaExceededError when data exceeds 5MB
+      try {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+      } catch (storageErr: any) {
+        console.warn('[Splitboard] LocalStorage quota limit reached; primary data safely persisted in IndexedDB:', storageErr?.message);
+      }
     });
+  }
+
+  public async initDatabasePersistence(): Promise<void> {
+    try {
+      await this.storageService.init();
+      const dbData = await this.storageService.loadAll();
+      if (dbData && dbData.transactions && dbData.transactions.length > 0) {
+        this.applyBackupData(dbData);
+        console.log(`[Splitboard] Hydrated ${dbData.transactions.length} transactions from IndexedDB`);
+      } else {
+        // Database is empty: auto-migrate from localStorage if available
+        const localRaw = localStorage.getItem(this.STORAGE_KEY);
+        if (localRaw) {
+          const localData: AppDataBackup = JSON.parse(localRaw);
+          await this.storageService.saveAllImmediate(localData);
+          this.storageService.isMigratedFromLocalStorage.set(true);
+          console.log(`[Splitboard] Auto-migrated ${localData.transactions?.length || 0} transactions from localStorage into IndexedDB!`);
+        }
+      }
+    } catch (err) {
+      console.error('[Splitboard] Failed to initialize IndexedDB persistence:', err);
+    }
   }
 
   public getCurrentMonthString(): string {
@@ -836,102 +977,7 @@ export class TransactionService {
       const raw = localStorage.getItem(this.STORAGE_KEY);
       if (!raw) return;
       const data: AppDataBackup = JSON.parse(raw);
-      if (data.persons && data.persons.length > 0) this.persons.set(data.persons);
-      if (data.categoryGroups && data.categoryGroups.length > 0) {
-        const cleanedGroups = data.categoryGroups.map((g) => ({
-          ...g,
-          items: g.items.map((it) => {
-            if (it.name === 'Car Charging') return { ...it, name: 'Charging' };
-            if (it.name === 'Car Maintenance') return { ...it, name: 'Maintenance' };
-            if (it.name === 'Salary / Income') return { ...it, name: 'Salary' };
-            if (it.name === 'Dining Out and Food Chill') return { ...it, name: 'Food and Chill' };
-            if (it.name === 'Medical and Pharmacy') return { ...it, name: 'Medical' };
-            return it;
-          })
-        }));
-        this.categoryGroups.set(cleanedGroups);
-      }
-      if (data.transactions) {
-        const cleanedTxs = data.transactions.map((tx) => {
-          const updated: Transaction = {
-            ...tx,
-            description: this.fixMojibake(tx.description || '')
-          };
-          if (updated.categoryItem === 'Car Charging') updated.categoryItem = 'Charging';
-          if (updated.categoryItem === 'Car Maintenance') updated.categoryItem = 'Maintenance';
-          if (updated.categoryItem === 'Salary / Income') updated.categoryItem = 'Salary';
-          if (updated.categoryItem === 'Dining Out and Food Chill') updated.categoryItem = 'Food and Chill';
-          if (updated.categoryItem === 'Medical and Pharmacy') updated.categoryItem = 'Medical';
-          return updated;
-        });
-        this.transactions.set(cleanedTxs);
-      }
-      if (data.bankConfigs && data.bankConfigs.length > 0) {
-        const unwantedDefaults = new Set(['sparkasse', 'dkb', 'ing', 'n26', 'bunq']);
-        const cleaned = data.bankConfigs.filter((b) => !unwantedDefaults.has(b.name.toLowerCase()));
-        const merged = cleaned.map((b) => {
-          const def = DEFAULT_BANKS.find((d) => d.name.toLowerCase() === b.name.toLowerCase());
-          if (def) {
-            return {
-              ...def,
-              ...b,
-              dateColName: b.dateColName || def.dateColName,
-              descColName: b.descColName || def.descColName,
-              descColName2: b.descColName2 || def.descColName2,
-              amountColName: b.amountColName || def.amountColName,
-              currencyColName: b.currencyColName || def.currencyColName,
-              ignoreColName: b.ignoreColName || def.ignoreColName,
-              tableEndMarker: b.tableEndMarker || def.tableEndMarker,
-              maxDescLines: b.maxDescLines || def.maxDescLines,
-              defaultCurrency: b.defaultCurrency || def.defaultCurrency,
-              invertAmountSign: b.invertAmountSign !== undefined ? b.invertAmountSign : def.invertAmountSign
-            };
-          }
-          return b;
-        });
-        // Automatically append any newly introduced DEFAULT_BANKS (like HDFC Bank)
-        for (const def of DEFAULT_BANKS) {
-          if (!merged.some((b) => b.name.toLowerCase() === def.name.toLowerCase())) {
-            merged.push(def);
-          }
-        }
-        this.bankConfigs.set(merged.length > 0 ? merged : DEFAULT_BANKS);
-      } else {
-        this.bankConfigs.set(DEFAULT_BANKS);
-      }
-      if (data.rules !== undefined) {
-        this.rules.set(data.rules);
-      }
-      if (data.excludeRules !== undefined) {
-        this.excludeRules.set(data.excludeRules);
-      } else {
-        this.excludeRules.set([]);
-      }
-      if (data.deletedSignatures !== undefined) {
-        this.deletedSignatures.set(data.deletedSignatures);
-      } else {
-        this.deletedSignatures.set([]);
-      }
-      if (data.settings) {
-        if (data.settings.dateFormat) {
-          this.dateFormat.set(data.settings.dateFormat);
-          if (data.settings.dateFormat.includes('MMMM') || data.settings.dateFormat.includes('MMM')) {
-            this.fullDateFormat.set(data.settings.dateFormat);
-          } else {
-            this.numericDateFormat.set(data.settings.dateFormat);
-          }
-        }
-        if (data.settings.fullDateFormat) this.fullDateFormat.set(data.settings.fullDateFormat);
-        if (data.settings.numericDateFormat) this.numericDateFormat.set(data.settings.numericDateFormat);
-        if (data.settings.visibleCurrencies && data.settings.visibleCurrencies.length > 0) {
-          this.visibleCurrencies.set(data.settings.visibleCurrencies);
-        }
-        if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
-        if (data.settings.lastRatesRefresh) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
-        if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
-        if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
-        if (data.settings.theme) this.theme.set(data.settings.theme);
-      }
+      this.applyBackupData(data);
     } catch (e) {
       console.error('Failed to load local data', e);
     }
@@ -1831,72 +1877,59 @@ export class TransactionService {
   }
 
   // Backup & Restore
-  public exportBackupJson(): void {
-    const data: AppDataBackup = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      persons: this.persons(),
-      categoryGroups: this.categoryGroups(),
-      transactions: this.transactions(),
-      monthlyBudgets: this.monthlyBudgets(),
-      bankConfigs: this.bankConfigs(),
-      rules: this.rules(),
-      excludeRules: this.excludeRules(),
-      deletedSignatures: this.deletedSignatures(),
-      settings: {
-        currency: this.currency(),
-        dateFormat: this.dateFormat(),
-        fullDateFormat: this.fullDateFormat(),
-        numericDateFormat: this.numericDateFormat(),
-        visibleCurrencies: this.visibleCurrencies(),
-        exchangeRates: this.exchangeRates(),
-        lastRatesRefresh: this.lastRatesRefresh(),
-        autoSyncDrive: this.autoSyncGoogleDrive(),
-        googleFileName: this.googleFileName(),
-        theme: this.theme()
-      }
-    };
+  public async exportBackupJson(): Promise<void> {
+    let data: AppDataBackup;
+    try {
+      // Full SELECT * directly from IndexedDB
+      data = await this.storageService.exportAll();
+    } catch {
+      // Fallback to in-memory signals if DB not yet loaded
+      data = this.getCurrentStateBackup();
+    }
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `transactions_processor_backup_${this.getCurrentMonthString()}.json`;
+    a.download = `splitboard_backup_${this.getCurrentMonthString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    this.showToast('Backup downloaded successfully', 'success');
+    this.showToast(`Full DB Export (SELECT *) complete: ${(data.transactions || []).length} transactions exported`, 'success');
   }
 
   public async importBackupJson(file: File): Promise<void> {
     try {
       const text = await file.text();
       const data: AppDataBackup = JSON.parse(text);
-      if (data.persons) this.persons.set(data.persons);
-      if (data.categoryGroups) this.categoryGroups.set(data.categoryGroups);
-      if (data.transactions) this.transactions.set(data.transactions);
-      if (data.monthlyBudgets) this.monthlyBudgets.set(data.monthlyBudgets);
-      if (data.bankConfigs) this.bankConfigs.set(data.bankConfigs);
-      if (data.rules) this.rules.set(data.rules);
-      if (data.excludeRules) this.excludeRules.set(data.excludeRules);
-      if (data.deletedSignatures) this.deletedSignatures.set(data.deletedSignatures);
-      if (data.settings) {
-        if (data.settings.currency) this.currency.set(data.settings.currency);
-        if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);
-        if (data.settings.fullDateFormat) this.fullDateFormat.set(data.settings.fullDateFormat);
-        if (data.settings.numericDateFormat) this.numericDateFormat.set(data.settings.numericDateFormat);
-        if (data.settings.visibleCurrencies) this.visibleCurrencies.set(data.settings.visibleCurrencies);
-        if (data.settings.exchangeRates) this.exchangeRates.set(data.settings.exchangeRates);
-        if (data.settings.lastRatesRefresh !== undefined) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
-        if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
-        if (data.settings.googleFileName) this.googleFileName.set(data.settings.googleFileName);
-        if (data.settings.theme) {
-          this.theme.set(data.settings.theme);
-          this.applyTheme();
-        }
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid JSON file format');
       }
-      this.showToast('Backup restored successfully!', 'success');
-    } catch (e) {
-      this.showToast('Error restoring backup file', 'error');
+
+      // 1. Transactionally write into IndexedDB
+      await this.storageService.importAll(data);
+
+      // 2. Hydrate in-memory signals
+      this.applyBackupData(data);
+
+      this.showToast(`Database restored successfully! Loaded ${(data.transactions || []).length} transactions.`, 'success');
+    } catch (e: any) {
+      this.showToast('Error restoring backup file: ' + (e?.message || 'Invalid format'), 'error');
+    }
+  }
+
+  public async verifyDatabaseIntegrity(): Promise<{ ok: boolean; message: string; dbCount: number; memoryCount: number }> {
+    try {
+      const count = await this.storageService.refreshStats();
+      const memCount = this.transactions().length;
+      const ok = count === memCount;
+      const message = ok
+        ? `Database is healthy! IndexedDB and in-memory state both have exactly ${count} transactions.`
+        : `Discrepancy detected: IndexedDB has ${count} transactions while memory has ${memCount}.`;
+      this.showToast(message, ok ? 'success' : 'info');
+      return { ok, message, dbCount: count, memoryCount: memCount };
+    } catch (err: any) {
+      this.showToast('Integrity check failed: ' + err.message, 'error');
+      return { ok: false, message: err.message, dbCount: 0, memoryCount: this.transactions().length };
     }
   }
 

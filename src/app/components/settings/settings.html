@@ -288,19 +288,28 @@
         </div>
       </div>
 
-      <!-- Local File (Offline JSON) -->
+      <!-- In-Browser Database (IndexedDB) & Offline Backup -->
       <div class="local-file-section">
-        <div class="local-file-header">
-          <span style="font-size: 0.95rem;">💻</span>
-          <strong style="font-size: 0.82rem; color: #cbd5e1;">Local File (Offline JSON)</strong>
+        <div class="local-file-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span style="font-size: 0.95rem;">🗄️</span>
+            <strong style="font-size: 0.82rem; color: #cbd5e1;">In-Browser Database (IndexedDB)</strong>
+          </div>
+          <div class="db-status-pill" [class.active]="service.storageService.isDbReady()">
+            <span class="status-dot"></span>
+            <span>splitboard_db • {{ service.storageService.dbTxCount() }} txs</span>
+          </div>
         </div>
 
         <div class="local-action-buttons-row">
-          <button class="btn local-backup-btn" (click)="service.exportBackupJson()">
-            <span style="font-size: 0.9rem;">💾</span> Export JSON
+          <button class="btn local-backup-btn" (click)="service.exportBackupJson()" title="Extract full database dump (SELECT * equivalent)">
+            <span style="font-size: 0.9rem;">💾</span> Full DB Export (SELECT *)
           </button>
-          <button class="btn local-backup-btn" (click)="backupFileInput.click()">
-            <span style="font-size: 0.9rem;">📁</span> Import JSON
+          <button class="btn local-backup-btn" (click)="backupFileInput.click()" title="Restore database from an exported backup file">
+            <span style="font-size: 0.9rem;">📁</span> Import Database JSON
+          </button>
+          <button class="btn btn-secondary btn-xs" (click)="service.verifyDatabaseIntegrity()" title="Verify database integrity and synchronization" style="height: 34px; padding: 0 0.65rem;">
+            ⟳ Verify DB
           </button>
           <input #backupFileInput type="file" accept=".json" (change)="onBackupFileSelected($event)" style="display: none;">
         </div>
