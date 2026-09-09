@@ -1417,15 +1417,8 @@
             </p>
           </div>
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <!-- Auto-match by Person Name Button -->
-            <button
-              class="btn btn-secondary btn-xs"
-              (click)="autoMatchAllCategoriesByName()"
-              title="Auto-assign categories containing person names">
-              ⚡️ Auto-Match by Name
-            </button>
             <div style="display: flex; align-items: center; gap: 0.35rem;">
-              <span style="font-size: 0.74rem; color: var(--text-muted);">Assign all to:</span>
+              <span style="font-size: 0.74rem; color: var(--text-muted);">Assign all:</span>
               <button
                 *ngFor="let p of service.persons()"
                 class="btn btn-secondary btn-xs"
@@ -1443,8 +1436,50 @@
           </div>
         </div>
 
+        <!-- Keyword Contains Matcher Bar -->
+        <div class="ed-matcher-bar">
+          <div class="ed-matcher-input-wrap">
+            <span class="ed-matcher-icon">🔍</span>
+            <input
+              type="text"
+              class="ed-matcher-text-input"
+              [ngModel]="edCategoryMatchKeyword()"
+              (ngModelChange)="edCategoryMatchKeyword.set($event)"
+              placeholder="Type text to match category (contains)..."
+              title="Type keyword to match categories containing this text" />
+            <button
+              *ngIf="edCategoryMatchKeyword()"
+              type="button"
+              class="ed-matcher-clear-btn"
+              (click)="edCategoryMatchKeyword.set('')"
+              title="Clear text">
+              ✕
+            </button>
+          </div>
+
+          <div class="ed-matcher-actions">
+            <span class="ed-matcher-label">Assign matches to:</span>
+            <div class="split-button-group">
+              <button
+                *ngFor="let p of service.persons(); let idx = index"
+                type="button"
+                class="split-btn"
+                [class.split-btn-p1]="idx === 0"
+                [class.split-btn-p2]="idx === 1"
+                [disabled]="!edCategoryMatchKeyword().trim() || getMatchingCategoriesCount(edCategoryMatchKeyword()) === 0"
+                (click)="assignMatchingCategoriesToPerson(p.name)"
+                [title]="'Assign categories containing \'' + edCategoryMatchKeyword() + '\' to ' + p.name">
+                👤 {{ p.name }}
+                <span *ngIf="edCategoryMatchKeyword().trim()" class="ed-match-counter">
+                  ({{ getMatchingCategoriesCount(edCategoryMatchKeyword()) }})
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="ed-mapping-grid">
-          <div class="ed-mapping-card" *ngFor="let m of edCategoryMappings()">
+          <div class="ed-mapping-card" *ngFor="let m of edCategoryMappings()" [class.is-matched]="isCategoryMatched(m.rawCategory)">
             <div class="ed-mapping-main-row">
               <!-- Source Category Info -->
               <div class="ed-mapping-source">
