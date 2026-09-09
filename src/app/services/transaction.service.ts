@@ -102,7 +102,6 @@ export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [];
   providedIn: 'root'
 })
 export class TransactionService {
-  private readonly STORAGE_KEY = 'tx_processor_data_v1';
   private readonly GOOGLE_CLIENT_ID = '905187123985-efr820m362ghf1u5i6j10s8l4vff9o42.apps.googleusercontent.com';
 
   // Core State Signals
@@ -893,7 +892,6 @@ export class TransactionService {
   }
 
   constructor() {
-    this.loadFromStorage();
     this.initDatabasePersistence();
     this.applyTheme();
 
@@ -927,16 +925,11 @@ export class TransactionService {
       if (dbData && dbData.transactions && dbData.transactions.length > 0) {
         this.applyBackupData(dbData);
         console.log(`[Splitboard] Hydrated ${dbData.transactions.length} transactions from IndexedDB`);
-      } else {
-        // Database is empty: auto-migrate from localStorage if available
-        const localRaw = localStorage.getItem(this.STORAGE_KEY);
-        if (localRaw) {
-          const localData: AppDataBackup = JSON.parse(localRaw);
-          await this.storageService.saveAllImmediate(localData);
-          this.storageService.isMigratedFromLocalStorage.set(true);
-          console.log(`[Splitboard] Auto-migrated ${localData.transactions?.length || 0} transactions from localStorage into IndexedDB!`);
-        }
       }
+      // Purge any deprecated legacy localStorage app data to free browser quota
+      try {
+        localStorage.removeItem('tx_processor_data_v1');
+      } catch {}
     } catch (err) {
       console.error('[Splitboard] Failed to initialize IndexedDB persistence:', err);
     } finally {
@@ -969,17 +962,6 @@ export class TransactionService {
       .replace(/Ã³/g, 'ó')
       .replace(/Ã±/g, 'ñ')
       .replace(/Â/g, '');
-  }
-
-  public loadFromStorage(): void {
-    try {
-      const raw = localStorage.getItem(this.STORAGE_KEY);
-      if (!raw) return;
-      const data: AppDataBackup = JSON.parse(raw);
-      this.applyBackupData(data);
-    } catch (e) {
-      console.error('Failed to load local data', e);
-    }
   }
 
   // Import Progress Draft Storage

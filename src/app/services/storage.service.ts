@@ -12,7 +12,6 @@ export class StorageService {
 
   public isDbReady = signal<boolean>(false);
   public dbTxCount = signal<number>(0);
-  public isMigratedFromLocalStorage = signal<boolean>(false);
 
   private db: IDBDatabase | null = null;
   private saveDebounceTimer: any = null;
