@@ -908,18 +908,10 @@ export class TransactionService {
     this.initGoogleAuthIfPossible();
     this.fetchExchangeRates(true);
 
-    // Auto-save effect: writes to native IndexedDB + best-effort localStorage
+    // Auto-save effect: persists directly to native IndexedDB
     effect(() => {
       const data = this.getCurrentStateBackup();
-      // 1. Debounced save to native IndexedDB (multi-gigabyte capacity)
       this.storageService.saveAllDebounced(data);
-
-      // 2. Best-effort copy to localStorage, safely catching QuotaExceededError when data exceeds 5MB
-      try {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
-      } catch (storageErr: any) {
-        console.warn('[Splitboard] LocalStorage quota limit reached; primary data safely persisted in IndexedDB:', storageErr?.message);
-      }
     });
   }
 
