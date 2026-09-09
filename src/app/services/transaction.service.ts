@@ -1338,6 +1338,19 @@ export class TransactionService {
       }
     }
 
+    // Determine overall date range for the batch to keep the entire import together in 1 batch
+    let minMonth = '';
+    let maxMonth = '';
+    for (const raw of rawItems) {
+      if (!raw || raw.deletedAt || !raw.date) continue;
+      const m = String(raw.date).slice(0, 7);
+      if (!minMonth || m < minMonth) minMonth = m;
+      if (!maxMonth || m > maxMonth) maxMonth = m;
+    }
+    const batchFileName = minMonth
+      ? (minMonth === maxMonth ? `EveryDollar (${minMonth})` : `EveryDollar (${minMonth} to ${maxMonth})`)
+      : `EveryDollar Import`;
+
     const defaultPayer = this.personOne().name;
     const result: Transaction[] = [];
 
@@ -1387,7 +1400,7 @@ export class TransactionService {
         rawCategory,
         splitType: 'SELF',
         note,
-        sourceFile: `EveryDollar (${date.slice(0, 7)})`
+        sourceFile: batchFileName
       });
     }
 

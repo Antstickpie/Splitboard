@@ -1525,6 +1525,13 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.split-btn.split-btn-5050.active {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.4);
+  font-weight: 700;
+}
+
 .split-btn.split-btn-p1.active {
   background: rgba(56, 189, 248, 0.2);
   color: #38bdf8;

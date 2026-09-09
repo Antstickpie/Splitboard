@@ -1515,6 +1515,17 @@
             <span class="ed-matcher-label">Assign matches to:</span>
             <div class="split-button-group">
               <button
+                type="button"
+                class="split-btn split-btn-5050"
+                [disabled]="!edCategoryMatchKeyword().trim() || getMatchingCategoriesCount(edCategoryMatchKeyword()) === 0"
+                (click)="assignMatchingCategoriesToSplit()"
+                [title]="'Split categories containing \'' + edCategoryMatchKeyword() + '\' 50/50'">
+                ⚖️ 50/50
+                <span *ngIf="edCategoryMatchKeyword().trim()" class="ed-match-counter">
+                  ({{ getMatchingCategoriesCount(edCategoryMatchKeyword()) }})
+                </span>
+              </button>
+              <button
                 *ngFor="let p of service.persons(); let idx = index"
                 type="button"
                 class="split-btn"
@@ -1594,17 +1605,24 @@
 
                 <!-- Owner & Category Controls -->
                 <div class="ed-mapping-controls">
-                  <!-- Assign All in Category to Person -->
-                  <div class="ed-control-group" title="Assign all transactions in this category to this person">
-                    <span class="ed-control-label">Owner:</span>
+                  <!-- Assign All in Category to Person or 50/50 Split -->
+                  <div class="ed-control-group" title="Assign all transactions in this category">
+                    <span class="ed-control-label">Split / Owner:</span>
                     <div class="split-button-group">
+                      <button
+                        type="button"
+                        class="split-btn split-btn-5050"
+                        [class.active]="m.selectedSplitType === 'SPLIT'"
+                        (click)="onCategorySplitTypeChange(m.rawCategory, 'SPLIT')">
+                        50/50
+                      </button>
                       <button
                         type="button"
                         *ngFor="let p of service.persons(); let idx = index"
                         class="split-btn"
                         [class.split-btn-p1]="idx === 0"
                         [class.split-btn-p2]="idx === 1"
-                        [class.active]="m.selectedPerson === p.name"
+                        [class.active]="m.selectedSplitType !== 'SPLIT' && m.selectedPerson === p.name"
                         (click)="onCategoryPersonChange(m.rawCategory, p.name)">
                         {{ p.name }}
                       </button>
@@ -1663,11 +1681,19 @@
                     <div class="split-button-group">
                       <button
                         type="button"
+                        class="split-btn split-btn-xs split-btn-5050"
+                        [class.active]="tx.splitType === 'SPLIT'"
+                        (click)="setTxSplit(tx, 'SPLIT')"
+                        title="50/50 Split">
+                        50/50
+                      </button>
+                      <button
+                        type="button"
                         *ngFor="let p of service.persons(); let idx = index"
                         class="split-btn split-btn-xs"
                         [class.split-btn-p1]="idx === 0"
                         [class.split-btn-p2]="idx === 1"
-                        [class.active]="tx.paidBy === p.name"
+                        [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
                         (click)="setTxPerson(tx, p.name)">
                         {{ p.name }}
                       </button>
@@ -1703,7 +1729,7 @@
               <th>Description / Merchant</th>
               <th>EveryDollar Category</th>
               <th>Mapped Category</th>
-              <th>Assigned Person</th>
+              <th>Owner / Split</th>
               <th>Amount</th>
               <th>Status</th>
             </tr>
@@ -1737,11 +1763,19 @@
                 <div class="split-button-group">
                   <button
                     type="button"
+                    class="split-btn split-btn-xs split-btn-5050"
+                    [class.active]="tx.splitType === 'SPLIT'"
+                    (click)="setTxSplit(tx, 'SPLIT')"
+                    title="50/50 Split">
+                    50/50
+                  </button>
+                  <button
+                    type="button"
                     *ngFor="let p of service.persons(); let idx = index"
                     class="split-btn split-btn-xs"
                     [class.split-btn-p1]="idx === 0"
                     [class.split-btn-p2]="idx === 1"
-                    [class.active]="tx.paidBy === p.name"
+                    [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
                     (click)="setTxPerson(tx, p.name)">
                     {{ p.name }}
                   </button>
@@ -1795,10 +1829,17 @@
 
     <!-- Previous EveryDollar Imports (Statement Batches) -->
     <div *ngIf="everyDollarBatches.length > 0" class="glass-card ed-batches-card" style="margin-top: 1.5rem; padding: 1.25rem;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
         <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
           <span>📦</span> Previous EveryDollar Imports ({{ everyDollarBatches.length }})
         </h4>
+        <button
+          *ngIf="everyDollarBatches.length > 1"
+          class="btn btn-secondary btn-xs"
+          (click)="consolidateEveryDollarBatches()"
+          title="Consolidate all {{ everyDollarBatches.length }} separate batches into 1 unified batch">
+          🔗 Consolidate into 1 Batch ({{ everyDollarBatches.length }})
+        </button>
       </div>
       <div class="ed-batch-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
         <div *ngFor="let b of everyDollarBatches" class="ed-batch-row glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; border-radius: 8px;">

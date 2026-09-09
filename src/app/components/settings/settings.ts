@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CategorySelectComponent } from '../category-select/category-select';
 import { TransactionService, ImportedBatch } from '../../services/transaction.service';
-import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem, Transaction } from '../../models';
+import { BankConfig, CategoryRule, ExcludeRule, CategoryGroup, CategoryItem, Transaction, SplitType } from '../../models';
 
 export interface EveryDollarCategoryMapping {
   rawCategory: string;
@@ -12,6 +12,7 @@ export interface EveryDollarCategoryMapping {
   selectedItem: string;
   selectedGroup: string;
   selectedPerson: string;
+  selectedSplitType: SplitType;
 }
 
 @Component({
@@ -1000,7 +1001,7 @@ export class SettingsComponent {
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
         matchedCount++;
-        return { ...m, selectedPerson: personName };
+        return { ...m, selectedPerson: personName, selectedSplitType: 'SELF' as SplitType };
       }
       return m;
     });
@@ -1023,6 +1024,44 @@ export class SettingsComponent {
 
     this.service.showToast(
       `Assigned ${matchedCount} categories containing "${this.edCategoryMatchKeyword().trim()}" to ${personName}!`,
+      'success'
+    );
+  }
+
+  public assignMatchingCategoriesToSplit(): void {
+    const q = this.edCategoryMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please enter text in the box to match categories.', 'info');
+      return;
+    }
+
+    let matchedCount = 0;
+    const updatedMappings = this.edCategoryMappings().map((m) => {
+      if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        matchedCount++;
+        return { ...m, selectedSplitType: 'SPLIT' as SplitType };
+      }
+      return m;
+    });
+
+    if (matchedCount === 0) {
+      this.service.showToast(`No categories contain "${this.edCategoryMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.edCategoryMappings.set(updatedMappings);
+
+    // Update all matching preview transactions to splitType = 'SPLIT'
+    const categorySplitMap = new Map(updatedMappings.map((m) => [m.rawCategory, m.selectedSplitType]));
+    this.edPreviewTransactions.update((txs) =>
+      txs.map((t) => {
+        const sType = categorySplitMap.get(t.rawCategory || 'Uncategorized');
+        return sType === 'SPLIT' ? { ...t, splitType: 'SPLIT' } : t;
+      })
+    );
+
+    this.service.showToast(
+      `Set ${matchedCount} categories containing "${this.edCategoryMatchKeyword().trim()}" to 50/50 Split!`,
       'success'
     );
   }
@@ -1117,9 +1156,14 @@ export class SettingsComponent {
       return;
     }
 
-    const currentMappings = new Map<string, { item: string; group: string; person: string }>();
+    const currentMappings = new Map<string, { item: string; group: string; person: string; splitType: SplitType }>();
     for (const m of this.edCategoryMappings()) {
-      currentMappings.set(m.rawCategory, { item: m.selectedItem, group: m.selectedGroup, person: m.selectedPerson });
+      currentMappings.set(m.rawCategory, {
+        item: m.selectedItem,
+        group: m.selectedGroup,
+        person: m.selectedPerson,
+        splitType: m.selectedSplitType
+      });
     }
 
     const defaultPerson = this.service.personOne().name;
@@ -1139,6 +1183,7 @@ export class SettingsComponent {
       // If transactions already carry person and category info (e.g. editing an existing batch)
       const sampleTx = txs.find((t) => (t.rawCategory || 'Uncategorized') === rawCategory);
       const txPerson = sampleTx?.paidBy;
+      const txSplitType = sampleTx?.splitType || 'SELF';
       const txItem = sampleTx?.categoryItem && sampleTx.categoryItem !== 'Uncategorized' ? sampleTx.categoryItem : null;
       const txGroup = sampleTx?.categoryGroup && sampleTx.categoryGroup !== 'Uncategorized' ? sampleTx.categoryGroup : null;
 
@@ -1147,6 +1192,7 @@ export class SettingsComponent {
       const selectedItem = existingMap?.item || txItem || 'Uncategorized';
       const selectedGroup = existingMap?.group || txGroup || 'Uncategorized';
       const selectedPerson = existingMap?.person || txPerson || detectedPerson;
+      const selectedSplitType = existingMap?.splitType || txSplitType || 'SELF';
 
       result.push({
         rawCategory,
@@ -1155,22 +1201,25 @@ export class SettingsComponent {
         selectedItem,
         selectedGroup,
         selectedPerson,
+        selectedSplitType,
       });
     });
 
     result.sort((a, b) => b.count - a.count);
     this.edCategoryMappings.set(result);
 
-    // Propagate assigned person and category to all staged transactions
+    // Propagate assigned person, split type, and category to all staged transactions
     const catPersonMap = new Map(result.map((m) => [m.rawCategory, m.selectedPerson]));
+    const catSplitMap = new Map(result.map((m) => [m.rawCategory, m.selectedSplitType]));
     const catTypeMap = new Map(result.map((m) => [m.rawCategory, { item: m.selectedItem, group: m.selectedGroup }]));
     this.edPreviewTransactions.update((curr) =>
       curr.map((t) => {
         const p = catPersonMap.get(t.rawCategory || 'Uncategorized') || defaultPerson;
+        const sType = catSplitMap.get(t.rawCategory || 'Uncategorized') || 'SELF';
         const typeInfo = catTypeMap.get(t.rawCategory || 'Uncategorized');
         const catItem = typeInfo?.item || t.categoryItem || 'Uncategorized';
         const catGroup = typeInfo?.group || t.categoryGroup || 'Uncategorized';
-        return { ...t, paidBy: p, splitType: 'SELF', categoryItem: catItem, categoryGroup: catGroup };
+        return { ...t, paidBy: p, splitType: sType, categoryItem: catItem, categoryGroup: catGroup };
       })
     );
   }
@@ -1210,12 +1259,12 @@ export class SettingsComponent {
     this.edCategoryMappings.update((curr) =>
       curr.map((m) =>
         m.rawCategory === rawCategory
-          ? { ...m, selectedPerson: personName }
+          ? { ...m, selectedPerson: personName, selectedSplitType: 'SELF' as SplitType }
           : m
       )
     );
 
-    // Update all matching staged preview transactions (split is always SELF)
+    // Update all matching staged preview transactions (split is SELF)
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.rawCategory || 'Uncategorized') === rawCategory) {
@@ -1232,11 +1281,32 @@ export class SettingsComponent {
     this.service.showToast(`Assigned all transactions in "${rawCategory}" to ${personName}.`, 'info');
   }
 
+  public onCategorySplitTypeChange(rawCategory: string, splitType: SplitType): void {
+    this.edCategoryMappings.update((curr) =>
+      curr.map((m) =>
+        m.rawCategory === rawCategory
+          ? { ...m, selectedSplitType: splitType }
+          : m
+      )
+    );
+
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((tx) => {
+        if ((tx.rawCategory || 'Uncategorized') === rawCategory) {
+          return { ...tx, splitType };
+        }
+        return tx;
+      })
+    );
+
+    this.service.showToast(`Set split for "${rawCategory}" to ${splitType === 'SPLIT' ? '50/50' : splitType}.`, 'info');
+  }
+
   public assignAllMappingsToPerson(personName: string): void {
     if (!personName) return;
 
     this.edCategoryMappings.update((curr) =>
-      curr.map((m) => ({ ...m, selectedPerson: personName }))
+      curr.map((m) => ({ ...m, selectedPerson: personName, selectedSplitType: 'SELF' as SplitType }))
     );
 
     this.edPreviewTransactions.update((curr) =>
@@ -1250,6 +1320,12 @@ export class SettingsComponent {
     if (!personName) return;
     this.edPreviewTransactions.update((curr) =>
       curr.map((t) => (t.id === tx.id ? { ...t, paidBy: personName, splitType: 'SELF' } : t))
+    );
+  }
+
+  public setTxSplit(tx: Transaction, splitType: SplitType): void {
+    this.edPreviewTransactions.update((curr) =>
+      curr.map((t) => (t.id === tx.id ? { ...t, splitType } : t))
     );
   }
 
@@ -1309,6 +1385,40 @@ export class SettingsComponent {
 
   public get everyDollarBatches(): ImportedBatch[] {
     return this.service.importedBatches().filter((b) => b.fileName.startsWith('EveryDollar'));
+  }
+
+  public async consolidateEveryDollarBatches(): Promise<void> {
+    const edTxs = this.service.transactions().filter((t) => t.sourceFile?.startsWith('EveryDollar'));
+    if (edTxs.length === 0) {
+      this.service.showToast('No EveryDollar transactions found to consolidate.', 'info');
+      return;
+    }
+
+    let minMonth = '';
+    let maxMonth = '';
+    for (const tx of edTxs) {
+      const m = tx.date.slice(0, 7);
+      if (!minMonth || m < minMonth) minMonth = m;
+      if (!maxMonth || m > maxMonth) maxMonth = m;
+    }
+
+    const unifiedBatchName = minMonth === maxMonth
+      ? `EveryDollar (${minMonth})`
+      : `EveryDollar (${minMonth} to ${maxMonth})`;
+
+    const ok = await this.service.showConfirm(
+      'Consolidate EveryDollar Batches',
+      `Merge all ${this.everyDollarBatches.length} separate EveryDollar batches (${edTxs.length} transactions) into a single batch named "${unifiedBatchName}"?`
+    );
+    if (!ok) return;
+
+    const updated = edTxs.map((t) => ({ ...t, sourceFile: unifiedBatchName }));
+    this.service.updateTransactionsBatch(updated);
+
+    this.service.showToast(
+      `✓ Successfully consolidated ${edTxs.length} transactions into "${unifiedBatchName}"!`,
+      'success'
+    );
   }
 
   public editEveryDollarBatch(batchFileName: string): void {
