@@ -2,14 +2,21 @@
 const express = require('express');
 const cors = require('cors');
 const puppeteer = require('puppeteer');
-const os = require('os');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Persistent Chrome session directory in project root
+const sessionDir = path.join(__dirname, '..', '.everydollar-chrome-session');
+if (!fs.existsSync(sessionDir)) {
+  fs.mkdirSync(sessionDir, { recursive: true });
+}
+
 let browser = null;
+let activePage = null;
+let authPromise = null;
 
 app.use(
   cors({
@@ -32,40 +39,34 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, status: 'running' });
+  res.json({
+    ok: true,
+    status: 'running',
+    browserConnected: Boolean(browser && browser.isConnected()),
+    hasActivePage: Boolean(activePage && !activePage.isClosed()),
+  });
 });
-
 
 async function getBrowser() {
   if (browser && browser.isConnected()) {
     return browser;
   }
 
-  // Create a temporary directory for Puppeteer's isolated session
-  // This ensures your Chrome profile is not altered
-  const tmpDir = path.join(os.tmpdir(), 'everydollar-proxy-chrome');
-  
-  // Create the temp directory if it doesn't exist
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-  }
-
-    const launchOptions = {
-    headless: false, // Run in visible mode so we can see what's happening
-    userDataDir: tmpDir, // Use isolated temporary profile directory
+  const launchOptions = {
+    headless: false, // Visible mode so the user can easily log in
+    userDataDir: sessionDir,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-blink-features=AutomationControlled',
-      '--disable-web-security', // Disable CORS
+      '--disable-web-security',
       '--disable-features=VizDisplayCompositor',
-      '--disable-site-isolation-trials', // Allow cross-origin requests
-      '--disable-features=IsolateOrigins,site-per-process', // Additional CORS bypass
+      '--disable-site-isolation-trials',
+      '--disable-features=IsolateOrigins,site-per-process',
     ],
   };
 
-  console.log('Using isolated temporary Chrome profile (your Chrome profile will not be altered)');
-  console.log('Temporary profile location:', tmpDir);
+  console.log('Using persistent Chrome profile directory:', sessionDir);
 
   try {
     browser = await puppeteer.launch(launchOptions);
@@ -73,6 +74,90 @@ async function getBrowser() {
   } catch (error) {
     console.error('Error launching browser:', error.message);
     throw error;
+  }
+}
+
+async function ensureAuthenticatedPage() {
+  if (authPromise) {
+    return authPromise;
+  }
+
+  authPromise = (async () => {
+    const browserInstance = await getBrowser();
+
+    if (!activePage || activePage.isClosed()) {
+      const pages = await browserInstance.pages();
+      activePage = pages.length > 0 ? pages[0] : await browserInstance.newPage();
+      await activePage.setUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+    }
+
+    let currentUrl = activePage.url();
+    if (currentUrl.includes('everydollar.com/app')) {
+      return activePage;
+    }
+
+    console.log('\nNavigating to EveryDollar...');
+    try {
+      await activePage.goto('https://www.everydollar.com/app/budget', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      });
+    } catch (e) {
+      console.warn('Navigation note:', e.message);
+    }
+
+    currentUrl = activePage.url();
+    // Check if redirected to login page
+    if (!currentUrl.includes('everydollar.com/app')) {
+      console.log('\n=============================================================');
+      console.log('🔑 LOGIN REQUIRED');
+      console.log('Please log into EveryDollar in the opened Chrome window.');
+      console.log('Waiting up to 5 minutes for login to complete...');
+      console.log('=============================================================\n');
+
+      const maxWaitSeconds = 300; // 5 minutes
+      const startTime = Date.now();
+
+      while (true) {
+        if (activePage.isClosed()) {
+          throw new Error('Chrome window was closed before login could complete.');
+        }
+
+        const url = activePage.url();
+        if (url.includes('everydollar.com/app')) {
+          console.log('\n✅ Login successful! Session established.');
+          // Allow session and cookies to settle
+          await new Promise((r) => setTimeout(r, 3000));
+          break;
+        }
+
+        const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+        const remainingSec = maxWaitSeconds - elapsedSec;
+
+        if (remainingSec <= 0) {
+          throw new Error('Login timed out after 5 minutes. Please try again.');
+        }
+
+        if (elapsedSec % 5 === 0) {
+          process.stdout.write(`\rWaiting for login... (${remainingSec}s remaining)   `);
+        }
+
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      process.stdout.write('\n');
+    } else {
+      console.log('✅ Active EveryDollar session found.');
+    }
+
+    return activePage;
+  })();
+
+  try {
+    return await authPromise;
+  } finally {
+    authPromise = null;
   }
 }
 
@@ -88,105 +173,12 @@ app.get('/everydollar', async (req, res) => {
     start
   )}&endDate=${encodeURIComponent(end)}&size=1000`;
 
-  let page = null;
   try {
-    const browserInstance = await getBrowser();
-    page = await browserInstance.newPage();
-    
-    // Set user agent
-    await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    
-    // First, visit the login page and wait for user to log in
-    console.log('Opening login page. Please log in to EveryDollar...');
-    console.log('Waiting 3 seconds for you to complete login...');
-    try {
-      await page.goto('https://id.ramseysolutions.com/u/login', {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000,
-      });
-      
-      // Wait 3 seconds for user to log in with countdown
-      const loginTimeout = 3; // seconds
-      for (let remaining = loginTimeout; remaining > 0; remaining--) {
-        process.stdout.write(`\rLogin countdown: ${remaining} seconds remaining... `);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      process.stdout.write('\n');
-      
-      // Check if we're now on EveryDollar (logged in)
-      const currentUrl = page.url();
-      console.log('Current URL after login wait:', currentUrl);
-      
-      // Check cookies
-      const cookies = await page.cookies();
-      console.log(`Found ${cookies.length} cookies after login`);
-      if (cookies.length > 0) {
-        const cookieNames = cookies.map(c => c.name).slice(0, 5).join(', ');
-        console.log('Cookie names:', cookieNames, cookies.length > 5 ? '...' : '');
-      }
-      
-      // Navigate to EveryDollar main page to ensure session is established
-      console.log('Navigating to EveryDollar to establish session...');
-      await page.goto('https://www.everydollar.com/app/budget', {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000,
-      });
-      
-      console.log('Waiting 2 seconds to ensure session is ready...');
-      for (let remaining = 2; remaining > 0; remaining--) {
-        process.stdout.write(`\rSession ready countdown: ${remaining} seconds... `);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      process.stdout.write('\n');
-    } catch (e) {
-      console.warn('Could not visit login page:', e.message);
-    }
-    
-    // Ensure we're on everydollar.com page before making the fetch
-    const currentUrl = page.url();
-    console.log('Current page URL before fetch:', currentUrl);
-        
-    // Wait a bit for any async authentication to complete
-    console.log('Waiting for authentication to settle...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-        
-    // Get all cookies and log them for debugging
-    const allCookies = await page.cookies();
-    console.log(`\nTotal cookies available: ${allCookies.length}`);
-    const relevantCookies = allCookies.filter(c => 
-      c.domain.includes('everydollar.com') || 
-      c.domain.includes('ramseysolutions.com')
-    );
-    console.log(`Cookies for EveryDollar/Ramsey domains: ${relevantCookies.length}`);
-    if (relevantCookies.length > 0) {
-      console.log('Relevant cookie names:', relevantCookies.map(c => c.name).join(', '));
-      
-      // Check for SESSION cookie specifically
-      const sessionCookie = relevantCookies.find(c => c.name === 'SESSION' || c.name.toLowerCase().includes('session'));
-      if (sessionCookie) {
-        console.log(`SESSION cookie found: ${sessionCookie.name} (domain: ${sessionCookie.domain}, value length: ${sessionCookie.value.length})`);
-      } else {
-        console.warn('WARNING: No SESSION cookie found! This might be why authentication is failing.');
-      }
-    }
-    
-    // Set up response interception to capture the API response
-    let capturedResponse = null;
-    let responseText = null;
-    
-    page.on('response', async (response) => {
-      const responseUrl = response.url();
-      if (responseUrl.includes('/api/transactions/search/findByDateRange')) {
-        capturedResponse = response;
-        responseText = await response.text();
-        console.log(`Captured API response with status: ${response.status()}`);
-        console.log(responseText);
-      }
-    });
-    
-    // Use fetch from the page context - this will use all cookies automatically
-    console.log('Making fetch request from page context...');
-    const apiResult = await page.evaluate(async (apiUrl) => {
+    console.log(`\n[Proxy Request] Fetching transactions from ${start} to ${end}...`);
+    let page = await ensureAuthenticatedPage();
+
+    // Execute fetch directly within the authenticated EveryDollar page context
+    let apiResult = await page.evaluate(async (apiUrl) => {
       try {
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -211,48 +203,63 @@ app.get('/everydollar', async (req, res) => {
         };
       }
     }, url);
-    
-    // Wait a moment for response interception
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Use intercepted response if available, otherwise use fetch result
-    const status = capturedResponse ? capturedResponse.status() : apiResult.status;
-    const text = responseText || apiResult.text;
-    
-    console.log('Response status:', status);
-    if (status >= 400) {
-      console.error('\n=== ERROR RESPONSE ===');
-      console.error('Status:', status);
-      console.error('Response text:', text);
-      console.error('=====================\n');
-      if (status === 401) {
-        console.error('401 Unauthorized - Session may have expired or cookies not loaded properly');
-        console.error('The API rejected the request. Possible reasons:');
-        console.error('  1. Session cookie is invalid or expired');
-        console.error('  2. Missing required authentication cookies');
-        console.error('  3. API requires additional headers or tokens');
-        console.error('\nTry: 1) Make sure you are fully logged into EveryDollar');
-        console.error('     2) Check that you can access the API manually in the browser');
-        console.error('     3) Restart the proxy server and try again');
+
+    // If 401 Unauthorized, try refreshing page to regain session once
+    if (apiResult.status === 401) {
+      console.warn('Received 401 Unauthorized. Reloading EveryDollar page to re-establish session...');
+      try {
+        await page.goto('https://www.everydollar.com/app/budget', {
+          waitUntil: 'domcontentloaded',
+          timeout: 30000,
+        });
+        page = await ensureAuthenticatedPage();
+        apiResult = await page.evaluate(async (apiUrl) => {
+          try {
+            const response = await fetch(apiUrl, {
+              method: 'GET',
+              credentials: 'include',
+              headers: {
+                'Accept': 'application/json, text/plain, */*',
+                'Referer': 'https://www.everydollar.com/',
+                'Origin': 'https://www.everydollar.com',
+              },
+            });
+            const text = await response.text();
+            return {
+              status: response.status,
+              ok: response.ok,
+              text: text,
+            };
+          } catch (error) {
+            return {
+              status: 0,
+              ok: false,
+              text: `Fetch error: ${error.message}`,
+            };
+          }
+        }, url);
+      } catch (retryErr) {
+        console.error('Session refresh failed:', retryErr.message);
       }
+    }
+
+    const { status, text } = apiResult;
+    console.log(`[Proxy Response] Status: ${status}`);
+
+    if (status >= 400) {
+      console.error(`=== ERROR RESPONSE ${status} ===\n${text}\n=====================`);
     } else if (status >= 200 && status < 300 && text) {
-      // Save the response to selected-transactions.json if the request was successful
       try {
         const jsonPath = path.join(__dirname, '..', 'src', 'data', 'selected-transactions.json');
         const jsonData = JSON.parse(text);
-        
-        // Write the parsed JSON with proper formatting
         fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
-        console.log(`\n✓ Successfully saved response to ${jsonPath}`);
+        console.log(`✓ Saved latest response to src/data/selected-transactions.json`);
       } catch (saveError) {
-        console.error('\n⚠ Failed to save response to selected-transactions.json:', saveError.message);
-        // Don't fail the request if saving fails
+        console.warn('Notice: Could not save to selected-transactions.json:', saveError.message);
       }
     }
-    
-    process.stdout.write('\n');
 
-    res.status(status);
+    res.status(status || 500);
     try {
       const json = JSON.parse(text);
       res.json(json);
@@ -260,35 +267,28 @@ app.get('/everydollar', async (req, res) => {
       res.type('text/plain').send(text);
     }
   } catch (e) {
-    console.error('Proxy error:', e);
-    res.status(500).json({ error: 'Proxy error', message: String(e) });
-  } finally {
-    if (page) {
-      await page.close();
-    }
+    console.error('Proxy error:', e.message || e);
+    res.status(500).json({ error: 'Proxy error', message: String(e.message || e) });
   }
 });
 
-// Handle uncaught errors to prevent server from crashing
+// Handle uncaught errors gracefully so server doesn't crash
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // Don't exit - keep server running
+  console.error('Uncaught Exception:', error.message || error);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit - keep server running
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
 });
 
 const server = app.listen(PORT, () => {
   console.log(`EveryDollar proxy running on http://localhost:${PORT}`);
-  console.log('Using Puppeteer to access Chrome with your session');
+  console.log('Ready to fetch EveryDollar transactions via Puppeteer session.');
 });
 
-// Keep the process alive
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Please use a different port.`);
+    console.error(`Port ${PORT} is already in use. Please terminate existing process or use PORT=4001.`);
     process.exit(1);
   } else {
     console.error('Server error:', error);
@@ -296,28 +296,20 @@ server.on('error', (error) => {
 });
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\nShutting down gracefully...');
-  server.close(() => {
+function shutdown() {
+  console.log('\nShutting down proxy gracefully...');
+  server.close(async () => {
     console.log('HTTP server closed');
     if (browser) {
-      browser.close().then(() => process.exit(0)).catch(() => process.exit(0));
-    } else {
-      process.exit(0);
+      try {
+        await browser.close();
+      } catch (_) {}
     }
+    process.exit(0);
   });
-});
+}
 
-process.on('SIGTERM', async () => {
-  console.log('\nShutting down gracefully...');
-  server.close(() => {
-    console.log('HTTP server closed');
-    if (browser) {
-      browser.close().then(() => process.exit(0)).catch(() => process.exit(0));
-    } else {
-      process.exit(0);
-    }
-  });
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 
