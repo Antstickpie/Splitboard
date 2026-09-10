@@ -14,6 +14,8 @@ import { TransactionService } from '../../services/transaction.service';
 import { AnalyticsNlpService, AnalyticsResult, MonthBucket } from '../../services/analytics-nlp.service';
 import { Transaction } from '../../models';
 
+export type AuditSortField = 'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount';
+
 @Component({
   selector: 'app-analytics-search',
   standalone: true,
@@ -30,7 +32,14 @@ export class AnalyticsSearchComponent implements OnInit {
   public searchQuery = signal<string>('');
   public result = signal<AnalyticsResult | null>(null);
   public isAuditOpen = signal<boolean>(false);
-  public auditSort = signal<'date_desc' | 'amount_desc'>('date_desc');
+
+  // Table Sorting & Filtering
+  public auditSortField = signal<AuditSortField>('date');
+  public auditSortAsc = signal<boolean>(false);
+  public auditSearch = signal<string>('');
+  public auditOwnerFilter = signal<string>('ALL');
+  public auditSplitFilter = signal<string>('ALL');
+  public auditCategoryFilter = signal<string>('ALL');
 
   // Dynamic starter queries built from live user categories and persons
   public starterPills = computed<string[]>(() => {
@@ -68,18 +77,128 @@ export class AnalyticsSearchComponent implements OnInit {
     return max > 0 ? max : 1;
   });
 
-  public sortedMatchedTransactions = computed<Transaction[]>(() => {
+  // Unique categories within current matched transactions
+  public uniqueCategories = computed<string[]>(() => {
     const res = this.result();
     if (!res) return [];
-    const list = [...res.matchedTransactions];
-    if (this.auditSort() === 'amount_desc') {
-      return list.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+    const set = new Set<string>();
+    for (const t of res.matchedTransactions) {
+      const cat = t.categoryItem || t.rawCategory || 'Uncategorized';
+      set.add(cat);
     }
-    return list.sort((a, b) => b.date.localeCompare(a.date));
+    return Array.from(set).sort();
   });
 
-  ngOnInit(): void {
-    // If there is an existing starter search, don't execute automatically
+  // Unique owners within current matched transactions
+  public uniqueOwners = computed<string[]>(() => {
+    const res = this.result();
+    if (!res) return [];
+    const set = new Set<string>();
+    for (const t of res.matchedTransactions) {
+      if (t.paidBy) set.add(t.paidBy);
+    }
+    return Array.from(set).sort();
+  });
+
+  public hasActiveFilters = computed<boolean>(() => {
+    return (
+      this.auditSearch().trim() !== '' ||
+      this.auditOwnerFilter() !== 'ALL' ||
+      this.auditSplitFilter() !== 'ALL' ||
+      this.auditCategoryFilter() !== 'ALL'
+    );
+  });
+
+  // Filtered and sorted transactions for the audit drawer
+  public filteredAndSortedTransactions = computed<Transaction[]>(() => {
+    const res = this.result();
+    if (!res) return [];
+
+    let list = [...res.matchedTransactions];
+
+    // 1. Text Search Filter
+    const q = this.auditSearch().toLowerCase().trim();
+    if (q) {
+      list = list.filter(
+        (t) =>
+          (t.description || '').toLowerCase().includes(q) ||
+          (t.merchant || '').toLowerCase().includes(q) ||
+          (t.categoryItem || '').toLowerCase().includes(q) ||
+          (t.categoryGroup || '').toLowerCase().includes(q) ||
+          (t.rawCategory || '').toLowerCase().includes(q) ||
+          (t.note || '').toLowerCase().includes(q) ||
+          (t.bank || '').toLowerCase().includes(q) ||
+          String(t.amount).includes(q)
+      );
+    }
+
+    // 2. Owner Filter
+    const owner = this.auditOwnerFilter();
+    if (owner !== 'ALL') {
+      list = list.filter((t) => t.paidBy === owner);
+    }
+
+    // 3. Split Filter
+    const split = this.auditSplitFilter();
+    if (split !== 'ALL') {
+      list = list.filter((t) => t.splitType === split);
+    }
+
+    // 4. Category Filter
+    const cat = this.auditCategoryFilter();
+    if (cat !== 'ALL') {
+      list = list.filter((t) => (t.categoryItem || t.rawCategory || 'Uncategorized') === cat);
+    }
+
+    // 5. Sorting
+    const field = this.auditSortField();
+    const asc = this.auditSortAsc();
+
+    return list.sort((a, b) => {
+      let cmp = 0;
+      if (field === 'date') {
+        cmp = (a.date || '').localeCompare(b.date || '');
+      } else if (field === 'description') {
+        const descA = a.merchant || a.description || '';
+        const descB = b.merchant || b.description || '';
+        cmp = descA.localeCompare(descB);
+      } else if (field === 'category') {
+        const catA = a.categoryItem || a.rawCategory || 'Uncategorized';
+        const catB = b.categoryItem || b.rawCategory || 'Uncategorized';
+        cmp = catA.localeCompare(catB);
+      } else if (field === 'paidBy') {
+        cmp = (a.paidBy || '').localeCompare(b.paidBy || '');
+      } else if (field === 'splitType') {
+        cmp = (a.splitType || '').localeCompare(b.splitType || '');
+      } else if (field === 'amount') {
+        cmp = Math.abs(a.amount) - Math.abs(b.amount);
+      }
+      return asc ? cmp : -cmp;
+    });
+  });
+
+  // Total sum of currently filtered transactions
+  public filteredTransactionsTotal = computed<number>(() => {
+    return this.filteredAndSortedTransactions().reduce((acc, t) => acc + Math.abs(t.amount), 0);
+  });
+
+  ngOnInit(): void {}
+
+  public toggleSort(field: AuditSortField): void {
+    if (this.auditSortField() === field) {
+      this.auditSortAsc.update((v) => !v);
+    } else {
+      this.auditSortField.set(field);
+      // Date and Amount default to descending (newest / biggest first); others to ascending (A-Z)
+      this.auditSortAsc.set(field !== 'date' && field !== 'amount');
+    }
+  }
+
+  public clearAuditFilters(): void {
+    this.auditSearch.set('');
+    this.auditOwnerFilter.set('ALL');
+    this.auditSplitFilter.set('ALL');
+    this.auditCategoryFilter.set('ALL');
   }
 
   public onSearch(q?: string): void {
@@ -93,10 +212,10 @@ export class AnalyticsSearchComponent implements OnInit {
     const ast = this.nlp.compile(text);
     const res = this.nlp.execute(ast);
     this.result.set(res);
+    this.clearAuditFilters();
   }
 
   public runStarterQuery(q: string): void {
-    // Strip leading emoji if present e.g. "🥦 Groceries this year" -> "Groceries this year"
     const cleaned = q.replace(/^[\p{Emoji}\s]+/u, '').trim();
     this.searchQuery.set(cleaned);
     this.onSearch(cleaned);
@@ -106,6 +225,7 @@ export class AnalyticsSearchComponent implements OnInit {
     this.searchQuery.set('');
     this.result.set(null);
     this.isAuditOpen.set(false);
+    this.clearAuditFilters();
     this.queryInputRef?.nativeElement?.focus();
   }
 

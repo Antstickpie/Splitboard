@@ -139,88 +139,218 @@
           <span class="audit-title">
             {{ isAuditOpen() ? 'Hide' : 'Inspect' }} {{ res.matchedTransactions.length }} Matched Transaction{{ res.matchedTransactions.length === 1 ? '' : 's' }}
           </span>
+          <span *ngIf="hasActiveFilters() && isAuditOpen()" class="badge badge-primary" style="font-size: 0.65rem; margin-left: 0.3rem;">
+            Filtered: {{ filteredAndSortedTransactions().length }}
+          </span>
         </button>
 
-        <div class="audit-controls" *ngIf="isAuditOpen()">
-          <span class="sort-label">Sort:</span>
-          <button
-            type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="auditSort() === 'date_desc'"
-            [class.btn-secondary]="auditSort() !== 'date_desc'"
-            (click)="auditSort.set('date_desc')">
-            Date
-          </button>
-          <button
-            type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="auditSort() === 'amount_desc'"
-            [class.btn-secondary]="auditSort() !== 'amount_desc'"
-            (click)="auditSort.set('amount_desc')">
-            Amount
-          </button>
-        </div>
+        <span class="audit-hint" *ngIf="!isAuditOpen()">
+          Click column headers to sort, or filter by keyword, owner, split, and category
+        </span>
       </div>
 
-      <!-- Audit Table Drawer -->
-      <div class="audit-table-wrap animate-fade-in" *ngIf="isAuditOpen()">
-        <table class="audit-table">
-          <thead>
-            <tr>
-              <th style="width: 95px;">Date</th>
-              <th>Description / Merchant</th>
-              <th style="width: 130px;">Category</th>
-              <th style="width: 90px;">Paid By</th>
-              <th style="width: 85px;">Split</th>
-              <th style="text-align: right; width: 100px;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let t of sortedMatchedTransactions()">
-              <td class="font-mono text-muted" style="font-size: 0.74rem;">{{ t.date }}</td>
-              <td>
-                <div style="font-weight: 600; color: var(--text-main); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  {{ t.merchant || t.description }}
-                </div>
-                <div *ngIf="t.merchant && t.description && t.description !== t.merchant" style="font-size: 0.68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  {{ t.description }}
-                </div>
-              </td>
-              <td>
-                <span class="badge badge-neutral" style="font-size: 0.68rem;" [title]="(t.categoryGroup || '') + ' › ' + (t.categoryItem || 'Uncategorized')">
-                  {{ t.categoryItem || 'Uncategorized' }}
-                </span>
-              </td>
-              <td>
-                <span
-                  class="badge"
-                  [style.color]="t.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
-                  [style.background]="t.paidBy === service.personOne().name ? 'rgba(0,229,255,0.1)' : 'rgba(139,92,246,0.1)'"
-                  style="font-size: 0.68rem;">
-                  {{ t.paidBy }}
-                </span>
-              </td>
-              <td>
-                <span
-                  class="badge"
-                  [class.badge-success]="t.splitType === 'SPLIT'"
-                  [class.badge-neutral]="t.splitType === 'SELF'"
-                  [class.badge-danger]="t.splitType === 'OTHER'"
-                  style="font-size: 0.65rem;">
-                  {{ t.splitType === 'SPLIT' ? '50/50' : (t.splitType === 'SELF' ? '100%' : 'Other') }}
-                </span>
-              </td>
-              <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 0.82rem;" [class.text-success]="t.type === 'INCOME'">
-                {{ t.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(t.amount) }}
-              </td>
-            </tr>
-            <tr *ngIf="sortedMatchedTransactions().length === 0">
-              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
-                No transactions matched this query filter.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Audit Table Drawer with Integrated Filters & Sortable Headers -->
+      <div class="audit-drawer-box animate-fade-in" *ngIf="isAuditOpen()">
+        <!-- Filter Controls Bar -->
+        <div class="audit-filters-bar">
+          <!-- Text Search Filter -->
+          <div class="audit-filter-input-wrap">
+            <span class="filter-icon">🔍</span>
+            <input
+              type="text"
+              class="audit-filter-input"
+              [ngModel]="auditSearch()"
+              (ngModelChange)="auditSearch.set($event)"
+              placeholder="Search description, merchant, note, amount..." />
+            <button
+              *ngIf="auditSearch()"
+              type="button"
+              class="filter-clear-btn"
+              (click)="auditSearch.set('')">
+              ✕
+            </button>
+          </div>
+
+          <!-- Owner Dropdown Filter -->
+          <div class="audit-select-wrap" *ngIf="uniqueOwners().length > 1">
+            <label class="filter-label">Owner:</label>
+            <select
+              class="styled-select filter-select"
+              [ngModel]="auditOwnerFilter()"
+              (ngModelChange)="auditOwnerFilter.set($event)">
+              <option value="ALL">All Owners</option>
+              <option *ngFor="let owner of uniqueOwners()" [value]="owner">{{ owner }}</option>
+            </select>
+          </div>
+
+          <!-- Split Dropdown Filter -->
+          <div class="audit-select-wrap">
+            <label class="filter-label">Split:</label>
+            <select
+              class="styled-select filter-select"
+              [ngModel]="auditSplitFilter()"
+              (ngModelChange)="auditSplitFilter.set($event)">
+              <option value="ALL">All Splits</option>
+              <option value="SPLIT">Shared (50/50)</option>
+              <option value="SELF">100% Self</option>
+              <option value="OTHER">100% Other</option>
+            </select>
+          </div>
+
+          <!-- Category Dropdown Filter -->
+          <div class="audit-select-wrap" *ngIf="uniqueCategories().length > 1">
+            <label class="filter-label">Category:</label>
+            <select
+              class="styled-select filter-select"
+              [ngModel]="auditCategoryFilter()"
+              (ngModelChange)="auditCategoryFilter.set($event)">
+              <option value="ALL">All Categories</option>
+              <option *ngFor="let cat of uniqueCategories()" [value]="cat">{{ cat }}</option>
+            </select>
+          </div>
+
+          <!-- Reset Filters Button -->
+          <button
+            *ngIf="hasActiveFilters()"
+            type="button"
+            class="btn btn-secondary btn-xs filter-reset-btn"
+            (click)="clearAuditFilters()">
+            ✕ Reset Filters
+          </button>
+
+          <!-- Result Count / Filtered Subtotal -->
+          <div class="filter-count-info">
+            <span class="count-badge">
+              Showing {{ filteredAndSortedTransactions().length }} of {{ res.matchedTransactions.length }}
+            </span>
+            <span *ngIf="hasActiveFilters()" class="subtotal-badge font-mono">
+              ({{ service.formatCurrency(filteredTransactionsTotal()) }})
+            </span>
+          </div>
+        </div>
+
+        <!-- Sortable Table View -->
+        <div class="audit-table-wrap">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th
+                  (click)="toggleSort('date')"
+                  class="sortable-th"
+                  [class.active-sort]="auditSortField() === 'date'"
+                  style="width: 105px;"
+                  title="Click to sort by Date">
+                  <div class="th-content">
+                    <span>DATE</span>
+                    <span class="sort-arrow">{{ auditSortField() === 'date' ? (auditSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                  </div>
+                </th>
+                <th
+                  (click)="toggleSort('description')"
+                  class="sortable-th"
+                  [class.active-sort]="auditSortField() === 'description'"
+                  title="Click to sort by Description or Merchant">
+                  <div class="th-content">
+                    <span>DESCRIPTION / MERCHANT</span>
+                    <span class="sort-arrow">{{ auditSortField() === 'description' ? (auditSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                  </div>
+                </th>
+                <th
+                  (click)="toggleSort('category')"
+                  class="sortable-th"
+                  [class.active-sort]="auditSortField() === 'category'"
+                  style="width: 135px;"
+                  title="Click to sort by Category">
+                  <div class="th-content">
+                    <span>CATEGORY</span>
+                    <span class="sort-arrow">{{ auditSortField() === 'category' ? (auditSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                  </div>
+                </th>
+                <th
+                  (click)="toggleSort('paidBy')"
+                  class="sortable-th"
+                  [class.active-sort]="auditSortField() === 'paidBy'"
+                  style="width: 95px;"
+                  title="Click to sort by Payer">
+                  <div class="th-content">
+                    <span>PAID BY</span>
+                    <span class="sort-arrow">{{ auditSortField() === 'paidBy' ? (auditSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                  </div>
+                </th>
+                <th
+                  (click)="toggleSort('splitType')"
+                  class="sortable-th"
+                  [class.active-sort]="auditSortField() === 'splitType'"
+                  style="width: 90px;"
+                  title="Click to sort by Split Type">
+                  <div class="th-content">
+                    <span>SPLIT</span>
+                    <span class="sort-arrow">{{ auditSortField() === 'splitType' ? (auditSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                  </div>
+                </th>
+                <th
+                  (click)="toggleSort('amount')"
+                  class="sortable-th"
+                  [class.active-sort]="auditSortField() === 'amount'"
+                  style="text-align: right; width: 110px;"
+                  title="Click to sort by Amount">
+                  <div class="th-content" style="justify-content: flex-end;">
+                    <span>AMOUNT</span>
+                    <span class="sort-arrow">{{ auditSortField() === 'amount' ? (auditSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let t of filteredAndSortedTransactions()">
+                <td class="font-mono text-muted" style="font-size: 0.74rem;">{{ t.date }}</td>
+                <td>
+                  <div style="font-weight: 600; color: var(--text-main); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ t.merchant || t.description }}
+                  </div>
+                  <div *ngIf="t.merchant && t.description && t.description !== t.merchant" style="font-size: 0.68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ t.description }}
+                  </div>
+                </td>
+                <td>
+                  <span class="badge badge-neutral" style="font-size: 0.68rem;" [title]="(t.categoryGroup || '') + ' › ' + (t.categoryItem || 'Uncategorized')">
+                    {{ t.categoryItem || 'Uncategorized' }}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    [style.color]="t.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                    [style.background]="t.paidBy === service.personOne().name ? 'rgba(0,229,255,0.1)' : 'rgba(139,92,246,0.1)'"
+                    style="font-size: 0.68rem;">
+                    {{ t.paidBy }}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    [class.badge-success]="t.splitType === 'SPLIT'"
+                    [class.badge-neutral]="t.splitType === 'SELF'"
+                    [class.badge-danger]="t.splitType === 'OTHER'"
+                    style="font-size: 0.65rem;">
+                    {{ t.splitType === 'SPLIT' ? '50/50' : (t.splitType === 'SELF' ? '100%' : 'Other') }}
+                  </span>
+                </td>
+                <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 0.82rem;" [class.text-success]="t.type === 'INCOME'">
+                  {{ t.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(t.amount) }}
+                </td>
+              </tr>
+              <tr *ngIf="filteredAndSortedTransactions().length === 0">
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                  No transactions match current filters.
+                  <button type="button" class="btn btn-secondary btn-xs" style="margin-left: 0.5rem;" (click)="clearAuditFilters()">
+                    Clear Filters
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
