@@ -311,6 +311,151 @@
   padding: 0.8rem 1rem;
 }
 
+/* Comparison Trends Section */
+.nlp-trend-comparison-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.trend-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.trend-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.comparison-view-toggle {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.mode-toggle-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-toggle-btn.active {
+  background: rgba(0, 229, 255, 0.15);
+  color: var(--primary);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+}
+
+/* Multi-Graphs Grid */
+.nlp-multi-graphs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1rem;
+}
+
+.nlp-graph-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 0.75rem 0.9rem;
+}
+
+.graph-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.graph-card-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.graph-card-total {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Paired Comparison Card */
+.nlp-paired-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+}
+
+.paired-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-primary {
+  background: var(--primary);
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.6);
+}
+
+.dot-comparison {
+  background: #c084fc;
+  box-shadow: 0 0 6px rgba(192, 132, 252, 0.6);
+}
+
+.legend-name {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.legend-val {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
 .trend-title-row {
   display: flex;
   justify-content: space-between;
@@ -332,9 +477,14 @@
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
-  height: 90px;
+  height: 95px;
   padding-top: 0.5rem;
   overflow-x: auto;
+}
+
+.paired-bars-wrapper {
+  height: 115px;
+  gap: 0.6rem;
 }
 
 .trend-bar-column {
@@ -345,6 +495,37 @@
   align-items: center;
   gap: 0.3rem;
   height: 100%;
+  transition: background 0.15s ease;
+  border-radius: 4px;
+}
+
+.trend-bar-column:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.paired-bar-column {
+  flex: 1;
+  min-width: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  height: 100%;
+  transition: background 0.15s ease;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.paired-bar-column:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.paired-tracks-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 100%;
+  flex: 1;
 }
 
 .bar-fill-track {
@@ -365,9 +546,37 @@
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
 }
 
+.bar-fill.bar-primary {
+  background: linear-gradient(180deg, var(--primary), #3b82f6);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.bar-fill.bar-comparison {
+  background: linear-gradient(180deg, #c084fc, #8b5cf6);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+
 .bar-amount {
   font-size: 0.65rem;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.paired-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.58rem;
+  line-height: 1.15;
+}
+
+.p-amt-primary {
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.p-amt-comparison {
+  color: #c084fc;
   white-space: nowrap;
 }
 
@@ -375,6 +584,7 @@
   font-size: 0.65rem;
   color: var(--text-muted);
   white-space: nowrap;
+  font-weight: 600;
 }
 
 /* Audit Section */

@@ -37,9 +37,17 @@ export class AnalyticsSearchComponent implements OnInit {
   public auditSortField = signal<AuditSortField>('date');
   public auditSortAsc = signal<boolean>(false);
   public auditSearch = signal<string>('');
+  public auditPeriodFilter = signal<string>('ALL');
   public auditOwnerFilter = signal<string>('ALL');
   public auditSplitFilter = signal<string>('ALL');
   public auditCategoryFilter = signal<string>('ALL');
+
+  // Comparison View Mode: multiple separate graphs vs paired comparison
+  public comparisonViewMode = signal<'multiple' | 'paired'>('multiple');
+
+  public setComparisonViewMode(mode: 'multiple' | 'paired'): void {
+    this.comparisonViewMode.set(mode);
+  }
 
   // Dynamic starter queries built from live user categories and persons
   public starterPills = computed<string[]>(() => {
@@ -103,10 +111,75 @@ export class AnalyticsSearchComponent implements OnInit {
   public hasActiveFilters = computed<boolean>(() => {
     return (
       this.auditSearch().trim() !== '' ||
+      this.auditPeriodFilter() !== 'ALL' ||
       this.auditOwnerFilter() !== 'ALL' ||
       this.auditSplitFilter() !== 'ALL' ||
       this.auditCategoryFilter() !== 'ALL'
     );
+  });
+
+  // Paired breakdown for unified comparison charts (primary vs comparison)
+  public pairedMonthlyBreakdown = computed<Array<{
+    label: string;
+    primaryMonth?: string;
+    primaryLabel?: string;
+    primaryTotal: number;
+    primaryCount: number;
+    comparisonMonth?: string;
+    comparisonLabel?: string;
+    comparisonTotal: number;
+    comparisonCount: number;
+    diff: number;
+    percentageChange?: number;
+  }>>(() => {
+    const res = this.result();
+    if (!res || !res.comparisonMonthlyBreakdown || res.comparisonMonthlyBreakdown.length === 0) return [];
+
+    const pList = res.monthlyBreakdown;
+    const cList = res.comparisonMonthlyBreakdown;
+
+    const result: Array<{
+      label: string;
+      primaryMonth?: string;
+      primaryLabel?: string;
+      primaryTotal: number;
+      primaryCount: number;
+      comparisonMonth?: string;
+      comparisonLabel?: string;
+      comparisonTotal: number;
+      comparisonCount: number;
+      diff: number;
+      percentageChange?: number;
+    }> = [];
+
+    const maxLen = Math.max(pList.length, cList.length);
+    for (let i = 0; i < maxLen; i++) {
+      const p = pList[i];
+      const c = cList[i];
+      const pTotal = p ? p.total : 0;
+      const cTotal = c ? c.total : 0;
+      const diff = Math.round((pTotal - cTotal) * 100) / 100;
+      let pct: number | undefined = undefined;
+      if (cTotal > 0) {
+        pct = Math.round(((pTotal - cTotal) / cTotal) * 1000) / 10;
+      }
+      const label = p ? p.label.split(' ')[0] : (c ? c.label.split(' ')[0] : `M${i + 1}`);
+      result.push({
+        label,
+        primaryLabel: p?.label || '',
+        primaryMonth: p?.month || '',
+        primaryTotal: pTotal,
+        primaryCount: p?.count || 0,
+        comparisonLabel: c?.label || '',
+        comparisonMonth: c?.month || '',
+        comparisonTotal: cTotal,
+        comparisonCount: c?.count || 0,
+        diff,
+        percentageChange: pct
+      });
+    }
+
+    return result;
   });
 
   // Filtered and sorted transactions for the audit drawer
@@ -115,6 +188,24 @@ export class AnalyticsSearchComponent implements OnInit {
     if (!res) return [];
 
     let list = [...res.matchedTransactions];
+
+    // 0. Period Filter (for comparison queries)
+    const period = this.auditPeriodFilter();
+    if (period !== 'ALL') {
+      if (period === 'PRIMARY') {
+        const pRange = res.query.primaryRange;
+        list = list.filter((t) => {
+          const d = (t.date || '').slice(0, 10);
+          return d >= pRange.start && d <= pRange.end;
+        });
+      } else if (period === 'COMPARISON' && res.query.comparisonRange) {
+        const cRange = res.query.comparisonRange;
+        list = list.filter((t) => {
+          const d = (t.date || '').slice(0, 10);
+          return d >= cRange.start && d <= cRange.end;
+        });
+      }
+    }
 
     // 1. Text Search Filter
     const q = this.auditSearch().toLowerCase().trim();
@@ -196,6 +287,7 @@ export class AnalyticsSearchComponent implements OnInit {
 
   public clearAuditFilters(): void {
     this.auditSearch.set('');
+    this.auditPeriodFilter.set('ALL');
     this.auditOwnerFilter.set('ALL');
     this.auditSplitFilter.set('ALL');
     this.auditCategoryFilter.set('ALL');
@@ -246,6 +338,7 @@ export class AnalyticsSearchComponent implements OnInit {
   }
 
   public getBarHeight(total: number): number {
+    if (!total || total <= 0) return 3;
     const max = this.maxMonthlyTotal();
     const pct = (total / max) * 100;
     return Math.max(6, Math.min(100, Math.round(pct)));

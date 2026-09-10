@@ -180,6 +180,7 @@ export class AnalyticsNlpService {
     let comparisonMonthlyBreakdown: MonthBucket[] | undefined = undefined;
     let percentageChange: number | undefined = undefined;
     let diffAmount: number | undefined = undefined;
+    let allMatched = matched;
 
     if (ast.comparisonRange) {
       const compMatched = this.filterTransactions(allTxs, ast.filters, ast.comparisonRange);
@@ -191,20 +192,23 @@ export class AnalyticsNlpService {
       if (comparisonTotal > 0) {
         percentageChange = Math.round(((primaryTotal - comparisonTotal) / comparisonTotal) * 1000) / 10;
       }
+      allMatched = [...matched, ...compMatched].sort((a, b) => b.date.localeCompare(a.date));
     }
+
+    const totalCount = ast.comparisonRange ? allMatched.length : transactionCount;
 
     // Generate smart follow-up suggestions
     const suggestedFollowUps = this.generateFollowUps(ast);
 
     // Readable interpretation
-    const resolvedDescription = this.formatInterpretation(ast, transactionCount);
+    const resolvedDescription = this.formatInterpretation(ast, totalCount);
 
     return {
       query: ast,
       primaryTotal: Math.round(primaryTotal * 100) / 100,
-      transactionCount,
+      transactionCount: totalCount,
       averagePerMonth,
-      matchedTransactions: ast.topLimit ? matched.slice(0, ast.topLimit) : matched,
+      matchedTransactions: ast.topLimit ? allMatched.slice(0, ast.topLimit) : allMatched,
       monthlyBreakdown,
       comparisonTotal,
       comparisonCount,

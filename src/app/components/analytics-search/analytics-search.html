@@ -104,8 +104,136 @@
       </div>
     </div>
 
-    <!-- Mini Trend Chart: Monthly Breakdown -->
-    <div class="nlp-trend-container" *ngIf="res.monthlyBreakdown.length > 1">
+    <!-- Trend Visualization Section -->
+    <!-- Case A: Comparison Mode (Multiple Graphs / Paired Comparison) -->
+    <div class="nlp-trend-comparison-section" *ngIf="res.comparisonMonthlyBreakdown && res.comparisonMonthlyBreakdown.length > 0">
+      <div class="trend-section-header">
+        <div class="trend-header-left">
+          <span class="trend-title">📊 Period Comparison Trends</span>
+          <span class="trend-subtitle">{{ res.query.primaryRange.label }} vs {{ res.query.comparisonRange?.label }}</span>
+        </div>
+
+        <div class="comparison-view-toggle">
+          <button
+            type="button"
+            class="mode-toggle-btn"
+            [class.active]="comparisonViewMode() === 'multiple'"
+            (click)="setComparisonViewMode('multiple')">
+            📈 Multiple Graphs
+          </button>
+          <button
+            type="button"
+            class="mode-toggle-btn"
+            [class.active]="comparisonViewMode() === 'paired'"
+            (click)="setComparisonViewMode('paired')">
+            📊 Paired Comparison
+          </button>
+        </div>
+      </div>
+
+      <!-- View 1: Multiple Graphs Grid -->
+      <div class="nlp-multi-graphs-grid animate-fade-in" *ngIf="comparisonViewMode() === 'multiple'">
+        <!-- Primary Period Graph -->
+        <div class="nlp-graph-card">
+          <div class="trend-title-row">
+            <div class="graph-card-header">
+              <span class="legend-dot dot-primary"></span>
+              <span class="graph-card-title">{{ res.query.primaryRange.label }} Monthly Trend</span>
+            </div>
+            <span class="graph-card-total font-mono">{{ service.formatCurrency(res.primaryTotal) }}</span>
+          </div>
+
+          <div class="trend-bars-wrapper">
+            <div
+              *ngFor="let m of res.monthlyBreakdown"
+              class="trend-bar-column"
+              [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' transactions)'">
+              <div class="bar-fill-track">
+                <div
+                  class="bar-fill bar-primary"
+                  [style.height.%]="getBarHeight(m.total)">
+                </div>
+              </div>
+              <span class="bar-amount font-mono">{{ service.formatCurrency(m.total) }}</span>
+              <span class="bar-month-label">{{ m.label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparison Period Graph -->
+        <div class="nlp-graph-card">
+          <div class="trend-title-row">
+            <div class="graph-card-header">
+              <span class="legend-dot dot-comparison"></span>
+              <span class="graph-card-title">{{ res.query.comparisonRange?.label }} Monthly Trend</span>
+            </div>
+            <span class="graph-card-total font-mono">{{ service.formatCurrency(res.comparisonTotal || 0) }}</span>
+          </div>
+
+          <div class="trend-bars-wrapper">
+            <div
+              *ngFor="let m of res.comparisonMonthlyBreakdown"
+              class="trend-bar-column"
+              [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' transactions)'">
+              <div class="bar-fill-track">
+                <div
+                  class="bar-fill bar-comparison"
+                  [style.height.%]="getBarHeight(m.total)">
+                </div>
+              </div>
+              <span class="bar-amount font-mono">{{ service.formatCurrency(m.total) }}</span>
+              <span class="bar-month-label">{{ m.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- View 2: Paired Comparison Chart -->
+      <div class="nlp-paired-card animate-fade-in" *ngIf="comparisonViewMode() === 'paired'">
+        <div class="paired-legend-row">
+          <div class="legend-item">
+            <span class="legend-dot dot-primary"></span>
+            <span class="legend-name">{{ res.query.primaryRange.label }}</span>
+            <span class="legend-val font-mono">{{ service.formatCurrency(res.primaryTotal) }}</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot dot-comparison"></span>
+            <span class="legend-name">{{ res.query.comparisonRange?.label }}</span>
+            <span class="legend-val font-mono">{{ service.formatCurrency(res.comparisonTotal || 0) }}</span>
+          </div>
+        </div>
+
+        <div class="trend-bars-wrapper paired-bars-wrapper">
+          <div
+            *ngFor="let p of pairedMonthlyBreakdown()"
+            class="paired-bar-column"
+            [title]="p.label + ': ' + res.query.primaryRange.label + ' ' + service.formatCurrency(p.primaryTotal) + ' vs ' + (res.query.comparisonRange?.label || '') + ' ' + service.formatCurrency(p.comparisonTotal) + (p.diff !== 0 ? ' (' + (p.diff > 0 ? '+' : '') + service.formatCurrency(p.diff) + ')' : '')">
+            <div class="paired-tracks-container">
+              <div class="bar-fill-track">
+                <div
+                  class="bar-fill bar-primary"
+                  [style.height.%]="getBarHeight(p.primaryTotal)">
+                </div>
+              </div>
+              <div class="bar-fill-track">
+                <div
+                  class="bar-fill bar-comparison"
+                  [style.height.%]="getBarHeight(p.comparisonTotal)">
+                </div>
+              </div>
+            </div>
+            <div class="paired-amounts font-mono">
+              <span class="p-amt-primary">{{ service.formatCurrency(p.primaryTotal) }}</span>
+              <span class="p-amt-comparison">{{ service.formatCurrency(p.comparisonTotal) }}</span>
+            </div>
+            <span class="bar-month-label">{{ p.label }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Case B: Single Period Trend Chart -->
+    <div class="nlp-trend-container" *ngIf="(!res.comparisonMonthlyBreakdown || res.comparisonMonthlyBreakdown.length === 0) && res.monthlyBreakdown.length > 1">
       <div class="trend-title-row">
         <span class="trend-title">📊 Monthly Trend</span>
         <span class="trend-subtitle">{{ res.monthlyBreakdown.length }} months in {{ res.query.primaryRange.label }}</span>
@@ -118,7 +246,7 @@
           [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' transactions)'">
           <div class="bar-fill-track">
             <div
-              class="bar-fill"
+              class="bar-fill bar-primary"
               [style.height.%]="getBarHeight(m.total)">
             </div>
           </div>
@@ -169,6 +297,19 @@
               (click)="auditSearch.set('')">
               ✕
             </button>
+          </div>
+
+          <!-- Period Dropdown Filter (Comparison Mode) -->
+          <div class="audit-select-wrap" *ngIf="res.query.comparisonRange">
+            <label class="filter-label">Period:</label>
+            <select
+              class="styled-select filter-select"
+              [ngModel]="auditPeriodFilter()"
+              (ngModelChange)="auditPeriodFilter.set($event)">
+              <option value="ALL">All Periods</option>
+              <option value="PRIMARY">{{ res.query.primaryRange.label }}</option>
+              <option value="COMPARISON">{{ res.query.comparisonRange?.label }}</option>
+            </select>
           </div>
 
           <!-- Owner Dropdown Filter -->
