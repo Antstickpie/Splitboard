@@ -1688,6 +1688,45 @@
                   </span>
                 </button>
               </div>
+
+              <!-- Owner Exclusions -->
+              <div class="ed-matcher-exclusions">
+                <span class="ed-matcher-sublabel">Exclude:</span>
+                <label
+                  *ngFor="let p of service.persons()"
+                  class="ed-matcher-checkbox-label"
+                  [title]="'Exclude categories currently assigned to ' + p.name">
+                  <input
+                    type="checkbox"
+                    [checked]="isOwnerExcluded(p.name)"
+                    (change)="toggleOwnerExclude(p.name)" />
+                  <span>👤 {{ p.name }}</span>
+                </label>
+                <label class="ed-matcher-checkbox-label" title="Exclude categories currently set to 50/50 Split">
+                  <input
+                    type="checkbox"
+                    [checked]="isOwnerExcluded('SPLIT')"
+                    (change)="toggleOwnerExclude('SPLIT')" />
+                  <span>⚖️ 50/50</span>
+                </label>
+                <button
+                  *ngIf="getDefaultOrMostAssignedPerson() as defP"
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  [class.btn-active-filter]="isOnlyDefaultActive()"
+                  (click)="toggleExcludeAllExceptDefault()"
+                  [title]="'Exclude all categories not assigned to ' + defP">
+                  🚫 Exclude non-{{ defP }}
+                </button>
+                <button
+                  *ngIf="edExcludedOwners().length > 0"
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  (click)="clearOwnerExclusions()"
+                  title="Clear all owner exclusions">
+                  ✕ Clear
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1944,6 +1983,45 @@
                   <span *ngIf="edDescriptionMatchKeyword().trim()" class="ed-match-counter">
                     ({{ getMatchingTransactionsByDescriptionCount(edDescriptionMatchKeyword()) }})
                   </span>
+                </button>
+              </div>
+
+              <!-- Owner Exclusions in Description mode -->
+              <div class="ed-matcher-exclusions">
+                <span class="ed-matcher-sublabel">Exclude:</span>
+                <label
+                  *ngFor="let p of service.persons()"
+                  class="ed-matcher-checkbox-label"
+                  [title]="'Exclude transactions currently assigned to ' + p.name">
+                  <input
+                    type="checkbox"
+                    [checked]="isOwnerExcluded(p.name)"
+                    (change)="toggleOwnerExclude(p.name)" />
+                  <span>👤 {{ p.name }}</span>
+                </label>
+                <label class="ed-matcher-checkbox-label" title="Exclude transactions currently set to 50/50 Split">
+                  <input
+                    type="checkbox"
+                    [checked]="isOwnerExcluded('SPLIT')"
+                    (change)="toggleOwnerExclude('SPLIT')" />
+                  <span>⚖️ 50/50</span>
+                </label>
+                <button
+                  *ngIf="getDefaultOrMostAssignedPerson() as defP"
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  [class.btn-active-filter]="isOnlyDefaultActive()"
+                  (click)="toggleExcludeAllExceptDefault()"
+                  [title]="'Exclude all transactions not assigned to ' + defP">
+                  🚫 Exclude non-{{ defP }}
+                </button>
+                <button
+                  *ngIf="edExcludedOwners().length > 0"
+                  type="button"
+                  class="btn btn-secondary btn-xs"
+                  (click)="clearOwnerExclusions()"
+                  title="Clear all owner exclusions">
+                  ✕ Clear
                 </button>
               </div>
             </div>

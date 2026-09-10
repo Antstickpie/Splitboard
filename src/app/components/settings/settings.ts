@@ -944,6 +944,83 @@ export class SettingsComponent {
   public edEditingBatchFileName = signal<string | null>(null);
   public edTypeExcludeAssigned = signal<boolean>(false);
   public edDescExcludeAssigned = signal<boolean>(false);
+  public edExcludedOwners = signal<string[]>([]);
+  public edDefaultAssignedPerson = signal<string | null>(null);
+
+  public isOwnerExcluded(ownerOrSplit: string): boolean {
+    return this.edExcludedOwners().includes(ownerOrSplit);
+  }
+
+  public toggleOwnerExclude(ownerOrSplit: string): void {
+    this.edExcludedOwners.update((curr) =>
+      curr.includes(ownerOrSplit) ? curr.filter((x) => x !== ownerOrSplit) : [...curr, ownerOrSplit]
+    );
+  }
+
+  public clearOwnerExclusions(): void {
+    this.edExcludedOwners.set([]);
+  }
+
+  public isCategoryOwnerExcluded(m: EveryDollarCategoryMapping): boolean {
+    const excluded = this.edExcludedOwners();
+    if (excluded.length === 0) return false;
+    if (m.selectedSplitType === 'SPLIT') return excluded.includes('SPLIT');
+    return excluded.includes(m.selectedPerson);
+  }
+
+  public isDescriptionMappingOwnerExcluded(m: EveryDollarDescriptionMapping): boolean {
+    const excluded = this.edExcludedOwners();
+    if (excluded.length === 0) return false;
+    if (m.selectedSplitType === 'SPLIT') return excluded.includes('SPLIT');
+    return excluded.includes(m.selectedPerson);
+  }
+
+  public isTxOwnerExcluded(tx: Transaction): boolean {
+    const excluded = this.edExcludedOwners();
+    if (excluded.length === 0) return false;
+    if (tx.splitType === 'SPLIT') return excluded.includes('SPLIT');
+    return excluded.includes(tx.paidBy);
+  }
+
+  public getDefaultOrMostAssignedPerson(): string | null {
+    if (this.edDefaultAssignedPerson()) return this.edDefaultAssignedPerson();
+    const counts = new Map<string, number>();
+    for (const m of this.edCategoryMappings()) {
+      if (m.selectedPerson && m.selectedSplitType !== 'SPLIT') {
+        counts.set(m.selectedPerson, (counts.get(m.selectedPerson) || 0) + 1);
+      }
+    }
+    let maxPerson: string | null = null;
+    let maxCount = 0;
+    for (const [p, c] of counts.entries()) {
+      if (c > maxCount) {
+        maxCount = c;
+        maxPerson = p;
+      }
+    }
+    return maxPerson || (this.service.persons()[0]?.name ?? null);
+  }
+
+  public isOnlyDefaultActive(): boolean {
+    const defP = this.getDefaultOrMostAssignedPerson();
+    if (!defP) return false;
+    const nonDefault = [...this.service.persons().map((p) => p.name).filter((n) => n !== defP), 'SPLIT'];
+    const excluded = this.edExcludedOwners();
+    return nonDefault.length > 0 && nonDefault.every((x) => excluded.includes(x));
+  }
+
+  public toggleExcludeAllExceptDefault(): void {
+    const defP = this.getDefaultOrMostAssignedPerson();
+    if (!defP) return;
+    if (this.isOnlyDefaultActive()) {
+      this.edExcludedOwners.set([]);
+      this.service.showToast('Cleared owner exclusions.', 'info');
+    } else {
+      const nonDefault = [...this.service.persons().map((p) => p.name).filter((n) => n !== defP), 'SPLIT'];
+      this.edExcludedOwners.set(nonDefault);
+      this.service.showToast(`Excluding all categories not assigned to ${defP}.`, 'info');
+    }
+  }
 
   // EveryDollar Period Currency Rules State
   public edShowCurrencyPeriods = signal<boolean>(false);
@@ -1144,6 +1221,9 @@ export class SettingsComponent {
     if (this.edDescExcludeAssigned()) {
       list = list.filter((m) => !m.selectedItem || m.selectedItem === 'Uncategorized');
     }
+    if (this.edExcludedOwners().length > 0) {
+      list = list.filter((m) => !this.isDescriptionMappingOwnerExcluded(m));
+    }
     const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
     if (!q) return list;
 
@@ -1163,6 +1243,9 @@ export class SettingsComponent {
     let list = this.edCategoryMappings();
     if (this.edTypeExcludeAssigned()) {
       list = list.filter((m) => !this.isCategoryMappingAssigned(m));
+    }
+    if (this.edExcludedOwners().length > 0) {
+      list = list.filter((m) => !this.isCategoryOwnerExcluded(m));
     }
     const qOwner = this.edCategoryMatchKeyword().trim().toLowerCase();
     const qType = this.edTypeMatchKeyword().trim().toLowerCase();
@@ -1201,9 +1284,10 @@ export class SettingsComponent {
   public getMatchingCategoriesCount(keyword: string): number {
     const q = keyword.trim().toLowerCase();
     if (!q) return 0;
-    return this.edCategoryMappings().filter((m) =>
-      (m.rawCategory || '').toLowerCase().includes(q)
-    ).length;
+    return this.edCategoryMappings().filter((m) => {
+      if (this.isCategoryOwnerExcluded(m)) return false;
+      return (m.rawCategory || '').toLowerCase().includes(q);
+    }).length;
   }
 
   public getTypeMatchingCategoriesCount(keyword: string): number {
@@ -1211,6 +1295,7 @@ export class SettingsComponent {
     if (!q) return 0;
     const excludeAssigned = this.edTypeExcludeAssigned();
     return this.edCategoryMappings().filter((m) => {
+      if (this.isCategoryOwnerExcluded(m)) return false;
       if (excludeAssigned && this.isCategoryMappingAssigned(m)) return false;
       return (m.rawCategory || '').toLowerCase().includes(q);
     }).length;
@@ -1219,17 +1304,23 @@ export class SettingsComponent {
   public isOwnerMatched(rawCategory: string): boolean {
     const q = this.edCategoryMatchKeyword().trim().toLowerCase();
     if (!q) return false;
+    const m = this.edCategoryMappings().find((c) => c.rawCategory === rawCategory);
+    if (m && this.isCategoryOwnerExcluded(m)) return false;
     return (rawCategory || '').toLowerCase().includes(q);
   }
 
   public isTypeMatched(rawCategory: string): boolean {
     const q = this.edTypeMatchKeyword().trim().toLowerCase();
     if (!q) return false;
+    const m = this.edCategoryMappings().find((c) => c.rawCategory === rawCategory);
+    if (m && this.isCategoryOwnerExcluded(m)) return false;
     if (this.edTypeExcludeAssigned() && this.isCategoryAssigned(rawCategory)) return false;
     return (rawCategory || '').toLowerCase().includes(q);
   }
 
   public isCategoryMatched(rawCategory: string): boolean {
+    const m = this.edCategoryMappings().find((c) => c.rawCategory === rawCategory);
+    if (m && this.isCategoryOwnerExcluded(m)) return false;
     const q1 = this.edCategoryMatchKeyword().trim().toLowerCase();
     const isOwnerHit = q1 ? (rawCategory || '').toLowerCase().includes(q1) : false;
     const isTypeHit = this.isTypeMatched(rawCategory);
@@ -1237,7 +1328,9 @@ export class SettingsComponent {
   }
 
   public getHighlightedCategoryHtml(text: string): string {
-    const q1 = this.edCategoryMatchKeyword().trim();
+    const m = this.edCategoryMappings().find((c) => c.rawCategory === text);
+    const ownerExcluded = m ? this.isCategoryOwnerExcluded(m) : false;
+    const q1 = ownerExcluded ? '' : this.edCategoryMatchKeyword().trim();
     const q2 = (this.edTypeExcludeAssigned() && this.isCategoryAssigned(text))
       ? ''
       : this.edTypeMatchKeyword().trim();
@@ -1293,8 +1386,13 @@ export class SettingsComponent {
     }
 
     let matchedCount = 0;
+    let skippedCount = 0;
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        if (this.isCategoryOwnerExcluded(m)) {
+          skippedCount++;
+          return m;
+        }
         matchedCount++;
         return { ...m, selectedPerson: personName, selectedSplitType: 'SELF' as SplitType };
       }
@@ -1302,23 +1400,32 @@ export class SettingsComponent {
     });
 
     if (matchedCount === 0) {
-      this.service.showToast(`No categories contain "${this.edCategoryMatchKeyword().trim()}".`, 'info');
+      if (skippedCount > 0) {
+        this.service.showToast(
+          `All categories matching "${this.edCategoryMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`,
+          'info'
+        );
+      } else {
+        this.service.showToast(`No categories contain "${this.edCategoryMatchKeyword().trim()}".`, 'info');
+      }
       return;
     }
 
     this.edCategoryMappings.set(updatedMappings);
 
-    // Also update all staged preview transactions
+    // Also update all staged preview transactions (skipping excluded)
     const categoryToPersonMap = new Map(updatedMappings.map((m) => [m.rawCategory, m.selectedPerson]));
     this.edPreviewTransactions.update((txs) =>
       txs.map((t) => {
+        if (this.isTxOwnerExcluded(t)) return t;
         const p = categoryToPersonMap.get(t.rawCategory || 'Uncategorized');
         return p ? { ...t, paidBy: p, splitType: 'SELF' } : t;
       })
     );
 
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} excluded)` : '';
     this.service.showToast(
-      `Assigned ${matchedCount} categories containing "${this.edCategoryMatchKeyword().trim()}" to ${personName}!`,
+      `Assigned ${matchedCount} categories containing "${this.edCategoryMatchKeyword().trim()}" to ${personName}!${skippedMsg}`,
       'success'
     );
   }
@@ -1331,8 +1438,13 @@ export class SettingsComponent {
     }
 
     let matchedCount = 0;
+    let skippedCount = 0;
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        if (this.isCategoryOwnerExcluded(m)) {
+          skippedCount++;
+          return m;
+        }
         matchedCount++;
         return { ...m, selectedSplitType: 'SPLIT' as SplitType };
       }
@@ -1340,23 +1452,32 @@ export class SettingsComponent {
     });
 
     if (matchedCount === 0) {
-      this.service.showToast(`No categories contain "${this.edCategoryMatchKeyword().trim()}".`, 'info');
+      if (skippedCount > 0) {
+        this.service.showToast(
+          `All categories matching "${this.edCategoryMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`,
+          'info'
+        );
+      } else {
+        this.service.showToast(`No categories contain "${this.edCategoryMatchKeyword().trim()}".`, 'info');
+      }
       return;
     }
 
     this.edCategoryMappings.set(updatedMappings);
 
-    // Update all matching preview transactions to splitType = 'SPLIT'
+    // Update all matching preview transactions to splitType = 'SPLIT' (skipping excluded)
     const categorySplitMap = new Map(updatedMappings.map((m) => [m.rawCategory, m.selectedSplitType]));
     this.edPreviewTransactions.update((txs) =>
       txs.map((t) => {
+        if (this.isTxOwnerExcluded(t)) return t;
         const sType = categorySplitMap.get(t.rawCategory || 'Uncategorized');
         return sType === 'SPLIT' ? { ...t, splitType: 'SPLIT' } : t;
       })
     );
 
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} excluded)` : '';
     this.service.showToast(
-      `Set ${matchedCount} categories containing "${this.edCategoryMatchKeyword().trim()}" to 50/50 Split!`,
+      `Set ${matchedCount} categories containing "${this.edCategoryMatchKeyword().trim()}" to 50/50 Split!${skippedMsg}`,
       'success'
     );
   }
@@ -1387,6 +1508,10 @@ export class SettingsComponent {
     let skippedCount = 0;
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        if (this.isCategoryOwnerExcluded(m)) {
+          skippedCount++;
+          return m;
+        }
         const isAssigned = this.isCategoryMappingAssigned(m);
         if (excludeAssigned && isAssigned) {
           skippedCount++;
@@ -1401,7 +1526,7 @@ export class SettingsComponent {
     if (matchedCount === 0) {
       if (skippedCount > 0) {
         this.service.showToast(
-          `All categories containing "${this.edTypeMatchKeyword().trim()}" are already assigned (${skippedCount} excluded).`,
+          `All categories containing "${this.edTypeMatchKeyword().trim()}" are excluded or already assigned (${skippedCount} skipped).`,
           'info'
         );
       } else {
@@ -1420,6 +1545,7 @@ export class SettingsComponent {
     );
     this.edPreviewTransactions.update((txs) =>
       txs.map((t) => {
+        if (this.isTxOwnerExcluded(t)) return t;
         const typeInfo = categoryToTypeMap.get(t.rawCategory || 'Uncategorized');
         if (!typeInfo) return t;
         const isIncomeGroup = (typeInfo.group || '').toLowerCase().includes('income');
@@ -1432,7 +1558,7 @@ export class SettingsComponent {
       })
     );
 
-    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} already assigned excluded)` : '';
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
     this.service.showToast(
       `Assigned ${matchedCount} categories containing "${this.edTypeMatchKeyword().trim()}" to ${chosenItem}!${skippedMsg}`,
       'success'
@@ -1460,6 +1586,8 @@ export class SettingsComponent {
   public isDescriptionMatched(desc: string): boolean {
     const q = this.edDescriptionMatchKeyword().trim().toLowerCase();
     if (!q) return false;
+    const m = this.edDescriptionMappings().find((d) => d.description === desc);
+    if (m && this.isDescriptionMappingOwnerExcluded(m)) return false;
     return (desc || '').toLowerCase().includes(q);
   }
 
@@ -1474,17 +1602,19 @@ export class SettingsComponent {
   public getMatchingDescriptionsCount(keyword: string): number {
     const q = keyword.trim().toLowerCase();
     if (!q) return 0;
-    return this.edDescriptionMappings().filter((m) =>
-      m.description.toLowerCase().includes(q)
-    ).length;
+    return this.edDescriptionMappings().filter((m) => {
+      if (this.isDescriptionMappingOwnerExcluded(m)) return false;
+      return m.description.toLowerCase().includes(q);
+    }).length;
   }
 
   public getMatchingTransactionsByDescriptionCount(keyword: string): number {
     const q = keyword.trim().toLowerCase();
     if (!q) return 0;
-    return this.edPreviewTransactions().filter((t) =>
-      (t.description || '').toLowerCase().includes(q)
-    ).length;
+    return this.edPreviewTransactions().filter((t) => {
+      if (this.isTxOwnerExcluded(t)) return false;
+      return (t.description || '').toLowerCase().includes(q);
+    }).length;
   }
 
   public getDescriptionMatchingCount(keyword: string): number {
@@ -1492,6 +1622,7 @@ export class SettingsComponent {
     if (!q) return 0;
     const excludeAssigned = this.edDescExcludeAssigned();
     return this.edPreviewTransactions().filter((t) => {
+      if (this.isTxOwnerExcluded(t)) return false;
       if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') return false;
       return (t.description || '').toLowerCase().includes(q);
     }).length;
@@ -1583,6 +1714,10 @@ export class SettingsComponent {
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.description || '').toLowerCase().includes(q)) {
+          if (this.isTxOwnerExcluded(tx)) {
+            skippedCount++;
+            return tx;
+          }
           const isAssigned = Boolean(tx.categoryItem && tx.categoryItem !== 'Uncategorized');
           if (excludeAssigned && isAssigned) {
             skippedCount++;
@@ -1603,7 +1738,7 @@ export class SettingsComponent {
     if (matchedCount === 0) {
       if (skippedCount > 0) {
         this.service.showToast(
-          `All transactions matching "${this.edDescriptionMatchKeyword().trim()}" already have a category assigned (${skippedCount} excluded).`,
+          `All transactions matching "${this.edDescriptionMatchKeyword().trim()}" are excluded or already assigned (${skippedCount} skipped).`,
           'info'
         );
       } else {
@@ -1615,7 +1750,7 @@ export class SettingsComponent {
     this.edDescriptionBatchItem.set(chosenItem);
     this.edDescriptionBatchGroup.set(chosenGroup);
     this.syncCategoryMappingsFromPreview();
-    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} already assigned excluded)` : '';
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
     this.service.showToast(
       `Assigned ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to ${chosenItem}!${skippedMsg}`,
       'success'
@@ -1630,9 +1765,14 @@ export class SettingsComponent {
     }
 
     let matchedCount = 0;
+    let skippedCount = 0;
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.description || '').toLowerCase().includes(q)) {
+          if (this.isTxOwnerExcluded(tx)) {
+            skippedCount++;
+            return tx;
+          }
           matchedCount++;
           return { ...tx, paidBy: personName, splitType: 'SELF' };
         }
@@ -1641,13 +1781,21 @@ export class SettingsComponent {
     );
 
     if (matchedCount === 0) {
-      this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      if (skippedCount > 0) {
+        this.service.showToast(
+          `All transactions matching "${this.edDescriptionMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`,
+          'info'
+        );
+      } else {
+        this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      }
       return;
     }
 
     this.syncCategoryMappingsFromPreview();
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} excluded)` : '';
     this.service.showToast(
-      `Assigned ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to ${personName}!`,
+      `Assigned ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to ${personName}!${skippedMsg}`,
       'success'
     );
   }
@@ -1660,9 +1808,14 @@ export class SettingsComponent {
     }
 
     let matchedCount = 0;
+    let skippedCount = 0;
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
         if ((tx.description || '').toLowerCase().includes(q)) {
+          if (this.isTxOwnerExcluded(tx)) {
+            skippedCount++;
+            return tx;
+          }
           matchedCount++;
           return { ...tx, splitType: 'SPLIT' };
         }
@@ -1671,13 +1824,21 @@ export class SettingsComponent {
     );
 
     if (matchedCount === 0) {
-      this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      if (skippedCount > 0) {
+        this.service.showToast(
+          `All transactions matching "${this.edDescriptionMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`,
+          'info'
+        );
+      } else {
+        this.service.showToast(`No transactions found with description containing "${this.edDescriptionMatchKeyword().trim()}".`, 'info');
+      }
       return;
     }
 
     this.syncCategoryMappingsFromPreview();
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} excluded)` : '';
     this.service.showToast(
-      `Set ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to 50/50 Split!`,
+      `Set ${matchedCount} transactions matching "${this.edDescriptionMatchKeyword().trim()}" to 50/50 Split!${skippedMsg}`,
       'success'
     );
   }
@@ -2054,6 +2215,7 @@ export class SettingsComponent {
 
   public assignAllMappingsToPerson(personName: string): void {
     if (!personName) return;
+    this.edDefaultAssignedPerson.set(personName);
 
     this.edCategoryMappings.update((curr) =>
       curr.map((m) => ({ ...m, selectedPerson: personName, selectedSplitType: 'SELF' as SplitType }))
