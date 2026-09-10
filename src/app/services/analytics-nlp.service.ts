@@ -225,23 +225,33 @@ export class AnalyticsNlpService {
     range: DateRange
   ): Transaction[] {
     return transactions.filter((t) => {
-      // 1. Date range
-      if (t.date < range.start || t.date > range.end) return false;
+      // 1. Date range (normalize to YYYY-MM-DD)
+      const tDate = (t.date || '').slice(0, 10);
+      if (tDate < range.start || tDate > range.end) return false;
 
       // 2. Type (Expense vs Income)
       const targetType = filters.type || 'EXPENSE';
       if (t.type !== targetType) return false;
 
-      // 3. Category Group & Item
-      if (filters.categoryGroup) {
-        const grp = (t.categoryGroup || '').toLowerCase();
-        if (!grp.includes(filters.categoryGroup.toLowerCase())) return false;
-      }
+      // 3. Category Item & Group
       if (filters.categoryItem) {
         const itm = (t.categoryItem || '').toLowerCase();
         const raw = (t.rawCategory || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+        const merch = (t.merchant || '').toLowerCase();
         const target = filters.categoryItem.toLowerCase();
-        if (!itm.includes(target) && !raw.includes(target)) return false;
+        if (!itm.includes(target) && !raw.includes(target) && !desc.includes(target) && !merch.includes(target)) {
+          return false;
+        }
+      } else if (filters.categoryGroup) {
+        const grp = (t.categoryGroup || '').toLowerCase();
+        const itm = (t.categoryItem || '').toLowerCase();
+        const raw = (t.rawCategory || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+        const target = filters.categoryGroup.toLowerCase();
+        if (!grp.includes(target) && !itm.includes(target) && !raw.includes(target) && !desc.includes(target)) {
+          return false;
+        }
       }
 
       // 4. Person
@@ -254,13 +264,17 @@ export class AnalyticsNlpService {
         if (t.splitType !== filters.splitType) return false;
       }
 
-      // 6. Merchant / Keyword search in description
+      // 6. Merchant / Keyword search in description, note, and rawCategory
       if (filters.merchant) {
         const m = filters.merchant.toLowerCase();
         const desc = (t.description || '').toLowerCase();
         const merch = (t.merchant || '').toLowerCase();
         const note = (t.note || '').toLowerCase();
-        if (!desc.includes(m) && !merch.includes(m) && !note.includes(m)) return false;
+        const raw = (t.rawCategory || '').toLowerCase();
+        const itm = (t.categoryItem || '').toLowerCase();
+        if (!desc.includes(m) && !merch.includes(m) && !note.includes(m) && !raw.includes(m) && !itm.includes(m)) {
+          return false;
+        }
       }
 
       // 7. Amount Bounds
@@ -274,12 +288,35 @@ export class AnalyticsNlpService {
 
   /**
    * Groups transactions into month buckets.
+   * Pre-populates all calendar months within the requested range so empty months are not skipped.
    */
   private computeMonthlyBreakdown(transactions: Transaction[], range: DateRange): MonthBucket[] {
     const map = new Map<string, { total: number; count: number }>();
 
+    // Pre-populate all months in the date range if range is multi-month (up to 36 months)
+    const startY = parseInt(range.start.slice(0, 4), 10);
+    const startM = parseInt(range.start.slice(5, 7), 10);
+    const endY = parseInt(range.end.slice(0, 4), 10);
+    const endM = parseInt(range.end.slice(5, 7), 10);
+
+    const totalMonths = (endY - startY) * 12 + (endM - startM) + 1;
+    if (totalMonths > 1 && totalMonths <= 36) {
+      let curY = startY;
+      let curM = startM;
+      while (curY < endY || (curY === endY && curM <= endM)) {
+        const k = `${curY}-${String(curM).padStart(2, '0')}`;
+        map.set(k, { total: 0, count: 0 });
+        curM++;
+        if (curM > 12) {
+          curM = 1;
+          curY++;
+        }
+      }
+    }
+
     for (const t of transactions) {
-      const monthKey = t.date.substring(0, 7); // YYYY-MM
+      const monthKey = (t.date || '').slice(0, 7); // YYYY-MM
+      if (!monthKey || monthKey.length !== 7) continue;
       const current = map.get(monthKey) || { total: 0, count: 0 };
       current.total += Math.abs(t.amount);
       current.count += 1;
@@ -358,44 +395,32 @@ export class AnalyticsNlpService {
   private parseDateToken(str: string, currentYear: number): { range: DateRange | null; cleaned: string } {
     const s = str.trim();
 
-    // 4-digit year: "2023"
-    const yearMatch = s.match(/\b(20\d\d)\b/);
-    if (yearMatch) {
-      const yr = parseInt(yearMatch[1], 10);
-      return {
-        range: {
-          start: `${yr}-01-01`,
-          end: `${yr}-12-31`,
-          label: `${yr}`
-        },
-        cleaned: s.replace(yearMatch[0], '').trim()
-      };
+    // 1. Specific Month + Year: "March 2023", "2025 Jan", "2025-01"
+    for (let mIdx = 0; mIdx < 12; mIdx++) {
+      const longName = this.MONTH_NAMES[mIdx];
+      const shortName = this.MONTH_SHORT[mIdx];
+      const mStr = String(mIdx + 1).padStart(2, '0');
+
+      const ymPattern = new RegExp(`\\b(20\\d\\d)[-\\s/,]+(?:in\\s+)?(?:${longName}|${shortName})\\b`, 'i');
+      const myPattern = new RegExp(`\\b(?:in\\s+)?(?:${longName}|${shortName})[-\\s/,]+(20\\d\\d)\\b`, 'i');
+      const numPattern = new RegExp(`\\b(20\\d\\d)[-/]0?${mIdx + 1}\\b`, 'i');
+
+      const match = s.match(ymPattern) || s.match(myPattern) || s.match(numPattern);
+      if (match) {
+        const yr = parseInt(match[1], 10);
+        const lastDay = new Date(yr, mIdx + 1, 0).getDate();
+        return {
+          range: {
+            start: `${yr}-${mStr}-01`,
+            end: `${yr}-${mStr}-${String(lastDay).padStart(2, '0')}`,
+            label: `${this.capitalize(longName)} ${yr}`
+          },
+          cleaned: s.replace(match[0], '').trim()
+        };
+      }
     }
 
-    // Relative: "this year", "last year"
-    if (s.includes('this year')) {
-      return {
-        range: {
-          start: `${currentYear}-01-01`,
-          end: `${currentYear}-12-31`,
-          label: `${currentYear}`
-        },
-        cleaned: s.replace('this year', '').trim()
-      };
-    }
-    if (s.includes('last year')) {
-      const yr = currentYear - 1;
-      return {
-        range: {
-          start: `${yr}-01-01`,
-          end: `${yr}-12-31`,
-          label: `${yr}`
-        },
-        cleaned: s.replace('last year', '').trim()
-      };
-    }
-
-    // Relative months: "this month", "last month"
+    // 2. Relative months: "this month", "last month"
     if (s.includes('this month')) {
       const d = new Date();
       const mStr = String(d.getMonth() + 1).padStart(2, '0');
@@ -425,9 +450,46 @@ export class AnalyticsNlpService {
       };
     }
 
-    // Season tokens e.g. "summer 2023"
+    // 3. Season tokens e.g. "summer 2023", "2023 summer"
     const season = this.matchSeason(s, currentYear);
     if (season) return season;
+
+    // 4. Relative: "this year", "last year"
+    if (s.includes('this year')) {
+      return {
+        range: {
+          start: `${currentYear}-01-01`,
+          end: `${currentYear}-12-31`,
+          label: `${currentYear}`
+        },
+        cleaned: s.replace('this year', '').trim()
+      };
+    }
+    if (s.includes('last year')) {
+      const yr = currentYear - 1;
+      return {
+        range: {
+          start: `${yr}-01-01`,
+          end: `${yr}-12-31`,
+          label: `${yr}`
+        },
+        cleaned: s.replace('last year', '').trim()
+      };
+    }
+
+    // 5. 4-digit year: "2023"
+    const yearMatch = s.match(/\b(20\d\d)\b/);
+    if (yearMatch) {
+      const yr = parseInt(yearMatch[1], 10);
+      return {
+        range: {
+          start: `${yr}-01-01`,
+          end: `${yr}-12-31`,
+          label: `${yr}`
+        },
+        cleaned: s.replace(yearMatch[0], '').trim()
+      };
+    }
 
     return { range: null, cleaned: str };
   }
@@ -528,15 +590,17 @@ export class AnalyticsNlpService {
       };
     }
 
-    // 7. Specific Month + Year: "March 2023", "in nov 2024", "january 2022"
+    // 7. Specific Month + Year: "March 2023", "2025 Jan", "2025 January", "2025-01"
     for (let mIdx = 0; mIdx < 12; mIdx++) {
       const longName = this.MONTH_NAMES[mIdx];
       const shortName = this.MONTH_SHORT[mIdx];
-      const pattern = new RegExp(`\\b(?:in\\s+)?(?:${longName}|${shortName})\\s+(20\\d\\d)\\b`, 'i');
-      const match = q.match(pattern);
-      if (match) {
-        const yr = parseInt(match[1], 10);
-        const mStr = String(mIdx + 1).padStart(2, '0');
+      const mStr = String(mIdx + 1).padStart(2, '0');
+
+      // Check Year Month ("2025 Jan", "2025 January", "2025-Jan", "2025/Jan", "2025, Jan")
+      const ymPattern = new RegExp(`\\b(20\\d\\d)[-\\s/,]+(?:in\\s+)?(?:${longName}|${shortName})\\b`, 'i');
+      const ymMatch = q.match(ymPattern);
+      if (ymMatch) {
+        const yr = parseInt(ymMatch[1], 10);
         const lastDay = new Date(yr, mIdx + 1, 0).getDate();
         return {
           range: {
@@ -544,7 +608,39 @@ export class AnalyticsNlpService {
             end: `${yr}-${mStr}-${String(lastDay).padStart(2, '0')}`,
             label: `${this.capitalize(longName)} ${yr}`
           },
-          cleanedQuery: q.replace(match[0], '').trim()
+          cleanedQuery: q.replace(ymMatch[0], '').trim()
+        };
+      }
+
+      // Check Month Year ("Jan 2025", "in March 2023", "March, 2023")
+      const myPattern = new RegExp(`\\b(?:in\\s+)?(?:${longName}|${shortName})[-\\s/,]+(20\\d\\d)\\b`, 'i');
+      const myMatch = q.match(myPattern);
+      if (myMatch) {
+        const yr = parseInt(myMatch[1], 10);
+        const lastDay = new Date(yr, mIdx + 1, 0).getDate();
+        return {
+          range: {
+            start: `${yr}-${mStr}-01`,
+            end: `${yr}-${mStr}-${String(lastDay).padStart(2, '0')}`,
+            label: `${this.capitalize(longName)} ${yr}`
+          },
+          cleanedQuery: q.replace(myMatch[0], '').trim()
+        };
+      }
+
+      // Check Numeric Year-Month ("2025-01", "2025/01")
+      const numPattern = new RegExp(`\\b(20\\d\\d)[-/]0?${mIdx + 1}\\b`, 'i');
+      const numMatch = q.match(numPattern);
+      if (numMatch) {
+        const yr = parseInt(numMatch[1], 10);
+        const lastDay = new Date(yr, mIdx + 1, 0).getDate();
+        return {
+          range: {
+            start: `${yr}-${mStr}-01`,
+            end: `${yr}-${mStr}-${String(lastDay).padStart(2, '0')}`,
+            label: `${this.capitalize(longName)} ${yr}`
+          },
+          cleanedQuery: q.replace(numMatch[0], '').trim()
         };
       }
     }
@@ -626,10 +722,16 @@ export class AnalyticsNlpService {
    * Helper to match season keywords.
    */
   private matchSeason(str: string, currentYear: number): { range: DateRange; cleaned: string } | null {
-    // Summer: June 1 - Aug 31
-    // Fall/Autumn: Sep 1 - Nov 30
-    // Winter: Dec 1 - Feb 28/29
-    // Spring: Mar 1 - May 31
+    // 1. Year Season: "2025 summer", "2024 winter"
+    const yrSeasonRegex = /\b(20\d\d)\s+(summer|fall|autumn|winter|spring)\b/i;
+    const yrMatch = str.match(yrSeasonRegex);
+    if (yrMatch) {
+      const yr = parseInt(yrMatch[1], 10);
+      const seasonName = yrMatch[2].toLowerCase();
+      return this.buildSeasonRange(seasonName, yr, str, yrMatch[0]);
+    }
+
+    // 2. Season Year or relative: "summer 2025", "last summer", "summer"
     const seasonRegex = /\b(last\s+)?(summer|fall|autumn|winter|spring)(?:\s+(20\d\d))?\b/i;
     const match = str.match(seasonRegex);
     if (!match) return null;
@@ -641,6 +743,15 @@ export class AnalyticsNlpService {
       yr = currentYear - 1;
     }
 
+    return this.buildSeasonRange(seasonName, yr, str, match[0]);
+  }
+
+  private buildSeasonRange(
+    seasonName: string,
+    yr: number,
+    originalStr: string,
+    matchedStr: string
+  ): { range: DateRange; cleaned: string } {
     let start = '';
     let end = '';
     let label = '';
@@ -667,7 +778,7 @@ export class AnalyticsNlpService {
 
     return {
       range: { start, end, label },
-      cleaned: str.replace(match[0], '').trim()
+      cleaned: originalStr.replace(matchedStr, '').trim()
     };
   }
 
@@ -734,7 +845,6 @@ export class AnalyticsNlpService {
         const itmName = item.name.toLowerCase();
         if (itmName.length >= 3 && new RegExp(`\\b${itmName}\\b`, 'i').test(q)) {
           filters.categoryItem = item.name;
-          filters.categoryGroup = g.name;
           q = q.replace(new RegExp(`\\b${itmName}\\b`, 'gi'), '').trim();
           categoryMatched = true;
           break;
@@ -764,8 +874,11 @@ export class AnalyticsNlpService {
             // Find best matching category in user's groups
             const found = this.findCategoryBySynonym(syn, groups);
             if (found) {
-              if (found.item) filters.categoryItem = found.item;
-              if (found.group) filters.categoryGroup = found.group;
+              if (found.item) {
+                filters.categoryItem = found.item;
+              } else if (found.group) {
+                filters.categoryGroup = found.group;
+              }
               categoryMatched = true;
             } else {
               // Set search merchant/keyword to the synonym
