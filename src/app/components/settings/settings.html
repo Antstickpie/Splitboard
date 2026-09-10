@@ -1689,43 +1689,53 @@
                 </button>
               </div>
 
-              <!-- Owner Exclusions -->
-              <div class="ed-matcher-exclusions">
-                <span class="ed-matcher-sublabel">Exclude:</span>
-                <label
-                  *ngFor="let p of service.persons()"
-                  class="ed-matcher-checkbox-label"
-                  [title]="'Exclude categories currently assigned to ' + p.name">
-                  <input
-                    type="checkbox"
-                    [checked]="isOwnerExcluded(p.name)"
-                    (change)="toggleOwnerExclude(p.name)" />
-                  <span>👤 {{ p.name }}</span>
-                </label>
-                <label class="ed-matcher-checkbox-label" title="Exclude categories currently set to 50/50 Split">
-                  <input
-                    type="checkbox"
-                    [checked]="isOwnerExcluded('SPLIT')"
-                    (change)="toggleOwnerExclude('SPLIT')" />
-                  <span>⚖️ 50/50</span>
-                </label>
+              <!-- Owner Exclusions Multi-select Dropdown -->
+              <div class="ed-exclude-dropdown-container">
                 <button
-                  *ngIf="getDefaultOrMostAssignedPerson() as defP"
                   type="button"
-                  class="btn btn-secondary btn-xs"
-                  [class.btn-active-filter]="isOnlyDefaultActive()"
-                  (click)="toggleExcludeAllExceptDefault()"
-                  [title]="'Exclude all categories not assigned to ' + defP">
-                  🚫 Exclude non-{{ defP }}
+                  class="ed-exclude-dropdown-trigger"
+                  [class.has-exclusions]="edExcludedOwners().length > 0"
+                  (click)="toggleOwnerExcludeDropdown($event)"
+                  title="Exclude categories assigned to specific persons">
+                  <span>🚫 Exclude: {{ getExcludedOwnersLabel() }}</span>
+                  <span class="ed-chevron">{{ isOwnerExcludeDropdownOpen() ? '▲' : '▼' }}</span>
                 </button>
                 <button
                   *ngIf="edExcludedOwners().length > 0"
                   type="button"
-                  class="btn btn-secondary btn-xs"
+                  class="ed-exclude-clear-btn"
                   (click)="clearOwnerExclusions()"
                   title="Clear all owner exclusions">
-                  ✕ Clear
+                  ✕
                 </button>
+
+                <div
+                  *ngIf="isOwnerExcludeDropdownOpen()"
+                  class="ed-exclude-dropdown-menu animate-fade-in"
+                  (click)="$event.stopPropagation()">
+                  <div class="ed-exclude-menu-header">
+                    <span>Exclude Persons ({{ edExcludedOwners().length }}/{{ service.persons().length }})</span>
+                    <button
+                      *ngIf="edExcludedOwners().length > 0"
+                      type="button"
+                      class="ed-exclude-text-btn"
+                      (click)="clearOwnerExclusions()">
+                      Clear
+                    </button>
+                  </div>
+                  <div class="ed-exclude-menu-list">
+                    <label
+                      *ngFor="let p of service.persons()"
+                      class="ed-exclude-menu-item"
+                      [class.selected]="isOwnerExcluded(p.name)">
+                      <input
+                        type="checkbox"
+                        [checked]="isOwnerExcluded(p.name)"
+                        (change)="toggleOwnerExclude(p.name)" />
+                      <span>👤 {{ p.name }}</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1986,43 +1996,53 @@
                 </button>
               </div>
 
-              <!-- Owner Exclusions in Description mode -->
-              <div class="ed-matcher-exclusions">
-                <span class="ed-matcher-sublabel">Exclude:</span>
-                <label
-                  *ngFor="let p of service.persons()"
-                  class="ed-matcher-checkbox-label"
-                  [title]="'Exclude transactions currently assigned to ' + p.name">
-                  <input
-                    type="checkbox"
-                    [checked]="isOwnerExcluded(p.name)"
-                    (change)="toggleOwnerExclude(p.name)" />
-                  <span>👤 {{ p.name }}</span>
-                </label>
-                <label class="ed-matcher-checkbox-label" title="Exclude transactions currently set to 50/50 Split">
-                  <input
-                    type="checkbox"
-                    [checked]="isOwnerExcluded('SPLIT')"
-                    (change)="toggleOwnerExclude('SPLIT')" />
-                  <span>⚖️ 50/50</span>
-                </label>
+              <!-- Owner Exclusions Multi-select Dropdown -->
+              <div class="ed-exclude-dropdown-container">
                 <button
-                  *ngIf="getDefaultOrMostAssignedPerson() as defP"
                   type="button"
-                  class="btn btn-secondary btn-xs"
-                  [class.btn-active-filter]="isOnlyDefaultActive()"
-                  (click)="toggleExcludeAllExceptDefault()"
-                  [title]="'Exclude all transactions not assigned to ' + defP">
-                  🚫 Exclude non-{{ defP }}
+                  class="ed-exclude-dropdown-trigger"
+                  [class.has-exclusions]="edExcludedOwners().length > 0"
+                  (click)="toggleOwnerExcludeDropdown($event)"
+                  title="Exclude transactions assigned to specific persons">
+                  <span>🚫 Exclude: {{ getExcludedOwnersLabel() }}</span>
+                  <span class="ed-chevron">{{ isOwnerExcludeDropdownOpen() ? '▲' : '▼' }}</span>
                 </button>
                 <button
                   *ngIf="edExcludedOwners().length > 0"
                   type="button"
-                  class="btn btn-secondary btn-xs"
+                  class="ed-exclude-clear-btn"
                   (click)="clearOwnerExclusions()"
                   title="Clear all owner exclusions">
-                  ✕ Clear
+                  ✕
                 </button>
+
+                <div
+                  *ngIf="isOwnerExcludeDropdownOpen()"
+                  class="ed-exclude-dropdown-menu animate-fade-in"
+                  (click)="$event.stopPropagation()">
+                  <div class="ed-exclude-menu-header">
+                    <span>Exclude Persons ({{ edExcludedOwners().length }}/{{ service.persons().length }})</span>
+                    <button
+                      *ngIf="edExcludedOwners().length > 0"
+                      type="button"
+                      class="ed-exclude-text-btn"
+                      (click)="clearOwnerExclusions()">
+                      Clear
+                    </button>
+                  </div>
+                  <div class="ed-exclude-menu-list">
+                    <label
+                      *ngFor="let p of service.persons()"
+                      class="ed-exclude-menu-item"
+                      [class.selected]="isOwnerExcluded(p.name)">
+                      <input
+                        type="checkbox"
+                        [checked]="isOwnerExcluded(p.name)"
+                        (change)="toggleOwnerExclude(p.name)" />
+                      <span>👤 {{ p.name }}</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

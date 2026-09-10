@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CategorySelectComponent } from '../category-select/category-select';
@@ -946,14 +946,34 @@ export class SettingsComponent {
   public edDescExcludeAssigned = signal<boolean>(false);
   public edExcludedOwners = signal<string[]>([]);
   public edDefaultAssignedPerson = signal<string | null>(null);
+  public isOwnerExcludeDropdownOpen = signal<boolean>(false);
 
-  public isOwnerExcluded(ownerOrSplit: string): boolean {
-    return this.edExcludedOwners().includes(ownerOrSplit);
+  @HostListener('document:click')
+  public onSettingsDocumentClick(): void {
+    if (this.isOwnerExcludeDropdownOpen()) {
+      this.isOwnerExcludeDropdownOpen.set(false);
+    }
   }
 
-  public toggleOwnerExclude(ownerOrSplit: string): void {
+  public toggleOwnerExcludeDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isOwnerExcludeDropdownOpen.update((v) => !v);
+  }
+
+  public getExcludedOwnersLabel(): string {
+    const list = this.edExcludedOwners();
+    if (list.length === 0) return 'None';
+    if (list.length <= 2) return list.join(', ');
+    return `${list.length} persons`;
+  }
+
+  public isOwnerExcluded(personName: string): boolean {
+    return this.edExcludedOwners().includes(personName);
+  }
+
+  public toggleOwnerExclude(personName: string): void {
     this.edExcludedOwners.update((curr) =>
-      curr.includes(ownerOrSplit) ? curr.filter((x) => x !== ownerOrSplit) : [...curr, ownerOrSplit]
+      curr.includes(personName) ? curr.filter((x) => x !== personName) : [...curr, personName]
     );
   }
 
@@ -964,62 +984,19 @@ export class SettingsComponent {
   public isCategoryOwnerExcluded(m: EveryDollarCategoryMapping): boolean {
     const excluded = this.edExcludedOwners();
     if (excluded.length === 0) return false;
-    if (m.selectedSplitType === 'SPLIT') return excluded.includes('SPLIT');
     return excluded.includes(m.selectedPerson);
   }
 
   public isDescriptionMappingOwnerExcluded(m: EveryDollarDescriptionMapping): boolean {
     const excluded = this.edExcludedOwners();
     if (excluded.length === 0) return false;
-    if (m.selectedSplitType === 'SPLIT') return excluded.includes('SPLIT');
     return excluded.includes(m.selectedPerson);
   }
 
   public isTxOwnerExcluded(tx: Transaction): boolean {
     const excluded = this.edExcludedOwners();
     if (excluded.length === 0) return false;
-    if (tx.splitType === 'SPLIT') return excluded.includes('SPLIT');
     return excluded.includes(tx.paidBy);
-  }
-
-  public getDefaultOrMostAssignedPerson(): string | null {
-    if (this.edDefaultAssignedPerson()) return this.edDefaultAssignedPerson();
-    const counts = new Map<string, number>();
-    for (const m of this.edCategoryMappings()) {
-      if (m.selectedPerson && m.selectedSplitType !== 'SPLIT') {
-        counts.set(m.selectedPerson, (counts.get(m.selectedPerson) || 0) + 1);
-      }
-    }
-    let maxPerson: string | null = null;
-    let maxCount = 0;
-    for (const [p, c] of counts.entries()) {
-      if (c > maxCount) {
-        maxCount = c;
-        maxPerson = p;
-      }
-    }
-    return maxPerson || (this.service.persons()[0]?.name ?? null);
-  }
-
-  public isOnlyDefaultActive(): boolean {
-    const defP = this.getDefaultOrMostAssignedPerson();
-    if (!defP) return false;
-    const nonDefault = [...this.service.persons().map((p) => p.name).filter((n) => n !== defP), 'SPLIT'];
-    const excluded = this.edExcludedOwners();
-    return nonDefault.length > 0 && nonDefault.every((x) => excluded.includes(x));
-  }
-
-  public toggleExcludeAllExceptDefault(): void {
-    const defP = this.getDefaultOrMostAssignedPerson();
-    if (!defP) return;
-    if (this.isOnlyDefaultActive()) {
-      this.edExcludedOwners.set([]);
-      this.service.showToast('Cleared owner exclusions.', 'info');
-    } else {
-      const nonDefault = [...this.service.persons().map((p) => p.name).filter((n) => n !== defP), 'SPLIT'];
-      this.edExcludedOwners.set(nonDefault);
-      this.service.showToast(`Excluding all categories not assigned to ${defP}.`, 'info');
-    }
   }
 
   // EveryDollar Period Currency Rules State
