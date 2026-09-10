@@ -134,20 +134,32 @@
       <!-- View 1: Multiple Graphs Grid -->
       <div class="nlp-multi-graphs-grid animate-fade-in" *ngIf="comparisonViewMode() === 'multiple'">
         <!-- Primary Period Graph -->
-        <div class="nlp-graph-card">
+        <div
+          class="nlp-graph-card clickable-graph"
+          [class.active-card]="auditPeriodFilter() === 'PRIMARY'"
+          (click)="selectGraphPeriod('PRIMARY')"
+          [title]="auditPeriodFilter() === 'PRIMARY' ? 'Filtered to ' + res.query.primaryRange.label + ' · Click to show all' : 'Click to filter table below to ' + res.query.primaryRange.label">
           <div class="trend-title-row">
             <div class="graph-card-header">
               <span class="legend-dot dot-primary"></span>
               <span class="graph-card-title">{{ res.query.primaryRange.label }} Monthly Trend</span>
+              <span *ngIf="auditPeriodFilter() === 'PRIMARY'" class="filter-indicator-badge badge-primary">
+                Filtered ✓
+              </span>
             </div>
-            <span class="graph-card-total font-mono">{{ service.formatCurrency(res.primaryTotal) }}</span>
+            <div class="graph-header-actions">
+              <span class="graph-card-total font-mono">{{ service.formatCurrency(res.primaryTotal) }}</span>
+              <span class="graph-click-hint">{{ auditPeriodFilter() === 'PRIMARY' ? 'Showing' : 'Click to filter' }}</span>
+            </div>
           </div>
 
           <div class="trend-bars-wrapper">
             <div
               *ngFor="let m of res.monthlyBreakdown"
-              class="trend-bar-column"
-              [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' transactions)'">
+              class="trend-bar-column clickable-bar"
+              [class.active-bar]="auditMonthFilter() === m.month"
+              (click)="selectMonth(m.month, 'PRIMARY', $event)"
+              [title]="m.label + ': ' + service.formatCurrency(m.total) + ' · Click to filter table to this month'">
               <div class="bar-fill-track">
                 <div
                   class="bar-fill bar-primary"
@@ -161,20 +173,32 @@
         </div>
 
         <!-- Comparison Period Graph -->
-        <div class="nlp-graph-card">
+        <div
+          class="nlp-graph-card clickable-graph"
+          [class.active-card-comparison]="auditPeriodFilter() === 'COMPARISON'"
+          (click)="selectGraphPeriod('COMPARISON')"
+          [title]="auditPeriodFilter() === 'COMPARISON' ? 'Filtered to ' + (res.query.comparisonRange?.label || '') + ' · Click to show all' : 'Click to filter table below to ' + (res.query.comparisonRange?.label || '')">
           <div class="trend-title-row">
             <div class="graph-card-header">
               <span class="legend-dot dot-comparison"></span>
               <span class="graph-card-title">{{ res.query.comparisonRange?.label }} Monthly Trend</span>
+              <span *ngIf="auditPeriodFilter() === 'COMPARISON'" class="filter-indicator-badge badge-comparison">
+                Filtered ✓
+              </span>
             </div>
-            <span class="graph-card-total font-mono">{{ service.formatCurrency(res.comparisonTotal || 0) }}</span>
+            <div class="graph-header-actions">
+              <span class="graph-card-total font-mono">{{ service.formatCurrency(res.comparisonTotal || 0) }}</span>
+              <span class="graph-click-hint">{{ auditPeriodFilter() === 'COMPARISON' ? 'Showing' : 'Click to filter' }}</span>
+            </div>
           </div>
 
           <div class="trend-bars-wrapper">
             <div
               *ngFor="let m of res.comparisonMonthlyBreakdown"
-              class="trend-bar-column"
-              [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' transactions)'">
+              class="trend-bar-column clickable-bar"
+              [class.active-bar]="auditMonthFilter() === m.month"
+              (click)="selectMonth(m.month, 'COMPARISON', $event)"
+              [title]="m.label + ': ' + service.formatCurrency(m.total) + ' · Click to filter table to this month'">
               <div class="bar-fill-track">
                 <div
                   class="bar-fill bar-comparison"
@@ -191,23 +215,35 @@
       <!-- View 2: Paired Comparison Chart -->
       <div class="nlp-paired-card animate-fade-in" *ngIf="comparisonViewMode() === 'paired'">
         <div class="paired-legend-row">
-          <div class="legend-item">
+          <div
+            class="legend-item clickable-legend"
+            [class.active-legend]="auditPeriodFilter() === 'PRIMARY'"
+            (click)="selectGraphPeriod('PRIMARY')"
+            [title]="'Filter to ' + res.query.primaryRange.label">
             <span class="legend-dot dot-primary"></span>
             <span class="legend-name">{{ res.query.primaryRange.label }}</span>
             <span class="legend-val font-mono">{{ service.formatCurrency(res.primaryTotal) }}</span>
+            <span *ngIf="auditPeriodFilter() === 'PRIMARY'" class="filter-indicator-badge badge-primary">Filtered ✓</span>
           </div>
-          <div class="legend-item">
+          <div
+            class="legend-item clickable-legend"
+            [class.active-legend]="auditPeriodFilter() === 'COMPARISON'"
+            (click)="selectGraphPeriod('COMPARISON')"
+            [title]="'Filter to ' + (res.query.comparisonRange?.label || '')">
             <span class="legend-dot dot-comparison"></span>
             <span class="legend-name">{{ res.query.comparisonRange?.label }}</span>
             <span class="legend-val font-mono">{{ service.formatCurrency(res.comparisonTotal || 0) }}</span>
+            <span *ngIf="auditPeriodFilter() === 'COMPARISON'" class="filter-indicator-badge badge-comparison">Filtered ✓</span>
           </div>
         </div>
 
         <div class="trend-bars-wrapper paired-bars-wrapper">
           <div
             *ngFor="let p of pairedMonthlyBreakdown()"
-            class="paired-bar-column"
-            [title]="p.label + ': ' + res.query.primaryRange.label + ' ' + service.formatCurrency(p.primaryTotal) + ' vs ' + (res.query.comparisonRange?.label || '') + ' ' + service.formatCurrency(p.comparisonTotal) + (p.diff !== 0 ? ' (' + (p.diff > 0 ? '+' : '') + service.formatCurrency(p.diff) + ')' : '')">
+            class="paired-bar-column clickable-bar"
+            [class.active-bar]="auditMonthFilter() === p.primaryMonth || auditMonthFilter() === p.comparisonMonth"
+            (click)="selectMonth(p.primaryMonth || p.comparisonMonth || '', undefined, $event)"
+            [title]="p.label + ': ' + res.query.primaryRange.label + ' ' + service.formatCurrency(p.primaryTotal) + ' vs ' + (res.query.comparisonRange?.label || '') + ' ' + service.formatCurrency(p.comparisonTotal) + ' · Click to filter table'">
             <div class="paired-tracks-container">
               <div class="bar-fill-track">
                 <div
@@ -236,14 +272,16 @@
     <div class="nlp-trend-container" *ngIf="(!res.comparisonMonthlyBreakdown || res.comparisonMonthlyBreakdown.length === 0) && res.monthlyBreakdown.length > 1">
       <div class="trend-title-row">
         <span class="trend-title">📊 Monthly Trend</span>
-        <span class="trend-subtitle">{{ res.monthlyBreakdown.length }} months in {{ res.query.primaryRange.label }}</span>
+        <span class="trend-subtitle">{{ res.monthlyBreakdown.length }} months in {{ res.query.primaryRange.label }} · Click a month to filter</span>
       </div>
 
       <div class="trend-bars-wrapper">
         <div
           *ngFor="let m of res.monthlyBreakdown"
-          class="trend-bar-column"
-          [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' transactions)'">
+          class="trend-bar-column clickable-bar"
+          [class.active-bar]="auditMonthFilter() === m.month"
+          (click)="selectMonth(m.month, undefined, $event)"
+          [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' txs) · Click to filter table'">
           <div class="bar-fill-track">
             <div
               class="bar-fill bar-primary"
@@ -267,13 +305,19 @@
           <span class="audit-title">
             {{ isAuditOpen() ? 'Hide' : 'Inspect' }} {{ res.matchedTransactions.length }} Matched Transaction{{ res.matchedTransactions.length === 1 ? '' : 's' }}
           </span>
+          <span *ngIf="auditMonthFilter() !== 'ALL' && isAuditOpen()" class="badge badge-primary" style="font-size: 0.65rem; margin-left: 0.3rem;">
+            Month: {{ auditMonthFilter() }}
+          </span>
+          <span *ngIf="auditPeriodFilter() !== 'ALL' && auditMonthFilter() === 'ALL' && isAuditOpen()" class="badge" [ngClass]="auditPeriodFilter() === 'PRIMARY' ? 'badge-primary' : 'badge-comparison-pill'" style="font-size: 0.65rem; margin-left: 0.3rem;">
+            Period: {{ auditPeriodFilter() === 'PRIMARY' ? res.query.primaryRange.label : res.query.comparisonRange?.label }}
+          </span>
           <span *ngIf="hasActiveFilters() && isAuditOpen()" class="badge badge-primary" style="font-size: 0.65rem; margin-left: 0.3rem;">
             Filtered: {{ filteredAndSortedTransactions().length }}
           </span>
         </button>
 
         <span class="audit-hint" *ngIf="!isAuditOpen()">
-          Click column headers to sort, or filter by keyword, owner, split, and category
+          Click graphs or bars above to filter, or click column headers to sort
         </span>
       </div>
 

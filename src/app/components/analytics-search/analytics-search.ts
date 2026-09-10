@@ -38,6 +38,7 @@ export class AnalyticsSearchComponent implements OnInit {
   public auditSortAsc = signal<boolean>(false);
   public auditSearch = signal<string>('');
   public auditPeriodFilter = signal<string>('ALL');
+  public auditMonthFilter = signal<string>('ALL');
   public auditOwnerFilter = signal<string>('ALL');
   public auditSplitFilter = signal<string>('ALL');
   public auditCategoryFilter = signal<string>('ALL');
@@ -47,6 +48,37 @@ export class AnalyticsSearchComponent implements OnInit {
 
   public setComparisonViewMode(mode: 'multiple' | 'paired'): void {
     this.comparisonViewMode.set(mode);
+  }
+
+  /**
+   * Filter table below when clicking a graph card (PRIMARY vs COMPARISON period).
+   */
+  public selectGraphPeriod(period: 'PRIMARY' | 'COMPARISON'): void {
+    if (this.auditPeriodFilter() === period && this.auditMonthFilter() === 'ALL') {
+      this.auditPeriodFilter.set('ALL');
+    } else {
+      this.auditPeriodFilter.set(period);
+      this.auditMonthFilter.set('ALL');
+      this.isAuditOpen.set(true);
+    }
+  }
+
+  /**
+   * Filter table below to a specific month when clicking a month bar.
+   */
+  public selectMonth(monthKey: string, period?: 'PRIMARY' | 'COMPARISON', event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (this.auditMonthFilter() === monthKey) {
+      this.auditMonthFilter.set('ALL');
+    } else {
+      this.auditMonthFilter.set(monthKey);
+      if (period) {
+        this.auditPeriodFilter.set(period);
+      }
+      this.isAuditOpen.set(true);
+    }
   }
 
   // Dynamic starter queries built from live user categories and persons
@@ -112,6 +144,7 @@ export class AnalyticsSearchComponent implements OnInit {
     return (
       this.auditSearch().trim() !== '' ||
       this.auditPeriodFilter() !== 'ALL' ||
+      this.auditMonthFilter() !== 'ALL' ||
       this.auditOwnerFilter() !== 'ALL' ||
       this.auditSplitFilter() !== 'ALL' ||
       this.auditCategoryFilter() !== 'ALL'
@@ -189,21 +222,27 @@ export class AnalyticsSearchComponent implements OnInit {
 
     let list = [...res.matchedTransactions];
 
-    // 0. Period Filter (for comparison queries)
-    const period = this.auditPeriodFilter();
-    if (period !== 'ALL') {
-      if (period === 'PRIMARY') {
-        const pRange = res.query.primaryRange;
-        list = list.filter((t) => {
-          const d = (t.date || '').slice(0, 10);
-          return d >= pRange.start && d <= pRange.end;
-        });
-      } else if (period === 'COMPARISON' && res.query.comparisonRange) {
-        const cRange = res.query.comparisonRange;
-        list = list.filter((t) => {
-          const d = (t.date || '').slice(0, 10);
-          return d >= cRange.start && d <= cRange.end;
-        });
+    // 0. Month Filter
+    const mFilter = this.auditMonthFilter();
+    if (mFilter !== 'ALL') {
+      list = list.filter((t) => (t.date || '').startsWith(mFilter));
+    } else {
+      // Period Filter (for comparison queries)
+      const period = this.auditPeriodFilter();
+      if (period !== 'ALL') {
+        if (period === 'PRIMARY') {
+          const pRange = res.query.primaryRange;
+          list = list.filter((t) => {
+            const d = (t.date || '').slice(0, 10);
+            return d >= pRange.start && d <= pRange.end;
+          });
+        } else if (period === 'COMPARISON' && res.query.comparisonRange) {
+          const cRange = res.query.comparisonRange;
+          list = list.filter((t) => {
+            const d = (t.date || '').slice(0, 10);
+            return d >= cRange.start && d <= cRange.end;
+          });
+        }
       }
     }
 
@@ -288,6 +327,7 @@ export class AnalyticsSearchComponent implements OnInit {
   public clearAuditFilters(): void {
     this.auditSearch.set('');
     this.auditPeriodFilter.set('ALL');
+    this.auditMonthFilter.set('ALL');
     this.auditOwnerFilter.set('ALL');
     this.auditSplitFilter.set('ALL');
     this.auditCategoryFilter.set('ALL');
