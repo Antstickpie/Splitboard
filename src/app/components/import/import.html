@@ -299,8 +299,37 @@
             </button>
           </div>
 
-          <!-- Group by Description Checkbox on Tabs Bar (Available for all tabs) -->
+          <!-- Valid tab view mode selector -->
+          <div *ngIf="previewTab() === 'valid'" class="split-button-group animate-fade-in" style="font-size: 0.76rem;">
+            <button
+              type="button"
+              class="split-btn"
+              [class.active]="importGroupByMode() === 'table'"
+              (click)="setGroupByMode('table')"
+              title="Standard flat transaction table">
+              📋 Flat Table
+            </button>
+            <button
+              type="button"
+              class="split-btn"
+              [class.active]="importGroupByMode() === 'category'"
+              (click)="setGroupByMode('category')"
+              title="Group transactions by Category">
+              🏷️ Group by Category ({{ categoryMappings().length }})
+            </button>
+            <button
+              type="button"
+              class="split-btn"
+              [class.active]="importGroupByMode() === 'description'"
+              (click)="setGroupByMode('description')"
+              title="Group transactions by Description">
+              📝 Group by Description ({{ descriptionMappings().length }})
+            </button>
+          </div>
+
+          <!-- Group by Description Checkbox on other tabs (incomes, review, duplicates, etc.) -->
           <label
+            *ngIf="previewTab() !== 'valid'"
             class="animate-fade-in"
             style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; font-weight: 700; cursor: pointer; user-select: none; padding: 0.22rem 0.55rem; border-radius: 6px; border: 1px solid;"
             [style.borderColor]="isGroupByDescription() ? 'var(--primary)' : 'rgba(255, 255, 255, 0.15)'"
@@ -526,8 +555,706 @@
 
     <!-- TAB 1: Valid Transactions Ready to Import -->
     <div *ngIf="previewTab() === 'valid'">
-      <!-- VIEW A: Flat Table with Column Sorting (When unchecked) -->
-      <div class="table-container" *ngIf="!isGroupByDescription()" style="max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
+      <div class="ed-mapping-header">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+            <h5 style="margin: 0; font-size: 0.95rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
+              <span>{{ importGroupByMode() === 'category' ? '🏷️ Group by Category' : (importGroupByMode() === 'description' ? '📝 Group by Description' : '📋 Flat Table View') }}</span>
+            </h5>
+            <div class="split-button-group">
+              <button
+                type="button"
+                class="split-btn"
+                [class.active]="importGroupByMode() === 'table'"
+                (click)="setGroupByMode('table')"
+                title="Standard flat transaction table">
+                📋 Flat Table
+              </button>
+              <button
+                type="button"
+                class="split-btn"
+                [class.active]="importGroupByMode() === 'category'"
+                (click)="setGroupByMode('category')"
+                title="Group transactions by category">
+                🏷️ Group by Category ({{ categoryMappings().length }})
+              </button>
+              <button
+                type="button"
+                class="split-btn"
+                [class.active]="importGroupByMode() === 'description'"
+                (click)="setGroupByMode('description')"
+                title="Group transactions by description / merchant">
+                📝 Group by Description ({{ descriptionMappings().length }})
+              </button>
+            </div>
+          </div>
+          <p class="subtitle" style="margin: 0.25rem 0 0 0; font-size: 0.78rem;">
+            {{ importGroupByMode() === 'category'
+              ? 'Categorized by statement / bank label. Assign owner/split or map to a Splitboard category.'
+              : (importGroupByMode() === 'description'
+                ? 'Grouped by transaction description. Type a description keyword to group and assign category or owner across matching transactions.'
+                : 'All transactions ready to import. Sort columns, assign splits and categories, or click Done.') }}
+          </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <button
+            class="btn btn-primary btn-xs"
+            (click)="autoMatchAllCategories()"
+            title="Automatically match categories with Splitboard categories (supports exact, partial, and word matching)">
+            ✨ Auto-Match Categories
+          </button>
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <span style="font-size: 0.74rem; color: var(--text-muted);">Assign all:</span>
+            <button
+              *ngFor="let p of service.persons()"
+              class="btn btn-secondary btn-xs"
+              (click)="assignAllMappingsToPerson(p.name)"
+              [title]="'Assign all transactions to ' + p.name">
+              👤 {{ p.name }}
+            </button>
+          </div>
+          <button
+            class="btn btn-secondary btn-xs"
+            (click)="resetAllCategoryMappingsToUncategorized()"
+            title="Reset all categories to Uncategorized">
+            ↺ Reset Categories
+          </button>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW 1: GROUP BY CATEGORY ==================== -->
+      <ng-container *ngIf="importGroupByMode() === 'category'">
+        <!-- Keyword Contains Matcher Bar (Owner) -->
+        <div class="ed-matcher-bar">
+          <div class="ed-matcher-input-wrap">
+            <span class="ed-matcher-icon">🔍</span>
+            <input
+              type="text"
+              class="ed-matcher-text-input"
+              [ngModel]="categoryMatchKeyword()"
+              (ngModelChange)="categoryMatchKeyword.set($event)"
+              placeholder="Type text to match category for owner (contains)..."
+              title="Type keyword to match categories and assign owner" />
+            <button
+              *ngIf="categoryMatchKeyword()"
+              type="button"
+              class="ed-matcher-clear-btn"
+              (click)="clearCategoryMatchKeyword()"
+              title="Clear text">
+              ✕
+            </button>
+          </div>
+
+          <div class="ed-matcher-actions">
+            <span class="ed-matcher-label">Assign matches to:</span>
+            <div class="split-button-group">
+              <button
+                type="button"
+                class="split-btn split-btn-5050"
+                [disabled]="!categoryMatchKeyword().trim() || getMatchingCategoriesCount(categoryMatchKeyword()) === 0"
+                (click)="assignMatchingCategoriesToSplit()"
+                [title]="'Split categories containing \'' + categoryMatchKeyword() + '\' 50/50'">
+                ⚖️ 50/50
+                <span *ngIf="categoryMatchKeyword().trim()" class="ed-match-counter">
+                  ({{ getMatchingCategoriesCount(categoryMatchKeyword()) }})
+                </span>
+              </button>
+              <button
+                *ngFor="let p of service.persons(); let idx = index"
+                type="button"
+                class="split-btn"
+                [class.split-btn-p1]="idx === 0"
+                [class.split-btn-p2]="idx === 1"
+                [disabled]="!categoryMatchKeyword().trim() || getMatchingCategoriesCount(categoryMatchKeyword()) === 0"
+                (click)="assignMatchingCategoriesToPerson(p.name)"
+                [title]="'Assign categories containing \'' + categoryMatchKeyword() + '\' to ' + p.name">
+                👤 {{ p.name }}
+                <span *ngIf="categoryMatchKeyword().trim()" class="ed-match-counter">
+                  ({{ getMatchingCategoriesCount(categoryMatchKeyword()) }})
+                </span>
+              </button>
+            </div>
+
+            <!-- Owner Exclusions Multi-select Dropdown -->
+            <div class="ed-exclude-dropdown-container">
+              <button
+                type="button"
+                class="ed-exclude-dropdown-trigger"
+                [class.has-exclusions]="excludedOwners().length > 0"
+                (click)="toggleOwnerExcludeDropdown($event)"
+                title="Exclude transactions assigned to specific persons">
+                <span>🚫 Exclude: {{ getExcludedOwnersLabel() }}</span>
+                <span class="ed-chevron">{{ isOwnerExcludeDropdownOpen() ? '▲' : '▼' }}</span>
+              </button>
+              <button
+                *ngIf="excludedOwners().length > 0"
+                type="button"
+                class="ed-exclude-clear-btn"
+                (click)="clearOwnerExclusions()"
+                title="Clear all owner exclusions">
+                ✕
+              </button>
+
+              <div
+                *ngIf="isOwnerExcludeDropdownOpen()"
+                class="ed-exclude-dropdown-menu animate-fade-in"
+                (click)="$event.stopPropagation()">
+                <div class="ed-exclude-menu-header">
+                  <span>Exclude Persons ({{ excludedOwners().length }}/{{ service.persons().length }})</span>
+                  <button
+                    *ngIf="excludedOwners().length > 0"
+                    type="button"
+                    class="ed-exclude-text-btn"
+                    (click)="clearOwnerExclusions()">
+                    Clear
+                  </button>
+                </div>
+                <div class="ed-exclude-menu-list">
+                  <label
+                    *ngFor="let p of service.persons()"
+                    class="ed-exclude-menu-item"
+                    [class.selected]="isOwnerExcluded(p.name)">
+                    <input
+                      type="checkbox"
+                      [checked]="isOwnerExcluded(p.name)"
+                      (change)="toggleOwnerExclude(p.name)" />
+                    <span>👤 {{ p.name }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <label class="ed-matcher-checkbox-label" title="Exclude income transactions when searching by category">
+              <input
+                type="checkbox"
+                [ngModel]="categoryExcludeIncome()"
+                (ngModelChange)="categoryExcludeIncome.set($event)" />
+              <span>Exclude income</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Keyword Contains Matcher Bar (Category / Splitboard Type) -->
+        <div class="ed-matcher-bar">
+          <div class="ed-matcher-input-wrap">
+            <span class="ed-matcher-icon">🔍</span>
+            <input
+              type="text"
+              class="ed-matcher-text-input"
+              [ngModel]="typeMatchKeyword()"
+              (ngModelChange)="onTypeKeywordChange($event)"
+              placeholder="Type text to match category for Splitboard type (contains)..."
+              title="Type keyword to match categories and set Splitboard category" />
+            <button
+              *ngIf="typeMatchKeyword()"
+              type="button"
+              class="ed-matcher-clear-btn"
+              (click)="clearTypeMatchKeyword()"
+              title="Clear text">
+              ✕
+            </button>
+          </div>
+
+          <div class="ed-matcher-actions">
+            <span class="ed-matcher-label">
+              Set category for matches<span *ngIf="typeMatchKeyword().trim()" class="ed-match-counter">({{ getTypeMatchingCategoriesCount(typeMatchKeyword()) }})</span>:
+            </span>
+            <div style="min-width: 175px;">
+              <app-category-select
+                [value]="typeBatchItem()"
+                [group]="typeBatchGroup()"
+                placeholder="Choose category..."
+                minWidth="175px"
+                (categoryChange)="assignMatchingCategoriesToType($event)"
+                (addNewRequested)="openAddCategoryModal($event, 'batch_cat')">
+              </app-category-select>
+            </div>
+
+            <label class="ed-matcher-checkbox-label" title="Exclude categories that already have a category assigned (only match and assign unassigned categories)">
+              <input
+                type="checkbox"
+                [ngModel]="typeExcludeAssigned()"
+                (ngModelChange)="typeExcludeAssigned.set($event)" />
+              <span>Exclude already assigned</span>
+            </label>
+
+            <label class="ed-matcher-checkbox-label" title="Exclude income categories when searching by category">
+              <input
+                type="checkbox"
+                [ngModel]="categoryExcludeIncome()"
+                (ngModelChange)="categoryExcludeIncome.set($event)" />
+              <span>Exclude income</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Category Mapping Cards Grid -->
+        <div class="ed-mapping-grid">
+          <ng-container *ngFor="let m of displayedCategoryMappings().slice(0, categoryDisplayLimit()); let idx = index">
+            <!-- Unmatched Divider when keyword is active and items matched -->
+            <div *ngIf="isFirstUnmatched(m, idx)" class="ed-unmatched-divider">
+              <span>Other Categories (Non-matching)</span>
+            </div>
+            <div class="ed-mapping-card" [class.is-matched]="isCategoryMatched(m.rawCategory)">
+              <div class="ed-mapping-main-row">
+                <!-- Source Category Info -->
+                <div class="ed-mapping-source">
+                  <div class="ed-source-name" [title]="m.rawCategory" [innerHTML]="getHighlightedCategoryHtml(m.rawCategory)">
+                  </div>
+                  <div class="ed-source-meta">
+                    <span>{{ m.count }} {{ m.count === 1 ? 'tx' : 'txs' }}</span>
+                    <span>•</span>
+                    <span class="font-mono" [class.text-success]="m.isIncome">{{ m.isIncome ? '+' : '' }}{{ service.formatCurrency(m.totalAmount) }}</span>
+                    <span *ngIf="m.isIncome" class="badge badge-success" style="font-size: 0.65rem; padding: 1px 6px;">Income</span>
+                  </div>
+                </div>
+
+                <!-- Owner & Category Controls -->
+                <div class="ed-mapping-controls">
+                  <!-- Assign All in Category to Person or 50/50 Split -->
+                  <div class="ed-control-group" title="Assign all transactions in this category">
+                    <span class="ed-control-label">Split / Owner:</span>
+                    <div class="split-button-group">
+                      <button
+                        type="button"
+                        class="split-btn split-btn-5050"
+                        [class.active]="m.selectedSplitType === 'SPLIT'"
+                        (click)="onCategorySplitTypeChange(m.rawCategory, 'SPLIT')">
+                        50/50
+                      </button>
+                      <button
+                        type="button"
+                        *ngFor="let p of service.persons(); let pIdx = index"
+                        class="split-btn"
+                        [class.split-btn-p1]="pIdx === 0"
+                        [class.split-btn-p2]="pIdx === 1"
+                        [class.active]="m.selectedSplitType !== 'SPLIT' && m.selectedPerson === p.name"
+                        (click)="onCategoryPersonChange(m.rawCategory, p.name)">
+                        {{ p.name }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Secondary Splitboard Category Picker (Defaults to Uncategorized) -->
+                  <div class="ed-control-group" title="Map to a Splitboard category">
+                    <span class="ed-control-label">Type:</span>
+                    <app-category-select
+                      [value]="m.selectedItem"
+                      [group]="m.selectedGroup"
+                      placeholder="📁 Uncategorized"
+                      minWidth="150px"
+                      (categoryChange)="onCategoryMappingChange(m.rawCategory, $event)"
+                      (addNewRequested)="openAddCategoryModal($event, 'card_cat', m.rawCategory)">
+                    </app-category-select>
+                  </div>
+
+                  <!-- Inspect Individual Transactions Toggle -->
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="toggleExpandCategory(m.rawCategory)"
+                    [title]="expandedCategory() === m.rawCategory ? 'Hide transactions' : 'Inspect individual transactions'">
+                    {{ expandedCategory() === m.rawCategory ? '▲ Hide' : '▼ Inspect (' + m.count + ')' }}
+                  </button>
+
+                  <!-- Filter Preview Table Below -->
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    [class.btn-primary]="selectedCategoryFilter() === m.rawCategory"
+                    (click)="setCategoryFilter(selectedCategoryFilter() === m.rawCategory ? null : m.rawCategory)"
+                    title="Filter table below to this category">
+                    {{ selectedCategoryFilter() === m.rawCategory ? '✓ Filtering' : '🔍 Table' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Expandable Individual Transactions Drawer -->
+              <div *ngIf="expandedCategory() === m.rawCategory" class="ed-category-drawer animate-fade-in">
+                <div class="ed-drawer-header">
+                  <span>Individual Transactions in "{{ m.rawCategory }}" ({{ getTransactionsForCategory(m.rawCategory).length }})</span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
+                </div>
+                <div class="ed-drawer-list">
+                  <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50)" class="ed-drawer-tx-item">
+                    <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ service.formatDate(tx.date) }}</span>
+                    <div class="ed-drawer-tx-desc">
+                      <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
+                      <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
+                    </div>
+                    <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                      {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
+                    </span>
+                    <div class="split-button-group">
+                      <button
+                        type="button"
+                        class="split-btn split-btn-xs split-btn-5050"
+                        [class.active]="tx.splitType === 'SPLIT'"
+                        (click)="setTxSplit(tx, 'SPLIT')"
+                        title="50/50 Split">
+                        50/50
+                      </button>
+                      <button
+                        type="button"
+                        *ngFor="let p of service.persons(); let pIdx = index"
+                        class="split-btn split-btn-xs"
+                        [class.split-btn-p1]="pIdx === 0"
+                        [class.split-btn-p2]="pIdx === 1"
+                        [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                        (click)="setTxPerson(tx, p.name)">
+                        {{ p.name }}
+                      </button>
+                    </div>
+                  </div>
+                  <div *ngIf="getTransactionsForCategory(m.rawCategory).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
+                    Showing first 50 of {{ getTransactionsForCategory(m.rawCategory).length }} transactions
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Load More Categories Button -->
+          <div *ngIf="displayedCategoryMappings().length > categoryDisplayLimit()" style="text-align: center; padding: 0.75rem 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="loadMoreCategories()">
+              ▼ Load More Categories (showing {{ categoryDisplayLimit() }} of {{ displayedCategoryMappings().length }})
+            </button>
+            <button type="button" class="btn btn-ghost btn-xs" (click)="loadAllCategories()">
+              Show All
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ==================== VIEW 2: GROUP BY DESCRIPTION ==================== -->
+      <ng-container *ngIf="importGroupByMode() === 'description'">
+        <!-- Keyword Description Matcher Bar -->
+        <div class="ed-matcher-bar">
+          <div class="ed-matcher-input-wrap">
+            <span class="ed-matcher-icon">🔍</span>
+            <input
+              type="text"
+              class="ed-matcher-text-input"
+              [ngModel]="descriptionMatchKeyword()"
+              (ngModelChange)="onDescriptionKeywordChange($event)"
+              placeholder="Type description to group & match category (e.g. Amazon, Shell, Costco)..."
+              title="Type description keyword to filter and batch-assign category or owner" />
+            <button
+              *ngIf="descriptionMatchKeyword()"
+              type="button"
+              class="ed-matcher-clear-btn"
+              (click)="clearDescriptionMatchKeyword()"
+              title="Clear text">
+              ✕
+            </button>
+          </div>
+
+          <div class="ed-matcher-actions">
+            <span class="ed-matcher-label">
+              Set category for matches<span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">({{ getDescriptionMatchingCount(descriptionMatchKeyword()) }})</span>:
+            </span>
+            <div style="min-width: 175px;">
+              <app-category-select
+                [value]="descriptionBatchItem()"
+                [group]="descriptionBatchGroup()"
+                placeholder="Choose category..."
+                minWidth="175px"
+                (categoryChange)="assignMatchingDescriptionsToType($event)"
+                (addNewRequested)="openAddCategoryModal($event, 'batch_desc')">
+              </app-category-select>
+            </div>
+
+            <label class="ed-matcher-checkbox-label" title="Exclude transactions that already have a category assigned">
+              <input
+                type="checkbox"
+                [ngModel]="descExcludeAssigned()"
+                (ngModelChange)="descExcludeAssigned.set($event)" />
+              <span>Exclude already assigned</span>
+            </label>
+
+            <span class="ed-matcher-label" style="margin-left: 0.4rem;">Owner / Split:</span>
+            <div class="split-button-group">
+              <button
+                type="button"
+                class="split-btn split-btn-5050"
+                [disabled]="!descriptionMatchKeyword().trim() || getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) === 0"
+                (click)="assignMatchingDescriptionsToSplit()"
+                [title]="'Split transactions matching \'' + descriptionMatchKeyword() + '\' 50/50'">
+                ⚖️ 50/50
+                <span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">
+                  ({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})
+                </span>
+              </button>
+              <button
+                *ngFor="let p of service.persons(); let pIdx = index"
+                type="button"
+                class="split-btn"
+                [class.split-btn-p1]="pIdx === 0"
+                [class.split-btn-p2]="pIdx === 1"
+                [disabled]="!descriptionMatchKeyword().trim() || getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) === 0"
+                (click)="assignMatchingDescriptionsToPerson(p.name)"
+                [title]="'Assign transactions matching \'' + descriptionMatchKeyword() + '\' to ' + p.name">
+                👤 {{ p.name }}
+                <span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">
+                  ({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})
+                </span>
+              </button>
+            </div>
+
+            <!-- Owner Exclusions Multi-select Dropdown -->
+            <div class="ed-exclude-dropdown-container">
+              <button
+                type="button"
+                class="ed-exclude-dropdown-trigger"
+                [class.has-exclusions]="excludedOwners().length > 0"
+                (click)="toggleOwnerExcludeDropdown($event)"
+                title="Exclude transactions assigned to specific persons">
+                <span>🚫 Exclude: {{ getExcludedOwnersLabel() }}</span>
+                <span class="ed-chevron">{{ isOwnerExcludeDropdownOpen() ? '▲' : '▼' }}</span>
+              </button>
+              <button
+                *ngIf="excludedOwners().length > 0"
+                type="button"
+                class="ed-exclude-clear-btn"
+                (click)="clearOwnerExclusions()"
+                title="Clear all owner exclusions">
+                ✕
+              </button>
+
+              <div
+                *ngIf="isOwnerExcludeDropdownOpen()"
+                class="ed-exclude-dropdown-menu animate-fade-in"
+                (click)="$event.stopPropagation()">
+                <div class="ed-exclude-menu-header">
+                  <span>Exclude Persons ({{ excludedOwners().length }}/{{ service.persons().length }})</span>
+                  <button
+                    *ngIf="excludedOwners().length > 0"
+                    type="button"
+                    class="ed-exclude-text-btn"
+                    (click)="clearOwnerExclusions()">
+                    Clear
+                  </button>
+                </div>
+                <div class="ed-exclude-menu-list">
+                  <label
+                    *ngFor="let p of service.persons()"
+                    class="ed-exclude-menu-item"
+                    [class.selected]="isOwnerExcluded(p.name)">
+                    <input
+                      type="checkbox"
+                      [checked]="isOwnerExcluded(p.name)"
+                      (change)="toggleOwnerExclude(p.name)" />
+                    <span>👤 {{ p.name }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Description Mapping Grid -->
+        <div class="ed-mapping-grid">
+          <ng-container *ngFor="let d of displayedDescriptionMappings().slice(0, descriptionDisplayLimit()); let i = index">
+            <!-- Divider between matching and unmatched descriptions -->
+            <div
+              *ngIf="isFirstUnmatchedDescription(d, i)"
+              class="ed-unmatched-divider">
+              <span>Other Descriptions (Not Matching "{{ descriptionMatchKeyword() }}")</span>
+            </div>
+
+            <div
+              class="ed-mapping-card"
+              [class.is-matched]="isDescriptionMatched(d.description)">
+              <div class="ed-mapping-main-row">
+                <!-- Description Info -->
+                <div class="ed-mapping-source">
+                  <div class="ed-source-name" [title]="d.description" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <span [innerHTML]="getHighlightedDescriptionHtml(d.description)"></span>
+                    <span
+                      *ngIf="d.rawCategories.length > 0"
+                      class="badge"
+                      style="font-size: 0.68rem; background: rgba(255, 255, 255, 0.06); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1); font-weight: 500;"
+                      [title]="'Categories: ' + d.rawCategories.join(', ')">
+                      {{ d.rawCategories.slice(0, 2).join(', ') }}{{ d.rawCategories.length > 2 ? ' +' + (d.rawCategories.length - 2) : '' }}
+                    </span>
+                  </div>
+                  <div class="ed-source-meta">
+                    <span>{{ d.count }} {{ d.count === 1 ? 'tx' : 'txs' }}</span>
+                    <span>•</span>
+                    <span class="font-mono" [class.text-success]="d.isIncome">{{ d.isIncome ? '+' : '' }}{{ service.formatCurrency(d.totalAmount) }}</span>
+                    <span *ngIf="d.isIncome" class="badge badge-success" style="font-size: 0.65rem; padding: 1px 6px;">Income</span>
+                  </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="ed-mapping-controls">
+                  <!-- Split / Owner -->
+                  <div class="ed-control-group" title="Assign all transactions for this description">
+                    <span class="ed-control-label">Split / Owner:</span>
+                    <div class="split-button-group">
+                      <button
+                        type="button"
+                        class="split-btn split-btn-5050"
+                        [class.active]="d.selectedSplitType === 'SPLIT'"
+                        (click)="onDescriptionSplitTypeChange(d.description, 'SPLIT')">
+                        50/50
+                      </button>
+                      <button
+                        type="button"
+                        *ngFor="let p of service.persons(); let pIdx = index"
+                        class="split-btn"
+                        [class.split-btn-p1]="pIdx === 0"
+                        [class.split-btn-p2]="pIdx === 1"
+                        [class.active]="d.selectedSplitType !== 'SPLIT' && d.selectedPerson === p.name"
+                        (click)="onDescriptionPersonChange(d.description, p.name)">
+                        {{ p.name }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Splitboard Category Picker -->
+                  <div class="ed-control-group" title="Set category for this description">
+                    <span class="ed-control-label">Category:</span>
+                    <app-category-select
+                      [value]="d.selectedItem"
+                      [group]="d.selectedGroup"
+                      placeholder="📁 Uncategorized"
+                      minWidth="150px"
+                      (categoryChange)="onDescriptionMappingCategoryChange(d.description, $event)"
+                      (addNewRequested)="openAddCategoryModal($event, 'card_desc', d.description)">
+                    </app-category-select>
+                  </div>
+
+                  <!-- Inspect Transactions -->
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="toggleExpandDescription(d.description)"
+                    [title]="expandedDescription() === d.description ? 'Hide transactions' : 'Inspect transactions for this description'">
+                    {{ expandedDescription() === d.description ? '▲ Hide' : '▼ Inspect (' + d.count + ')' }}
+                  </button>
+
+                  <!-- Filter Table -->
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    [class.btn-primary]="selectedDescriptionFilter() === d.description"
+                    (click)="setDescriptionFilter(selectedDescriptionFilter() === d.description ? null : d.description)"
+                    title="Filter table below to this description">
+                    {{ selectedDescriptionFilter() === d.description ? '✓ Filtering' : '🔍 Table' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Expandable Individual Transactions Drawer for Description -->
+              <div *ngIf="expandedDescription() === d.description" class="ed-category-drawer animate-fade-in">
+                <div class="ed-drawer-header">
+                  <span>Transactions for "{{ d.description }}" ({{ getTransactionsForDescription(d.description).length }})</span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
+                </div>
+                <div class="ed-drawer-list">
+                  <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50)" class="ed-drawer-tx-item">
+                    <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ service.formatDate(tx.date) }}</span>
+                    <div class="ed-drawer-tx-desc">
+                      <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || tx.categoryItem || 'Uncategorized')"></span>
+                      <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
+                    </div>
+                    <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                      {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
+                    </span>
+                    <div class="split-button-group">
+                      <button
+                        type="button"
+                        class="split-btn split-btn-xs split-btn-5050"
+                        [class.active]="tx.splitType === 'SPLIT'"
+                        (click)="setTxSplit(tx, 'SPLIT')"
+                        title="50/50 Split">
+                        50/50
+                      </button>
+                      <button
+                        type="button"
+                        *ngFor="let p of service.persons(); let pIdx = index"
+                        class="split-btn split-btn-xs"
+                        [class.split-btn-p1]="pIdx === 0"
+                        [class.split-btn-p2]="pIdx === 1"
+                        [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                        (click)="setTxPerson(tx, p.name)">
+                        {{ p.name }}
+                      </button>
+                    </div>
+                  </div>
+                  <div *ngIf="getTransactionsForDescription(d.description).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
+                    Showing first 50 of {{ getTransactionsForDescription(d.description).length }} transactions
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Load More Descriptions Button -->
+          <div *ngIf="displayedDescriptionMappings().length > descriptionDisplayLimit()" style="text-align: center; padding: 0.75rem 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="loadMoreDescriptions()">
+              ▼ Load More Descriptions (showing {{ descriptionDisplayLimit() }} of {{ displayedDescriptionMappings().length }})
+            </button>
+            <button type="button" class="btn btn-ghost btn-xs" (click)="loadAllDescriptions()">
+              Show All
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Preview Table On-Demand Toggle (Shown in Category and Description modes) -->
+      <div *ngIf="importGroupByMode() !== 'table'" class="glass-card" style="padding: 0.85rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-color: rgba(255, 255, 255, 0.08); margin-top: 0.85rem;">
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+          <span style="font-size: 1.2rem;">📋</span>
+          <div>
+            <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-main);">
+              Transaction Details Table ({{ sortedTransactions().length }} transactions)
+            </div>
+            <div style="font-size: 0.74rem; color: var(--text-muted);">
+              {{ showPreviewTable() ? 'Table loaded into DOM. Click button to hide.' : 'Hidden to keep view concise. Click button to show transaction details table.' }}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          (click)="togglePreviewTable()"
+          style="display: flex; align-items: center; gap: 0.4rem;">
+          <span>{{ showPreviewTable() ? '✕ Hide Table' : '👁️ Load Transaction Table' }}</span>
+        </button>
+      </div>
+
+      <!-- Active Category Filter Indicator -->
+      <div *ngIf="(importGroupByMode() === 'table' || showPreviewTable()) && selectedCategoryFilter() as catFilter" class="animate-fade-in" style="margin-top: 0.6rem; margin-bottom: 0.6rem; padding: 0.4rem 0.8rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem;">
+        <div style="display: flex; align-items: center; gap: 0.45rem;">
+          <span style="color: #38bdf8; font-weight: 600;">🔍 Filtering table by category:</span>
+          <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.8rem;">
+            "{{ catFilter }}"
+          </span>
+          <span style="color: var(--text-muted); font-size: 0.74rem;">({{ sortedTransactions().length }} transactions)</span>
+        </div>
+        <button class="btn btn-secondary btn-xs" (click)="setCategoryFilter(null)" style="padding: 0.2rem 0.5rem;">
+          ✕ Show All Categories
+        </button>
+      </div>
+
+      <!-- Active Description Filter Indicator -->
+      <div *ngIf="(importGroupByMode() === 'table' || showPreviewTable()) && selectedDescriptionFilter() as descFilter" class="animate-fade-in" style="margin-top: 0.6rem; margin-bottom: 0.6rem; padding: 0.4rem 0.8rem; background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem;">
+        <div style="display: flex; align-items: center; gap: 0.45rem;">
+          <span style="color: #a78bfa; font-weight: 600;">🔍 Filtering table by description:</span>
+          <span class="badge" style="background: rgba(167, 139, 250, 0.2); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.4); font-size: 0.8rem;">
+            "{{ descFilter }}"
+          </span>
+          <span style="color: var(--text-muted); font-size: 0.74rem;">({{ sortedTransactions().length }} transactions)</span>
+        </div>
+        <button class="btn btn-secondary btn-xs" (click)="setDescriptionFilter(null)" style="padding: 0.2rem 0.5rem;">
+          ✕ Show All Descriptions
+        </button>
+      </div>
+
+      <!-- Transaction Table -->
+      <div class="table-container" *ngIf="importGroupByMode() === 'table' || showPreviewTable()" style="max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
         <table>
           <thead>
             <tr>
@@ -696,455 +1423,13 @@
                 </div>
               </td>
             </tr>
-            <tr *ngIf="res.transactions.length === 0">
+            <tr *ngIf="sortedTransactions().length === 0">
               <td colspan="9" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
-                No new transactions to import. (Check the Duplicates or Excluded tabs above).
+                No transactions match the current filter.
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <!-- VIEW B: Grouped by Description (When checked) -->
-      <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 580px; overflow-y: auto; width: 100%;">
-        
-        <!-- Multi-Item Groups (2+ items with same description) -->
-        <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" [class.tx-group-done]="isGroupDone(grp)" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
-            <!-- Group Summary Row -->
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-              <div class="grp-main-info" style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
-                <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
-                <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">{{ grp.count }} items</span>
-                <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; flex-shrink: 0; white-space: nowrap;" [class.text-income]="isIncomeGroup(grp)" [style.color]="isIncomeGroup(grp) ? '#10b981' : 'var(--text-main)'">{{ isIncomeGroup(grp) ? '+' : '' }}{{ service.formatCurrency(grp.totalAmount) }}</span>
-              </div>
-
-              <!-- Group Bulk Controls -->
-              <div class="grp-bulk-controls" style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
-                <!-- Bulk Owner -->
-                <span
-                  class="badge"
-                  (click)="toggleGroupOwner(grp)"
-                  style="cursor: pointer; font-weight: 600; font-size: 0.72rem; padding: 0.2rem 0.45rem; user-select: none;"
-                  [style.color]="grp.owner === service.personOne().name ? 'var(--primary)' : (grp.owner === service.personTwo().name ? 'var(--secondary)' : 'var(--text-muted)')"
-                  [style.background]="grp.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : (grp.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)')"
-                  [style.border]="'1px solid ' + (grp.owner === service.personOne().name ? 'rgba(0, 229, 255, 0.3)' : (grp.owner === service.personTwo().name ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255, 255, 255, 0.15)'))"
-                  [title]="'Set all ' + grp.count + ' items to other owner'">
-                  👤 {{ grp.owner || 'Mixed' }}
-                </span>
-
-                <!-- Bulk Category -->
-                <div style="max-width: 175px;">
-                  <app-category-select
-                    [value]="grp.categoryItem || ''"
-                    [group]="grp.categoryGroup || ''"
-                    [placeholder]="grp.isMixedCategory ? '📁 Mixed categories...' : '📁 Set Category...'"
-                    [customTitle]="grp.mixedCategorySummary || ''"
-                    (categoryChange)="onGroupCategoryChange(grp, $event.item, $event.group)"
-                    (addNewRequested)="openAddCategoryModal(grp.items[0], 'group', grp)">
-                  </app-category-select>
-                </div>
-
-                <!-- Bulk Split -->
-                <div class="split-button-group" [class.needs-split]="hasUnselectedSplits(grp)" [title]="hasUnselectedSplits(grp) ? '⚠️ Please select a split for this group' : ''">
-                  <button
-                    type="button"
-                    class="split-btn split-btn-5050"
-                    [class.active]="getGroupSplitValue(grp) === 'SPLIT_5050'"
-                    (click)="$event.stopPropagation(); onGroupSplitChange(grp, 'SPLIT_5050')"
-                    title="Set all to Split 50/50">
-                    50/50
-                  </button>
-                  <button
-                    type="button"
-                    class="split-btn split-btn-p1"
-                    [class.active]="getGroupSplitValue(grp) === '100_P1'"
-                    (click)="$event.stopPropagation(); onGroupSplitChange(grp, '100_P1')"
-                    [title]="'Set all 100% ' + service.personOne().name">
-                    {{ service.personOne().name }}
-                  </button>
-                  <button
-                    type="button"
-                    class="split-btn split-btn-p2"
-                    [class.active]="getGroupSplitValue(grp) === '100_P2'"
-                    (click)="$event.stopPropagation(); onGroupSplitChange(grp, '100_P2')"
-                    [title]="'Set all 100% ' + service.personTwo().name">
-                    {{ service.personTwo().name }}
-                  </button>
-                </div>
-
-                <!-- Bulk Note / Comment -->
-                <div style="min-width: 120px; max-width: 180px;">
-                  <input
-                    type="text"
-                    [ngModel]="grp.note !== undefined ? grp.note : ''"
-                    (ngModelChange)="onGroupNoteChange(grp, $event)"
-                    [placeholder]="grp.note === undefined ? '💬 Mixed notes...' : '💬 Group note...'"
-                    class="inline-note-input"
-                    style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main);"
-                    title="Apply note/comment to all {{ grp.count }} items in this group" />
-                </div>
-
-                <!-- Bulk Done -->
-                <button
-                  type="button"
-                  class="btn btn-xs tx-btn-done"
-                  [class.is-done]="isGroupDone(grp)"
-                  (click)="toggleGroupDone(grp)"
-                  [title]="isGroupDone(grp) ? 'All marked done (click to unmark all)' : 'Mark all items in this group as done (gray out)'">
-                  <span class="btn-done-label">{{ isGroupDone(grp) ? '✓ Done' : '○ Done' }}</span>
-                  <span class="btn-undo-label">↩ Undo</span>
-                </button>
-
-                <!-- Bulk Review -->
-                <button
-                  class="btn btn-xs tx-btn-review"
-                  [style.color]="isGroupUnderReview(grp) ? '#fbbf24' : 'var(--text-muted)'"
-                  [style.background]="isGroupUnderReview(grp) ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)'"
-                  [style.border]="isGroupUnderReview(grp) ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)'"
-                  (click)="toggleGroupReview(grp)"
-                  [title]="isGroupUnderReview(grp) ? 'All items in review (click to resolve all)' : 'Mark all items in this group for review'">
-                  {{ isGroupUnderReview(grp) ? '🔍 In Review' : '🔍 Review' }}
-                </button>
-                <button
-                  class="btn btn-secondary btn-xs tx-btn-rule"
-                  (click)="openRuleModal(grp.items[0])"
-                  [title]="hasMatchingRule(grp.items[0]) ? 'Edit existing rule for this description' : 'Create rule from this description'"
-                  [style.borderColor]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.45)' : ''"
-                  [style.background]="hasMatchingRule(grp.items[0]) ? 'rgba(0, 229, 255, 0.1)' : ''"
-                  [style.color]="hasMatchingRule(grp.items[0]) ? 'var(--primary)' : ''">
-                  {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
-                </button>
-                <button
-                  *ngIf="isIncomeGroup(grp)"
-                  type="button"
-                  class="btn btn-xs"
-                  [class.btn-primary]="isGroupIncomeNextMonth(grp)"
-                  [class.btn-secondary]="!isGroupIncomeNextMonth(grp)"
-                  (click)="toggleGroupIncomeMonth(grp)"
-                  style="font-size: 0.72rem; padding: 0.2rem 0.5rem; white-space: nowrap;"
-                  title="Toggle all transactions in this group to next month or current month">
-                  📅 {{ isGroupIncomeNextMonth(grp) ? 'Reset to Current Month' : 'All for Next Month' }}
-                </button>
-                <button
-                  *ngIf="hasIncludedItems(grp)"
-                  type="button"
-                  class="btn btn-secondary btn-xs"
-                  (click)="removeGroupTransactions(grp)"
-                  style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
-                  title="Return included items in this group back to their original tabs">
-                  ↩ Return
-                </button>
-                <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" [title]="hasIncludedItems(grp) ? 'Return or skip items in this group' : 'Skip all items in this group'">✕</button>
-              </div>
-            </div>
-
-            <!-- Expanded Item List -->
-            <div *ngIf="isDescriptionGroupExpanded(grp.description)" class="animate-fade-in table-container" style="margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px dashed rgba(255, 255, 255, 0.08); overflow-x: auto;">
-              <table style="width: 100%; min-width: 960px; font-size: 0.78rem;">
-                <thead>
-                  <tr style="opacity: 0.7; font-size: 0.72rem;">
-                    <th>Date</th>
-                    <th>Bank</th>
-                    <th>Owner</th>
-                    <th>Category</th>
-                    <th style="text-align: right;">Amount</th>
-                    <th>Split</th>
-                    <th>💬 Note</th>
-                    <th style="text-align: center; width: 205px; min-width: 205px;">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    *ngFor="let tx of grp.items"
-                    [class.tx-row-done]="tx.isDone"
-                    [class.tx-row-review]="tx.isUnderReview">
-                    <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
-                    <td>
-                      <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
-                      <span *ngIf="!tx.bank" style="font-size: 0.7rem; color: #fbbf24; background: rgba(245, 158, 11, 0.12); padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px dashed #f59e0b; white-space: nowrap;">
-                        ⚠️ Select Bank
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        class="badge"
-                        (click)="toggleTxOwner(tx)"
-                        style="cursor: pointer; font-size: 0.7rem; padding: 0.15rem 0.4rem;"
-                        [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
-                        [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : 'rgba(139, 92, 246, 0.12)'">
-                        👤 {{ tx.paidBy }}
-                      </span>
-                    </td>
-                    <td>
-                      <app-category-select
-                        [value]="tx.categoryItem || ''"
-                        [group]="tx.categoryGroup || ''"
-                        [compact]="true"
-                        (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                      </app-category-select>
-                    </td>
-                    <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
-                    <td>
-                      <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
-                        <button
-                          type="button"
-                          class="split-btn split-btn-5050"
-                          [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
-                          (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')">
-                          50/50
-                        </button>
-                        <button
-                          type="button"
-                          class="split-btn split-btn-p1"
-                          [class.active]="getInlineSplitValue(tx) === '100_P1'"
-                          (click)="onInlineSplitButtonClick(tx, '100_P1')">
-                          {{ service.personOne().name }}
-                        </button>
-                        <button
-                          type="button"
-                          class="split-btn split-btn-p2"
-                          [class.active]="getInlineSplitValue(tx) === '100_P2'"
-                          (click)="onInlineSplitButtonClick(tx, '100_P2')">
-                          {{ service.personTwo().name }}
-                        </button>
-                      </div>
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        [(ngModel)]="tx.note"
-                        placeholder="💬 Add note..."
-                        class="inline-note-input"
-                        title="Add comment before importing" />
-                    </td>
-                    <td style="text-align: center; white-space: nowrap; width: 205px; min-width: 205px;">
-                      <div class="tx-actions-cell">
-                        <button
-                          type="button"
-                          class="btn btn-xs tx-btn-done"
-                          [class.is-done]="tx.isDone"
-                          (click)="toggleTxDone(tx)"
-                          [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                          <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
-                          <span class="btn-undo-label">↩ Undo</span>
-                        </button>
-                        <button
-                          class="btn btn-xs tx-btn-review"
-                          [style.color]="tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
-                          [style.background]="tx.isUnderReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)'"
-                          [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
-                          (click)="toggleTxReview(tx)"
-                          [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
-                          {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
-                        </button>
-                        <!-- Income Month Toggle -->
-                        <button
-                          *ngIf="isIncomeTx(tx)"
-                          type="button"
-                          class="btn btn-xs"
-                          [class.btn-secondary]="isIncomeShifted(tx)"
-                          [class.btn-primary]="!isIncomeShifted(tx)"
-                          [style.color]="isIncomeShifted(tx) ? '#10b981' : ''"
-                          [style.borderColor]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.35)' : ''"
-                          [style.background]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.1)' : ''"
-                          (click)="toggleIncomeMonth(tx)"
-                          style="font-size: 0.71rem; padding: 0.18rem 0.4rem; white-space: nowrap;"
-                          [title]="getIncomeMonthButtonTooltip(tx)">
-                          {{ getIncomeMonthButtonLabel(tx) }}
-                        </button>
-                        <!-- Return to source if included -->
-                        <button
-                          *ngIf="tx.includedFrom"
-                          type="button"
-                          class="btn btn-secondary btn-xs"
-                          (click)="excludeIncludedTransaction(tx)"
-                          style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
-                          [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
-                          ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
-                        </button>
-                        <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip this row'">✕</button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Single / Unique Items (1 occurrence) -->
-        <div *ngIf="singleTransactions().length > 0" class="glass-card" style="padding: 0.7rem 0.9rem; background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px;">
-          <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-            <span>📄</span> Single / Unique Transactions ({{ singleTransactions().length }})
-          </div>
-          <div class="table-container" style="overflow-x: auto; width: 100%;">
-            <table class="import-preview-table" style="width: 100%; min-width: 960px; font-size: 0.78rem;">
-            <thead>
-              <tr style="opacity: 0.7; font-size: 0.72rem;">
-                <th>Date</th>
-                <th>Description</th>
-                <th>Bank</th>
-                <th>Owner</th>
-                <th>Category</th>
-                <th style="text-align: right;">Amount</th>
-                <th>Split</th>
-                <th>💬 Note</th>
-                <th style="text-align: center; width: 295px; min-width: 295px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                *ngFor="let tx of singleTransactions()"
-                [class.tx-row-done]="tx.isDone"
-                [class.tx-row-review]="tx.isUnderReview">
-                <td style="white-space: nowrap;">
-                  <div>{{ service.formatDate(tx.date) }}</div>
-                  <div *ngIf="isIncomeTx(tx) && isIncomeShifted(tx)" style="margin-top: 0.2rem;">
-                    <span
-                      class="badge"
-                      (click)="toggleIncomeMonth(tx)"
-                      style="cursor: pointer; font-size: 0.68rem; padding: 0.1rem 0.35rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
-                      [title]="getIncomeMonthBadgeTooltip(tx)">
-                      {{ getIncomeMonthBadgeLabel(tx) }}
-                    </span>
-                  </div>
-                </td>
-                <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
-                  <div class="tx-description-cell">
-                    <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
-                    <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
-                      🔍 Review
-                    </span>
-                  </div>
-                </td>
-                <td>
-                  <span class="badge badge-neutral" *ngIf="tx.bank">{{ tx.bank }}</span>
-                  <span *ngIf="!tx.bank" style="font-size: 0.7rem; color: #fbbf24; background: rgba(245, 158, 11, 0.12); padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px dashed #f59e0b; white-space: nowrap;">
-                    ⚠️ Select Bank
-                  </span>
-                </td>
-                <td>
-                  <span
-                    class="badge"
-                    (click)="toggleTxOwner(tx)"
-                    style="cursor: pointer; font-size: 0.7rem; padding: 0.15rem 0.4rem;"
-                    [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
-                    [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.12)' : 'rgba(139, 92, 246, 0.12)'">
-                    👤 {{ tx.paidBy }}
-                  </span>
-                </td>
-                <td>
-                  <app-category-select
-                    [value]="tx.categoryItem || ''"
-                    [group]="tx.categoryGroup || ''"
-                    [compact]="true"
-                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                  </app-category-select>
-                </td>
-                <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
-                <td>
-                  <div class="split-button-group" [class.needs-split]="!tx.splitType" [title]="!tx.splitType ? '⚠️ Please select a split' : ''">
-                    <button
-                      type="button"
-                      class="split-btn split-btn-5050"
-                      [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
-                      (click)="onInlineSplitButtonClick(tx, 'SPLIT_5050')">
-                      50/50
-                    </button>
-                    <button
-                      type="button"
-                      class="split-btn split-btn-p1"
-                      [class.active]="getInlineSplitValue(tx) === '100_P1'"
-                      (click)="onInlineSplitButtonClick(tx, '100_P1')">
-                      {{ service.personOne().name }}
-                    </button>
-                    <button
-                      type="button"
-                      class="split-btn split-btn-p2"
-                      [class.active]="getInlineSplitValue(tx) === '100_P2'"
-                      (click)="onInlineSplitButtonClick(tx, '100_P2')">
-                      {{ service.personTwo().name }}
-                    </button>
-                  </div>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    [(ngModel)]="tx.note"
-                    placeholder="💬 Add note..."
-                    class="inline-note-input"
-                    title="Add comment before importing" />
-                </td>
-                <td style="text-align: center; white-space: nowrap; width: 295px; min-width: 295px;">
-                  <div class="tx-actions-cell">
-                    <button
-                      type="button"
-                      class="btn btn-xs tx-btn-done"
-                      [class.is-done]="tx.isDone"
-                      (click)="toggleTxDone(tx)"
-                      [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done (gray out)'">
-                      <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
-                      <span class="btn-undo-label">↩ Undo</span>
-                    </button>
-                    <button
-                      class="btn btn-xs tx-btn-review"
-                      [style.color]="tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
-                      [style.background]="tx.isUnderReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)'"
-                      [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
-                      (click)="toggleTxReview(tx)"
-                      [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
-                      {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
-                    </button>
-                    <button
-                      class="btn btn-secondary btn-xs tx-btn-rule"
-                      (click)="openRuleModal(tx)"
-                      [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule'"
-                      [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
-                      [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
-                      [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''">
-                      {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
-                    </button>
-                    <!-- Income Month Toggle -->
-                    <button
-                      *ngIf="isIncomeTx(tx)"
-                      type="button"
-                      class="btn btn-xs"
-                      [class.btn-secondary]="isIncomeShifted(tx)"
-                      [class.btn-primary]="!isIncomeShifted(tx)"
-                      [style.color]="isIncomeShifted(tx) ? '#10b981' : ''"
-                      [style.borderColor]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.35)' : ''"
-                      [style.background]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.1)' : ''"
-                      (click)="toggleIncomeMonth(tx)"
-                      style="font-size: 0.71rem; padding: 0.18rem 0.4rem; white-space: nowrap;"
-                      [title]="getIncomeMonthButtonTooltip(tx)">
-                      {{ getIncomeMonthButtonLabel(tx) }}
-                    </button>
-                    <!-- Return to source if included -->
-                    <button
-                      *ngIf="tx.includedFrom"
-                      type="button"
-                      class="btn btn-secondary btn-xs"
-                      (click)="excludeIncludedTransaction(tx)"
-                      style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); white-space: nowrap;"
-                      [title]="'Return back to ' + getIncludedFromLabel(tx.includedFrom)">
-                      ↩ Return to {{ getIncludedFromLabel(tx.includedFrom) }}
-                    </button>
-                    <button class="btn-icon-delete" (click)="removeValidTransaction(tx.id)" [title]="tx.includedFrom ? 'Return to ' + getIncludedFromLabel(tx.includedFrom) : 'Skip this row'">✕</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          </div>
-        </div>
-
-        <div *ngIf="descriptionGroups().length === 0 && singleTransactions().length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
-          No transactions to display.
-        </div>
       </div>
     </div>
 

@@ -28,6 +28,29 @@ export interface DescriptionGroup {
   note?: string;
 }
 
+export interface ImportCategoryMapping {
+  rawCategory: string;
+  count: number;
+  totalAmount: number;
+  selectedItem: string;
+  selectedGroup: string;
+  selectedPerson: string;
+  selectedSplitType: SplitType;
+  isIncome?: boolean;
+}
+
+export interface ImportDescriptionMapping {
+  description: string;
+  count: number;
+  totalAmount: number;
+  selectedItem: string;
+  selectedGroup: string;
+  selectedPerson: string;
+  selectedSplitType: SplitType;
+  rawCategories: string[];
+  isIncome?: boolean;
+}
+
 @Component({
   selector: 'app-import',
   standalone: true,
@@ -50,7 +73,8 @@ export class ImportComponent {
   public newCatSubName = signal<string>('');
   public newCatTargetTx: Transaction | null = null;
   public newCatTargetGroup: DescriptionGroup | null = null;
-  public newCatTargetContext: 'row' | 'group' | 'rule' | 'toolbar' = 'toolbar';
+  public newCatTargetContext: 'row' | 'group' | 'rule' | 'toolbar' | 'batch_cat' | 'card_cat' | 'batch_desc' | 'card_desc' = 'toolbar';
+  public newCatTargetKey: string | null = null;
 
   public selectedGroupExistingSubCategories = computed<string[]>(() => {
     const groupId = this.newCatSelectedGroupId();
@@ -68,7 +92,7 @@ export class ImportComponent {
   public selectExistingSubCategory(name: string): void {
     const groupId = this.newCatSelectedGroupId();
     const createdGroup = this.service.categoryGroups().find((g) => g.id === groupId);
-    const groupName = createdGroup?.name;
+    const groupName = createdGroup?.name || 'Uncategorized';
 
     if (this.newCatTargetContext === 'row' && this.newCatTargetTx) {
       this.onRowCategoryChange(this.newCatTargetTx, name, groupName);
@@ -76,23 +100,50 @@ export class ImportComponent {
       this.onGroupCategoryChange(this.newCatTargetGroup, name, groupName);
     } else if (this.newCatTargetContext === 'rule') {
       this.ruleCategory = name;
+    } else if (this.newCatTargetContext === 'batch_cat') {
+      this.assignMatchingCategoriesToType({ item: name, group: groupName });
+    } else if (this.newCatTargetContext === 'card_cat' && this.newCatTargetKey) {
+      this.onCategoryMappingChange(this.newCatTargetKey, { item: name, group: groupName });
+    } else if (this.newCatTargetContext === 'batch_desc') {
+      this.assignMatchingDescriptionsToType({ item: name, group: groupName });
+    } else if (this.newCatTargetContext === 'card_desc' && this.newCatTargetKey) {
+      this.onDescriptionMappingCategoryChange(this.newCatTargetKey, { item: name, group: groupName });
     }
     this.closeAddCategoryModal();
   }
 
-  public openAddCategoryModal(targetTx?: Transaction, context: 'row' | 'group' | 'rule' | 'toolbar' = 'toolbar', targetGroup?: DescriptionGroup): void {
-    this.newCatTargetTx = targetTx || null;
-    this.newCatTargetGroup = targetGroup || null;
+  public openAddCategoryModal(
+    targetTxOrInitialName?: Transaction | string,
+    context: 'row' | 'group' | 'rule' | 'toolbar' | 'batch_cat' | 'card_cat' | 'batch_desc' | 'card_desc' = 'toolbar',
+    targetGroupOrKey?: DescriptionGroup | string
+  ): void {
+    if (typeof targetTxOrInitialName === 'object' && targetTxOrInitialName !== null) {
+      this.newCatTargetTx = targetTxOrInitialName;
+    } else {
+      this.newCatTargetTx = null;
+    }
+    if (typeof targetGroupOrKey === 'object' && targetGroupOrKey !== null) {
+      this.newCatTargetGroup = targetGroupOrKey;
+      this.newCatTargetKey = null;
+    } else if (typeof targetGroupOrKey === 'string') {
+      this.newCatTargetGroup = null;
+      this.newCatTargetKey = targetGroupOrKey;
+    } else {
+      this.newCatTargetGroup = null;
+      this.newCatTargetKey = null;
+    }
     this.newCatTargetContext = context;
+
+    const initialSubName = typeof targetTxOrInitialName === 'string' ? targetTxOrInitialName.trim() : '';
     const groups = this.service.categoryGroups();
     this.newCatMode.set(groups.length > 0 ? 'existing' : 'new_heading');
-    const currentGroup = targetTx?.categoryGroup || targetGroup?.categoryGroup;
+    const currentGroup = this.newCatTargetTx?.categoryGroup || this.newCatTargetGroup?.categoryGroup;
     const matchedGroup = currentGroup ? groups.find((g) => g.name === currentGroup) : null;
     const initialGroupId = matchedGroup ? matchedGroup.id : (groups.length > 0 ? groups[0].id : '');
     this.newCatSelectedGroupId.set(initialGroupId);
     this.newCatHeadingName.set('');
     this.newCatHeadingIcon.set('📁');
-    this.newCatSubName.set('');
+    this.newCatSubName.set(initialSubName);
     this.showAddCategoryModal.set(true);
   }
 
@@ -100,6 +151,7 @@ export class ImportComponent {
     this.showAddCategoryModal.set(false);
     this.newCatTargetTx = null;
     this.newCatTargetGroup = null;
+    this.newCatTargetKey = null;
   }
 
   public saveNewCategory(): void {
@@ -123,7 +175,7 @@ export class ImportComponent {
     }
 
     const createdGroup = this.service.categoryGroups().find((g) => g.id === groupId);
-    const groupName = createdGroup?.name;
+    const groupName = createdGroup?.name || 'Uncategorized';
 
     if (this.newCatTargetContext === 'row' && this.newCatTargetTx) {
       this.onRowCategoryChange(this.newCatTargetTx, subName, groupName);
@@ -131,6 +183,14 @@ export class ImportComponent {
       this.onGroupCategoryChange(this.newCatTargetGroup, subName, groupName);
     } else if (this.newCatTargetContext === 'rule') {
       this.ruleCategory = subName;
+    } else if (this.newCatTargetContext === 'batch_cat') {
+      this.assignMatchingCategoriesToType({ item: subName, group: groupName });
+    } else if (this.newCatTargetContext === 'card_cat' && this.newCatTargetKey) {
+      this.onCategoryMappingChange(this.newCatTargetKey, { item: subName, group: groupName });
+    } else if (this.newCatTargetContext === 'batch_desc') {
+      this.assignMatchingDescriptionsToType({ item: subName, group: groupName });
+    } else if (this.newCatTargetContext === 'card_desc' && this.newCatTargetKey) {
+      this.onDescriptionMappingCategoryChange(this.newCatTargetKey, { item: subName, group: groupName });
     }
 
     this.closeAddCategoryModal();
@@ -138,6 +198,10 @@ export class ImportComponent {
 
   @HostListener('window:keydown.escape')
   public onEscapeKey(): void {
+    if (this.isOwnerExcludeDropdownOpen()) {
+      this.isOwnerExcludeDropdownOpen.set(false);
+      return;
+    }
     if (this.showAddCategoryModal()) {
       this.closeAddCategoryModal();
       return;
@@ -153,6 +217,13 @@ export class ImportComponent {
     if (this.viewingBatch()) {
       this.closeBatchModal();
       return;
+    }
+  }
+
+  @HostListener('document:click')
+  public onImportDocumentClick(): void {
+    if (this.isOwnerExcludeDropdownOpen()) {
+      this.isOwnerExcludeDropdownOpen.set(false);
     }
   }
 
@@ -221,7 +292,15 @@ export class ImportComponent {
   public sortedTransactions = computed(() => {
     const res = this.previewResult();
     if (!res || !res.transactions) return [];
-    return this.sortTxList(res.transactions);
+    let list = res.transactions;
+    if (this.selectedCategoryFilter()) {
+      const cat = this.selectedCategoryFilter();
+      list = list.filter((t) => (t.rawCategory || t.categoryItem || 'Uncategorized').trim() === cat);
+    } else if (this.selectedDescriptionFilter()) {
+      const desc = this.selectedDescriptionFilter();
+      list = list.filter((t) => (t.description || t.merchant || 'Unspecified').trim() === desc);
+    }
+    return this.sortTxList(list);
   });
 
   public reviewTransactions = computed(() => {
@@ -1355,14 +1434,991 @@ export class ImportComponent {
     }
   }
 
+  // EveryDollar-style View Modes & Batch Mapping State
+  public importGroupByMode = signal<'table' | 'category' | 'description'>('table');
+  public categoryMatchKeyword = signal<string>('');
+  public typeMatchKeyword = signal<string>('');
+  public typeBatchItem = signal<string>('');
+  public typeBatchGroup = signal<string>('');
+  public typeExcludeAssigned = signal<boolean>(false);
+  public categoryExcludeIncome = signal<boolean>(false);
+
+  public descriptionMatchKeyword = signal<string>('');
+  public descriptionBatchItem = signal<string>('');
+  public descriptionBatchGroup = signal<string>('');
+  public descExcludeAssigned = signal<boolean>(false);
+
+  public excludedOwners = signal<string[]>([]);
+  public isOwnerExcludeDropdownOpen = signal<boolean>(false);
+
+  public expandedCategory = signal<string | null>(null);
+  public expandedDescription = signal<string | null>(null);
+  public selectedCategoryFilter = signal<string | null>(null);
+  public selectedDescriptionFilter = signal<string | null>(null);
+
+  public categoryDisplayLimit = signal<number>(60);
+  public descriptionDisplayLimit = signal<number>(60);
+  public showPreviewTable = signal<boolean>(true);
+
   // Description Grouping for Valid Transactions
   public isGroupByDescription = signal<boolean>(false);
   public expandedDescriptionGroups = signal<Set<string>>(new Set());
 
-  public onToggleGroupByDescription(val: boolean): void {
-    this.isGroupByDescription.set(val);
-    this.expandedDescriptionGroups.set(new Set());
+  public setGroupByMode(mode: 'table' | 'category' | 'description'): void {
+    this.importGroupByMode.set(mode);
+    this.isGroupByDescription.set(mode === 'description');
+    this.expandedCategory.set(null);
+    this.expandedDescription.set(null);
   }
+
+  public onToggleGroupByDescription(val: boolean): void {
+    this.setGroupByMode(val ? 'description' : 'table');
+  }
+
+  public categoryMappings = computed<ImportCategoryMapping[]>(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return [];
+    const txs = res.transactions;
+
+    const map = new Map<string, {
+      count: number;
+      totalAmount: number;
+      isIncome: boolean;
+      items: Transaction[];
+    }>();
+
+    for (const tx of txs) {
+      const cat = (tx.rawCategory || tx.categoryItem || 'Uncategorized').trim();
+      const existing = map.get(cat) || { count: 0, totalAmount: 0, isIncome: false, items: [] };
+      existing.count++;
+      existing.totalAmount += Number(tx.amount) || 0;
+      if (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income')) {
+        existing.isIncome = true;
+      }
+      existing.items.push(tx);
+      map.set(cat, existing);
+    }
+
+    const defaultPerson = this.selectedOwner() || this.service.personOne().name;
+    const result: ImportCategoryMapping[] = [];
+
+    map.forEach((val, rawCategory) => {
+      const definedItem = val.items.find((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
+      const definedGroup = val.items.find((t) => t.categoryGroup && t.categoryGroup !== 'Uncategorized');
+      const firstSplit = val.items[0]?.splitType || 'SELF';
+      const allSameSplit = val.items.every((t) => t.splitType === firstSplit);
+      const firstOwner = val.items[0]?.paidBy || defaultPerson;
+      const allSameOwner = val.items.every((t) => t.paidBy === firstOwner);
+
+      result.push({
+        rawCategory,
+        count: val.count,
+        totalAmount: Math.round(val.totalAmount * 100) / 100,
+        selectedItem: definedItem?.categoryItem || 'Uncategorized',
+        selectedGroup: definedGroup?.categoryGroup || 'Uncategorized',
+        selectedPerson: allSameOwner ? firstOwner : '',
+        selectedSplitType: allSameSplit ? firstSplit : 'SELF',
+        isIncome: val.isIncome
+      });
+    });
+
+    return result.sort((a, b) => b.count - a.count);
+  });
+
+  public descriptionMappings = computed<ImportDescriptionMapping[]>(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return [];
+    const txs = res.transactions;
+
+    const map = new Map<string, {
+      count: number;
+      totalAmount: number;
+      isIncome: boolean;
+      items: Transaction[];
+    }>();
+
+    for (const tx of txs) {
+      const desc = (tx.description || tx.merchant || 'Unspecified').trim();
+      const existing = map.get(desc) || { count: 0, totalAmount: 0, isIncome: false, items: [] };
+      existing.count++;
+      existing.totalAmount += Number(tx.amount) || 0;
+      if (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income')) {
+        existing.isIncome = true;
+      }
+      existing.items.push(tx);
+      map.set(desc, existing);
+    }
+
+    const defaultPerson = this.selectedOwner() || this.service.personOne().name;
+    const result: ImportDescriptionMapping[] = [];
+
+    map.forEach((val, description) => {
+      const definedItem = val.items.find((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
+      const definedGroup = val.items.find((t) => t.categoryGroup && t.categoryGroup !== 'Uncategorized');
+      const firstSplit = val.items[0]?.splitType || 'SELF';
+      const allSameSplit = val.items.every((t) => t.splitType === firstSplit);
+      const firstOwner = val.items[0]?.paidBy || defaultPerson;
+      const allSameOwner = val.items.every((t) => t.paidBy === firstOwner);
+      const rawCategories = Array.from(
+        new Set(val.items.map((t) => (t.rawCategory || t.categoryItem || '').trim()).filter(Boolean))
+      );
+
+      result.push({
+        description,
+        count: val.count,
+        totalAmount: Math.round(val.totalAmount * 100) / 100,
+        selectedItem: definedItem?.categoryItem || 'Uncategorized',
+        selectedGroup: definedGroup?.categoryGroup || 'Uncategorized',
+        selectedPerson: allSameOwner ? firstOwner : '',
+        selectedSplitType: allSameSplit ? firstSplit : 'SELF',
+        rawCategories,
+        isIncome: val.isIncome
+      });
+    });
+
+    return result.sort((a, b) => b.count - a.count);
+  });
+
+  public displayedCategoryMappings = computed<ImportCategoryMapping[]>(() => {
+    const list = this.categoryMappings();
+    const q = this.categoryMatchKeyword().trim().toLowerCase();
+    const typeQ = this.typeMatchKeyword().trim().toLowerCase();
+    const activeQ = q || typeQ;
+    if (!activeQ) return list;
+
+    const matched: ImportCategoryMapping[] = [];
+    const unmatched: ImportCategoryMapping[] = [];
+
+    for (const m of list) {
+      if (m.rawCategory.toLowerCase().includes(activeQ)) {
+        matched.push(m);
+      } else {
+        unmatched.push(m);
+      }
+    }
+    return [...matched, ...unmatched];
+  });
+
+  public displayedDescriptionMappings = computed<ImportDescriptionMapping[]>(() => {
+    const list = this.descriptionMappings();
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return list;
+
+    const matched: ImportDescriptionMapping[] = [];
+    const unmatched: ImportDescriptionMapping[] = [];
+
+    for (const d of list) {
+      if (d.description.toLowerCase().includes(q)) {
+        matched.push(d);
+      } else {
+        unmatched.push(d);
+      }
+    }
+    return [...matched, ...unmatched];
+  });
+
+  public isCategoryMatched(rawCategory: string): boolean {
+    const q = (this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
+    if (!q) return false;
+    return rawCategory.toLowerCase().includes(q);
+  }
+
+  public isDescriptionMatched(desc: string): boolean {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return false;
+    return desc.toLowerCase().includes(q);
+  }
+
+  public isFirstUnmatched(m: ImportCategoryMapping, idx: number): boolean {
+    const q = (this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
+    if (!q) return false;
+    if (this.isCategoryMatched(m.rawCategory)) return false;
+    const list = this.displayedCategoryMappings();
+    return idx > 0 && this.isCategoryMatched(list[idx - 1].rawCategory);
+  }
+
+  public isFirstUnmatchedDescription(d: ImportDescriptionMapping, idx: number): boolean {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return false;
+    if (this.isDescriptionMatched(d.description)) return false;
+    const list = this.displayedDescriptionMappings();
+    return idx > 0 && this.isDescriptionMatched(list[idx - 1].description);
+  }
+
+  public getHighlightedCategoryHtml(rawCategory: string): string {
+    const q = (this.categoryMatchKeyword() || this.typeMatchKeyword()).trim();
+    if (!q || !rawCategory) return rawCategory || 'Uncategorized';
+    const regex = new RegExp(`(${this.escapeRegex(q)})`, 'gi');
+    return rawCategory.replace(regex, '<span class="ed-highlight-mark">$1</span>');
+  }
+
+  public getHighlightedDescriptionHtml(desc: string): string {
+    const q = this.descriptionMatchKeyword().trim();
+    if (!q || !desc) return desc || 'Unspecified';
+    const regex = new RegExp(`(${this.escapeRegex(q)})`, 'gi');
+    return desc.replace(regex, '<span class="ed-highlight-mark">$1</span>');
+  }
+
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  public toggleExpandCategory(rawCategory: string): void {
+    this.expandedCategory.update((curr) => (curr === rawCategory ? null : rawCategory));
+  }
+
+  public toggleExpandDescription(desc: string): void {
+    this.expandedDescription.update((curr) => (curr === desc ? null : desc));
+  }
+
+  public setCategoryFilter(cat: string | null): void {
+    this.selectedCategoryFilter.set(cat);
+    this.selectedDescriptionFilter.set(null);
+    if (cat) {
+      this.showPreviewTable.set(true);
+    }
+  }
+
+  public setDescriptionFilter(desc: string | null): void {
+    this.selectedDescriptionFilter.set(desc);
+    this.selectedCategoryFilter.set(null);
+    if (desc) {
+      this.showPreviewTable.set(true);
+    }
+  }
+
+  public toggleOwnerExcludeDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isOwnerExcludeDropdownOpen.update((v) => !v);
+  }
+
+  public getExcludedOwnersLabel(): string {
+    const list = this.excludedOwners();
+    if (list.length === 0) return 'None';
+    if (list.length <= 2) return list.join(', ');
+    return `${list.length} persons`;
+  }
+
+  public isOwnerExcluded(personName: string): boolean {
+    return this.excludedOwners().includes(personName);
+  }
+
+  public toggleOwnerExclude(personName: string): void {
+    this.excludedOwners.update((curr) =>
+      curr.includes(personName) ? curr.filter((x) => x !== personName) : [...curr, personName]
+    );
+  }
+
+  public clearOwnerExclusions(): void {
+    this.excludedOwners.set([]);
+  }
+
+  public isCategoryOwnerExcluded(m: ImportCategoryMapping): boolean {
+    const excluded = this.excludedOwners();
+    if (excluded.length === 0) return false;
+    return excluded.includes(m.selectedPerson);
+  }
+
+  public isDescriptionMappingOwnerExcluded(m: ImportDescriptionMapping): boolean {
+    const excluded = this.excludedOwners();
+    if (excluded.length === 0) return false;
+    return excluded.includes(m.selectedPerson);
+  }
+
+  public isTxOwnerExcluded(tx: Transaction): boolean {
+    const excluded = this.excludedOwners();
+    if (excluded.length === 0) return false;
+    return excluded.includes(tx.paidBy);
+  }
+
+  public getTransactionsForCategory(rawCategory: string): Transaction[] {
+    const res = this.previewResult();
+    if (!res) return [];
+    return res.transactions.filter(
+      (t) => (t.rawCategory || t.categoryItem || 'Uncategorized').trim() === rawCategory
+    );
+  }
+
+  public getTransactionsForDescription(desc: string): Transaction[] {
+    const res = this.previewResult();
+    if (!res) return [];
+    return res.transactions.filter(
+      (t) => (t.description || t.merchant || 'Unspecified').trim() === desc
+    );
+  }
+
+  public setTxSplit(tx: Transaction, split: SplitType): void {
+    tx.splitType = split;
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+  }
+
+  public setTxPerson(tx: Transaction, person: string): void {
+    tx.paidBy = person;
+    tx.splitType = 'SELF';
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+  }
+
+  public onCategorySplitTypeChange(rawCategory: string, splitType: SplitType): void {
+    const res = this.previewResult();
+    if (!res) return;
+    for (const tx of res.transactions) {
+      if ((tx.rawCategory || tx.categoryItem || 'Uncategorized').trim() === rawCategory) {
+        tx.splitType = splitType;
+      }
+    }
+    this.previewResult.set({ ...res });
+  }
+
+  public onCategoryPersonChange(rawCategory: string, personName: string): void {
+    const res = this.previewResult();
+    if (!res) return;
+    for (const tx of res.transactions) {
+      if ((tx.rawCategory || tx.categoryItem || 'Uncategorized').trim() === rawCategory) {
+        tx.paidBy = personName;
+        tx.splitType = 'SELF';
+      }
+    }
+    this.previewResult.set({ ...res });
+  }
+
+  public onCategoryMappingChange(rawCategory: string, selection: { item: string; group?: string }): void {
+    const chosenItem = selection.item || 'Uncategorized';
+    let chosenGroup = selection.group || 'Uncategorized';
+    if (chosenGroup === 'Uncategorized' && chosenItem !== 'Uncategorized') {
+      for (const g of this.service.categoryGroups()) {
+        if (g.items.some((i) => i.name === chosenItem)) {
+          chosenGroup = g.name;
+          break;
+        }
+      }
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+    const isIncome = chosenGroup.toLowerCase().includes('income');
+
+    for (const tx of res.transactions) {
+      if ((tx.rawCategory || tx.categoryItem || 'Uncategorized').trim() === rawCategory) {
+        tx.categoryItem = chosenItem;
+        tx.categoryGroup = chosenGroup;
+        if (isIncome) {
+          tx.type = 'INCOME';
+        }
+      }
+    }
+    this.previewResult.set({ ...res });
+  }
+
+  public onDescriptionSplitTypeChange(desc: string, splitType: SplitType): void {
+    const res = this.previewResult();
+    if (!res) return;
+    for (const tx of res.transactions) {
+      if ((tx.description || tx.merchant || 'Unspecified').trim() === desc) {
+        tx.splitType = splitType;
+      }
+    }
+    this.previewResult.set({ ...res });
+  }
+
+  public onDescriptionPersonChange(desc: string, personName: string): void {
+    const res = this.previewResult();
+    if (!res) return;
+    for (const tx of res.transactions) {
+      if ((tx.description || tx.merchant || 'Unspecified').trim() === desc) {
+        tx.paidBy = personName;
+        tx.splitType = 'SELF';
+      }
+    }
+    this.previewResult.set({ ...res });
+  }
+
+  public onDescriptionMappingCategoryChange(desc: string, selection: { item: string; group?: string }): void {
+    const chosenItem = selection.item || 'Uncategorized';
+    let chosenGroup = selection.group || 'Uncategorized';
+    if (chosenGroup === 'Uncategorized' && chosenItem !== 'Uncategorized') {
+      for (const g of this.service.categoryGroups()) {
+        if (g.items.some((i) => i.name === chosenItem)) {
+          chosenGroup = g.name;
+          break;
+        }
+      }
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+    const isIncome = chosenGroup.toLowerCase().includes('income');
+
+    for (const tx of res.transactions) {
+      if ((tx.description || tx.merchant || 'Unspecified').trim() === desc) {
+        tx.categoryItem = chosenItem;
+        tx.categoryGroup = chosenGroup;
+        if (isIncome) {
+          tx.type = 'INCOME';
+        }
+      }
+    }
+    this.previewResult.set({ ...res });
+  }
+
+  public getMatchingCategoriesCount(keyword: string): number {
+    const q = (keyword || '').trim().toLowerCase();
+    if (!q) return 0;
+    const excludeIncome = this.categoryExcludeIncome();
+    const res = this.previewResult();
+    if (!res) return 0;
+
+    let count = 0;
+    for (const t of res.transactions) {
+      if (excludeIncome && (t.type === 'INCOME' || (t.categoryGroup || '').toLowerCase().includes('income'))) {
+        continue;
+      }
+      if (this.isTxOwnerExcluded(t)) {
+        continue;
+      }
+      const cat = (t.rawCategory || t.categoryItem || 'Uncategorized').toLowerCase();
+      if (cat.includes(q)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public getTypeMatchingCategoriesCount(keyword: string): number {
+    const q = (keyword || '').trim().toLowerCase();
+    if (!q) return 0;
+    const excludeAssigned = this.typeExcludeAssigned();
+    const excludeIncome = this.categoryExcludeIncome();
+    const res = this.previewResult();
+    if (!res) return 0;
+
+    let count = 0;
+    for (const t of res.transactions) {
+      if (excludeIncome && (t.type === 'INCOME' || (t.categoryGroup || '').toLowerCase().includes('income'))) {
+        continue;
+      }
+      if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+        continue;
+      }
+      const cat = (t.rawCategory || t.categoryItem || 'Uncategorized').toLowerCase();
+      if (cat.includes(q)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public getMatchingTransactionsByDescriptionCount(keyword: string): number {
+    const q = (keyword || '').trim().toLowerCase();
+    if (!q) return 0;
+    const res = this.previewResult();
+    if (!res) return 0;
+
+    let count = 0;
+    for (const t of res.transactions) {
+      if (this.isTxOwnerExcluded(t)) {
+        continue;
+      }
+      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public getDescriptionMatchingCount(keyword: string): number {
+    const q = (keyword || '').trim().toLowerCase();
+    if (!q) return 0;
+    const excludeAssigned = this.descExcludeAssigned();
+    const res = this.previewResult();
+    if (!res) return 0;
+
+    let count = 0;
+    for (const t of res.transactions) {
+      if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+        continue;
+      }
+      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public assignMatchingCategoriesToPerson(personName: string): void {
+    const q = this.categoryMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a category name in the box to match.', 'info');
+      return;
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+
+    const excludeIncome = this.categoryExcludeIncome();
+    let matchedCount = 0;
+    let skippedExcludedOwner = 0;
+    let skippedIncome = 0;
+
+    for (const t of res.transactions) {
+      const cat = (t.rawCategory || t.categoryItem || 'Uncategorized').toLowerCase();
+      if (cat.includes(q)) {
+        if (excludeIncome && (t.type === 'INCOME' || (t.categoryGroup || '').toLowerCase().includes('income'))) {
+          skippedIncome++;
+          continue;
+        }
+        if (this.isTxOwnerExcluded(t)) {
+          skippedExcludedOwner++;
+          continue;
+        }
+        t.paidBy = personName;
+        t.splitType = 'SELF';
+        matchedCount++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+
+    if (matchedCount === 0) {
+      if (skippedExcludedOwner > 0) {
+        this.service.showToast(`All matching transactions belong to excluded owners (${skippedExcludedOwner} skipped).`, 'info');
+      } else if (skippedIncome > 0) {
+        this.service.showToast(`All matching transactions are income (${skippedIncome} skipped).`, 'info');
+      } else {
+        this.service.showToast(`No transactions found in categories containing "${this.categoryMatchKeyword().trim()}".`, 'info');
+      }
+      return;
+    }
+
+    this.service.showToast(`Assigned ${matchedCount} transactions matching "${this.categoryMatchKeyword().trim()}" to ${personName}!`, 'success');
+  }
+
+  public assignMatchingCategoriesToSplit(): void {
+    const q = this.categoryMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a category name in the box to match.', 'info');
+      return;
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+
+    const excludeIncome = this.categoryExcludeIncome();
+    let matchedCount = 0;
+    let skippedExcludedOwner = 0;
+    let skippedIncome = 0;
+
+    for (const t of res.transactions) {
+      const cat = (t.rawCategory || t.categoryItem || 'Uncategorized').toLowerCase();
+      if (cat.includes(q)) {
+        if (excludeIncome && (t.type === 'INCOME' || (t.categoryGroup || '').toLowerCase().includes('income'))) {
+          skippedIncome++;
+          continue;
+        }
+        if (this.isTxOwnerExcluded(t)) {
+          skippedExcludedOwner++;
+          continue;
+        }
+        t.splitType = 'SPLIT';
+        matchedCount++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+
+    if (matchedCount === 0) {
+      this.service.showToast(`No transactions updated for "${this.categoryMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.service.showToast(`Set ${matchedCount} transactions matching "${this.categoryMatchKeyword().trim()}" to 50/50 Split!`, 'success');
+  }
+
+  public assignMatchingCategoriesToType(selection: { item: string; group?: string }): void {
+    const chosenItem = selection.item || 'Uncategorized';
+    let chosenGroup = selection.group || 'Uncategorized';
+    if (chosenGroup === 'Uncategorized' && chosenItem !== 'Uncategorized') {
+      for (const g of this.service.categoryGroups()) {
+        if (g.items.some((i) => i.name === chosenItem)) {
+          chosenGroup = g.name;
+          break;
+        }
+      }
+    }
+
+    const q = this.typeMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type text in the match box first.', 'info');
+      return;
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+
+    const excludeAssigned = this.typeExcludeAssigned();
+    const excludeIncome = this.categoryExcludeIncome();
+    const isIncome = chosenGroup.toLowerCase().includes('income');
+
+    let matchedCount = 0;
+    let skippedCount = 0;
+
+    for (const t of res.transactions) {
+      const cat = (t.rawCategory || t.categoryItem || 'Uncategorized').toLowerCase();
+      if (cat.includes(q)) {
+        if (excludeIncome && (t.type === 'INCOME' || (t.categoryGroup || '').toLowerCase().includes('income'))) {
+          continue;
+        }
+        if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+          skippedCount++;
+          continue;
+        }
+        t.categoryItem = chosenItem;
+        t.categoryGroup = chosenGroup;
+        if (isIncome) {
+          t.type = 'INCOME';
+        }
+        matchedCount++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+    this.typeBatchItem.set(chosenItem);
+    this.typeBatchGroup.set(chosenGroup);
+
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} already assigned skipped)` : '';
+    this.service.showToast(`Assigned ${matchedCount} transactions matching "${this.typeMatchKeyword().trim()}" to ${chosenItem}!${skippedMsg}`, 'success');
+  }
+
+  public assignMatchingDescriptionsToPerson(personName: string): void {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a description in the box to match.', 'info');
+      return;
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+
+    let matchedCount = 0;
+    let skippedCount = 0;
+
+    for (const t of res.transactions) {
+      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+        if (this.isTxOwnerExcluded(t)) {
+          skippedCount++;
+          continue;
+        }
+        t.paidBy = personName;
+        t.splitType = 'SELF';
+        matchedCount++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+
+    if (matchedCount === 0) {
+      if (skippedCount > 0) {
+        this.service.showToast(`All transactions matching "${this.descriptionMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`, 'info');
+      } else {
+        this.service.showToast(`No transactions found with description containing "${this.descriptionMatchKeyword().trim()}".`, 'info');
+      }
+      return;
+    }
+
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} excluded)` : '';
+    this.service.showToast(`Assigned ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}" to ${personName}!${skippedMsg}`, 'success');
+  }
+
+  public assignMatchingDescriptionsToSplit(): void {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a description in the box to match.', 'info');
+      return;
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+
+    let matchedCount = 0;
+    let skippedCount = 0;
+
+    for (const t of res.transactions) {
+      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+        if (this.isTxOwnerExcluded(t)) {
+          skippedCount++;
+          continue;
+        }
+        t.splitType = 'SPLIT';
+        matchedCount++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+
+    if (matchedCount === 0) {
+      if (skippedCount > 0) {
+        this.service.showToast(`All transactions matching "${this.descriptionMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`, 'info');
+      } else {
+        this.service.showToast(`No transactions found with description containing "${this.descriptionMatchKeyword().trim()}".`, 'info');
+      }
+      return;
+    }
+
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} excluded)` : '';
+    this.service.showToast(`Set ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}" to 50/50 Split!${skippedMsg}`, 'success');
+  }
+
+  public assignMatchingDescriptionsToType(selection: { item: string; group?: string }): void {
+    const chosenItem = selection.item || 'Uncategorized';
+    let chosenGroup = selection.group || 'Uncategorized';
+    if (chosenGroup === 'Uncategorized' && chosenItem !== 'Uncategorized') {
+      for (const g of this.service.categoryGroups()) {
+        if (g.items.some((i) => i.name === chosenItem)) {
+          chosenGroup = g.name;
+          break;
+        }
+      }
+    }
+
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a description keyword to match.', 'info');
+      return;
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+
+    const excludeAssigned = this.descExcludeAssigned();
+    const isIncome = chosenGroup.toLowerCase().includes('income');
+
+    let matchedCount = 0;
+    let skippedCount = 0;
+
+    for (const t of res.transactions) {
+      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+        if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+          skippedCount++;
+          continue;
+        }
+        t.categoryItem = chosenItem;
+        t.categoryGroup = chosenGroup;
+        if (isIncome) {
+          t.type = 'INCOME';
+        }
+        matchedCount++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+    this.descriptionBatchItem.set(chosenItem);
+    this.descriptionBatchGroup.set(chosenGroup);
+
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
+    this.service.showToast(`Assigned ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}" to ${chosenItem}!${skippedMsg}`, 'success');
+  }
+
+  public clearCategoryMatchKeyword(): void {
+    this.categoryMatchKeyword.set('');
+  }
+
+  public onTypeKeywordChange(keyword: string): void {
+    this.typeMatchKeyword.set(keyword);
+  }
+
+  public clearTypeMatchKeyword(): void {
+    this.typeMatchKeyword.set('');
+    this.typeBatchItem.set('');
+    this.typeBatchGroup.set('');
+  }
+
+  public onDescriptionKeywordChange(keyword: string): void {
+    this.descriptionMatchKeyword.set(keyword);
+  }
+
+  public clearDescriptionMatchKeyword(): void {
+    this.descriptionMatchKeyword.set('');
+    this.descriptionBatchItem.set('');
+    this.descriptionBatchGroup.set('');
+  }
+
+  public loadMoreCategories(): void {
+    this.categoryDisplayLimit.update((c) => c + 60);
+  }
+
+  public loadAllCategories(): void {
+    this.categoryDisplayLimit.set(999999);
+  }
+
+  public loadMoreDescriptions(): void {
+    this.descriptionDisplayLimit.update((c) => c + 60);
+  }
+
+  public loadAllDescriptions(): void {
+    this.descriptionDisplayLimit.set(999999);
+  }
+
+  public togglePreviewTable(): void {
+    this.showPreviewTable.update((v) => !v);
+  }
+
+  public autoMatchAllCategories(): void {
+    const groups = this.service.categoryGroups();
+    const allCandidates: { item: string; group: string; normItem: string; normGroup: string }[] = [];
+    for (const g of groups) {
+      const normGroup = this.normalizeCategoryText(g.name);
+      for (const it of g.items) {
+        allCandidates.push({
+          item: it.name,
+          group: g.name,
+          normItem: this.normalizeCategoryText(it.name),
+          normGroup,
+        });
+      }
+    }
+
+    const res = this.previewResult();
+    if (!res || !res.transactions || res.transactions.length === 0) {
+      this.service.showToast('No transactions to match.', 'info');
+      return;
+    }
+
+    let txsUpdated = 0;
+    for (const t of res.transactions) {
+      // 1. Try matching rawCategory if present
+      let match = t.rawCategory ? this.findBestCategoryMatch(t.rawCategory, allCandidates) : null;
+      // 2. Fallback to description
+      if (!match) {
+        match = this.findBestCategoryMatch(t.description || t.merchant || '', allCandidates);
+      }
+      if (match) {
+        t.categoryItem = match.item;
+        t.categoryGroup = match.group;
+        txsUpdated++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+
+    if (txsUpdated > 0) {
+      this.service.showToast(
+        `✨ Auto-matched ${txsUpdated} transactions to Splitboard categories!`,
+        'success'
+      );
+    } else {
+      this.service.showToast('No automatic category matches found.', 'info');
+    }
+  }
+
+  public assignAllMappingsToPerson(personName: string): void {
+    const res = this.previewResult();
+    if (!res || !res.transactions || res.transactions.length === 0) return;
+    for (const t of res.transactions) {
+      t.paidBy = personName;
+      t.splitType = 'SELF';
+    }
+    this.previewResult.set({ ...res });
+    this.service.showToast(`Assigned all ${res.transactions.length} transactions to ${personName}!`, 'success');
+  }
+
+  public resetAllCategoryMappingsToUncategorized(): void {
+    const res = this.previewResult();
+    if (!res || !res.transactions || res.transactions.length === 0) return;
+    for (const t of res.transactions) {
+      t.categoryItem = 'Uncategorized';
+      t.categoryGroup = 'Uncategorized';
+    }
+    this.previewResult.set({ ...res });
+    this.service.showToast('Reset all categories to Uncategorized.', 'info');
+  }
+
+  private normalizeCategoryText(s: string): string {
+    if (!s) return '';
+    return s
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private findBestCategoryMatch(
+    text: string,
+    candidates: { item: string; group: string; normItem: string; normGroup: string }[]
+  ): { item: string; group: string } | null {
+    const normText = this.normalizeCategoryText(text);
+    if (!normText || normText === 'uncategorized') return null;
+
+    let bestMatch: { item: string; group: string } | null = null;
+    let highestScore = 0;
+
+    const stopWords = new Set(['and', '&', 'the', 'for', 'of', 'in', 'an', 'ai', 'to', 'a', 'or', 'on', 'at', 'with', 'inc', 'llc', 'gmbh']);
+    const rawWords = normText.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
+
+    for (const cand of candidates) {
+      let score = 0;
+
+      // 1. Exact match with item name
+      if (normText === cand.normItem) {
+        score = 1000;
+      }
+      // 2. Exact match with group name
+      else if (normText === cand.normGroup) {
+        score = 800;
+      }
+      // 3. Raw text contains full item name
+      else if (normText.includes(cand.normItem) && cand.normItem.length >= 3) {
+        score = 600 + cand.normItem.length * 10;
+      }
+      // 4. Item contains full raw text
+      else if (cand.normItem.includes(normText) && normText.length >= 3) {
+        score = 500 + normText.length * 10;
+      }
+      // 5. Raw text contains full group name
+      else if (normText.includes(cand.normGroup) && cand.normGroup.length >= 3) {
+        score = 400 + cand.normGroup.length * 5;
+      }
+      // 6. Group contains full raw text
+      else if (cand.normGroup.includes(normText) && normText.length >= 3) {
+        score = 350 + normText.length * 5;
+      }
+      // 7. Word overlap matching
+      else if (rawWords.length > 0) {
+        const itemWords = cand.normItem.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
+        const groupWords = cand.normGroup.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
+
+        let matchedWords = 0;
+        for (const rw of rawWords) {
+          const itemHit = itemWords.some(
+            (iw) => iw === rw || iw.startsWith(rw) || rw.startsWith(iw) || this.isFuzzyWordMatch(rw, iw)
+          );
+          const groupHit = groupWords.some(
+            (gw) => gw === rw || gw.startsWith(rw) || rw.startsWith(gw) || this.isFuzzyWordMatch(rw, gw)
+          );
+          if (itemHit) matchedWords += 2;
+          else if (groupHit) matchedWords += 1;
+        }
+
+        if (matchedWords > 0) {
+          score = 200 + matchedWords * 50;
+        }
+      }
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = { item: cand.item, group: cand.group };
+      }
+    }
+
+    return highestScore >= 200 ? bestMatch : null;
+  }
+
+  private isFuzzyWordMatch(w1: string, w2: string): boolean {
+    if (w1.length < 4 || w2.length < 4) return false;
+    const prefixLen = Math.min(4, Math.min(w1.length, w2.length));
+    return w1.slice(0, prefixLen) === w2.slice(0, prefixLen);
+  }
+
 
   public toggleDescriptionGroup(desc: string): void {
     this.expandedDescriptionGroups.update((set) => {
