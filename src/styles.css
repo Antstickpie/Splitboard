@@ -571,6 +571,7 @@ tr:hover td {
 }
 
 /* Modals */
+.modal-backdrop,
 .modal-backdrop-overlay {
   position: fixed;
   top: 0;
@@ -623,12 +624,21 @@ tr:hover td {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease forwards;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes spin {
@@ -639,3 +649,4 @@ tr:hover td {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
