@@ -11,7 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
-import { AnalyticsNlpService, AnalyticsResult, MonthBucket } from '../../services/analytics-nlp.service';
+import { AnalyticsNlpService, AnalyticsResult, DateRange, MonthBucket } from '../../services/analytics-nlp.service';
 import { Transaction } from '../../models';
 
 export type AuditSortField = 'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount';
@@ -51,13 +51,13 @@ export class AnalyticsSearchComponent implements OnInit {
   }
 
   /**
-   * Filter table below when clicking a graph card (PRIMARY vs COMPARISON period).
+   * Filter table below when clicking a graph card (period label).
    */
-  public selectGraphPeriod(period: 'PRIMARY' | 'COMPARISON'): void {
-    if (this.auditPeriodFilter() === period && this.auditMonthFilter() === 'ALL') {
+  public selectGraphPeriod(periodLabel: string): void {
+    if (this.auditPeriodFilter() === periodLabel && this.auditMonthFilter() === 'ALL') {
       this.auditPeriodFilter.set('ALL');
     } else {
-      this.auditPeriodFilter.set(period);
+      this.auditPeriodFilter.set(periodLabel);
       this.auditMonthFilter.set('ALL');
       this.isAuditOpen.set(true);
     }
@@ -66,7 +66,7 @@ export class AnalyticsSearchComponent implements OnInit {
   /**
    * Filter table below to a specific month when clicking a month bar.
    */
-  public selectMonth(monthKey: string, period?: 'PRIMARY' | 'COMPARISON', event?: Event): void {
+  public selectMonth(monthKey: string, periodLabel?: string, event?: Event): void {
     if (event) {
       event.stopPropagation();
     }
@@ -74,12 +74,48 @@ export class AnalyticsSearchComponent implements OnInit {
       this.auditMonthFilter.set('ALL');
     } else {
       this.auditMonthFilter.set(monthKey);
-      if (period) {
-        this.auditPeriodFilter.set(period);
+      if (periodLabel) {
+        this.auditPeriodFilter.set(periodLabel);
       }
       this.isAuditOpen.set(true);
     }
   }
+
+  public isMonthGroupActive(m: { bars: Array<{ monthKey: string }> }): boolean {
+    const activeM = this.auditMonthFilter();
+    if (activeM === 'ALL') return false;
+    return m.bars.some((b) => b.monthKey === activeM);
+  }
+
+  public formatMonthGroupTooltip(m: { monthLabel: string; bars: Array<{ periodLabel: string; total: number }> }): string {
+    const parts = m.bars.map((b) => `${b.periodLabel}: ${this.service.formatCurrency(b.total)}`);
+    return `${m.monthLabel} (${parts.join(' vs ')}) · Click a bar to filter`;
+  }
+
+  public selectMonthGroup(m: { bars: Array<{ monthKey: string; periodLabel: string }> }, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    const activeM = this.auditMonthFilter();
+    if (m.bars.some((b) => b.monthKey === activeM)) {
+      this.auditMonthFilter.set('ALL');
+    } else {
+      const primaryBar = m.bars[0];
+      if (primaryBar) {
+        this.selectMonth(primaryBar.monthKey, primaryBar.periodLabel, event);
+      }
+    }
+  }
+
+  public comparisonSubtitle = computed<string>(() => {
+    const periods = this.allTrendPeriods();
+    if (periods.length > 1) {
+      return periods.map((p) => p.label).join(' vs ');
+    }
+    const res = this.result();
+    if (!res) return '';
+    return res.query.primaryRange.label;
+  });
 
   // Dynamic starter queries built from live user categories and persons
   public starterPills = computed<string[]>(() => {
@@ -105,14 +141,90 @@ export class AnalyticsSearchComponent implements OnInit {
     return pills;
   });
 
-  // Maximum monthly total in current breakdown (for SVG/CSS bar chart height)
-  public maxMonthlyTotal = computed<number>(() => {
+  // Multi-period Trend Views
+  public allTrendPeriods = computed<Array<{
+    label: string;
+    range: DateRange;
+    total: number;
+    count: number;
+    monthlyBreakdown: MonthBucket[];
+    isPrimary: boolean;
+    colorClass: string;
+    dotClass: string;
+    borderClass: string;
+  }>>(() => {
     const res = this.result();
-    if (!res || res.monthlyBreakdown.length === 0) return 1;
-    let max = Math.max(...res.monthlyBreakdown.map((b) => b.total));
-    if (res.comparisonMonthlyBreakdown && res.comparisonMonthlyBreakdown.length > 0) {
-      const compMax = Math.max(...res.comparisonMonthlyBreakdown.map((b) => b.total));
-      max = Math.max(max, compMax);
+    if (!res) return [];
+
+    const periods: Array<{
+      label: string;
+      range: DateRange;
+      total: number;
+      count: number;
+      monthlyBreakdown: MonthBucket[];
+      isPrimary: boolean;
+      colorClass: string;
+      dotClass: string;
+      borderClass: string;
+    }> = [
+      {
+        label: res.query.primaryRange.label,
+        range: res.query.primaryRange,
+        total: res.primaryTotal,
+        count: res.monthlyBreakdown.reduce((sum, b) => sum + b.count, 0),
+        monthlyBreakdown: res.monthlyBreakdown,
+        isPrimary: true,
+        colorClass: 'bar-primary',
+        dotClass: 'dot-primary',
+        borderClass: 'active-card-primary'
+      }
+    ];
+
+    const colors = ['bar-comparison', 'bar-comparison-2', 'bar-comparison-3', 'bar-comparison-4'];
+    const dots = ['dot-comparison', 'dot-comparison-2', 'dot-comparison-3', 'dot-comparison-4'];
+    const borders = ['active-card-comparison', 'active-card-comparison-2', 'active-card-comparison-3', 'active-card-comparison-4'];
+
+    if (res.comparisonPeriods && res.comparisonPeriods.length > 0) {
+      res.comparisonPeriods.forEach((cp, idx) => {
+        const cIdx = idx % colors.length;
+        periods.push({
+          label: cp.range.label,
+          range: cp.range,
+          total: cp.total,
+          count: cp.count,
+          monthlyBreakdown: cp.monthlyBreakdown,
+          isPrimary: false,
+          colorClass: colors[cIdx],
+          dotClass: dots[cIdx],
+          borderClass: borders[cIdx]
+        });
+      });
+    } else if (res.comparisonMonthlyBreakdown && res.query.comparisonRange) {
+      periods.push({
+        label: res.query.comparisonRange.label,
+        range: res.query.comparisonRange,
+        total: res.comparisonTotal || 0,
+        count: res.comparisonCount || 0,
+        monthlyBreakdown: res.comparisonMonthlyBreakdown,
+        isPrimary: false,
+        colorClass: 'bar-comparison',
+        dotClass: 'dot-comparison',
+        borderClass: 'active-card-comparison'
+      });
+    }
+
+    return periods;
+  });
+
+  // Maximum monthly total across all comparison periods (for unified height scaling)
+  public maxMonthlyTotal = computed<number>(() => {
+    const periods = this.allTrendPeriods();
+    if (periods.length === 0) return 1;
+    let max = 0;
+    for (const p of periods) {
+      for (const b of p.monthlyBreakdown) {
+        if (b.total > max) max = b.total;
+      }
     }
     return max > 0 ? max : 1;
   });
@@ -151,64 +263,78 @@ export class AnalyticsSearchComponent implements OnInit {
     );
   });
 
-  // Paired breakdown for unified comparison charts (primary vs comparison)
-  public pairedMonthlyBreakdown = computed<Array<{
-    label: string;
-    primaryMonth?: string;
-    primaryLabel?: string;
-    primaryTotal: number;
-    primaryCount: number;
-    comparisonMonth?: string;
-    comparisonLabel?: string;
-    comparisonTotal: number;
-    comparisonCount: number;
-    diff: number;
-    percentageChange?: number;
+  // Paired breakdown for unified multi-period comparison charts
+  public pairedMonthGroups = computed<Array<{
+    monthLabel: string;
+    bars: Array<{
+      periodLabel: string;
+      monthLabel: string;
+      monthKey: string;
+      total: number;
+      count: number;
+      colorClass: string;
+      range: DateRange;
+    }>;
   }>>(() => {
-    const res = this.result();
-    if (!res || !res.comparisonMonthlyBreakdown || res.comparisonMonthlyBreakdown.length === 0) return [];
+    const periods = this.allTrendPeriods();
+    if (periods.length <= 1) return [];
 
-    const pList = res.monthlyBreakdown;
-    const cList = res.comparisonMonthlyBreakdown;
+    const monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const isStandardYear = periods.every((p) => p.monthlyBreakdown.length === 12);
 
+    if (isStandardYear) {
+      return monthLabels.map((mLbl, mIdx) => {
+        const bars = periods.map((p) => {
+          const mb = p.monthlyBreakdown[mIdx];
+          return {
+            periodLabel: p.label,
+            monthLabel: mLbl,
+            monthKey: mb?.month || '',
+            total: mb?.total || 0,
+            count: mb?.count || 0,
+            colorClass: p.colorClass,
+            range: p.range
+          };
+        });
+        return {
+          monthLabel: mLbl,
+          bars
+        };
+      });
+    }
+
+    const maxLen = Math.max(...periods.map((p) => p.monthlyBreakdown.length));
     const result: Array<{
-      label: string;
-      primaryMonth?: string;
-      primaryLabel?: string;
-      primaryTotal: number;
-      primaryCount: number;
-      comparisonMonth?: string;
-      comparisonLabel?: string;
-      comparisonTotal: number;
-      comparisonCount: number;
-      diff: number;
-      percentageChange?: number;
+      monthLabel: string;
+      bars: Array<{
+        periodLabel: string;
+        monthLabel: string;
+        monthKey: string;
+        total: number;
+        count: number;
+        colorClass: string;
+        range: DateRange;
+      }>;
     }> = [];
 
-    const maxLen = Math.max(pList.length, cList.length);
     for (let i = 0; i < maxLen; i++) {
-      const p = pList[i];
-      const c = cList[i];
-      const pTotal = p ? p.total : 0;
-      const cTotal = c ? c.total : 0;
-      const diff = Math.round((pTotal - cTotal) * 100) / 100;
-      let pct: number | undefined = undefined;
-      if (cTotal > 0) {
-        pct = Math.round(((pTotal - cTotal) / cTotal) * 1000) / 10;
-      }
-      const label = p ? p.label.split(' ')[0] : (c ? c.label.split(' ')[0] : `M${i + 1}`);
+      const sample = periods.find((p) => p.monthlyBreakdown[i]);
+      const mLbl = sample ? sample.monthlyBreakdown[i].label.split(' ')[0] : `M${i + 1}`;
+      const bars = periods.map((p) => {
+        const mb = p.monthlyBreakdown[i];
+        return {
+          periodLabel: p.label,
+          monthLabel: mLbl,
+          monthKey: mb?.month || '',
+          total: mb?.total || 0,
+          count: mb?.count || 0,
+          colorClass: p.colorClass,
+          range: p.range
+        };
+      });
       result.push({
-        label,
-        primaryLabel: p?.label || '',
-        primaryMonth: p?.month || '',
-        primaryTotal: pTotal,
-        primaryCount: p?.count || 0,
-        comparisonLabel: c?.label || '',
-        comparisonMonth: c?.month || '',
-        comparisonTotal: cTotal,
-        comparisonCount: c?.count || 0,
-        diff,
-        percentageChange: pct
+        monthLabel: mLbl,
+        bars
       });
     }
 
@@ -230,17 +356,11 @@ export class AnalyticsSearchComponent implements OnInit {
       // Period Filter (for comparison queries)
       const period = this.auditPeriodFilter();
       if (period !== 'ALL') {
-        if (period === 'PRIMARY') {
-          const pRange = res.query.primaryRange;
+        const targetPeriod = this.allTrendPeriods().find((p) => p.label === period);
+        if (targetPeriod) {
           list = list.filter((t) => {
             const d = (t.date || '').slice(0, 10);
-            return d >= pRange.start && d <= pRange.end;
-          });
-        } else if (period === 'COMPARISON' && res.query.comparisonRange) {
-          const cRange = res.query.comparisonRange;
-          list = list.filter((t) => {
-            const d = (t.date || '').slice(0, 10);
-            return d >= cRange.start && d <= cRange.end;
+            return d >= targetPeriod.range.start && d <= targetPeriod.range.end;
           });
         }
       }

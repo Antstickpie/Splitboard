@@ -21,6 +21,7 @@ export interface AnalyticsQueryAST {
   aggregation: AggregationType;
   primaryRange: DateRange;
   comparisonRange?: DateRange;
+  comparisonRanges?: DateRange[];
   filters: {
     categoryGroup?: string;
     categoryItem?: string;
@@ -41,6 +42,15 @@ export interface MonthBucket {
   count: number;
 }
 
+export interface ComparisonPeriodResult {
+  range: DateRange;
+  total: number;
+  count: number;
+  monthlyBreakdown: MonthBucket[];
+  percentageChange?: number;
+  diffAmount?: number;
+}
+
 export interface AnalyticsResult {
   query: AnalyticsQueryAST;
   primaryTotal: number;
@@ -51,6 +61,7 @@ export interface AnalyticsResult {
   comparisonTotal?: number;
   comparisonCount?: number;
   comparisonMonthlyBreakdown?: MonthBucket[];
+  comparisonPeriods?: ComparisonPeriodResult[];
   percentageChange?: number;
   diffAmount?: number;
   suggestedFollowUps: string[];
@@ -104,11 +115,13 @@ export class AnalyticsNlpService {
     const comparisonParsed = this.parseComparisonPeriods(q, currentYear);
     if (comparisonParsed) {
       const filters = this.extractFilters(comparisonParsed.remainingQuery);
+      const ranges = comparisonParsed.ranges;
       return {
         rawQuery,
         aggregation: 'COMPARE_PERIODS',
-        primaryRange: comparisonParsed.primary,
-        comparisonRange: comparisonParsed.secondary,
+        primaryRange: ranges[0],
+        comparisonRange: ranges[1],
+        comparisonRanges: ranges.slice(1),
         filters,
         topLimit: undefined
       };
@@ -182,20 +195,44 @@ export class AnalyticsNlpService {
     let diffAmount: number | undefined = undefined;
     let allMatched = matched;
 
-    if (ast.comparisonRange) {
-      const compMatched = this.filterTransactions(allTxs, ast.filters, ast.comparisonRange);
-      comparisonTotal = compMatched.reduce((acc, t) => acc + Math.abs(t.amount), 0);
-      comparisonCount = compMatched.length;
-      comparisonMonthlyBreakdown = this.computeMonthlyBreakdown(compMatched, ast.comparisonRange);
+    const compRanges = ast.comparisonRanges && ast.comparisonRanges.length > 0
+      ? ast.comparisonRanges
+      : (ast.comparisonRange ? [ast.comparisonRange] : []);
 
-      diffAmount = Math.round((primaryTotal - comparisonTotal) * 100) / 100;
-      if (comparisonTotal > 0) {
-        percentageChange = Math.round(((primaryTotal - comparisonTotal) / comparisonTotal) * 1000) / 10;
+    const comparisonPeriods: ComparisonPeriodResult[] = [];
+
+    if (compRanges.length > 0) {
+      for (const cRange of compRanges) {
+        const cMatched = this.filterTransactions(allTxs, ast.filters, cRange);
+        const cTotal = cMatched.reduce((acc, t) => acc + Math.abs(t.amount), 0);
+        const cCount = cMatched.length;
+        const cBreakdown = this.computeMonthlyBreakdown(cMatched, cRange);
+        const cDiff = Math.round((primaryTotal - cTotal) * 100) / 100;
+        let cPct: number | undefined = undefined;
+        if (cTotal > 0) {
+          cPct = Math.round(((primaryTotal - cTotal) / cTotal) * 1000) / 10;
+        }
+        comparisonPeriods.push({
+          range: cRange,
+          total: Math.round(cTotal * 100) / 100,
+          count: cCount,
+          monthlyBreakdown: cBreakdown,
+          diffAmount: cDiff,
+          percentageChange: cPct
+        });
+        allMatched = [...allMatched, ...cMatched];
       }
-      allMatched = [...matched, ...compMatched].sort((a, b) => b.date.localeCompare(a.date));
+      allMatched.sort((a, b) => b.date.localeCompare(a.date));
+
+      const firstComp = comparisonPeriods[0];
+      comparisonTotal = firstComp.total;
+      comparisonCount = firstComp.count;
+      comparisonMonthlyBreakdown = firstComp.monthlyBreakdown;
+      diffAmount = firstComp.diffAmount;
+      percentageChange = firstComp.percentageChange;
     }
 
-    const totalCount = ast.comparisonRange ? allMatched.length : transactionCount;
+    const totalCount = compRanges.length > 0 ? allMatched.length : transactionCount;
 
     // Generate smart follow-up suggestions
     const suggestedFollowUps = this.generateFollowUps(ast);
@@ -213,6 +250,7 @@ export class AnalyticsNlpService {
       comparisonTotal,
       comparisonCount,
       comparisonMonthlyBreakdown,
+      comparisonPeriods: comparisonPeriods.length > 0 ? comparisonPeriods : undefined,
       percentageChange,
       diffAmount,
       suggestedFollowUps,
@@ -344,49 +382,89 @@ export class AnalyticsNlpService {
   }
 
   /**
-   * Parse comparison queries like "2023 vs 2024", "summer 2023 vs summer 2024",
-   * or "compare dining out between last year and this year".
+   * Parse comparison queries like "2023 vs 2024", "2025 vs 2024 vs 2023",
+   * "summer 2023 vs summer 2024", or "compare dining out between 2023, 2024 and 2025".
    */
   private parseComparisonPeriods(
     q: string,
     currentYear: number
-  ): { primary: DateRange; secondary: DateRange; remainingQuery: string } | null {
-    // 1. "X vs Y" or "X versus Y"
-    const vsMatch = q.match(/^(.*?)\b(?:vs\.?|versus)\b(.*?)$/i);
-    if (vsMatch) {
-      const partA = vsMatch[1].trim();
-      const partB = vsMatch[2].trim();
+  ): { ranges: DateRange[]; remainingQuery: string } | null {
+    // 1. "X vs Y vs Z"
+    if (/\b(?:vs\.?|versus)\b/i.test(q)) {
+      const parts = q.split(/\b(?:vs\.?|versus)\b/i);
+      if (parts.length >= 2) {
+        const foundRanges: DateRange[] = [];
+        const cleanedParts: string[] = [];
 
-      const rA = this.parseDateToken(partA, currentYear);
-      const rB = this.parseDateToken(partB, currentYear);
+        for (const part of parts) {
+          const res = this.parseDateToken(part, currentYear);
+          if (res.range) {
+            foundRanges.push(res.range);
+          }
+          if (res.cleaned) {
+            cleanedParts.push(res.cleaned);
+          }
+        }
 
-      if (rA.range && rB.range) {
-        const remaining = `${rA.cleaned} ${rB.cleaned}`.trim();
-        // Typically primary is the newer/target period and secondary is baseline
-        if (rA.range.start > rB.range.start) {
-          return { primary: rA.range, secondary: rB.range, remainingQuery: remaining };
-        } else {
-          return { primary: rB.range, secondary: rA.range, remainingQuery: remaining };
+        if (foundRanges.length >= 2) {
+          // Sort ranges newest to oldest
+          foundRanges.sort((a, b) => b.start.localeCompare(a.start));
+          return {
+            ranges: foundRanges,
+            remainingQuery: cleanedParts.join(' ').trim()
+          };
         }
       }
     }
 
-    // 2. "compare X and Y" / "compare X with Y"
-    const compareMatch = q.match(/\bcompare\b(.*?)\b(?:and|with|to)\b(.*?)$/i);
+    // 2. "compare X and Y and Z" / "compare X with Y"
+    const compareMatch = q.match(/\bcompare\b(.*?)$/i);
     if (compareMatch) {
-      const partA = compareMatch[1].trim();
-      const partB = compareMatch[2].trim();
+      const sub = compareMatch[1].trim();
+      const parts = sub.split(/[,&]|\b(?:and|with|to)\b/i).map((s) => s.trim()).filter((s) => s.length > 0);
+      const foundRanges: DateRange[] = [];
+      const cleanedParts: string[] = [];
 
-      const rA = this.parseDateToken(partA, currentYear);
-      const rB = this.parseDateToken(partB, currentYear);
-
-      if (rA.range && rB.range) {
-        const remaining = `${rA.cleaned} ${rB.cleaned}`.trim();
-        if (rA.range.start > rB.range.start) {
-          return { primary: rA.range, secondary: rB.range, remainingQuery: remaining };
-        } else {
-          return { primary: rB.range, secondary: rA.range, remainingQuery: remaining };
+      for (const part of parts) {
+        const res = this.parseDateToken(part, currentYear);
+        if (res.range) {
+          foundRanges.push(res.range);
         }
+        if (res.cleaned) {
+          cleanedParts.push(res.cleaned);
+        }
+      }
+
+      if (foundRanges.length >= 2) {
+        foundRanges.sort((a, b) => b.start.localeCompare(a.start));
+        const prefix = q.slice(0, q.toLowerCase().indexOf('compare')).trim();
+        return {
+          ranges: foundRanges,
+          remainingQuery: `${prefix} ${cleanedParts.join(' ')}`.trim()
+        };
+      }
+    }
+
+    // 3. Fallback: multiple 4-digit years in query (e.g. "electricity 2023 2024 2025" or "electricity 2023, 2024, 2025")
+    const yearMatches = Array.from(q.matchAll(/\b(20\d\d)\b/g));
+    if (yearMatches.length >= 2) {
+      const uniqueYears = Array.from(new Set(yearMatches.map((m) => parseInt(m[1], 10))));
+      if (uniqueYears.length >= 2) {
+        uniqueYears.sort((a, b) => b - a); // newest first
+        const ranges = uniqueYears.map((yr) => ({
+          start: `${yr}-01-01`,
+          end: `${yr}-12-31`,
+          label: `${yr}`
+        }));
+        let cleaned = q;
+        for (const yr of uniqueYears) {
+          cleaned = cleaned.replace(new RegExp(`\\b${yr}\\b`, 'g'), '');
+        }
+        cleaned = cleaned.replace(/\b(?:and|between|in|for|,)\b/gi, ' ').trim();
+        return {
+          ranges,
+          remainingQuery: cleaned
+        };
       }
     }
 
@@ -982,7 +1060,10 @@ export class AnalyticsNlpService {
     }
 
     // Date
-    if (ast.comparisonRange) {
+    if (ast.comparisonRanges && ast.comparisonRanges.length > 0) {
+      const allLabels = [ast.primaryRange.label, ...ast.comparisonRanges.map((r) => r.label)];
+      parts.push(`(${allLabels.join(' vs ')})`);
+    } else if (ast.comparisonRange) {
       parts.push(`(${ast.primaryRange.label} vs ${ast.comparisonRange.label})`);
     } else {
       parts.push(`(${ast.primaryRange.label})`);
