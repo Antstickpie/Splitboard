@@ -944,6 +944,7 @@ export class SettingsComponent {
   public edEditingBatchFileName = signal<string | null>(null);
   public edTypeExcludeAssigned = signal<boolean>(false);
   public edDescExcludeAssigned = signal<boolean>(false);
+  public edCategoryExcludeIncome = signal<boolean>(false);
   public edExcludedOwners = signal<string[]>([]);
   public edDefaultAssignedPerson = signal<string | null>(null);
   public isOwnerExcludeDropdownOpen = signal<boolean>(false);
@@ -1221,6 +1222,9 @@ export class SettingsComponent {
     if (this.edTypeExcludeAssigned()) {
       list = list.filter((m) => !this.isCategoryMappingAssigned(m));
     }
+    if (this.edCategoryExcludeIncome()) {
+      list = list.filter((m) => !m.isIncome);
+    }
     if (this.edExcludedOwners().length > 0) {
       list = list.filter((m) => !this.isCategoryOwnerExcluded(m));
     }
@@ -1261,7 +1265,9 @@ export class SettingsComponent {
   public getMatchingCategoriesCount(keyword: string): number {
     const q = keyword.trim().toLowerCase();
     if (!q) return 0;
+    const excludeIncome = this.edCategoryExcludeIncome();
     return this.edCategoryMappings().filter((m) => {
+      if (excludeIncome && m.isIncome) return false;
       if (this.isCategoryOwnerExcluded(m)) return false;
       return (m.rawCategory || '').toLowerCase().includes(q);
     }).length;
@@ -1271,7 +1277,9 @@ export class SettingsComponent {
     const q = keyword.trim().toLowerCase();
     if (!q) return 0;
     const excludeAssigned = this.edTypeExcludeAssigned();
+    const excludeIncome = this.edCategoryExcludeIncome();
     return this.edCategoryMappings().filter((m) => {
+      if (excludeIncome && m.isIncome) return false;
       if (this.isCategoryOwnerExcluded(m)) return false;
       if (excludeAssigned && this.isCategoryMappingAssigned(m)) return false;
       return (m.rawCategory || '').toLowerCase().includes(q);
@@ -1282,6 +1290,7 @@ export class SettingsComponent {
     const q = this.edCategoryMatchKeyword().trim().toLowerCase();
     if (!q) return false;
     const m = this.edCategoryMappings().find((c) => c.rawCategory === rawCategory);
+    if (m && this.edCategoryExcludeIncome() && m.isIncome) return false;
     if (m && this.isCategoryOwnerExcluded(m)) return false;
     return (rawCategory || '').toLowerCase().includes(q);
   }
@@ -1290,6 +1299,7 @@ export class SettingsComponent {
     const q = this.edTypeMatchKeyword().trim().toLowerCase();
     if (!q) return false;
     const m = this.edCategoryMappings().find((c) => c.rawCategory === rawCategory);
+    if (m && this.edCategoryExcludeIncome() && m.isIncome) return false;
     if (m && this.isCategoryOwnerExcluded(m)) return false;
     if (this.edTypeExcludeAssigned() && this.isCategoryAssigned(rawCategory)) return false;
     return (rawCategory || '').toLowerCase().includes(q);
@@ -1297,6 +1307,7 @@ export class SettingsComponent {
 
   public isCategoryMatched(rawCategory: string): boolean {
     const m = this.edCategoryMappings().find((c) => c.rawCategory === rawCategory);
+    if (m && this.edCategoryExcludeIncome() && m.isIncome) return false;
     if (m && this.isCategoryOwnerExcluded(m)) return false;
     const q1 = this.edCategoryMatchKeyword().trim().toLowerCase();
     const isOwnerHit = q1 ? (rawCategory || '').toLowerCase().includes(q1) : false;
@@ -1306,9 +1317,10 @@ export class SettingsComponent {
 
   public getHighlightedCategoryHtml(text: string): string {
     const m = this.edCategoryMappings().find((c) => c.rawCategory === text);
+    const incomeExcluded = m && this.edCategoryExcludeIncome() && m.isIncome;
     const ownerExcluded = m ? this.isCategoryOwnerExcluded(m) : false;
-    const q1 = ownerExcluded ? '' : this.edCategoryMatchKeyword().trim();
-    const q2 = (this.edTypeExcludeAssigned() && this.isCategoryAssigned(text))
+    const q1 = (ownerExcluded || incomeExcluded) ? '' : this.edCategoryMatchKeyword().trim();
+    const q2 = (incomeExcluded || (this.edTypeExcludeAssigned() && this.isCategoryAssigned(text)))
       ? ''
       : this.edTypeMatchKeyword().trim();
     return this.highlightText(text, [q1, q2].filter(Boolean));
@@ -1362,10 +1374,15 @@ export class SettingsComponent {
       return;
     }
 
+    const excludeIncome = this.edCategoryExcludeIncome();
     let matchedCount = 0;
     let skippedCount = 0;
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        if (excludeIncome && m.isIncome) {
+          skippedCount++;
+          return m;
+        }
         if (this.isCategoryOwnerExcluded(m)) {
           skippedCount++;
           return m;
@@ -1379,7 +1396,7 @@ export class SettingsComponent {
     if (matchedCount === 0) {
       if (skippedCount > 0) {
         this.service.showToast(
-          `All categories matching "${this.edCategoryMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`,
+          `All categories matching "${this.edCategoryMatchKeyword().trim()}" are excluded (${skippedCount} excluded).`,
           'info'
         );
       } else {
@@ -1394,6 +1411,7 @@ export class SettingsComponent {
     const categoryToPersonMap = new Map(updatedMappings.map((m) => [m.rawCategory, m.selectedPerson]));
     this.edPreviewTransactions.update((txs) =>
       txs.map((t) => {
+        if (excludeIncome && t.type === 'INCOME') return t;
         if (this.isTxOwnerExcluded(t)) return t;
         const p = categoryToPersonMap.get(t.rawCategory || 'Uncategorized');
         return p ? { ...t, paidBy: p, splitType: 'SELF' } : t;
@@ -1414,10 +1432,15 @@ export class SettingsComponent {
       return;
     }
 
+    const excludeIncome = this.edCategoryExcludeIncome();
     let matchedCount = 0;
     let skippedCount = 0;
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        if (excludeIncome && m.isIncome) {
+          skippedCount++;
+          return m;
+        }
         if (this.isCategoryOwnerExcluded(m)) {
           skippedCount++;
           return m;
@@ -1431,7 +1454,7 @@ export class SettingsComponent {
     if (matchedCount === 0) {
       if (skippedCount > 0) {
         this.service.showToast(
-          `All categories matching "${this.edCategoryMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`,
+          `All categories matching "${this.edCategoryMatchKeyword().trim()}" are excluded (${skippedCount} excluded).`,
           'info'
         );
       } else {
@@ -1446,6 +1469,7 @@ export class SettingsComponent {
     const categorySplitMap = new Map(updatedMappings.map((m) => [m.rawCategory, m.selectedSplitType]));
     this.edPreviewTransactions.update((txs) =>
       txs.map((t) => {
+        if (excludeIncome && t.type === 'INCOME') return t;
         if (this.isTxOwnerExcluded(t)) return t;
         const sType = categorySplitMap.get(t.rawCategory || 'Uncategorized');
         return sType === 'SPLIT' ? { ...t, splitType: 'SPLIT' } : t;
@@ -1480,11 +1504,16 @@ export class SettingsComponent {
     const chosenItem = selection.item || 'Uncategorized';
     const chosenGroup = selection.group || 'Uncategorized';
     const excludeAssigned = this.edTypeExcludeAssigned();
+    const excludeIncome = this.edCategoryExcludeIncome();
 
     let matchedCount = 0;
     let skippedCount = 0;
     const updatedMappings = this.edCategoryMappings().map((m) => {
       if ((m.rawCategory || '').toLowerCase().includes(q)) {
+        if (excludeIncome && m.isIncome) {
+          skippedCount++;
+          return m;
+        }
         if (this.isCategoryOwnerExcluded(m)) {
           skippedCount++;
           return m;
@@ -1522,6 +1551,7 @@ export class SettingsComponent {
     );
     this.edPreviewTransactions.update((txs) =>
       txs.map((t) => {
+        if (excludeIncome && t.type === 'INCOME') return t;
         if (this.isTxOwnerExcluded(t)) return t;
         const typeInfo = categoryToTypeMap.get(t.rawCategory || 'Uncategorized');
         if (!typeInfo) return t;

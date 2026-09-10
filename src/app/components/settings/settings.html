@@ -1737,6 +1737,14 @@
                   </div>
                 </div>
               </div>
+
+              <label class="ed-matcher-checkbox-label" title="Exclude income categories when searching by category">
+                <input
+                  type="checkbox"
+                  [ngModel]="edCategoryExcludeIncome()"
+                  (ngModelChange)="edCategoryExcludeIncome.set($event)" />
+                <span>Exclude income</span>
+              </label>
             </div>
           </div>
 
@@ -1781,6 +1789,14 @@
                   [ngModel]="edTypeExcludeAssigned()"
                   (ngModelChange)="edTypeExcludeAssigned.set($event)" />
                 <span>Exclude already assigned</span>
+              </label>
+
+              <label class="ed-matcher-checkbox-label" title="Exclude income categories when searching by category">
+                <input
+                  type="checkbox"
+                  [ngModel]="edCategoryExcludeIncome()"
+                  (ngModelChange)="edCategoryExcludeIncome.set($event)" />
+                <span>Exclude income</span>
               </label>
             </div>
           </div>
