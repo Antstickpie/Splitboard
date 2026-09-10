@@ -38,6 +38,20 @@ export class App {
     }
   }
 
+  @HostListener('window:keydown', ['$event'])
+  public onGlobalKeydown(event: KeyboardEvent): void {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      if (this.activeTab() !== 'dashboard') {
+        this.switchTab('dashboard');
+      }
+      setTimeout(() => {
+        const input = document.querySelector('.nlp-search-input') as HTMLInputElement;
+        input?.focus();
+      }, 50);
+    }
+  }
+
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings') {
     this.service.switchTab(tab);
   }

@@ -1,0 +1,239 @@
+<div class="analytics-nlp-container glass-card">
+  <!-- Search Header & Input Bar -->
+  <div class="nlp-search-bar-wrap">
+    <div class="nlp-input-wrapper">
+      <span class="nlp-sparkle-icon" title="In-Browser Natural Language Analytics">✨</span>
+      <input
+        #queryInput
+        type="text"
+        class="nlp-search-input"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        (keydown.enter)="onSearch()"
+        placeholder='Ask in plain English, e.g. "How much did we spend on groceries last summer?" or "Compare 2024 vs 2025"...'
+        autocomplete="off" />
+
+      <div class="nlp-input-actions">
+        <span class="nlp-kbd-shortcut" title="Press ⌘K or Ctrl+K to focus">⌘K</span>
+        <button
+          *ngIf="searchQuery()"
+          type="button"
+          class="nlp-clear-btn"
+          (click)="clearSearch()"
+          title="Clear search">
+          ✕
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-xs nlp-ask-btn"
+          (click)="onSearch()"
+          [disabled]="!searchQuery().trim()">
+          Search
+        </button>
+      </div>
+    </div>
+
+    <!-- Starter Query Suggestion Pills -->
+    <div class="nlp-starter-pills" *ngIf="!result()">
+      <span class="starter-label">Try asking:</span>
+      <button
+        type="button"
+        *ngFor="let pill of starterPills()"
+        class="starter-pill-btn"
+        (click)="runStarterQuery(pill)">
+        {{ pill }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Result Display Card -->
+  <div class="nlp-result-card animate-fade-in" *ngIf="result() as res">
+    <!-- Interpretation Header -->
+    <div class="nlp-result-header">
+      <div class="nlp-intent-badge">
+        <span class="intent-icon">🎯</span>
+        <span class="intent-text">{{ res.resolvedDescription }}</span>
+      </div>
+
+      <button type="button" class="nlp-dismiss-btn" (click)="clearSearch()" title="Close analytics result">
+        ✕ Clear
+      </button>
+    </div>
+
+    <!-- Hero Metric & Comparison Section -->
+    <div class="nlp-hero-section">
+      <div class="nlp-hero-kpi">
+        <div class="kpi-label">
+          {{ res.query.aggregation === 'AVERAGE' ? 'MONTHLY AVERAGE' : (res.query.aggregation === 'COUNT' ? 'TRANSACTIONS' : (res.query.filters.type === 'INCOME' ? 'TOTAL INCOME' : 'TOTAL SPEND')) }}
+        </div>
+        <div class="kpi-number-row">
+          <span class="kpi-value font-mono">
+            {{ res.query.aggregation === 'COUNT' ? res.transactionCount : service.formatCurrency(res.primaryTotal) }}
+          </span>
+
+          <!-- Comparison Trend Pill -->
+          <div
+            *ngIf="res.percentageChange !== undefined"
+            class="nlp-comparison-pill"
+            [class.pill-danger]="res.query.filters.type !== 'INCOME' ? res.percentageChange > 0 : res.percentageChange < 0"
+            [class.pill-success]="res.query.filters.type !== 'INCOME' ? res.percentageChange < 0 : res.percentageChange > 0">
+            <span class="pill-arrow">{{ res.percentageChange > 0 ? '▲' : (res.percentageChange < 0 ? '▼' : '—') }}</span>
+            <span class="pill-pct font-mono">{{ res.percentageChange > 0 ? '+' : '' }}{{ res.percentageChange }}%</span>
+            <span class="pill-target">vs {{ res.query.comparisonRange?.label }}</span>
+            <span class="pill-diff font-mono" *ngIf="res.diffAmount">
+              ({{ res.diffAmount > 0 ? '+' : '' }}{{ service.formatCurrency(res.diffAmount) }})
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supporting Quick Stats -->
+      <div class="nlp-quick-stats">
+        <div class="quick-stat-box" *ngIf="res.query.aggregation !== 'AVERAGE' && res.monthlyBreakdown.length > 1">
+          <span class="stat-lbl">Monthly Avg</span>
+          <span class="stat-val font-mono">{{ service.formatCurrency(res.averagePerMonth || 0) }}</span>
+        </div>
+        <div class="quick-stat-box">
+          <span class="stat-lbl">Matched Count</span>
+          <span class="stat-val font-mono">{{ res.transactionCount }} txs</span>
+        </div>
+        <div class="quick-stat-box" *ngIf="res.query.comparisonRange && res.comparisonTotal !== undefined">
+          <span class="stat-lbl">{{ res.query.comparisonRange.label }} Total</span>
+          <span class="stat-val font-mono">{{ service.formatCurrency(res.comparisonTotal) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini Trend Chart: Monthly Breakdown -->
+    <div class="nlp-trend-container" *ngIf="res.monthlyBreakdown.length > 1">
+      <div class="trend-title-row">
+        <span class="trend-title">📊 Monthly Trend</span>
+        <span class="trend-subtitle">{{ res.monthlyBreakdown.length }} months in {{ res.query.primaryRange.label }}</span>
+      </div>
+
+      <div class="trend-bars-wrapper">
+        <div
+          *ngFor="let m of res.monthlyBreakdown"
+          class="trend-bar-column"
+          [title]="m.label + ': ' + service.formatCurrency(m.total) + ' (' + m.count + ' transactions)'">
+          <div class="bar-fill-track">
+            <div
+              class="bar-fill"
+              [style.height.%]="getBarHeight(m.total)">
+            </div>
+          </div>
+          <span class="bar-amount font-mono">{{ service.formatCurrency(m.total) }}</span>
+          <span class="bar-month-label">{{ m.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collapsible Audit Drawer: Matched Transactions -->
+    <div class="nlp-audit-section">
+      <div class="audit-header-row">
+        <button
+          type="button"
+          class="audit-toggle-btn"
+          (click)="toggleAudit()">
+          <span class="audit-chevron">{{ isAuditOpen() ? '▲' : '▼' }}</span>
+          <span class="audit-title">
+            {{ isAuditOpen() ? 'Hide' : 'Inspect' }} {{ res.matchedTransactions.length }} Matched Transaction{{ res.matchedTransactions.length === 1 ? '' : 's' }}
+          </span>
+        </button>
+
+        <div class="audit-controls" *ngIf="isAuditOpen()">
+          <span class="sort-label">Sort:</span>
+          <button
+            type="button"
+            class="btn btn-xs"
+            [class.btn-primary]="auditSort() === 'date_desc'"
+            [class.btn-secondary]="auditSort() !== 'date_desc'"
+            (click)="auditSort.set('date_desc')">
+            Date
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs"
+            [class.btn-primary]="auditSort() === 'amount_desc'"
+            [class.btn-secondary]="auditSort() !== 'amount_desc'"
+            (click)="auditSort.set('amount_desc')">
+            Amount
+          </button>
+        </div>
+      </div>
+
+      <!-- Audit Table Drawer -->
+      <div class="audit-table-wrap animate-fade-in" *ngIf="isAuditOpen()">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th style="width: 95px;">Date</th>
+              <th>Description / Merchant</th>
+              <th style="width: 130px;">Category</th>
+              <th style="width: 90px;">Paid By</th>
+              <th style="width: 85px;">Split</th>
+              <th style="text-align: right; width: 100px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of sortedMatchedTransactions()">
+              <td class="font-mono text-muted" style="font-size: 0.74rem;">{{ t.date }}</td>
+              <td>
+                <div style="font-weight: 600; color: var(--text-main); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ t.merchant || t.description }}
+                </div>
+                <div *ngIf="t.merchant && t.description && t.description !== t.merchant" style="font-size: 0.68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ t.description }}
+                </div>
+              </td>
+              <td>
+                <span class="badge badge-neutral" style="font-size: 0.68rem;" [title]="(t.categoryGroup || '') + ' › ' + (t.categoryItem || 'Uncategorized')">
+                  {{ t.categoryItem || 'Uncategorized' }}
+                </span>
+              </td>
+              <td>
+                <span
+                  class="badge"
+                  [style.color]="t.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                  [style.background]="t.paidBy === service.personOne().name ? 'rgba(0,229,255,0.1)' : 'rgba(139,92,246,0.1)'"
+                  style="font-size: 0.68rem;">
+                  {{ t.paidBy }}
+                </span>
+              </td>
+              <td>
+                <span
+                  class="badge"
+                  [class.badge-success]="t.splitType === 'SPLIT'"
+                  [class.badge-neutral]="t.splitType === 'SELF'"
+                  [class.badge-danger]="t.splitType === 'OTHER'"
+                  style="font-size: 0.65rem;">
+                  {{ t.splitType === 'SPLIT' ? '50/50' : (t.splitType === 'SELF' ? '100%' : 'Other') }}
+                </span>
+              </td>
+              <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 0.82rem;" [class.text-success]="t.type === 'INCOME'">
+                {{ t.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(t.amount) }}
+              </td>
+            </tr>
+            <tr *ngIf="sortedMatchedTransactions().length === 0">
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                No transactions matched this query filter.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Suggested Follow-Up Queries -->
+    <div class="nlp-followups-row" *ngIf="res.suggestedFollowUps.length > 0">
+      <span class="followups-label">💡 Suggested follow-ups:</span>
+      <button
+        type="button"
+        *ngFor="let s of res.suggestedFollowUps"
+        class="followup-pill-btn"
+        (click)="runStarterQuery(s)">
+        {{ s }}
+      </button>
+    </div>
+  </div>
+</div>

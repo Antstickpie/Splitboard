@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
 import { CategoryGroup, CategoryItem, Transaction, SplitType } from '../../models';
 import { CategorySelectComponent } from '../category-select/category-select';
+import { AnalyticsSearchComponent } from '../analytics-search/analytics-search';
 
 interface CategoryGroupSummary {
   id: string;
@@ -29,7 +30,7 @@ interface CategoryGroupSummary {
 @Component({
   selector: 'app-budget-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, CategorySelectComponent],
+  imports: [CommonModule, FormsModule, CategorySelectComponent, AnalyticsSearchComponent],
   templateUrl: './budget-dashboard.html',
   styleUrl: './budget-dashboard.css'
 })

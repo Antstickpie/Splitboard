@@ -1,6 +1,6 @@
 # In-Browser Natural Language Analytics Architecture & Blueprint
 
-**Status:** Proposed / Draft  
+**Status:** Implemented & Active (Shipped in Splitboard)  
 **Target Execution:** 100% Client-Side (Browser-Only, Zero Server Dependencies, Zero API Keys, Offline-First)  
 **Primary Data Source:** In-Memory Reactive Signals (`transactions()`, `categoryGroups()`, `persons()`, `monthlyBudgets()`) backed by Splitboard's local JSON database.
 
@@ -225,20 +225,20 @@ Given a 9-year historical dataset (2017–2026, ~10,000+ transactions), browser 
 ---
 
 ## 7. Phased Implementation Roadmap
-
-- [ ] **Phase 1: IndexedDB Storage Engine Upgrade**
+ 
+- [x] **Phase 1: IndexedDB Storage Engine Upgrade**
   - Implement zero-dependency native IndexedDB storage adapter (`storage.service.ts`).
   - Add auto-migration: transparently copies data from `localStorage` on first load with zero data loss.
   - Setup IndexedDB indexes: `date`, `categoryGroup`, `categoryItem`, `paidBy`, `merchant`.
   - Ensure Google Drive sync pushes/pulls `splitboard_backup.json` (Approach A) with debounced saves.
-- [ ] **Phase 2: Query Compiler Service (`src/app/services/analytics-nlp.service.ts`)**
+- [x] **Phase 2: Query Compiler Service (`src/app/services/analytics-nlp.service.ts`)**
   - Implement temporal date engine (relative expressions, quarters, multi-year comparisons like 2018 vs 2023).
   - Implement category drift alias resolver and merchant normalization.
   - Build deterministic array calculation engine.
-- [ ] **Phase 3: Interactive UI Component (`src/app/components/analytics-search/`)**
+- [x] **Phase 3: Interactive UI Component (`src/app/components/analytics-search/`)**
   - Natural language search input with autocomplete and starter pills.
   - Answer card rendering: hero KPI, SVG trend/comparison bars, preview drawer (top 10), and follow-up suggestion chips.
-- [ ] **Phase 4: Dashboard Integration & Global Command Palette**
+- [x] **Phase 4: Dashboard Integration & Global Command Palette**
   - Integrate search into Budget Dashboard and bind global `Cmd+K` / `Ctrl+K` shortcut.
 - [ ] **Phase 5: Optional WebGPU / Chrome `window.ai` Hook**
   - Detect on-device model availability for fallback handling of complex, conversational edge cases.

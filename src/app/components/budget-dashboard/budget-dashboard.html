@@ -122,22 +122,8 @@
     </div>
   </div>
 
-  <!-- Upcoming Natural Language Analytics Banner -->
-  <div class="glass-card upcoming-analytics-banner" *ngIf="showUpcomingBanner()">
-    <div class="upcoming-banner-content">
-      <div class="upcoming-banner-icon">✨</div>
-      <div class="upcoming-banner-text">
-        <span class="upcoming-banner-badge">Upcoming</span>
-        <span class="upcoming-banner-title">Natural Language Analytics</span>
-        <span class="upcoming-banner-desc">
-          Soon you'll be able to explore your spending using plain questions like <em>"How much did we spend on groceries last summer?"</em> or <em>"Compare dining out trends"</em>. 100% in-browser on your local data — see blueprint in <code class="upcoming-doc-badge">docs/natural-language-analytics.md</code>.
-        </span>
-      </div>
-    </div>
-    <button class="upcoming-banner-close" (click)="dismissUpcomingBanner()" title="Dismiss banner">
-      ✕
-    </button>
-  </div>
+  <!-- Natural Language Analytics (100% In-Browser Intelligence) -->
+  <app-analytics-search></app-analytics-search>
 
   <!-- Main 2-Column Analytics Workspace -->
   <div class="everydollar-workspace">
