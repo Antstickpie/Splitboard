@@ -949,6 +949,98 @@ export class SettingsComponent {
   public edDefaultAssignedPerson = signal<string | null>(null);
   public isOwnerExcludeDropdownOpen = signal<boolean>(false);
 
+  // Quick Add Category Modal State
+  public showAddCategoryModal = signal<boolean>(false);
+  public newCatMode = signal<'existing' | 'new_heading'>('existing');
+  public newCatSelectedGroupId = signal<string>('');
+  public newCatHeadingName = signal<string>('');
+  public newCatHeadingIcon = signal<string>('📁');
+  public newCatSubName = signal<string>('');
+  public newCatTargetContext: 'batch_cat' | 'card_cat' | 'batch_desc' | 'card_desc' = 'batch_cat';
+  public newCatTargetKey: string | null = null;
+
+  public selectedGroupExistingSubCategories = computed(() => {
+    const groupId = this.newCatSelectedGroupId();
+    if (!groupId) return [];
+    const grp = this.service.categoryGroups().find((g) => g.id === groupId);
+    return grp ? grp.items.map((i) => i.name) : [];
+  });
+
+  public isSubNameAlreadyExisting = computed(() => {
+    const sub = this.newCatSubName().trim().toLowerCase();
+    if (!sub) return false;
+    return this.selectedGroupExistingSubCategories().some((s) => s.trim().toLowerCase() === sub);
+  });
+
+  public openAddCategoryModal(
+    initialName?: string,
+    context: 'batch_cat' | 'card_cat' | 'batch_desc' | 'card_desc' = 'batch_cat',
+    targetKey: string | null = null
+  ): void {
+    this.newCatTargetContext = context;
+    this.newCatTargetKey = targetKey;
+    const groups = this.service.categoryGroups();
+    this.newCatMode.set(groups.length > 0 ? 'existing' : 'new_heading');
+    this.newCatSelectedGroupId.set(groups.length > 0 ? groups[0].id : '');
+    this.newCatHeadingName.set('');
+    this.newCatHeadingIcon.set('📁');
+    this.newCatSubName.set(initialName ? initialName.trim() : '');
+    this.showAddCategoryModal.set(true);
+  }
+
+  public closeAddCategoryModal(): void {
+    this.showAddCategoryModal.set(false);
+    this.newCatTargetKey = null;
+  }
+
+  public selectExistingSubCategory(sub: string): void {
+    this.newCatSubName.set(sub);
+  }
+
+  public saveNewCategory(): void {
+    const subName = this.newCatSubName().trim();
+    if (!subName) return;
+
+    let groupId = this.newCatSelectedGroupId();
+
+    if (this.newCatMode() === 'new_heading') {
+      const headingName = this.newCatHeadingName().trim();
+      if (!headingName) return;
+      groupId = this.service.addCategoryGroup(headingName, this.newCatHeadingIcon() || '📁');
+    }
+
+    if (!groupId) return;
+
+    const existingGroup = this.service.categoryGroups().find((g) => g.id === groupId);
+    const alreadyExists = existingGroup?.items?.some((i) => i.name.trim().toLowerCase() === subName.toLowerCase());
+    if (!alreadyExists) {
+      this.service.addCategoryItem(groupId, subName);
+    }
+
+    const createdGroup = this.service.categoryGroups().find((g) => g.id === groupId);
+    const groupName = createdGroup?.name || 'Uncategorized';
+
+    // Apply the category to the target context
+    if (this.newCatTargetContext === 'batch_cat') {
+      this.assignMatchingCategoriesToType({ item: subName, group: groupName });
+    } else if (this.newCatTargetContext === 'card_cat' && this.newCatTargetKey) {
+      this.onCategoryMappingChange(this.newCatTargetKey, { item: subName, group: groupName });
+    } else if (this.newCatTargetContext === 'batch_desc') {
+      this.assignMatchingDescriptionsToType({ item: subName, group: groupName });
+    } else if (this.newCatTargetContext === 'card_desc' && this.newCatTargetKey) {
+      this.onDescriptionMappingCategoryChange(this.newCatTargetKey, { item: subName, group: groupName });
+    }
+
+    this.closeAddCategoryModal();
+  }
+
+  @HostListener('window:keydown.escape')
+  public onSettingsEscape(): void {
+    if (this.showAddCategoryModal()) {
+      this.closeAddCategoryModal();
+    }
+  }
+
   @HostListener('document:click')
   public onSettingsDocumentClick(): void {
     if (this.isOwnerExcludeDropdownOpen()) {

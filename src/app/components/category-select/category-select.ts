@@ -39,7 +39,7 @@ export class CategorySelectComponent implements OnDestroy {
   @Output() valueChange = new EventEmitter<string>();
   @Output() groupChange = new EventEmitter<string>();
   @Output() categoryChange = new EventEmitter<{ item: string; group: string }>();
-  @Output() addNewRequested = new EventEmitter<void>();
+  @Output() addNewRequested = new EventEmitter<string>();
 
   @ViewChild('triggerBtn') triggerBtnRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
@@ -234,7 +234,8 @@ export class CategorySelectComponent implements OnDestroy {
 
   public selectItem(name: string, groupName: string = ''): void {
     if (name === '__ADD_NEW__') {
-      this.addNewRequested.emit();
+      const typed = (groupName || this.searchQuery()).trim();
+      this.addNewRequested.emit(typed);
       this.valueChange.emit('__ADD_NEW__');
     } else {
       this.group = groupName;
@@ -272,12 +273,14 @@ export class CategorySelectComponent implements OnDestroy {
         } else if (item.type === 'uncat') {
           this.selectItem('', '');
         } else if (item.type === 'add_new') {
-          this.addNewRequested.emit();
+          const typed = this.searchQuery().trim();
+          this.addNewRequested.emit(typed);
           this.valueChange.emit('__ADD_NEW__');
           this.closeDropdown();
         }
       } else if (this.searchQuery().trim()) {
-        this.addNewRequested.emit();
+        const typed = this.searchQuery().trim();
+        this.addNewRequested.emit(typed);
         this.valueChange.emit('__ADD_NEW__');
         this.closeDropdown();
       }
