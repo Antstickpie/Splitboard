@@ -130,6 +130,7 @@ export interface AppDataBackup {
     lastRatesRefresh?: number | null;
     edCurrencyRules?: EveryDollarPeriodCurrencyRule[];
     edDefaultCurrency?: string;
+    edIncludeInSplit?: boolean;
     yearlyExchangeRates?: Record<string, number>;
     autoSyncDrive: boolean;
     googleFileName: string;

@@ -687,7 +687,13 @@
               <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.55rem;">
                 💸 Cash Transfer
               </span>
-              <div *ngIf="!tx.isCashTransfer" class="split-button-group">
+              <span *ngIf="!tx.isCashTransfer && !service.edIncludeInSplit() && service.isEveryDollarTransaction(tx)"
+                class="badge"
+                style="background: rgba(56, 189, 248, 0.08); color: #94a3b8; border: 1px dashed rgba(56, 189, 248, 0.25); font-size: 0.72rem; font-weight: 500; padding: 0.2rem 0.5rem;"
+                title="EveryDollar transactions are excluded from split calculations by default (Settings > EveryDollar)">
+                🚫 Not in Split
+              </span>
+              <div *ngIf="!tx.isCashTransfer && (service.edIncludeInSplit() || !service.isEveryDollarTransaction(tx))" class="split-button-group">
                 <button
                   type="button"
                   class="split-btn split-btn-5050"
@@ -1426,7 +1432,10 @@
             </td>
             <td style="padding: 0.4rem 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="t.categoryItem || 'Uncategorized'"><span class="badge badge-neutral" style="font-size: 0.68rem;">{{ t.categoryItem || 'Uncategorized' }}</span></td>
             <td style="padding: 0.4rem 0.5rem; white-space: nowrap;">
-              <span class="badge" [class.badge-success]="t.splitType === 'SPLIT'" [class.badge-neutral]="t.splitType === 'SELF'" [class.badge-danger]="t.splitType === 'OTHER'" style="font-size: 0.68rem;">
+              <span *ngIf="!service.edIncludeInSplit() && service.isEveryDollarTransaction(t)" class="badge" style="background: rgba(56, 189, 248, 0.08); color: #94a3b8; border: 1px dashed rgba(56, 189, 248, 0.25); font-size: 0.68rem;">
+                🚫 Not in Split
+              </span>
+              <span *ngIf="service.edIncludeInSplit() || !service.isEveryDollarTransaction(t)" class="badge" [class.badge-success]="t.splitType === 'SPLIT'" [class.badge-neutral]="t.splitType === 'SELF'" [class.badge-danger]="t.splitType === 'OTHER'" style="font-size: 0.68rem;">
                 {{ t.splitType === 'SPLIT' ? '50/50' : (t.splitType === 'SELF' ? '100% ' + t.paidBy : '100% Other') }}
               </span>
             </td>

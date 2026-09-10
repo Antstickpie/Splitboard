@@ -157,10 +157,12 @@ export class TransactionService {
   // EveryDollar Period Currency Rules & Historical Rates
   public edCurrencyRules = signal<EveryDollarPeriodCurrencyRule[]>([]);
   public edDefaultCurrency = signal<string>('USD');
+  public edIncludeInSplit = signal<boolean>(false);
   public yearlyExchangeRates = signal<Record<string, number>>({});
   private readonly ED_RULES_STORAGE_KEY = 'splitboard_ed_currency_rules';
   private readonly ED_DEF_CURR_STORAGE_KEY = 'splitboard_ed_default_currency';
   private readonly YEARLY_RATES_STORAGE_KEY = 'splitboard_yearly_exchange_rates';
+  private readonly ED_INCLUDE_IN_SPLIT_KEY = 'splitboard_ed_include_in_split';
 
   // UI State Signals
   public toasts = signal<Toast[]>([]);
@@ -389,6 +391,10 @@ export class TransactionService {
     const amount = Number(tx.amount) || 0;
     if (amount <= 0) return { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
 
+    if (!this.edIncludeInSplit() && this.isEveryDollarTransaction(tx)) {
+      return { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
+    }
+
     const isP1 = tx.paidBy === p1;
     const isP2 = tx.paidBy === p2;
 
@@ -522,6 +528,10 @@ export class TransactionService {
     const itemized: SettlementSummary['itemizedDetails'] = [];
 
     this.transactions().forEach((tx) => {
+      if (!this.edIncludeInSplit() && this.isEveryDollarTransaction(tx)) {
+        return; // Exclude EveryDollar transactions from split & settlement calculations
+      }
+
       const isPrior = this.isTransactionPriorToActiveRange(tx);
       const isCurrent = this.isTransactionInActiveRange(tx);
 
@@ -792,6 +802,7 @@ export class TransactionService {
         lastRatesRefresh: this.lastRatesRefresh(),
         edCurrencyRules: this.edCurrencyRules(),
         edDefaultCurrency: this.edDefaultCurrency(),
+        edIncludeInSplit: this.edIncludeInSplit(),
         yearlyExchangeRates: this.yearlyExchangeRates(),
         autoSyncDrive: this.autoSyncGoogleDrive(),
         googleFileName: this.googleFileName(),
@@ -896,6 +907,7 @@ export class TransactionService {
       if (data.settings.lastRatesRefresh) this.lastRatesRefresh.set(data.settings.lastRatesRefresh);
       if (data.settings.edCurrencyRules) this.edCurrencyRules.set(data.settings.edCurrencyRules);
       if (data.settings.edDefaultCurrency) this.edDefaultCurrency.set(data.settings.edDefaultCurrency);
+      if (data.settings.edIncludeInSplit !== undefined) this.saveEdIncludeInSplit(Boolean(data.settings.edIncludeInSplit));
       if (data.settings.yearlyExchangeRates) this.yearlyExchangeRates.set(data.settings.yearlyExchangeRates);
       if (data.settings.autoSyncDrive !== undefined) this.autoSyncGoogleDrive.set(data.settings.autoSyncDrive);
       if (data.settings.googleFileName) {
@@ -922,6 +934,8 @@ export class TransactionService {
       if (storedDef) this.edDefaultCurrency.set(storedDef);
       const storedYearlyRates = localStorage.getItem(this.YEARLY_RATES_STORAGE_KEY);
       if (storedYearlyRates) this.yearlyExchangeRates.set(JSON.parse(storedYearlyRates));
+      const storedEdIncludeInSplit = localStorage.getItem(this.ED_INCLUDE_IN_SPLIT_KEY);
+      if (storedEdIncludeInSplit !== null) this.edIncludeInSplit.set(storedEdIncludeInSplit === 'true');
     } catch (_) {}
 
     this.initDatabasePersistence();
@@ -2019,6 +2033,21 @@ export class TransactionService {
     try {
       localStorage.setItem(this.YEARLY_RATES_STORAGE_KEY, JSON.stringify(rates));
     } catch (_) {}
+  }
+
+  public saveEdIncludeInSplit(val: boolean): void {
+    this.edIncludeInSplit.set(val);
+    try {
+      localStorage.setItem(this.ED_INCLUDE_IN_SPLIT_KEY, String(val));
+    } catch (_) {}
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public isEveryDollarTransaction(tx: Transaction): boolean {
+    const bank = (tx.bank || '').trim().toLowerCase();
+    if (bank === 'everydollar') return true;
+    if (tx.sourceFile && tx.sourceFile.toLowerCase().startsWith('everydollar')) return true;
+    return false;
   }
 
   /**

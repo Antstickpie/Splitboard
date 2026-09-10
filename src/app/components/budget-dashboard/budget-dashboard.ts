@@ -649,6 +649,21 @@ export class BudgetDashboardComponent {
       if (amt <= 0) return;
       if (tx.isCashTransfer || tx.type === 'TRANSFER') return;
 
+      if (!this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx)) {
+        if (tx.type === 'INCOME') {
+          if (tx.paidBy === p1) p1IncomeMonth += amt;
+          else if (tx.paidBy === p2) p2IncomeMonth += amt;
+          else {
+            p1IncomeMonth += amt / 2;
+            p2IncomeMonth += amt / 2;
+          }
+        } else if (tx.type === 'EXPENSE' && !isSavingsCategory(tx)) {
+          if (tx.paidBy === p1) p1SpentShareMonth += amt;
+          else p2SpentShareMonth += amt;
+        }
+        return;
+      }
+
       if (tx.type === 'INCOME') {
         if (tx.splitType === 'SELF') {
           if (tx.paidBy === p1) p1IncomeMonth += amt;
@@ -765,6 +780,21 @@ export class BudgetDashboardComponent {
       const amt = Number(tx.amount) || 0;
       if (amt <= 0) return;
       if (tx.type === 'TRANSFER') return;
+
+      if (!this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx)) {
+        if (tx.type === 'INCOME') {
+          if (tx.paidBy === p1) p1PriorSavings += amt;
+          else if (tx.paidBy === p2) p2PriorSavings += amt;
+          else {
+            p1PriorSavings += amt / 2;
+            p2PriorSavings += amt / 2;
+          }
+        } else if (tx.type === 'EXPENSE' && !isSavingsCategory(tx)) {
+          if (tx.paidBy === p1) p1PriorSavings -= amt;
+          else p2PriorSavings -= amt;
+        }
+        return;
+      }
 
       if (tx.type === 'INCOME') {
         if (tx.splitType === 'SELF') {
