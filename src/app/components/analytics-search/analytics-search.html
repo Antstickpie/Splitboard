@@ -453,7 +453,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let t of filteredAndSortedTransactions()">
-                <td class="font-mono text-muted" style="font-size: 0.74rem;">{{ t.date }}</td>
+                <td class="font-mono text-muted" style="font-size: 0.74rem; white-space: nowrap;">{{ service.formatDate(t.date) }}</td>
                 <td>
                   <div style="font-weight: 600; color: var(--text-main); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     {{ t.merchant || t.description }}
