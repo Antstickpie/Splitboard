@@ -352,6 +352,7 @@ export class ImportComponent {
   public ruleCategoryGroup = '';
   public ruleSplitType: SplitType = 'SELF';
   public rulePaidBy = '';
+  public ruleIncomeNextMonth = false;
   public editingExistingRuleId: string | null = null;
 
   public findMatchingRuleForTx(tx: Transaction): { type: 'category' | 'exclude'; rule: any } | null {
@@ -426,6 +427,7 @@ export class ImportComponent {
       this.ruleCategoryGroup = tx.categoryGroup || '';
       this.ruleSplitType = tx.splitType || 'SELF';
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
+      this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
     }
 
     this.showRuleModal.set(true);
@@ -441,20 +443,22 @@ export class ImportComponent {
       this.ruleCategoryGroup = tx.categoryGroup || '';
       this.ruleSplitType = tx.splitType || 'SELF';
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
+      this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
     }
     this.service.showToast('Switched to creating a new rule', 'info');
   }
 
   public deleteRuleFromModal(): void {
     if (!this.editingExistingRuleId) return;
-    const id = this.editingExistingRuleId;
+    const ruleId = this.editingExistingRuleId;
     if (this.ruleType() === 'exclude') {
-      this.service.deleteExcludeRule(id);
+      this.service.deleteExcludeRule(ruleId);
+      this.service.showToast('Exclude rule deleted', 'success');
     } else {
-      this.service.deleteRule(id);
+      this.service.deleteRule(ruleId);
+      this.service.showToast('Category rule deleted', 'success');
     }
     this.closeRuleModal();
-    this.service.showToast('Rule deleted', 'info');
   }
 
   public closeRuleModal(): void {
@@ -509,6 +513,7 @@ export class ImportComponent {
       this.ruleCategoryGroup = info.rule.categoryGroup || '';
       this.ruleSplitType = info.rule.splitType || 'SPLIT';
       this.rulePaidBy = info.rule.paidBy || '';
+      this.ruleIncomeNextMonth = Boolean(info.rule.incomeNextMonth);
     }
     if (showToast) {
       this.service.showToast('Loaded existing rule for editing!', 'info');
@@ -571,7 +576,8 @@ export class ImportComponent {
           categoryGroup: catGroup,
           splitType: this.ruleSplitType,
           paidBy: this.rulePaidBy,
-          bank: this.ruleBank
+          bank: this.ruleBank,
+          incomeNextMonth: this.ruleIncomeNextMonth
         });
       } else {
         this.service.addRule({
@@ -580,7 +586,8 @@ export class ImportComponent {
           categoryGroup: catGroup,
           splitType: this.ruleSplitType,
           paidBy: this.rulePaidBy,
-          bank: this.ruleBank
+          bank: this.ruleBank,
+          incomeNextMonth: this.ruleIncomeNextMonth
         });
       }
 
@@ -599,13 +606,18 @@ export class ImportComponent {
         const updatedValid = res.transactions.map((t) => {
           if (matches(t)) {
             updatedInPreview++;
-            return {
+            const updatedTx: Transaction = {
               ...t,
               categoryItem: this.ruleCategory || t.categoryItem,
               categoryGroup: catGroup || t.categoryGroup,
               splitType: this.ruleSplitType,
               paidBy: this.rulePaidBy || t.paidBy
             };
+            if (this.ruleIncomeNextMonth && this.isIncomeTx(t)) {
+              const curM = (t.date || '').slice(0, 7);
+              updatedTx.incomeMonth = this.service.getNextMonth(curM);
+            }
+            return updatedTx;
           }
           return t;
         });
@@ -748,6 +760,10 @@ export class ImportComponent {
           t.splitType = matched.splitType || t.splitType;
           t.splitPercentage = matched.splitPercentage !== undefined ? matched.splitPercentage : t.splitPercentage;
           if (matched.paidBy) t.paidBy = matched.paidBy;
+          if (matched.incomeNextMonth && this.isIncomeTx(t)) {
+            const curM = (t.date || '').slice(0, 7);
+            t.incomeMonth = this.service.getNextMonth(curM);
+          }
         }
 
         newTransactions.push(t);

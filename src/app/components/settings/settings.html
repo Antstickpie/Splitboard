@@ -488,6 +488,13 @@
             </select>
           </div>
 
+          <div style="display: flex; align-items: center; padding-bottom: 0.35rem;">
+            <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-muted); white-space: nowrap;" title="If matched transaction is income or payment, shift to fund next month">
+              <input type="checkbox" [(ngModel)]="newRuleIncomeNextMonth" style="accent-color: var(--primary); cursor: pointer;">
+              <span>📅 If Income: Next Month</span>
+            </label>
+          </div>
+
           <button class="btn btn-primary btn-sm" (click)="addRule()" [disabled]="!newRuleKeyword.trim()" style="height: 30px; font-size: 0.76rem;">
             + Add Rule
           </button>
@@ -553,7 +560,10 @@
               style="display: grid; grid-template-columns: 120px 1.5fr 1.3fr 110px 100px 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
               <div><span class="badge badge-neutral">{{ (!r.bank || r.bank === 'All' || r.bank === 'all') ? 'All Banks' : r.bank }}</span></div>
               <div><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></div>
-              <div><span class="badge badge-warning">{{ r.categoryItem }}</span></div>
+              <div>
+                <span class="badge badge-warning">{{ r.categoryItem }}</span>
+                <span *ngIf="r.incomeNextMonth" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); margin-left: 0.3rem;" title="Shift matching incomes to next month">📅 Next Month</span>
+              </div>
               <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
               <div>
                 <span class="badge badge-info" *ngIf="r.paidBy">{{ r.paidBy }}</span>
@@ -611,9 +621,15 @@
                   </select>
                 </div>
               </div>
-              <div style="display: flex; justify-content: flex-end; gap: 0.4rem;">
-                <button class="btn btn-secondary btn-xs" (click)="cancelEditRule()">Cancel</button>
-                <button class="btn btn-primary btn-xs" (click)="saveEditRule()" [disabled]="!editRuleModel.keyword.trim()">✓ Save Rule</button>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 0.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.76rem; cursor: pointer; color: var(--text-main);">
+                  <input type="checkbox" [(ngModel)]="editRuleModel.incomeNextMonth" style="accent-color: var(--primary); cursor: pointer;">
+                  <span>📅 If Income: Shift to fund next month's budget</span>
+                </label>
+                <div style="display: flex; gap: 0.4rem;">
+                  <button class="btn btn-secondary btn-xs" (click)="cancelEditRule()">Cancel</button>
+                  <button class="btn btn-primary btn-xs" (click)="saveEditRule()" [disabled]="!editRuleModel.keyword.trim()">✓ Save Rule</button>
+                </div>
               </div>
             </div>
           </div>

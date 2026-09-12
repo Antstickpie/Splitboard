@@ -2746,6 +2746,20 @@
               </select>
             </div>
           </div>
+
+          <!-- Income Next Month Option -->
+          <div style="padding: 0.55rem 0.75rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px;">
+            <label style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; user-select: none; margin: 0; font-size: 0.8rem; font-weight: 600; color: #10b981;">
+              <input
+                type="checkbox"
+                [(ngModel)]="ruleIncomeNextMonth"
+                style="width: 15px; height: 15px; accent-color: #10b981; cursor: pointer;">
+              <span>📅 If Income: Shift to fund next month's budget</span>
+            </label>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem; margin-left: 1.55rem;">
+              When matching positive transactions or income categories, automatically shift them to fund next month.
+            </div>
+          </div>
         </ng-container>
       </div>
 

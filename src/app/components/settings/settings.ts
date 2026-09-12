@@ -161,6 +161,7 @@ export class SettingsComponent {
   public newRuleCategoryGroup = '';
   public newRuleSplitType: 'SELF' | 'OTHER' | 'SPLIT' = 'SPLIT';
   public newRuleOwner = '';
+  public newRuleIncomeNextMonth = false;
 
   // Exclude Rules Form
   public newExcludeBank = 'All';
@@ -323,10 +324,12 @@ export class SettingsComponent {
       categoryGroup: group,
       splitType: this.newRuleSplitType,
       paidBy: this.newRuleOwner || undefined,
-      bank: this.newRuleBank || 'All'
+      bank: this.newRuleBank || 'All',
+      incomeNextMonth: this.newRuleIncomeNextMonth || undefined
     });
     this.newRuleKeyword = '';
     this.newRuleBank = 'All';
+    this.newRuleIncomeNextMonth = false;
   }
 
   public deleteRule(id: string) {

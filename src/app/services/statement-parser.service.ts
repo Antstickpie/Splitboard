@@ -246,7 +246,7 @@ export class StatementParserService {
       if (amount === 0) continue;
 
       const cleanDesc = this.service.fixMojibake(desc.replace(/\s+/g, ' ').trim());
-      const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
+      const { group, item, defaultSplit, incomeNextMonth } = this.matchCategory(cleanDesc, detectedBank);
 
       // Extract statement Currency and convert if different from Base Currency
       let txCurrency = '';
@@ -286,6 +286,7 @@ export class StatementParserService {
         date: isoDate,
         amount: finalAmount,
         type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
+        incomeMonth: (isIncomeOrPayment && incomeNextMonth) ? this.service.getNextMonth(isoDate.slice(0, 7)) : undefined,
         description: cleanDesc,
         bank: effectiveBank,
         account: effectiveBank,
@@ -640,7 +641,7 @@ export class StatementParserService {
         continue;
       }
 
-      const { group, item, defaultSplit } = this.matchCategory(cleanDesc, detectedBank);
+      const { group, item, defaultSplit, incomeNextMonth } = this.matchCategory(cleanDesc, detectedBank);
 
       // Check for explicit income vs expense keywords in block
       const isIncomeDesc =
@@ -675,6 +676,7 @@ export class StatementParserService {
         date: isoDate,
         amount: Math.abs(amount),
         type: isIncomeOrPayment ? 'INCOME' : 'EXPENSE',
+        incomeMonth: (isIncomeOrPayment && incomeNextMonth) ? this.service.getNextMonth(isoDate.slice(0, 7)) : undefined,
         description: cleanDesc,
         bank: effectiveBank,
         account: effectiveBank,
@@ -1000,7 +1002,7 @@ export class StatementParserService {
   public matchCategory(
     desc: string,
     bank?: string
-  ): { group?: string; item?: string; defaultSplit?: SplitType; defaultOwner?: string } {
+  ): { group?: string; item?: string; defaultSplit?: SplitType; defaultOwner?: string; incomeNextMonth?: boolean } {
     if (!desc) return {};
     const rawLower = desc.toLowerCase();
     const bankLower = (bank || '').toLowerCase();
@@ -1019,7 +1021,8 @@ export class StatementParserService {
             group: rule.categoryGroup,
             item: rule.categoryItem,
             defaultSplit: rule.splitType || 'SPLIT',
-            defaultOwner: rule.paidBy
+            defaultOwner: rule.paidBy,
+            incomeNextMonth: rule.incomeNextMonth
           };
         }
       }

@@ -101,6 +101,7 @@ export interface CategoryRule {
   splitPercentage?: number;
   paidBy?: string;
   bank?: string; // 'All' or specific bank
+  incomeNextMonth?: boolean; // If matching transaction is income, shift to fund next month
 }
 
 export interface ExcludeRule {
