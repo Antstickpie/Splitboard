@@ -316,16 +316,17 @@ export class SettingsComponent {
     };
 
     if (diffs.length > 0) {
-      this.service.ruleConfirmModal.set({
+      this.service.openRuleConfirmModal({
         rule: updatedRule,
         oldRule,
         diffs,
-        onConfirm: () => {
-          this.service.applyRuleToTransactions(oldRule, updatedRule, diffs);
+        onConfirm: (selectedDiffs) => {
+          const toApply = selectedDiffs ?? diffs;
+          this.service.applyRuleToTransactions(oldRule, updatedRule, toApply);
           doSave();
-          this.service.showToast(`Updated rule and applied changes to ${diffs.length} transactions`, 'success');
+          this.service.showToast(`Updated rule and applied changes to ${toApply.length} transactions`, 'success');
         },
-        onSaveOnly: () => {
+        onSaveRuleOnly: () => {
           doSave();
           this.service.showToast('Rule saved without updating existing transactions', 'info');
         }
@@ -374,15 +375,16 @@ export class SettingsComponent {
     };
 
     if (diffs.length > 0) {
-      this.service.ruleConfirmModal.set({
+      this.service.openRuleConfirmModal({
         rule: tempRule,
         diffs,
-        onConfirm: () => {
-          this.service.applyRuleToTransactions(null, tempRule, diffs);
+        onConfirm: (selectedDiffs) => {
+          const toApply = selectedDiffs ?? diffs;
+          this.service.applyRuleToTransactions(null, tempRule, toApply);
           doSave();
-          this.service.showToast(`Created rule and applied to ${diffs.length} transactions`, 'success');
+          this.service.showToast(`Created rule and applied to ${toApply.length} transactions`, 'success');
         },
-        onSaveOnly: () => {
+        onSaveRuleOnly: () => {
           doSave();
           this.service.showToast('Rule created without updating existing transactions', 'info');
         }

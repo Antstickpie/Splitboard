@@ -104,9 +104,15 @@ export interface RuleDiffChange {
   to: string;
 }
 
+export type RuleCategoryScope = 'SAME' | 'SAME_AND_UNCAT' | 'ALL';
+
 export interface RuleTxDiffItem {
   tx: Transaction;
   changes: RuleDiffChange[];
+  categoryStatus?: 'SAME' | 'UNCATEGORIZED' | 'DIFFERENT';
+  isSameCategory?: boolean;
+  isUncategorized?: boolean;
+  isDifferentCategory?: boolean;
 }
 
 export interface RuleConfirmModalData {
@@ -115,8 +121,10 @@ export interface RuleConfirmModalData {
   oldRule?: CategoryRule | null;
   affectedCount?: number;
   diffs: RuleTxDiffItem[];
+  allDiffs?: RuleTxDiffItem[];
+  categoryScope?: RuleCategoryScope;
   source?: 'ledger' | 'import' | 'all';
-  onConfirm: () => void;
+  onConfirm: (selectedDiffs?: RuleTxDiffItem[]) => void;
   onCancel?: () => void;
   onSaveRuleOnly?: () => void;
   onSaveOnly?: () => void;
@@ -194,6 +202,130 @@ export class TransactionService {
   public confirmModal = signal<ConfirmModalConfig | null>(null);
   public alertModal = signal<AlertModalConfig | null>(null);
   public ruleConfirmModal = signal<RuleConfirmModalData | null>(null);
+  public ruleModalCategoryScope = signal<RuleCategoryScope>('SAME');
+  public ruleModalSelectedIds = signal<Set<string>>(new Set());
+
+  public getFilteredRuleDiffs(diffs: RuleTxDiffItem[], scope: RuleCategoryScope): RuleTxDiffItem[] {
+    if (!diffs) return [];
+    if (scope === 'ALL') return diffs;
+    if (scope === 'SAME') return diffs.filter((d) => d.isSameCategory);
+    if (scope === 'SAME_AND_UNCAT') return diffs.filter((d) => d.isSameCategory || d.isUncategorized);
+    return diffs;
+  }
+
+  public activeRuleModalDiffs = computed(() => {
+    const modal = this.ruleConfirmModal();
+    if (!modal) return [];
+    const diffs = modal.allDiffs || modal.diffs;
+    const scope = this.ruleModalCategoryScope();
+    return this.getFilteredRuleDiffs(diffs, scope);
+  });
+
+  public ruleModalCounts = computed(() => {
+    const modal = this.ruleConfirmModal();
+    if (!modal) return { total: 0, same: 0, uncat: 0, different: 0, selected: 0 };
+    const all = modal.allDiffs || modal.diffs;
+    const same = all.filter((d) => d.isSameCategory).length;
+    const uncat = all.filter((d) => d.isUncategorized).length;
+    const different = all.filter((d) => d.isDifferentCategory).length;
+    const selected = this.ruleModalSelectedIds().size;
+    return { total: all.length, same, uncat, different, selected };
+  });
+
+  public openRuleConfirmModal(data: RuleConfirmModalData): void {
+    const all = data.diffs || [];
+    const sameCount = all.filter((d) => d.isSameCategory).length;
+    // Default to 'SAME' if there are transactions in the same category; otherwise if uncat exist, 'SAME_AND_UNCAT'; otherwise 'ALL'
+    let defaultScope: RuleCategoryScope = 'SAME';
+    if (sameCount === 0) {
+      const uncatCount = all.filter((d) => d.isUncategorized).length;
+      defaultScope = uncatCount > 0 ? 'SAME_AND_UNCAT' : 'ALL';
+    }
+    const initialScope = data.categoryScope || defaultScope;
+    this.ruleModalCategoryScope.set(initialScope);
+
+    const visible = this.getFilteredRuleDiffs(all, initialScope);
+    const initialSelected = new Set<string>(visible.map((d) => d.tx.id));
+    this.ruleModalSelectedIds.set(initialSelected);
+
+    this.ruleConfirmModal.set({
+      ...data,
+      allDiffs: all,
+      diffs: visible,
+      affectedCount: initialSelected.size
+    });
+  }
+
+  public setRuleModalCategoryScope(scope: RuleCategoryScope): void {
+    this.ruleModalCategoryScope.set(scope);
+    const modal = this.ruleConfirmModal();
+    if (!modal) return;
+    const all = modal.allDiffs || modal.diffs;
+    const visible = this.getFilteredRuleDiffs(all, scope);
+    this.ruleModalSelectedIds.set(new Set(visible.map((d) => d.tx.id)));
+  }
+
+  public toggleRuleModalTx(id: string): void {
+    this.ruleModalSelectedIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  public isRuleModalTxSelected(id: string): boolean {
+    return this.ruleModalSelectedIds().has(id);
+  }
+
+  public toggleSelectAllRuleModal(): void {
+    const visible = this.activeRuleModalDiffs();
+    const currentSelected = this.ruleModalSelectedIds();
+    const allSelected = visible.length > 0 && visible.every((d) => currentSelected.has(d.tx.id));
+    if (allSelected) {
+      this.ruleModalSelectedIds.set(new Set());
+    } else {
+      this.ruleModalSelectedIds.set(new Set(visible.map((d) => d.tx.id)));
+    }
+  }
+
+  public selectAllRuleModal(): void {
+    const visible = this.activeRuleModalDiffs();
+    this.ruleModalSelectedIds.set(new Set(visible.map((d) => d.tx.id)));
+  }
+
+  public deselectAllRuleModal(): void {
+    this.ruleModalSelectedIds.set(new Set());
+  }
+
+  public confirmRuleModal(): void {
+    const modal = this.ruleConfirmModal();
+    if (!modal) return;
+    const selectedIds = this.ruleModalSelectedIds();
+    const all = modal.allDiffs || modal.diffs;
+    const selectedDiffs = all.filter((d) => selectedIds.has(d.tx.id));
+    this.ruleConfirmModal.set(null);
+    modal.onConfirm(selectedDiffs);
+  }
+
+  public saveRuleOnlyModal(): void {
+    const modal = this.ruleConfirmModal();
+    if (!modal) return;
+    this.ruleConfirmModal.set(null);
+    if (modal.onSaveRuleOnly) modal.onSaveRuleOnly();
+    else if (modal.onSaveOnly) modal.onSaveOnly();
+  }
+
+  public cancelRuleModal(): void {
+    const modal = this.ruleConfirmModal();
+    if (!modal) return;
+    this.ruleConfirmModal.set(null);
+    if (modal.onCancel) modal.onCancel();
+  }
+
   public selectedMonth = signal<string>(this.getCurrentMonthString());
   public searchQuery = signal<string>('');
   public filterBank = signal<string>('ALL');
@@ -1313,7 +1445,27 @@ export class TransactionService {
       }
 
       if (changes.length > 0) {
-        diffs.push({ tx, changes });
+        const txCat = (tx.categoryItem || '').trim().toLowerCase();
+        const newCat = (newRule.categoryItem || '').trim().toLowerCase();
+        const oldCat = (oldRule?.categoryItem || '').trim().toLowerCase();
+
+        let categoryStatus: 'SAME' | 'UNCATEGORIZED' | 'DIFFERENT' = 'UNCATEGORIZED';
+        if (!txCat) {
+          categoryStatus = 'UNCATEGORIZED';
+        } else if (txCat === newCat || (oldCat && txCat === oldCat)) {
+          categoryStatus = 'SAME';
+        } else {
+          categoryStatus = 'DIFFERENT';
+        }
+
+        diffs.push({
+          tx,
+          changes,
+          categoryStatus,
+          isSameCategory: categoryStatus === 'SAME',
+          isUncategorized: categoryStatus === 'UNCATEGORIZED',
+          isDifferentCategory: categoryStatus === 'DIFFERENT'
+        });
       }
     }
 

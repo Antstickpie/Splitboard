@@ -620,14 +620,14 @@ export class ImportComponent {
         }
       };
 
-      const doApplyAndSave = () => {
+      const doApplyAndSave = (diffsToApply: RuleTxDiffItem[]) => {
         // 1. Update ledger transactions
-        this.service.applyRuleToTransactions(oldRule, newRule, diffs);
+        this.service.applyRuleToTransactions(oldRule, newRule, diffsToApply);
 
         // 2. Update preview transactions
         if (res) {
           const diffMap = new Map<string, RuleTxDiffItem>();
-          for (const d of diffs) {
+          for (const d of diffsToApply) {
             diffMap.set(d.tx.id, d);
           }
           const oldNote = (oldRule?.defaultNote || '').trim();
@@ -675,15 +675,16 @@ export class ImportComponent {
 
       if (diffs.length > 0) {
         this.closeRuleModal();
-        this.service.ruleConfirmModal.set({
+        this.service.openRuleConfirmModal({
           rule: newRule,
           oldRule,
           diffs,
-          onConfirm: () => {
-            doApplyAndSave();
-            this.service.showToast(`Applied rule changes to ${diffs.length} transactions`, 'success');
+          onConfirm: (selectedDiffs) => {
+            const toApply = selectedDiffs ?? diffs;
+            doApplyAndSave(toApply);
+            this.service.showToast(`Applied rule changes to ${toApply.length} transactions`, 'success');
           },
-          onSaveOnly: () => {
+          onSaveRuleOnly: () => {
             doSaveRuleOnly();
             this.service.showToast('Rule saved without updating existing transactions', 'info');
           }
