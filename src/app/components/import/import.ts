@@ -49,6 +49,8 @@ export interface ImportDescriptionMapping {
   selectedSplitType: SplitType;
   rawCategories: string[];
   isIncome?: boolean;
+  isFullyAssigned?: boolean;
+  unassignedCount?: number;
 }
 
 @Component({
@@ -289,10 +291,19 @@ export class ImportComponent {
     });
   }
 
+  public assignedTransactionsCount = computed<number>(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return 0;
+    return res.transactions.filter((t) => t.categoryItem && t.categoryItem !== 'Uncategorized').length;
+  });
+
   public sortedTransactions = computed(() => {
     const res = this.previewResult();
     if (!res || !res.transactions) return [];
     let list = res.transactions;
+    if (this.descExcludeAssigned()) {
+      list = list.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized');
+    }
     if (this.selectedCategoryFilter()) {
       const cat = this.selectedCategoryFilter();
       list = list.filter((t) => (t.rawCategory || t.categoryItem || 'Uncategorized').trim() === cat);
@@ -1651,6 +1662,7 @@ export class ImportComponent {
   public descriptionMatchKeyword = signal<string>('');
   public descriptionBatchItem = signal<string>('');
   public descriptionBatchGroup = signal<string>('');
+  public descriptionBatchNote = '';
   public descExcludeAssigned = signal<boolean>(false);
 
   public excludedOwners = signal<string[]>([]);
@@ -1768,6 +1780,9 @@ export class ImportComponent {
         new Set(val.items.map((t) => (t.rawCategory || t.categoryItem || '').trim()).filter(Boolean))
       );
 
+      const unassignedCount = val.items.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized').length;
+      const isFullyAssigned = unassignedCount === 0;
+
       result.push({
         description,
         count: val.count,
@@ -1777,7 +1792,9 @@ export class ImportComponent {
         selectedPerson: allSameOwner ? firstOwner : '',
         selectedSplitType: allSameSplit ? firstSplit : 'SELF',
         rawCategories,
-        isIncome: val.isIncome
+        isIncome: val.isIncome,
+        isFullyAssigned,
+        unassignedCount
       });
     });
 
@@ -1785,7 +1802,10 @@ export class ImportComponent {
   });
 
   public displayedCategoryMappings = computed<ImportCategoryMapping[]>(() => {
-    const list = this.categoryMappings();
+    let list = this.categoryMappings();
+    if (this.descExcludeAssigned()) {
+      list = list.filter((m) => !m.selectedItem || m.selectedItem === 'Uncategorized');
+    }
     const q = this.categoryMatchKeyword().trim().toLowerCase();
     const typeQ = this.typeMatchKeyword().trim().toLowerCase();
     const activeQ = q || typeQ;
@@ -1805,7 +1825,10 @@ export class ImportComponent {
   });
 
   public displayedDescriptionMappings = computed<ImportDescriptionMapping[]>(() => {
-    const list = this.descriptionMappings();
+    let list = this.descriptionMappings();
+    if (this.descExcludeAssigned()) {
+      list = list.filter((d) => !d.isFullyAssigned);
+    }
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) return list;
 
@@ -2508,6 +2531,9 @@ export class ImportComponent {
         if (isIncome) {
           t.type = 'INCOME';
         }
+        if (this.descriptionBatchNote.trim()) {
+          t.note = this.descriptionBatchNote.trim();
+        }
         matchedCount++;
       }
     }
@@ -2518,6 +2544,37 @@ export class ImportComponent {
 
     const skippedMsg = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
     this.service.showToast(`Assigned ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}" to ${chosenItem}!${skippedMsg}`, 'success');
+  }
+
+  public assignMatchingDescriptionsToNote(note?: string): void {
+    const noteVal = (note !== undefined ? note : this.descriptionBatchNote).trim();
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a description keyword to match.', 'info');
+      return;
+    }
+
+    const res = this.previewResult();
+    if (!res) return;
+
+    const excludeAssigned = this.descExcludeAssigned();
+    let matchedCount = 0;
+    let skippedCount = 0;
+
+    for (const t of res.transactions) {
+      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+        if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+          skippedCount++;
+          continue;
+        }
+        t.note = noteVal || undefined;
+        matchedCount++;
+      }
+    }
+
+    this.previewResult.set({ ...res });
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} already assigned skipped)` : '';
+    this.service.showToast(`Set comment on ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}"!${skippedMsg}`, 'success');
   }
 
   public clearCategoryMatchKeyword(): void {
