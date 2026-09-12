@@ -663,6 +663,7 @@ export class ImportComponent {
         }
       }
     }
+    tx.rawCategory = newCategory;
     if (newCategory.toLowerCase().includes('reimburse')) {
       tx.isReimbursable = true;
       tx.reimbursementStatus = 'PENDING';
@@ -670,6 +671,57 @@ export class ImportComponent {
     }
     const res = this.previewResult();
     if (res) this.previewResult.set({ ...res });
+  }
+
+  public moveIndividualTransactionCategory(tx: Transaction, newCategory: string, newGroup?: string): void {
+    if (newCategory === '__ADD_NEW__') {
+      this.openAddCategoryModal(tx, 'row');
+      return;
+    }
+
+    const prevCategory = (tx.rawCategory || tx.categoryItem || 'Uncategorized').trim();
+    const targetItem = newCategory || 'Uncategorized';
+
+    let parentGroupName: string | undefined = newGroup;
+    if (!parentGroupName && targetItem !== 'Uncategorized') {
+      for (const grp of this.service.categoryGroups()) {
+        if (grp.items.some((i) => i.name === targetItem)) {
+          parentGroupName = grp.name;
+          break;
+        }
+      }
+    }
+    if (!parentGroupName) {
+      parentGroupName = 'Uncategorized';
+    }
+
+    const isIncome = parentGroupName.toLowerCase().includes('income');
+
+    tx.categoryItem = targetItem;
+    tx.categoryGroup = parentGroupName;
+    tx.rawCategory = targetItem;
+
+    if (isIncome) {
+      tx.type = 'INCOME';
+    } else if (tx.type === 'INCOME') {
+      tx.type = 'EXPENSE';
+    }
+
+    if (targetItem.toLowerCase().includes('reimburse')) {
+      tx.isReimbursable = true;
+      tx.reimbursementStatus = 'PENDING';
+      tx.splitType = 'SELF';
+    }
+
+    const res = this.previewResult();
+    if (res) {
+      this.previewResult.set({ ...res });
+    }
+
+    this.service.showToast(
+      `Moved "${tx.description || 'Transaction'}" from "${prevCategory}" to "${targetItem}"`,
+      'success'
+    );
   }
 
   public unselectedSplitCount = computed(() => {

@@ -906,7 +906,7 @@
               <div *ngIf="expandedCategory() === m.rawCategory" class="ed-category-drawer animate-fade-in">
                 <div class="ed-drawer-header">
                   <span>Individual Transactions in "{{ m.rawCategory }}" ({{ getTransactionsForCategory(m.rawCategory).length }})</span>
-                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual category, owner, split, or note if needed</span>
                 </div>
                 <div class="ed-drawer-list">
                   <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
@@ -929,6 +929,19 @@
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
+                    <!-- Move Category Option -->
+                    <div style="min-width: 140px; max-width: 185px; flex-shrink: 0;" (click)="$event.stopPropagation()">
+                      <app-category-select
+                        [value]="tx.categoryItem || (m.selectedItem !== 'Uncategorized' ? m.selectedItem : '')"
+                        [group]="tx.categoryGroup || (m.selectedGroup !== 'Uncategorized' ? m.selectedGroup : '')"
+                        [compact]="true"
+                        placeholder="📁 Move Category..."
+                        minWidth="140px"
+                        customTitle="Move transaction to a different category"
+                        (categoryChange)="moveIndividualTransactionCategory(tx, $event.item, $event.group)"
+                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                      </app-category-select>
+                    </div>
                     <!-- Individual Note / Comment Input -->
                     <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
                       <input
@@ -1294,7 +1307,7 @@
               <div *ngIf="expandedDescription() === d.description" class="ed-category-drawer animate-fade-in">
                 <div class="ed-drawer-header">
                   <span>Transactions for "{{ d.description }}" ({{ getTransactionsForDescription(d.description).length }})</span>
-                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual category, owner, split, or note if needed</span>
                 </div>
                 <div class="ed-drawer-list">
                   <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
@@ -1317,6 +1330,19 @@
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
+                    <!-- Move Category Option -->
+                    <div style="min-width: 140px; max-width: 185px; flex-shrink: 0;" (click)="$event.stopPropagation()">
+                      <app-category-select
+                        [value]="tx.categoryItem || (d.selectedItem !== 'Uncategorized' ? d.selectedItem : '')"
+                        [group]="tx.categoryGroup || (d.selectedGroup !== 'Uncategorized' ? d.selectedGroup : '')"
+                        [compact]="true"
+                        placeholder="📁 Move Category..."
+                        minWidth="140px"
+                        customTitle="Move transaction to a different category"
+                        (categoryChange)="moveIndividualTransactionCategory(tx, $event.item, $event.group)"
+                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                      </app-category-select>
+                    </div>
                     <!-- Individual Note / Comment Input -->
                     <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
                       <input
