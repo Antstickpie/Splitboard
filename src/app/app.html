@@ -117,3 +117,70 @@
     </div>
   </div>
 </div>
+
+<!-- Global Rule Application Confirmation & Diff Modal -->
+<div class="modal-backdrop-overlay animate-fade-in" *ngIf="service.ruleConfirmModal() as modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.82); backdrop-filter: blur(6px); z-index: 10005; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()" style="max-width: 720px; width: 100%; max-height: 88vh; display: flex; flex-direction: column;">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.45rem;">
+          <span>⚡</span>
+          <span>{{ modal.title || 'Apply Rule to Existing Transactions' }}</span>
+        </h3>
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.76rem; color: var(--text-muted);">
+          Rule <code style="color: var(--primary); font-weight: 700;">"{{ modal.rule.keyword }}"</code> will update <strong>{{ modal.affectedCount ?? modal.diffs.length }}</strong> matching transaction{{ (modal.affectedCount ?? modal.diffs.length) === 1 ? '' : 's' }}.
+        </p>
+      </div>
+      <button class="btn-icon-remove" (click)="modal.onCancel ? modal.onCancel() : service.ruleConfirmModal.set(null)" style="background: transparent; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted);">✕</button>
+    </div>
+
+    <!-- Rule Configuration Summary Bar -->
+    <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0 0.5rem 0; font-size: 0.74rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+      <div><span style="color: var(--text-muted);">Bank:</span> <strong>{{ (!modal.rule.bank || modal.rule.bank === 'All' || modal.rule.bank === 'all') ? 'All Banks' : modal.rule.bank }}</strong></div>
+      <div><span style="color: var(--text-muted);">Category:</span> <span class="badge badge-warning">{{ modal.rule.categoryItem }}</span></div>
+      <div *ngIf="modal.rule.splitType"><span style="color: var(--text-muted);">Split:</span> <span class="badge badge-neutral">{{ modal.rule.splitType }}</span></div>
+      <div *ngIf="modal.rule.paidBy"><span style="color: var(--text-muted);">Paid By:</span> <span class="badge badge-info">{{ modal.rule.paidBy }}</span></div>
+      <div *ngIf="modal.rule.defaultNote"><span style="color: var(--text-muted);">Default Comment:</span> <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3);">💬 "{{ modal.rule.defaultNote }}"</span></div>
+    </div>
+
+    <!-- Scrollable Diff List -->
+    <div style="flex: 1; overflow-y: auto; margin: 0.5rem 0; padding-right: 0.25rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: 48vh;">
+      <div *ngFor="let item of modal.diffs" class="glass-card" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; font-size: 0.76rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 0.4rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span style="font-family: monospace; color: var(--text-muted); font-size: 0.72rem;">📅 {{ service.formatDate(item.tx.date) }}</span>
+            <span style="font-weight: 600; color: var(--text-main);">{{ item.tx.description }}</span>
+            <span *ngIf="item.tx.bank" class="badge badge-neutral" style="font-size: 0.65rem;">{{ item.tx.bank }}</span>
+          </div>
+          <span class="font-mono" style="font-weight: 700;" [class.text-success]="item.tx.type === 'INCOME'">
+            {{ item.tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(item.tx.amount) }}
+          </span>
+        </div>
+        <!-- Individual Field Diffs -->
+        <div style="display: flex; flex-direction: column; gap: 0.25rem; padding-left: 0.5rem; border-left: 2px solid var(--primary);">
+          <div *ngFor="let ch of item.changes" style="font-size: 0.72rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            <span style="color: var(--text-muted); min-width: 75px; font-weight: 600;">{{ ch.label }}:</span>
+            <span style="color: #f87171; text-decoration: line-through; background: rgba(239, 68, 68, 0.1); padding: 0.05rem 0.3rem; border-radius: 3px;">{{ ch.from }}</span>
+            <span style="color: var(--text-muted); font-size: 0.7rem;">→</span>
+            <span style="color: #34d399; font-weight: 600; background: rgba(16, 185, 129, 0.1); padding: 0.05rem 0.3rem; border-radius: 3px;">{{ ch.to }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Actions -->
+    <div class="modal-actions" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.75rem; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="modal.onCancel ? modal.onCancel() : service.ruleConfirmModal.set(null)">
+        Cancel
+      </button>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="modal.onSaveRuleOnly ? modal.onSaveRuleOnly() : (modal.onSaveOnly ? modal.onSaveOnly() : null); service.ruleConfirmModal.set(null)" title="Save the rule without changing existing transactions">
+          Save Rule Only
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="modal.onConfirm(); service.ruleConfirmModal.set(null)">
+          ✓ Confirm & Apply to {{ modal.affectedCount ?? modal.diffs.length }} Transaction{{ (modal.affectedCount ?? modal.diffs.length) === 1 ? '' : 's' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

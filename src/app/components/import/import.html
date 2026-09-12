@@ -2820,6 +2820,22 @@
             </app-category-select>
           </div>
 
+          <!-- Default Comment -->
+          <div>
+            <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">
+              Default Comment / Note (optional)
+            </label>
+            <input
+              type="text"
+              class="styled-select"
+              [(ngModel)]="ruleDefaultNote"
+              placeholder="e.g. Monthly subscription, groceries..."
+              style="width: 100%; box-sizing: border-box; font-size: 0.85rem;" />
+            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; display: block;">
+              Applied to transactions without comments or matching the old rule comment.
+            </span>
+          </div>
+
           <!-- Split Mode & Paid By -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
             <div>

@@ -162,6 +162,7 @@ export class SettingsComponent {
   public newRuleSplitType: 'SELF' | 'OTHER' | 'SPLIT' = 'SPLIT';
   public newRuleOwner = '';
   public newRuleIncomeNextMonth = false;
+  public newRuleNote = '';
 
   // Exclude Rules Form
   public newExcludeBank = 'All';
@@ -298,13 +299,41 @@ export class SettingsComponent {
         }
       }
     }
-    this.service.updateRule({
+    const updatedRule: CategoryRule = {
       ...this.editRuleModel,
       keyword: this.editRuleModel.keyword.trim(),
-      categoryGroup: group
-    });
-    this.editingRuleId.set(null);
-    this.editRuleModel = null;
+      categoryGroup: group,
+      defaultNote: (this.editRuleModel.defaultNote || '').trim() || undefined
+    };
+
+    const oldRule = this.service.rules().find((r) => r.id === updatedRule.id) || null;
+    const diffs = this.service.calculateRuleDiffs(oldRule, updatedRule, this.service.transactions());
+
+    const doSave = () => {
+      this.service.updateRule(updatedRule);
+      this.editingRuleId.set(null);
+      this.editRuleModel = null;
+    };
+
+    if (diffs.length > 0) {
+      this.service.ruleConfirmModal.set({
+        rule: updatedRule,
+        oldRule,
+        diffs,
+        onConfirm: () => {
+          this.service.applyRuleToTransactions(oldRule, updatedRule, diffs);
+          doSave();
+          this.service.showToast(`Updated rule and applied changes to ${diffs.length} transactions`, 'success');
+        },
+        onSaveOnly: () => {
+          doSave();
+          this.service.showToast('Rule saved without updating existing transactions', 'info');
+        }
+      });
+    } else {
+      doSave();
+      this.service.showToast('Rule updated', 'success');
+    }
   }
 
   public addRule() {
@@ -318,18 +347,50 @@ export class SettingsComponent {
         }
       }
     }
-    this.service.addRule({
+    const ruleData: Omit<CategoryRule, 'id'> = {
       keyword: this.newRuleKeyword.trim(),
       categoryItem: this.newRuleCategory,
       categoryGroup: group,
       splitType: this.newRuleSplitType,
       paidBy: this.newRuleOwner || undefined,
       bank: this.newRuleBank || 'All',
-      incomeNextMonth: this.newRuleIncomeNextMonth || undefined
-    });
-    this.newRuleKeyword = '';
-    this.newRuleBank = 'All';
-    this.newRuleIncomeNextMonth = false;
+      incomeNextMonth: this.newRuleIncomeNextMonth || undefined,
+      defaultNote: this.newRuleNote.trim() || undefined
+    };
+
+    const tempRule: CategoryRule = {
+      id: 'temp-' + Date.now(),
+      ...ruleData
+    };
+
+    const diffs = this.service.calculateRuleDiffs(null, tempRule, this.service.transactions());
+
+    const doSave = () => {
+      this.service.addRule(ruleData);
+      this.newRuleKeyword = '';
+      this.newRuleBank = 'All';
+      this.newRuleIncomeNextMonth = false;
+      this.newRuleNote = '';
+    };
+
+    if (diffs.length > 0) {
+      this.service.ruleConfirmModal.set({
+        rule: tempRule,
+        diffs,
+        onConfirm: () => {
+          this.service.applyRuleToTransactions(null, tempRule, diffs);
+          doSave();
+          this.service.showToast(`Created rule and applied to ${diffs.length} transactions`, 'success');
+        },
+        onSaveOnly: () => {
+          doSave();
+          this.service.showToast('Rule created without updating existing transactions', 'info');
+        }
+      });
+    } else {
+      doSave();
+      this.service.showToast('Rule created', 'success');
+    }
   }
 
   public deleteRule(id: string) {
@@ -363,7 +424,8 @@ export class SettingsComponent {
       return (
         (rule.keyword && rule.keyword.toLowerCase().includes(query)) ||
         (rule.categoryItem && rule.categoryItem.toLowerCase().includes(query)) ||
-        (rule.categoryGroup && rule.categoryGroup.toLowerCase().includes(query))
+        (rule.categoryGroup && rule.categoryGroup.toLowerCase().includes(query)) ||
+        (rule.defaultNote && rule.defaultNote.toLowerCase().includes(query))
       );
     });
   });

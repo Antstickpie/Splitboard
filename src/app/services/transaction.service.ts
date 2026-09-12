@@ -97,6 +97,31 @@ export interface StatementPeriodGroup {
   ownerGroups: OwnerBatchesGroup[];
 }
 
+export interface RuleDiffChange {
+  field: 'category' | 'split' | 'paidBy' | 'note' | 'incomeMonth';
+  label: string;
+  from: string;
+  to: string;
+}
+
+export interface RuleTxDiffItem {
+  tx: Transaction;
+  changes: RuleDiffChange[];
+}
+
+export interface RuleConfirmModalData {
+  title?: string;
+  rule: CategoryRule;
+  oldRule?: CategoryRule | null;
+  affectedCount?: number;
+  diffs: RuleTxDiffItem[];
+  source?: 'ledger' | 'import' | 'all';
+  onConfirm: () => void;
+  onCancel?: () => void;
+  onSaveRuleOnly?: () => void;
+  onSaveOnly?: () => void;
+}
+
 export const DEFAULT_EXCLUDE_RULES: ExcludeRule[] = [];
 
 @Injectable({
@@ -168,6 +193,7 @@ export class TransactionService {
   public toasts = signal<Toast[]>([]);
   public confirmModal = signal<ConfirmModalConfig | null>(null);
   public alertModal = signal<AlertModalConfig | null>(null);
+  public ruleConfirmModal = signal<RuleConfirmModalData | null>(null);
   public selectedMonth = signal<string>(this.getCurrentMonthString());
   public searchQuery = signal<string>('');
   public filterBank = signal<string>('ALL');
@@ -1201,6 +1227,144 @@ export class TransactionService {
     });
   }
 
+  public calculateRuleDiffs(
+    oldRule: CategoryRule | null,
+    newRule: CategoryRule,
+    targetTransactions: Transaction[]
+  ): RuleTxDiffItem[] {
+    const rawKw = (newRule.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+    if (!rawKw) return [];
+
+    const ruleBank = (newRule.bank || 'All').toLowerCase();
+    const oldNote = (oldRule?.defaultNote || '').trim();
+    const newNote = (newRule.defaultNote || '').trim();
+
+    const diffs: RuleTxDiffItem[] = [];
+
+    for (const tx of targetTransactions) {
+      const desc = (tx.description || '').toLowerCase();
+      const txBank = (tx.bank || '').toLowerCase();
+      const matchesBank = ruleBank === 'all' || !txBank || txBank.includes(ruleBank) || ruleBank.includes(txBank);
+      const matchesKeyword = desc.includes(rawKw);
+
+      if (!matchesBank || !matchesKeyword) continue;
+
+      const changes: RuleDiffChange[] = [];
+
+      // 1. Category Check
+      if (newRule.categoryItem && (tx.categoryItem !== newRule.categoryItem || (newRule.categoryGroup && tx.categoryGroup !== newRule.categoryGroup))) {
+        changes.push({
+          field: 'category',
+          label: 'Category',
+          from: tx.categoryItem ? `${tx.categoryGroup ? tx.categoryGroup + ' › ' : ''}${tx.categoryItem}` : 'Uncategorized',
+          to: `${newRule.categoryGroup ? newRule.categoryGroup + ' › ' : ''}${newRule.categoryItem}`
+        });
+      }
+
+      // 2. Split Check
+      if (newRule.splitType && tx.splitType !== newRule.splitType) {
+        changes.push({
+          field: 'split',
+          label: 'Split',
+          from: tx.splitType || 'SPLIT',
+          to: newRule.splitType
+        });
+      }
+
+      // 3. Paid By Check
+      if (newRule.paidBy && tx.paidBy !== newRule.paidBy) {
+        changes.push({
+          field: 'paidBy',
+          label: 'Paid By',
+          from: tx.paidBy || '(None)',
+          to: newRule.paidBy
+        });
+      }
+
+      // 4. Note / Comment Check:
+      // "also edit all current transaction that has no commet or matches the exact old comment for the rule"
+      const currentNote = (tx.note || '').trim();
+      const hasNoComment = !currentNote;
+      const matchesOldRuleComment = Boolean(oldNote && currentNote.toLowerCase() === oldNote.toLowerCase());
+
+      if (hasNoComment || matchesOldRuleComment) {
+        if (newNote !== currentNote) {
+          changes.push({
+            field: 'note',
+            label: 'Comment',
+            from: currentNote ? `"${currentNote}"` : '(No comment)',
+            to: newNote ? `"${newNote}"` : '(Cleared)'
+          });
+        }
+      }
+
+      // 5. Income Next Month Check
+      if (newRule.incomeNextMonth && tx.type === 'INCOME') {
+        const curM = (tx.date || '').slice(0, 7);
+        const expectedMonth = this.getNextMonth(curM);
+        if (tx.incomeMonth !== expectedMonth) {
+          changes.push({
+            field: 'incomeMonth',
+            label: 'Income Month',
+            from: tx.incomeMonth ? this.formatMonthName(tx.incomeMonth) : 'Receipt Month',
+            to: this.formatMonthName(expectedMonth)
+          });
+        }
+      }
+
+      if (changes.length > 0) {
+        diffs.push({ tx, changes });
+      }
+    }
+
+    return diffs;
+  }
+
+  public applyRuleToTransactions(
+    oldRule: CategoryRule | null,
+    newRule: CategoryRule,
+    diffs: RuleTxDiffItem[]
+  ): void {
+    const diffMap = new Map<string, RuleTxDiffItem>();
+    for (const d of diffs) {
+      diffMap.set(d.tx.id, d);
+    }
+
+    const oldNote = (oldRule?.defaultNote || '').trim();
+    const newNote = (newRule.defaultNote || '').trim();
+
+    this.transactions.update((txs) =>
+      txs.map((tx) => {
+        if (!diffMap.has(tx.id)) return tx;
+        const updated = { ...tx };
+        if (newRule.categoryItem) {
+          updated.categoryItem = newRule.categoryItem;
+          if (newRule.categoryGroup) updated.categoryGroup = newRule.categoryGroup;
+        }
+        if (newRule.splitType) {
+          updated.splitType = newRule.splitType;
+        }
+        if (newRule.paidBy) {
+          updated.paidBy = newRule.paidBy;
+        }
+
+        const currentNote = (tx.note || '').trim();
+        const hasNoComment = !currentNote;
+        const matchesOldRuleComment = Boolean(oldNote && currentNote.toLowerCase() === oldNote.toLowerCase());
+        if (hasNoComment || matchesOldRuleComment) {
+          updated.note = newNote || undefined;
+        }
+
+        if (newRule.incomeNextMonth && updated.type === 'INCOME') {
+          const curM = (updated.date || '').slice(0, 7);
+          updated.incomeMonth = this.getNextMonth(curM);
+        }
+
+        return updated;
+      })
+    );
+  }
+
   public applyRulesToAllTransactions(): void {
     const activeRules = this.rules();
     let updatedCount = 0;
@@ -1212,17 +1376,22 @@ export class TransactionService {
         const matched = activeRules.find((r) => {
           const ruleBank = (r.bank || 'All').toLowerCase();
           const matchesBank = ruleBank === 'all' || !txBank || txBank.includes(ruleBank) || ruleBank.includes(txBank);
-          return matchesBank && desc.includes(r.keyword.toLowerCase());
+          const rawKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+          return matchesBank && rawKw && desc.includes(rawKw);
         });
         if (matched) {
           updatedCount++;
+          const currentNote = (tx.note || '').trim();
+          const oldRuleNote = (matched.defaultNote || '').trim();
+          const shouldUpdateNote = !currentNote || (oldRuleNote && currentNote.toLowerCase() === oldRuleNote.toLowerCase());
           return {
             ...tx,
             categoryItem: matched.categoryItem,
             categoryGroup: matched.categoryGroup || tx.categoryGroup,
             splitType: matched.splitType || tx.splitType,
             splitPercentage: matched.splitPercentage !== undefined ? matched.splitPercentage : tx.splitPercentage,
-            paidBy: matched.paidBy || tx.paidBy
+            paidBy: matched.paidBy || tx.paidBy,
+            note: shouldUpdateNote && matched.defaultNote ? matched.defaultNote : tx.note
           };
         }
         return tx;

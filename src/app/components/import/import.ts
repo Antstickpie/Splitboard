@@ -1,9 +1,9 @@
 import { Component, inject, signal, computed, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TransactionService, ImportedBatch } from '../../services/transaction.service';
+import { TransactionService, ImportedBatch, RuleTxDiffItem } from '../../services/transaction.service';
 import { StatementParserService, ParsedStatementResult } from '../../services/statement-parser.service';
-import { Transaction, SplitType, ImportDraft } from '../../models';
+import { Transaction, SplitType, ImportDraft, CategoryRule } from '../../models';
 import { CategorySelectComponent } from '../category-select/category-select';
 
 export interface TransactionGroup {
@@ -353,6 +353,7 @@ export class ImportComponent {
   public ruleSplitType: SplitType = 'SELF';
   public rulePaidBy = '';
   public ruleIncomeNextMonth = false;
+  public ruleDefaultNote = '';
   public editingExistingRuleId: string | null = null;
 
   public findMatchingRuleForTx(tx: Transaction): { type: 'category' | 'exclude'; rule: any } | null {
@@ -418,6 +419,11 @@ export class ImportComponent {
         rule: existing.rule,
         message: ''
       }, false);
+      if (existing.type === 'category') {
+        this.ruleDefaultNote = existing.rule.defaultNote || tx.note || '';
+      } else {
+        this.ruleDefaultNote = '';
+      }
     } else {
       this.editingExistingRuleId = null;
       this.ruleKeyword = tx.description || '';
@@ -428,6 +434,7 @@ export class ImportComponent {
       this.ruleSplitType = tx.splitType || 'SELF';
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
       this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
+      this.ruleDefaultNote = tx.note || '';
     }
 
     this.showRuleModal.set(true);
@@ -444,6 +451,7 @@ export class ImportComponent {
       this.ruleSplitType = tx.splitType || 'SELF';
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
       this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
+      this.ruleDefaultNote = tx.note || '';
     }
     this.service.showToast('Switched to creating a new rule', 'info');
   }
@@ -514,6 +522,9 @@ export class ImportComponent {
       this.ruleSplitType = info.rule.splitType || 'SPLIT';
       this.rulePaidBy = info.rule.paidBy || '';
       this.ruleIncomeNextMonth = Boolean(info.rule.incomeNextMonth);
+      this.ruleDefaultNote = info.rule.defaultNote || '';
+    } else {
+      this.ruleDefaultNote = '';
     }
     if (showToast) {
       this.service.showToast('Loaded existing rule for editing!', 'info');
@@ -568,67 +579,121 @@ export class ImportComponent {
         }
       }
 
-      if (this.editingExistingRuleId) {
-        this.service.updateRule({
-          id: this.editingExistingRuleId,
-          keyword,
-          categoryItem: this.ruleCategory || '',
-          categoryGroup: catGroup,
-          splitType: this.ruleSplitType,
-          paidBy: this.rulePaidBy,
-          bank: this.ruleBank,
-          incomeNextMonth: this.ruleIncomeNextMonth
-        });
-      } else {
-        this.service.addRule({
-          keyword,
-          categoryItem: this.ruleCategory || '',
-          categoryGroup: catGroup,
-          splitType: this.ruleSplitType,
-          paidBy: this.rulePaidBy,
-          bank: this.ruleBank,
-          incomeNextMonth: this.ruleIncomeNextMonth
-        });
-      }
+      const defaultNote = this.ruleDefaultNote.trim() || undefined;
+      const editingId = this.editingExistingRuleId;
+      const oldRule = editingId
+        ? this.service.rules().find((r) => r.id === editingId) || null
+        : null;
 
-      // Re-evaluate preview: update matching transactions
+      const ruleData: Omit<CategoryRule, 'id'> = {
+        keyword,
+        categoryItem: this.ruleCategory || '',
+        categoryGroup: catGroup,
+        splitType: this.ruleSplitType,
+        paidBy: this.rulePaidBy || undefined,
+        bank: this.ruleBank,
+        incomeNextMonth: this.ruleIncomeNextMonth || undefined,
+        defaultNote
+      };
+
+      const newRule: CategoryRule = {
+        id: editingId || ('temp-' + Date.now()),
+        ...ruleData
+      };
+
+      // Gather candidate transactions from both preview and ledger
       const res = this.previewResult();
-      if (res) {
-        const lowerKw = keyword.toLowerCase();
-        const ruleBank = this.ruleBank.toLowerCase();
-        const matches = (t: Transaction) => {
-          const tBank = (t.bank || '').toLowerCase();
-          const matchesB = ruleBank === 'all' || !tBank || tBank.includes(ruleBank) || ruleBank.includes(tBank);
-          return matchesB && (t.description || '').toLowerCase().includes(lowerKw);
-        };
+      const previewTxs = res ? res.transactions : [];
+      const ledgerTxs = this.service.transactions();
+      const allCandidateTxs = [...previewTxs, ...ledgerTxs];
 
-        let updatedInPreview = 0;
-        const updatedValid = res.transactions.map((t) => {
-          if (matches(t)) {
-            updatedInPreview++;
-            const updatedTx: Transaction = {
-              ...t,
-              categoryItem: this.ruleCategory || t.categoryItem,
-              categoryGroup: catGroup || t.categoryGroup,
-              splitType: this.ruleSplitType,
-              paidBy: this.rulePaidBy || t.paidBy
-            };
-            if (this.ruleIncomeNextMonth && this.isIncomeTx(t)) {
-              const curM = (t.date || '').slice(0, 7);
-              updatedTx.incomeMonth = this.service.getNextMonth(curM);
-            }
-            return updatedTx;
-          }
-          return t;
-        });
+      const diffs = this.service.calculateRuleDiffs(oldRule, newRule, allCandidateTxs);
 
-        this.previewResult.set({
-          ...res,
-          transactions: updatedValid
-        });
-        if (updatedInPreview > 0) {
-          this.service.showToast(`Updated ${updatedInPreview} matching rows in preview!`, 'success');
+      const doSaveRuleOnly = () => {
+        if (editingId) {
+          this.service.updateRule({
+            id: editingId,
+            ...ruleData
+          });
+        } else {
+          this.service.addRule(ruleData);
         }
+      };
+
+      const doApplyAndSave = () => {
+        // 1. Update ledger transactions
+        this.service.applyRuleToTransactions(oldRule, newRule, diffs);
+
+        // 2. Update preview transactions
+        if (res) {
+          const diffMap = new Map<string, RuleTxDiffItem>();
+          for (const d of diffs) {
+            diffMap.set(d.tx.id, d);
+          }
+          const oldNote = (oldRule?.defaultNote || '').trim();
+          const newNoteStr = (newRule.defaultNote || '').trim();
+
+          let updatedInPreview = 0;
+          const updatedValid = res.transactions.map((t) => {
+            if (diffMap.has(t.id)) {
+              updatedInPreview++;
+              const updatedTx: Transaction = {
+                ...t,
+                categoryItem: newRule.categoryItem || t.categoryItem,
+                categoryGroup: catGroup || t.categoryGroup,
+                splitType: newRule.splitType || t.splitType,
+                paidBy: newRule.paidBy || t.paidBy
+              };
+
+              const currentNote = (t.note || '').trim();
+              const hasNoComment = !currentNote;
+              const matchesOldRuleComment = Boolean(oldNote && currentNote.toLowerCase() === oldNote.toLowerCase());
+              if (hasNoComment || matchesOldRuleComment) {
+                updatedTx.note = newNoteStr || undefined;
+              }
+
+              if (newRule.incomeNextMonth && this.isIncomeTx(t)) {
+                const curM = (t.date || '').slice(0, 7);
+                updatedTx.incomeMonth = this.service.getNextMonth(curM);
+              }
+              return updatedTx;
+            }
+            return t;
+          });
+
+          this.previewResult.set({
+            ...res,
+            transactions: updatedValid
+          });
+          if (updatedInPreview > 0) {
+            this.service.showToast(`Updated ${updatedInPreview} matching rows in preview!`, 'success');
+          }
+        }
+
+        doSaveRuleOnly();
+      };
+
+      if (diffs.length > 0) {
+        this.closeRuleModal();
+        this.service.ruleConfirmModal.set({
+          rule: newRule,
+          oldRule,
+          diffs,
+          onConfirm: () => {
+            doApplyAndSave();
+            this.service.showToast(`Applied rule changes to ${diffs.length} transactions`, 'success');
+          },
+          onSaveOnly: () => {
+            doSaveRuleOnly();
+            this.service.showToast('Rule saved without updating existing transactions', 'info');
+          }
+        });
+        return;
+      } else {
+        doSaveRuleOnly();
+        this.closeRuleModal();
+        this.service.showToast(editingId ? 'Rule updated' : 'Rule created', 'success');
+        return;
       }
     }
 

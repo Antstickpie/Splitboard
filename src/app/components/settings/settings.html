@@ -471,6 +471,16 @@
             </select>
           </div>
 
+          <div style="flex: 1 1 160px;">
+            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Default Comment</label>
+            <input
+              type="text"
+              [(ngModel)]="newRuleNote"
+              placeholder="e.g. Monthly subscription..."
+              class="person-input"
+              style="width: 100%; height: 30px;">
+          </div>
+
           <div style="width: 140px;">
             <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Split Mode</label>
             <select [(ngModel)]="newRuleSplitType" class="settings-select" style="width: 100%; height: 30px;">
@@ -530,7 +540,7 @@
             type="text"
             [ngModel]="categoryRuleSearch()"
             (ngModelChange)="categoryRuleSearch.set($event)"
-            placeholder="🔍 Search category rules by keyword or category..."
+            placeholder="🔍 Search category rules by keyword, category, or comment..."
             class="person-input"
             style="width: 100%; padding: 0.15rem 0.5rem; font-size: 0.76rem; height: 26px;">
         </div>
@@ -542,10 +552,11 @@
       <!-- Active Rules List (Fixed header, scroll strictly below) -->
       <div style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row (No scrollbar on header) -->
-        <div style="display: grid; grid-template-columns: 120px 1.5fr 1.3fr 110px 100px 70px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+        <div style="display: grid; grid-template-columns: 110px 1.4fr 1.2fr 1.2fr 95px 90px 65px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Target Bank</span>
           <span>Keyword Contains</span>
           <span>Assigned Category</span>
+          <span>Default Comment</span>
           <span>Split Mode</span>
           <span>Default Payer</span>
           <span style="text-align: center;">Actions</span>
@@ -557,12 +568,19 @@
             <!-- Normal Row Display -->
             <div
               *ngIf="editingRuleId() !== r.id"
-              style="display: grid; grid-template-columns: 120px 1.5fr 1.3fr 110px 100px 70px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+              style="display: grid; grid-template-columns: 110px 1.4fr 1.2fr 1.2fr 95px 90px 65px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
               <div><span class="badge badge-neutral">{{ (!r.bank || r.bank === 'All' || r.bank === 'all') ? 'All Banks' : r.bank }}</span></div>
               <div><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></div>
               <div>
                 <span class="badge badge-warning">{{ r.categoryItem }}</span>
                 <span *ngIf="r.incomeNextMonth" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); margin-left: 0.3rem;" title="Shift matching incomes to next month">📅 Next Month</span>
+              </div>
+              <div>
+                <span *ngIf="r.defaultNote" style="font-size: 0.74rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.25rem;">
+                  <span>💬</span>
+                  <span style="color: var(--text-main); font-style: italic;">"{{ r.defaultNote }}"</span>
+                </span>
+                <span *ngIf="!r.defaultNote" style="color: var(--text-muted); font-size: 0.72rem;">—</span>
               </div>
               <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
               <div>
@@ -580,7 +598,7 @@
               *ngIf="editingRuleId() === r.id && editRuleModel"
               class="animate-fade-in"
               style="padding: 0.6rem 0.8rem; background: rgba(0, 229, 255, 0.04); border-bottom: 1px solid rgba(0, 229, 255, 0.2);">
-              <div style="display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 140px 110px; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <div style="display: grid; grid-template-columns: 1.2fr 110px 1.2fr 1.2fr 120px 100px; gap: 0.5rem; margin-bottom: 0.5rem;">
                 <div>
                   <label class="input-label">Keyword</label>
                   <input type="text" [(ngModel)]="editRuleModel.keyword" class="person-input" style="width: 100%;">
@@ -603,6 +621,10 @@
                       <option *ngFor="let item of grp.items" [value]="grp.name + ':::' + item.name">{{ item.name }}</option>
                     </optgroup>
                   </select>
+                </div>
+                <div>
+                  <label class="input-label">Default Comment</label>
+                  <input type="text" [(ngModel)]="editRuleModel.defaultNote" placeholder="e.g. Monthly sub..." class="person-input" style="width: 100%;">
                 </div>
                 <div>
                   <label class="input-label">Split Mode</label>
