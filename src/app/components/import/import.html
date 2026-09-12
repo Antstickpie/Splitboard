@@ -863,6 +863,20 @@
                     📅 {{ isCategoryIncomeNextMonth(m.rawCategory) ? 'Reset to Receipt Month' : 'All for Next Month' }}
                   </button>
 
+                  <!-- Rule Button for this category -->
+                  <button
+                    *ngIf="getTransactionsForCategory(m.rawCategory)[0]"
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="openRuleModal(getTransactionsForCategory(m.rawCategory)[0])"
+                    [title]="hasMatchingRule(getTransactionsForCategory(m.rawCategory)[0]) ? 'Edit existing rule for this category/description' : 'Create rule from this category'"
+                    [style.borderColor]="hasMatchingRule(getTransactionsForCategory(m.rawCategory)[0]) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                    [style.background]="hasMatchingRule(getTransactionsForCategory(m.rawCategory)[0]) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                    [style.color]="hasMatchingRule(getTransactionsForCategory(m.rawCategory)[0]) ? 'var(--primary)' : ''"
+                    style="padding: 0.18rem 0.45rem; font-size: 0.72rem; white-space: nowrap;">
+                    {{ hasMatchingRule(getTransactionsForCategory(m.rawCategory)[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
+                  </button>
+
                   <!-- Inspect Individual Transactions Toggle -->
                   <button
                     type="button"
@@ -926,6 +940,17 @@
                         style="padding: 0.18rem 0.45rem; font-size: 0.71rem; white-space: nowrap;"
                         [title]="getIncomeMonthButtonTooltip(tx)">
                         {{ getIncomeMonthButtonLabel(tx) }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-xs tx-btn-rule"
+                        (click)="openRuleModal(tx)"
+                        [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule from this transaction'"
+                        [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                        [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                        [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
+                        style="padding: 0.18rem 0.42rem; font-size: 0.71rem; white-space: nowrap;">
+                        {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                       </button>
                       <div class="split-button-group">
                         <button
@@ -1183,6 +1208,20 @@
                     📅 {{ isDescriptionIncomeNextMonth(d.description) ? 'Reset to Receipt Month' : 'All for Next Month' }}
                   </button>
 
+                  <!-- Rule Button for this description -->
+                  <button
+                    *ngIf="getTransactionsForDescription(d.description)[0]"
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="openRuleModal(getTransactionsForDescription(d.description)[0])"
+                    [title]="hasMatchingRule(getTransactionsForDescription(d.description)[0]) ? 'Edit existing rule for this description' : 'Create rule from this description'"
+                    [style.borderColor]="hasMatchingRule(getTransactionsForDescription(d.description)[0]) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                    [style.background]="hasMatchingRule(getTransactionsForDescription(d.description)[0]) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                    [style.color]="hasMatchingRule(getTransactionsForDescription(d.description)[0]) ? 'var(--primary)' : ''"
+                    style="padding: 0.18rem 0.45rem; font-size: 0.72rem; white-space: nowrap;">
+                    {{ hasMatchingRule(getTransactionsForDescription(d.description)[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
+                  </button>
+
                   <!-- Inspect Transactions -->
                   <button
                     type="button"
@@ -1246,6 +1285,17 @@
                         style="padding: 0.18rem 0.45rem; font-size: 0.71rem; white-space: nowrap;"
                         [title]="getIncomeMonthButtonTooltip(tx)">
                         {{ getIncomeMonthButtonLabel(tx) }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-xs tx-btn-rule"
+                        (click)="openRuleModal(tx)"
+                        [title]="hasMatchingRule(tx) ? 'Edit existing rule for this description' : 'Create rule from this transaction'"
+                        [style.borderColor]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.45)' : ''"
+                        [style.background]="hasMatchingRule(tx) ? 'rgba(0, 229, 255, 0.1)' : ''"
+                        [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
+                        style="padding: 0.18rem 0.42rem; font-size: 0.71rem; white-space: nowrap;">
+                        {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
                       </button>
                       <div class="split-button-group">
                         <button
