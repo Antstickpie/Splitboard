@@ -291,8 +291,8 @@ export class StatementParserService {
         bank: effectiveBank,
         account: effectiveBank,
         paidBy: defaultOwner || this.service.personOne().name,
-        categoryGroup: group,
-        categoryItem: item,
+        categoryGroup: group || 'Uncategorized',
+        categoryItem: item || 'Uncategorized',
         splitType: defaultSplit,
         splitPercentage: 50,
         currency: baseCurr,
@@ -681,8 +681,8 @@ export class StatementParserService {
         bank: effectiveBank,
         account: effectiveBank,
         paidBy: defaultOwner || this.service.personOne().name,
-        categoryGroup: group,
-        categoryItem: item,
+        categoryGroup: group || 'Uncategorized',
+        categoryItem: item || 'Uncategorized',
         splitType: defaultSplit,
         splitPercentage: 50,
         currency: bankCfg?.defaultCurrency || this.service.currency(),
@@ -1009,7 +1009,8 @@ export class StatementParserService {
     const normDesc = this.normalizeMerchant(desc);
 
     // =========================================================================
-    // LAYER 1: Explicit User-Configured Rules (highest priority)
+    // Explicit User-Configured Rules ONLY
+    // Transactions without matching rules remain Uncategorized
     // =========================================================================
     for (const rule of this.service.rules()) {
       const ruleBank = (rule.bank || 'All').toLowerCase();
@@ -1023,177 +1024,6 @@ export class StatementParserService {
             defaultSplit: rule.splitType || 'SPLIT',
             defaultOwner: rule.paidBy,
             incomeNextMonth: rule.incomeNextMonth
-          };
-        }
-      }
-    }
-
-    // =========================================================================
-    // LAYER 2: Historical Ledger Learning (Learns from user's past categorized transactions)
-    // =========================================================================
-    const pastTransactions = this.service.transactions();
-    if (pastTransactions.length > 0) {
-      // 2a. Exact normalized description match from past records
-      for (const t of pastTransactions) {
-        if (t.categoryItem && t.categoryItem !== 'Uncategorized') {
-          const pastRaw = (t.description || '').toLowerCase();
-          const pastNorm = this.normalizeMerchant(t.description || '');
-
-          if (pastNorm && normDesc && (pastNorm === normDesc || rawLower === pastRaw)) {
-            return {
-              group: t.categoryGroup,
-              item: t.categoryItem,
-              defaultOwner: t.paidBy
-            };
-          }
-        }
-      }
-
-      // 2b. Strong merchant token prefix / keyword match in history (tokens >= 4 chars)
-      const currentTokens = normDesc.split(/\s+/).filter((t) => t.length >= 4);
-      if (currentTokens.length > 0) {
-        for (const t of pastTransactions) {
-          if (t.categoryItem && t.categoryItem !== 'Uncategorized') {
-            const pastNorm = this.normalizeMerchant(t.description || '');
-            const matchingToken = currentTokens.find((tok) => pastNorm.includes(tok));
-            if (matchingToken) {
-              return {
-                group: t.categoryGroup,
-                item: t.categoryItem,
-                defaultOwner: t.paidBy
-              };
-            }
-          }
-        }
-      }
-    }
-
-    // =========================================================================
-    // LAYER 3: Comprehensive Built-in Local Offline Dictionary
-    // =========================================================================
-    const d = rawLower + ' ' + normDesc;
-
-    // 1. Groceries (Housing -> Groceries)
-    if (
-      /\b(rewe|edeka|aldi|lidl|kaufland|penny|netto|alnatura|denns|tegut|trader\s*joe|hit\s*markt|supermarkt|lebensmittel|biomarkt|asia\s*markt|nahkauf|norma|willy\s*s)\b/i.test(d)
-    ) {
-      return { group: 'Housing', item: 'Groceries' };
-    }
-
-    // 2. Food and Chill / Dining / Bakeries / Takeaway (Food -> Food and Chill)
-    if (
-      /\b(backwerk|mcdonald|burger\s*king|subway|starbucks|kfc|pizza|pizzeria|sushi|bäckerei|baeckerei|bakery|restaurant|ristorante|bistro|cafe|café|bar|espresso|döner|doener|kebab|lieferando|uber\s*eats|wolt|domino|vapiano|dean\s*&\s*david|cinemaxx|kino|hans\s*im\s*glueck|five\s*guys|l_osteria|osteria)\b/i.test(d)
-    ) {
-      return { group: 'Food', item: 'Food and Chill' };
-    }
-
-    // 3. Parking and Tolls (Car and Transportation -> Parking and Tolls)
-    if (
-      /\b(paybyphone|easypark|parken|parkhaus|parkplatz|apcoa|contipark|q-park|ampido|parkopedia|maut|vignette|asfinag)\b/i.test(d)
-    ) {
-      return { group: 'Car and Transportation', item: 'Parking and Tolls' };
-    }
-
-    // 4. EV Charging (Car and Transportation -> Charging)
-    if (
-      /\b(ionity|enbw\s*mobility|supercharger|tesla\s*charging|fastned|allego|chargemap|e-charge|e\s*charge|ladestation|mobilityplus|maingau)\b/i.test(d)
-    ) {
-      return { group: 'Car and Transportation', item: 'Charging' };
-    }
-
-    // 5. Fuel & Car Maintenance (Car and Transportation -> Maintenance)
-    if (
-      /\b(shell|aral|esso|total\s*energies|total\s*tankstelle|jet\s*tankstelle|omv|avia|hem\s*tankstelle|tankstelle|tüv|dekra|autowerkstatt|atu|pitstop|carglass)\b/i.test(d)
-    ) {
-      return { group: 'Car and Transportation', item: 'Maintenance' };
-    }
-
-    // 6. Attire and Personal Care (Lifestyle -> Attire and Personal Care)
-    if (
-      /\b(dm-drogerie|dm\s*drogerie|rossmann|müller\s*drogerie|mueller\s*drogerie|sephora|douglas|zara|h&m|h\s*m|uniqlo|zalando|asos|c&a|peek\s*&\s*cloppenburg|breuninger|snipes|foot\s*locker|friseur|barber|hair|kosmetik|parfuemerie)\b/i.test(d)
-    ) {
-      return { group: 'Lifestyle', item: 'Attire and Personal Care' };
-    }
-
-    // 7. Trips & Travel (Lifestyle -> Trips & Travel)
-    if (
-      /\b(deutsche\s*bahn|db\s*fahrkarten|bahn\.de|lufthansa|ryanair|easyjet|eurowings|booking\.com|airbnb|flixbus|uber\s*trip|bolt\.eu|free\s*now|taxi|hotel|hostel|expedia|agoda|ferry)\b/i.test(d)
-    ) {
-      return { group: 'Lifestyle', item: 'Trips & Travel' };
-    }
-
-    // 8. Rent & Utilities (Housing -> Rent and Utilities)
-    if (
-      /\b(miete|rent|stadtwerke|vattenfall|eon|e\.on|strom|gas|wasser|fernwaerme|rundfunk|gezon|beitragsservice|telekom|vodafone|o2|1&1|unitymedia)\b/i.test(d)
-    ) {
-      return { group: 'Housing', item: 'Rent and Utilities' };
-    }
-
-    // 9. Gadgets and Tech Tools (Lifestyle -> Gadgets and Tech Tools)
-    if (
-      /\b(apple\.com|apple\s*store|itunes|google\s*play|google\s*storage|google\s*workspace|microsoft|saturn|mediamarkt|cyberport|notebooksbilliger|github|chatgpt|openai|anthropic|claude|cursor\.com|jetbrains|adobe|steam|playstation|nintendo)\b/i.test(d)
-    ) {
-      return { group: 'Lifestyle', item: 'Gadgets and Tech Tools' };
-    }
-
-    // 10. Home Items & DIY (Housing -> Home Items)
-    if (
-      /\b(ikea|bauhaus|hornbach|obi|toom|leroy\s*merlin|möbel|moebel|xxxlutz|poco|action|tedi|butlers|zarahome|depot|h&m\s*home|maisons\s*du\s*monde)\b/i.test(d)
-    ) {
-      return { group: 'Housing', item: 'Home Items' };
-    }
-
-    // 11. Medical & Pharmacy (Medical -> Medical)
-    if (
-      /\b(apotheke|pharmacy|docmorris|shop-apotheke|arzt|doctor|zahnarzt|dentist|praxis|doctolib|klinikum|hospital|labor|optiker|fielmann|misterspex)\b/i.test(d)
-    ) {
-      return { group: 'Medical', item: 'Medical' };
-    }
-
-    // 12. Gym & Health Apps (Lifestyle -> Gym)
-    if (
-      /\b(fitx|mcfit|fitness\s*first|clever\s*fit|john\s*reed|urban\s*sports|gym|fitnessstudio|strava|garmin|whoop|zwift|komoot|headspace|calm)\b/i.test(d)
-    ) {
-      return { group: 'Lifestyle', item: 'Gym' };
-    }
-
-    // 13. Mobile Phone Plans (Lifestyle -> Mobile Phone Plans)
-    if (
-      /\b(fraenk|congstar|alditalk|aldi\s*talk|winsim|simon\s*mobile|freenet|klarmobil|drillisch|lebara|lycamobile)\b/i.test(d)
-    ) {
-      return { group: 'Lifestyle', item: 'Mobile Phone Plans' };
-    }
-
-    // 14. Reimbursements / Expensed Items / Loans (Lifestyle -> Reimbursements)
-    if (
-      /\b(auslage|auslagen|spesen|spesenabrechnung|reimbursement|reimbursable|erstattung|rueckerstattung|rückerstattung)\b/i.test(d)
-    ) {
-      return { group: 'Lifestyle', item: 'Reimbursements' };
-    }
-
-    // 15. Salary / Income (Income -> Salary)
-    if (
-      /\b(enpal|bosch|gehalt|salary|lohn|bezüge|bezuege|arbeitsentgelt|gutschrift\s*arbeitgeber)\b/i.test(d)
-    ) {
-      const p1 = this.service.personOne().name;
-      const p2 = this.service.personTwo().name;
-      const defaultOwner = d.includes('bosch') ? p2 : p1;
-      return { group: 'Income', item: 'Salary', defaultOwner };
-    }
-
-    // =========================================================================
-    // LAYER 4: Match against existing configured Category Item names
-    // =========================================================================
-    for (const grp of this.service.categoryGroups()) {
-      for (const item of grp.items) {
-        const iname = item.name.toLowerCase();
-        const cleanItemName = iname.replace(/\[.*?\]/g, '').trim();
-
-        if (cleanItemName && cleanItemName.length > 3 && d.includes(cleanItemName)) {
-          return {
-            group: grp.name,
-            item: item.name,
-            defaultOwner: item.defaultOwner
           };
         }
       }

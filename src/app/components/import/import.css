@@ -214,6 +214,42 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.split-btn.active {
+  background: rgba(56, 189, 248, 0.22);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.5);
+  font-weight: 700;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.2);
+}
+
+.preview-tabs-bar .split-button-group {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.preview-tabs-bar .split-btn {
+  padding: 0.28rem 0.65rem;
+  font-size: 0.76rem;
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.preview-tabs-bar .split-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.preview-tabs-bar .split-btn.active {
+  background: rgba(0, 229, 255, 0.2) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.5) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25) !important;
+}
+
 .split-btn.split-btn-5050.active {
   background: rgba(52, 211, 153, 0.2);
   color: #34d399;

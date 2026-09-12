@@ -756,7 +756,7 @@ export class ImportComponent {
 
         if (matched) {
           t.categoryItem = matched.categoryItem;
-          t.categoryGroup = matched.categoryGroup || t.categoryGroup;
+          t.categoryGroup = matched.categoryGroup || 'Uncategorized';
           t.splitType = matched.splitType || t.splitType;
           t.splitPercentage = matched.splitPercentage !== undefined ? matched.splitPercentage : t.splitPercentage;
           if (matched.paidBy) t.paidBy = matched.paidBy;
@@ -764,6 +764,9 @@ export class ImportComponent {
             const curM = (t.date || '').slice(0, 7);
             t.incomeMonth = this.service.getNextMonth(curM);
           }
+        } else {
+          t.categoryItem = 'Uncategorized';
+          t.categoryGroup = 'Uncategorized';
         }
 
         newTransactions.push(t);
