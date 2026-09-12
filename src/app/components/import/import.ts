@@ -304,6 +304,18 @@ export class ImportComponent {
     if (this.descExcludeAssigned()) {
       list = list.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized');
     }
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (t) =>
+          (t.description || '').toLowerCase().includes(q) ||
+          (t.merchant || '').toLowerCase().includes(q) ||
+          (t.rawCategory || '').toLowerCase().includes(q)
+      );
+    }
+    if (this.excludedOwners().length > 0) {
+      list = list.filter((t) => !this.isTxOwnerExcluded(t));
+    }
     if (this.selectedCategoryFilter()) {
       const cat = this.selectedCategoryFilter();
       list = list.filter((t) => (t.rawCategory || t.categoryItem || 'Uncategorized').trim() === cat);
@@ -1037,19 +1049,8 @@ export class ImportComponent {
   }
 
   public async onCancelPreview(): Promise<void> {
-    const res = this.previewResult();
-    if (res && res.transactions.length > 0) {
-      const ok = await this.service.showConfirm(
-        'Save Progress Before Closing?',
-        `You have ${res.transactions.length} staged transactions in preview.\n\nSave your progress as a draft so you can resume anytime?`
-      );
-      if (ok) {
-        await this.saveDraft();
-        this.clearPreview();
-        return;
-      }
-    }
-    await this.discardDraft();
+    this.clearPreview();
+    this.service.showToast('Closed preview. Any previously saved draft is kept.', 'info');
   }
 
   public scrollToPreviewOrImport(): void {
@@ -1806,16 +1807,14 @@ export class ImportComponent {
     if (this.descExcludeAssigned()) {
       list = list.filter((m) => !m.selectedItem || m.selectedItem === 'Uncategorized');
     }
-    const q = this.categoryMatchKeyword().trim().toLowerCase();
-    const typeQ = this.typeMatchKeyword().trim().toLowerCase();
-    const activeQ = q || typeQ;
-    if (!activeQ) return list;
+    const q = (this.descriptionMatchKeyword() || this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
+    if (!q) return list;
 
     const matched: ImportCategoryMapping[] = [];
     const unmatched: ImportCategoryMapping[] = [];
 
     for (const m of list) {
-      if (m.rawCategory.toLowerCase().includes(activeQ)) {
+      if (m.rawCategory.toLowerCase().includes(q)) {
         matched.push(m);
       } else {
         unmatched.push(m);
@@ -1845,8 +1844,28 @@ export class ImportComponent {
     return [...matched, ...unmatched];
   });
 
+  public multiDescriptionMappings = computed<ImportDescriptionMapping[]>(() => {
+    return this.displayedDescriptionMappings().filter((d) => d.count > 1);
+  });
+
+  public singleDescriptionMappings = computed<ImportDescriptionMapping[]>(() => {
+    return this.displayedDescriptionMappings().filter((d) => d.count === 1);
+  });
+
+  public singleDescriptionTransactions = computed<Transaction[]>(() => {
+    const singleDescs = new Set(this.singleDescriptionMappings().map((d) => d.description));
+    if (singleDescs.size === 0) return [];
+    const res = this.previewResult();
+    if (!res || !res.transactions) return [];
+    const list = res.transactions.filter((t) => {
+      const desc = (t.description || t.merchant || 'Unspecified').trim();
+      return singleDescs.has(desc);
+    });
+    return this.sortTxList(list);
+  });
+
   public isCategoryMatched(rawCategory: string): boolean {
-    const q = (this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
+    const q = (this.descriptionMatchKeyword() || this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
     if (!q) return false;
     return rawCategory.toLowerCase().includes(q);
   }
@@ -1858,7 +1877,7 @@ export class ImportComponent {
   }
 
   public isFirstUnmatched(m: ImportCategoryMapping, idx: number): boolean {
-    const q = (this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
+    const q = (this.descriptionMatchKeyword() || this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
     if (!q) return false;
     if (this.isCategoryMatched(m.rawCategory)) return false;
     const list = this.displayedCategoryMappings();
@@ -1869,12 +1888,12 @@ export class ImportComponent {
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) return false;
     if (this.isDescriptionMatched(d.description)) return false;
-    const list = this.displayedDescriptionMappings();
+    const list = this.multiDescriptionMappings();
     return idx > 0 && this.isDescriptionMatched(list[idx - 1].description);
   }
 
   public getHighlightedCategoryHtml(rawCategory: string): string {
-    const q = (this.categoryMatchKeyword() || this.typeMatchKeyword()).trim();
+    const q = (this.descriptionMatchKeyword() || this.categoryMatchKeyword() || this.typeMatchKeyword()).trim();
     if (!q || !rawCategory) return rawCategory || 'Uncategorized';
     const regex = new RegExp(`(${this.escapeRegex(q)})`, 'gi');
     return rawCategory.replace(regex, '<span class="ed-highlight-mark">$1</span>');
@@ -2244,7 +2263,11 @@ export class ImportComponent {
       if (this.isTxOwnerExcluded(t)) {
         continue;
       }
-      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
         count++;
       }
     }
@@ -2260,10 +2283,17 @@ export class ImportComponent {
 
     let count = 0;
     for (const t of res.transactions) {
+      if (this.isTxOwnerExcluded(t)) {
+        continue;
+      }
       if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
         continue;
       }
-      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
         count++;
       }
     }
@@ -2417,7 +2447,7 @@ export class ImportComponent {
   public assignMatchingDescriptionsToPerson(personName: string): void {
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) {
-      this.service.showToast('Please type a description in the box to match.', 'info');
+      this.service.showToast('Please type a keyword in the box to match.', 'info');
       return;
     }
 
@@ -2428,7 +2458,11 @@ export class ImportComponent {
     let skippedCount = 0;
 
     for (const t of res.transactions) {
-      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
         if (this.isTxOwnerExcluded(t)) {
           skippedCount++;
           continue;
@@ -2445,7 +2479,7 @@ export class ImportComponent {
       if (skippedCount > 0) {
         this.service.showToast(`All transactions matching "${this.descriptionMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`, 'info');
       } else {
-        this.service.showToast(`No transactions found with description containing "${this.descriptionMatchKeyword().trim()}".`, 'info');
+        this.service.showToast(`No transactions found matching "${this.descriptionMatchKeyword().trim()}".`, 'info');
       }
       return;
     }
@@ -2457,7 +2491,7 @@ export class ImportComponent {
   public assignMatchingDescriptionsToSplit(): void {
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) {
-      this.service.showToast('Please type a description in the box to match.', 'info');
+      this.service.showToast('Please type a keyword in the box to match.', 'info');
       return;
     }
 
@@ -2468,7 +2502,11 @@ export class ImportComponent {
     let skippedCount = 0;
 
     for (const t of res.transactions) {
-      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
         if (this.isTxOwnerExcluded(t)) {
           skippedCount++;
           continue;
@@ -2484,7 +2522,7 @@ export class ImportComponent {
       if (skippedCount > 0) {
         this.service.showToast(`All transactions matching "${this.descriptionMatchKeyword().trim()}" belong to excluded owners (${skippedCount} excluded).`, 'info');
       } else {
-        this.service.showToast(`No transactions found with description containing "${this.descriptionMatchKeyword().trim()}".`, 'info');
+        this.service.showToast(`No transactions found matching "${this.descriptionMatchKeyword().trim()}".`, 'info');
       }
       return;
     }
@@ -2507,7 +2545,7 @@ export class ImportComponent {
 
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) {
-      this.service.showToast('Please type a description keyword to match.', 'info');
+      this.service.showToast('Please type a keyword to match.', 'info');
       return;
     }
 
@@ -2521,7 +2559,15 @@ export class ImportComponent {
     let skippedCount = 0;
 
     for (const t of res.transactions) {
-      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
+        if (this.isTxOwnerExcluded(t)) {
+          skippedCount++;
+          continue;
+        }
         if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
           skippedCount++;
           continue;
@@ -2550,7 +2596,7 @@ export class ImportComponent {
     const noteVal = (note !== undefined ? note : this.descriptionBatchNote).trim();
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) {
-      this.service.showToast('Please type a description keyword to match.', 'info');
+      this.service.showToast('Please type a keyword to match.', 'info');
       return;
     }
 
@@ -2562,7 +2608,15 @@ export class ImportComponent {
     let skippedCount = 0;
 
     for (const t of res.transactions) {
-      if ((t.description || '').toLowerCase().includes(q) || (t.merchant || '').toLowerCase().includes(q)) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
+        if (this.isTxOwnerExcluded(t)) {
+          skippedCount++;
+          continue;
+        }
         if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
           skippedCount++;
           continue;
@@ -2577,18 +2631,77 @@ export class ImportComponent {
     this.service.showToast(`Set comment on ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}"!${skippedMsg}`, 'success');
   }
 
+  public excludeMatchingTransactions(): void {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please enter a keyword to match transactions to exclude.', 'info');
+      return;
+    }
+    const res = this.previewResult();
+    if (!res || !res.transactions) return;
+
+    const toExclude: Transaction[] = [];
+    const remaining: Transaction[] = [];
+
+    for (const t of res.transactions) {
+      if (this.isTxOwnerExcluded(t)) {
+        remaining.push(t);
+        continue;
+      }
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
+        const cleaned: Transaction = { ...t };
+        delete cleaned.includedFrom;
+        toExclude.push(cleaned);
+      } else {
+        remaining.push(t);
+      }
+    }
+
+    if (toExclude.length === 0) {
+      this.service.showToast(`No matching transactions found to exclude for "${this.descriptionMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.previewResult.set({
+      ...res,
+      transactions: remaining,
+      excluded: [...toExclude, ...res.excluded],
+      excludedCount: (res.excludedCount || 0) + toExclude.length
+    });
+    this.service.showToast(`Excluded ${toExclude.length} matching transaction(s) (moved to Excluded tab)`, 'info');
+  }
+
+  public excludeTransaction(tx: Transaction): void {
+    const res = this.previewResult();
+    if (!res) return;
+
+    const remaining = res.transactions.filter((t) => t.id !== tx.id);
+    const cleaned: Transaction = { ...tx };
+    delete cleaned.includedFrom;
+
+    this.previewResult.set({
+      ...res,
+      transactions: remaining,
+      excluded: [cleaned, ...res.excluded],
+      excludedCount: (res.excludedCount || 0) + 1
+    });
+    this.service.showToast(`Moved "${tx.description}" to Excluded tab`, 'info');
+  }
+
   public clearCategoryMatchKeyword(): void {
     this.categoryMatchKeyword.set('');
   }
 
   public onCategoryFilterKeywordChange(keyword: string): void {
-    this.categoryMatchKeyword.set(keyword);
-    this.typeMatchKeyword.set(keyword);
+    this.onDescriptionKeywordChange(keyword);
   }
 
   public clearCategoryFilterKeyword(): void {
-    this.clearCategoryMatchKeyword();
-    this.clearTypeMatchKeyword();
+    this.clearDescriptionMatchKeyword();
   }
 
   public onTypeKeywordChange(keyword: string): void {
@@ -2601,12 +2714,24 @@ export class ImportComponent {
     this.typeBatchGroup.set('');
   }
 
+  public onUniversalKeywordChange(keyword: string): void {
+    this.onDescriptionKeywordChange(keyword);
+  }
+
+  public clearUniversalKeyword(): void {
+    this.clearDescriptionMatchKeyword();
+  }
+
   public onDescriptionKeywordChange(keyword: string): void {
     this.descriptionMatchKeyword.set(keyword);
+    this.categoryMatchKeyword.set(keyword);
+    this.typeMatchKeyword.set(keyword);
   }
 
   public clearDescriptionMatchKeyword(): void {
     this.descriptionMatchKeyword.set('');
+    this.categoryMatchKeyword.set('');
+    this.typeMatchKeyword.set('');
     this.descriptionBatchItem.set('');
     this.descriptionBatchGroup.set('');
   }
