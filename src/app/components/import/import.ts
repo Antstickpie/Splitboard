@@ -379,18 +379,17 @@ export class ImportComponent {
   public ruleDefaultNote = '';
   public editingExistingRuleId: string | null = null;
 
-  public findMatchingRuleForTx(tx: Transaction): { type: 'category' | 'exclude'; rule: any } | null {
+  public findMatchingCategoryRuleForTx(tx: Transaction): { type: 'category'; rule: CategoryRule } | null {
     const desc = (tx.description || '').trim().toLowerCase();
     if (!desc) return null;
     const txBank = (tx.bank || '').toLowerCase();
 
-    // 1. Check Category Rules
     const matchingCatRules = this.service.rules().filter((r) => {
       const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
       if (!rKw || rKw.length < 2) return false;
       const ruleBank = (r.bank || 'All').toLowerCase();
       const matchesBank = ruleBank === 'all' || !txBank || txBank.includes(ruleBank) || ruleBank.includes(txBank);
-      const matchesKeyword = desc === rKw || desc.includes(rKw) || rKw.includes(desc);
+      const matchesKeyword = desc.includes(rKw);
       return matchesBank && matchesKeyword;
     });
 
@@ -403,6 +402,16 @@ export class ImportComponent {
       });
       return { type: 'category', rule: matchingCatRules[0] };
     }
+    return null;
+  }
+
+  public findMatchingRuleForTx(tx: Transaction): { type: 'category' | 'exclude'; rule: any } | null {
+    const catMatch = this.findMatchingCategoryRuleForTx(tx);
+    if (catMatch) return catMatch;
+
+    const desc = (tx.description || '').trim().toLowerCase();
+    if (!desc) return null;
+    const txBank = (tx.bank || '').toLowerCase();
 
     // 2. Check Exclude Rules
     const matchingExcludeRules = this.service.excludeRules().filter((r) => {
@@ -410,7 +419,7 @@ export class ImportComponent {
       if (!rKw || rKw.length < 2) return false;
       const ruleBank = (r.bank || 'All').toLowerCase();
       const matchesBank = ruleBank === 'all' || !txBank || txBank.includes(ruleBank) || ruleBank.includes(txBank);
-      const matchesKeyword = desc === rKw || desc.includes(rKw) || rKw.includes(desc);
+      const matchesKeyword = desc.includes(rKw);
       return matchesBank && matchesKeyword;
     });
 
@@ -429,12 +438,16 @@ export class ImportComponent {
 
   public hasMatchingRule(tx: Transaction | undefined | null): boolean {
     if (!tx) return false;
-    return !!this.findMatchingRuleForTx(tx);
+    const isFromExcluded = (this.previewResult()?.excluded || []).some((t) => t.id === tx.id);
+    return isFromExcluded ? !!this.findMatchingRuleForTx(tx) : !!this.findMatchingCategoryRuleForTx(tx);
   }
 
   public openRuleModal(tx: Transaction): void {
     this.ruleTargetTx.set(tx);
-    const existing = this.findMatchingRuleForTx(tx);
+    const isFromExcluded = (this.previewResult()?.excluded || []).some((t) => t.id === tx.id);
+    const existing = isFromExcluded
+      ? this.findMatchingRuleForTx(tx)
+      : this.findMatchingCategoryRuleForTx(tx);
 
     if (existing) {
       this.loadExistingRuleIntoModal({
@@ -452,9 +465,9 @@ export class ImportComponent {
       this.ruleKeyword = tx.description || '';
       this.ruleBank = tx.bank || 'All';
       this.ruleType.set('categorize');
-      this.ruleCategory = tx.categoryItem || '';
-      this.ruleCategoryGroup = tx.categoryGroup || '';
-      this.ruleSplitType = tx.splitType || 'SELF';
+      this.ruleCategory = tx.categoryItem && tx.categoryItem !== 'Uncategorized' ? tx.categoryItem : '';
+      this.ruleCategoryGroup = tx.categoryGroup && tx.categoryGroup !== 'Uncategorized' ? tx.categoryGroup : '';
+      this.ruleSplitType = tx.splitType || 'SPLIT';
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
       this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
       this.ruleDefaultNote = tx.note || '';
@@ -465,13 +478,14 @@ export class ImportComponent {
 
   public switchToCreateNewRule(): void {
     this.editingExistingRuleId = null;
+    this.ruleType.set('categorize');
     const tx = this.ruleTargetTx();
     if (tx) {
       this.ruleKeyword = tx.description || '';
       this.ruleBank = tx.bank || 'All';
-      this.ruleCategory = tx.categoryItem || '';
-      this.ruleCategoryGroup = tx.categoryGroup || '';
-      this.ruleSplitType = tx.splitType || 'SELF';
+      this.ruleCategory = tx.categoryItem && tx.categoryItem !== 'Uncategorized' ? tx.categoryItem : '';
+      this.ruleCategoryGroup = tx.categoryGroup && tx.categoryGroup !== 'Uncategorized' ? tx.categoryGroup : '';
+      this.ruleSplitType = tx.splitType || 'SPLIT';
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
       this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
       this.ruleDefaultNote = tx.note || '';
@@ -504,9 +518,9 @@ export class ImportComponent {
 
     const matchedCat = this.service.rules().find((r) => {
       const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
-      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+      return rKw && (rKw === raw || raw.includes(rKw));
     });
-    if (matchedCat) {
+    if (this.ruleType() === 'categorize' && matchedCat) {
       const b = (!matchedCat.bank || matchedCat.bank === 'All') ? 'All Banks' : matchedCat.bank;
       return {
         type: 'category',
@@ -517,8 +531,26 @@ export class ImportComponent {
 
     const matchedExclude = this.service.excludeRules().find((r) => {
       const rKw = (r.keyword || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
-      return rKw && (rKw === raw || rKw.includes(raw) || raw.includes(rKw));
+      return rKw && (rKw === raw || raw.includes(rKw));
     });
+    if (this.ruleType() === 'exclude' && matchedExclude) {
+      const b = (!matchedExclude.bank || matchedExclude.bank === 'All') ? 'All Banks' : matchedExclude.bank;
+      return {
+        type: 'exclude',
+        rule: matchedExclude,
+        message: `Exclude rule: "${matchedExclude.keyword}" for [${b}]`
+      };
+    }
+
+    if (matchedCat) {
+      const b = (!matchedCat.bank || matchedCat.bank === 'All') ? 'All Banks' : matchedCat.bank;
+      return {
+        type: 'category',
+        rule: matchedCat,
+        message: `Category rule: "${matchedCat.keyword}" → ${matchedCat.categoryItem} (${matchedCat.splitType || 'SPLIT'}) for [${b}]`
+      };
+    }
+
     if (matchedExclude) {
       const b = (!matchedExclude.bank || matchedExclude.bank === 'All') ? 'All Banks' : matchedExclude.bank;
       return {
@@ -560,11 +592,17 @@ export class ImportComponent {
 
     if (this.ruleType() === 'exclude') {
       if (this.editingExistingRuleId) {
-        this.service.updateExcludeRule({
-          id: this.editingExistingRuleId,
-          bank: this.ruleBank,
-          keyword
-        });
+        const isExistingCat = this.service.rules().some((r) => r.id === this.editingExistingRuleId);
+        if (isExistingCat) {
+          this.service.deleteRule(this.editingExistingRuleId);
+          this.service.addExcludeRule(this.ruleBank, keyword);
+        } else {
+          this.service.updateExcludeRule({
+            id: this.editingExistingRuleId,
+            bank: this.ruleBank,
+            keyword
+          });
+        }
       } else {
         this.service.addExcludeRule(this.ruleBank, keyword);
       }
@@ -634,10 +672,16 @@ export class ImportComponent {
 
       const doSaveRuleOnly = () => {
         if (editingId) {
-          this.service.updateRule({
-            id: editingId,
-            ...ruleData
-          });
+          const isExistingExclude = this.service.excludeRules().some((r) => r.id === editingId);
+          if (isExistingExclude) {
+            this.service.deleteExcludeRule(editingId);
+            this.service.addRule(ruleData);
+          } else {
+            this.service.updateRule({
+              id: editingId,
+              ...ruleData
+            });
+          }
         } else {
           this.service.addRule(ruleData);
         }
@@ -648,7 +692,8 @@ export class ImportComponent {
         this.service.applyRuleToTransactions(oldRule, newRule, diffsToApply);
 
         // 2. Update preview transactions
-        if (res) {
+        const currentRes = this.previewResult();
+        if (currentRes) {
           const diffMap = new Map<string, RuleTxDiffItem>();
           for (const d of diffsToApply) {
             diffMap.set(d.tx.id, d);
@@ -657,7 +702,7 @@ export class ImportComponent {
           const newNoteStr = (newRule.defaultNote || '').trim();
 
           let updatedInPreview = 0;
-          const updatedValid = res.transactions.map((t) => {
+          const updatedValid = currentRes.transactions.map((t) => {
             if (diffMap.has(t.id)) {
               updatedInPreview++;
               const updatedTx: Transaction = {
@@ -684,12 +729,32 @@ export class ImportComponent {
             return t;
           });
 
-          this.previewResult.set({
-            ...res,
-            transactions: updatedValid
+          // Check if any categorized transactions were in excluded list and restore them
+          const restoredFromExcluded: Transaction[] = [];
+          const remainingExcluded = currentRes.excluded.filter((t) => {
+            if (diffMap.has(t.id)) {
+              const updatedTx: Transaction = {
+                ...t,
+                categoryItem: newRule.categoryItem || t.categoryItem,
+                categoryGroup: catGroup || t.categoryGroup,
+                splitType: newRule.splitType || t.splitType,
+                paidBy: newRule.paidBy || t.paidBy,
+                includedFrom: 'excluded'
+              };
+              restoredFromExcluded.push(updatedTx);
+              return false;
+            }
+            return true;
           });
-          if (updatedInPreview > 0) {
-            this.service.showToast(`Updated ${updatedInPreview} matching rows in preview!`, 'success');
+
+          this.previewResult.set({
+            ...currentRes,
+            transactions: [...updatedValid, ...restoredFromExcluded],
+            excluded: remainingExcluded,
+            excludedCount: Math.max(0, currentRes.excludedCount - restoredFromExcluded.length)
+          });
+          if (updatedInPreview > 0 || restoredFromExcluded.length > 0) {
+            this.service.showToast(`Updated ${updatedInPreview + restoredFromExcluded.length} matching rows in preview!`, 'success');
           }
         }
 
@@ -2690,6 +2755,117 @@ export class ImportComponent {
       excludedCount: (res.excludedCount || 0) + 1
     });
     this.service.showToast(`Moved "${tx.description}" to Excluded tab`, 'info');
+  }
+
+  public includeMatchingTransactions(): void {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please enter a keyword to match excluded transactions.', 'info');
+      return;
+    }
+    const res = this.previewResult();
+    if (!res || !res.excluded || res.excluded.length === 0) return;
+
+    const toInclude: Transaction[] = [];
+    const remainingExcluded: Transaction[] = [];
+
+    for (const t of res.excluded) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
+        const tagged: Transaction = { ...t, includedFrom: 'excluded' };
+        toInclude.push(tagged);
+      } else {
+        remainingExcluded.push(t);
+      }
+    }
+
+    if (toInclude.length === 0) {
+      this.service.showToast(`No excluded transactions found matching "${this.descriptionMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    this.previewResult.set({
+      ...res,
+      transactions: [...toInclude, ...res.transactions],
+      excluded: remainingExcluded,
+      excludedCount: Math.max(0, (res.excludedCount || 0) - toInclude.length)
+    });
+    this.service.showToast(`Included ${toInclude.length} matching transaction(s) back into import list`, 'success');
+  }
+
+  public getMatchingExcludedTransactionsCount(keyword: string): number {
+    const q = (keyword || '').trim().toLowerCase();
+    if (!q) return 0;
+    const res = this.previewResult();
+    if (!res || !res.excluded) return 0;
+
+    let count = 0;
+    for (const t of res.excluded) {
+      if (
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.merchant || '').toLowerCase().includes(q) ||
+        (t.rawCategory || '').toLowerCase().includes(q)
+      ) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public isMatchingGroupDone(): boolean {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return false;
+    const res = this.previewResult();
+    if (!res || !res.transactions) return false;
+
+    const matching = res.transactions.filter(
+      (t) =>
+        !this.isTxOwnerExcluded(t) &&
+        ((t.description || '').toLowerCase().includes(q) ||
+          (t.merchant || '').toLowerCase().includes(q) ||
+          (t.rawCategory || '').toLowerCase().includes(q))
+    );
+
+    return matching.length > 0 && matching.every((t) => t.isDone);
+  }
+
+  public toggleMatchingGroupDone(): void {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) {
+      this.service.showToast('Please type a keyword to match transactions.', 'info');
+      return;
+    }
+    const res = this.previewResult();
+    if (!res || !res.transactions) return;
+
+    const matching = res.transactions.filter(
+      (t) =>
+        !this.isTxOwnerExcluded(t) &&
+        ((t.description || '').toLowerCase().includes(q) ||
+          (t.merchant || '').toLowerCase().includes(q) ||
+          (t.rawCategory || '').toLowerCase().includes(q))
+    );
+
+    if (matching.length === 0) {
+      this.service.showToast(`No matching transactions found for "${this.descriptionMatchKeyword().trim()}".`, 'info');
+      return;
+    }
+
+    const targetState = !this.isMatchingGroupDone();
+    matching.forEach((t) => {
+      t.isDone = targetState;
+    });
+
+    this.previewResult.set({ ...res });
+    this.service.showToast(
+      targetState
+        ? `✓ Marked all ${matching.length} matching items as done`
+        : `↩ Unmarked done for all ${matching.length} matching items`,
+      'info'
+    );
   }
 
   public clearCategoryMatchKeyword(): void {

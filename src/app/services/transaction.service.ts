@@ -1450,7 +1450,7 @@ export class TransactionService {
         const oldCat = (oldRule?.categoryItem || '').trim().toLowerCase();
 
         let categoryStatus: 'SAME' | 'UNCATEGORIZED' | 'DIFFERENT' = 'UNCATEGORIZED';
-        if (!txCat) {
+        if (!txCat || txCat === 'uncategorized') {
           categoryStatus = 'UNCATEGORIZED';
         } else if (txCat === newCat || (oldCat && txCat === oldCat)) {
           categoryStatus = 'SAME';

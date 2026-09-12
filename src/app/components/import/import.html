@@ -712,8 +712,22 @@
             </button>
           </div>
 
+          <!-- Done for Matches -->
+          <button
+            type="button"
+            class="btn btn-xs tx-btn-done"
+            [class.is-done]="isMatchingGroupDone()"
+            [disabled]="!descriptionMatchKeyword().trim() || getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) === 0"
+            (click)="toggleMatchingGroupDone()"
+            [title]="isMatchingGroupDone() ? 'Unmark all matching items as done' : 'Mark all matching items as done'"
+            style="height: 28px; padding: 0 0.55rem; font-size: 0.75rem; border-radius: 4px;">
+            <span class="btn-done-label">{{ isMatchingGroupDone() ? '✓ Done' : '○ Done' }} <span *ngIf="descriptionMatchKeyword().trim() && getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) > 0" class="ed-match-counter">({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})</span></span>
+            <span class="btn-undo-label">↩ Undo <span *ngIf="descriptionMatchKeyword().trim() && getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) > 0" class="ed-match-counter">({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})</span></span>
+          </button>
+
           <!-- Exclude Matched Button -->
           <button
+            *ngIf="getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) > 0 || getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) === 0"
             type="button"
             class="split-btn"
             style="color: #f87171; border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); font-weight: 600;"
@@ -723,6 +737,20 @@
             🚫 Exclude Matched
             <span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">
               ({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})
+            </span>
+          </button>
+
+          <!-- Include Matched Button (Shown when matching transactions are in Excluded tab) -->
+          <button
+            *ngIf="getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) > 0"
+            type="button"
+            class="split-btn animate-fade-in"
+            style="color: #10b981; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.12); font-weight: 600;"
+            (click)="includeMatchingTransactions()"
+            [title]="'Restore matching excluded transactions back into import list'">
+            ↩ Include Matched
+            <span class="ed-match-counter">
+              ({{ getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) }})
             </span>
           </button>
 
@@ -1075,6 +1103,24 @@
               Show All
             </button>
           </div>
+        </div>
+
+        <div *ngIf="displayedCategoryMappings().length === 0" class="glass-card" style="padding: 2rem; text-align: center; color: var(--text-muted); margin-top: 1rem;">
+          <ng-container *ngIf="descriptionMatchKeyword().trim() && getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) > 0; else noCatDefault">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.6rem;">
+              <span>All {{ getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) }} transaction(s) matching "{{ descriptionMatchKeyword() }}" are currently in the <strong>Excluded</strong> tab.</span>
+              <button
+                type="button"
+                class="btn btn-secondary btn-xs"
+                style="color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.65rem; font-weight: 600;"
+                (click)="includeMatchingTransactions()">
+                ↩ Include All Matching Transactions Back
+              </button>
+            </div>
+          </ng-container>
+          <ng-template #noCatDefault>
+            No categories match the current filter or search criteria.
+          </ng-template>
         </div>
       </ng-container>
 
@@ -1525,7 +1571,21 @@
         </div>
 
         <div *ngIf="multiDescriptionMappings().length === 0 && singleDescriptionTransactions().length === 0" class="glass-card" style="padding: 2rem; text-align: center; color: var(--text-muted); margin-top: 1rem;">
-          No transactions match the current filter or search criteria.
+          <ng-container *ngIf="descriptionMatchKeyword().trim() && getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) > 0; else noDescDefault">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.6rem;">
+              <span>All {{ getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) }} transaction(s) matching "{{ descriptionMatchKeyword() }}" are currently in the <strong>Excluded</strong> tab.</span>
+              <button
+                type="button"
+                class="btn btn-secondary btn-xs"
+                style="color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.65rem; font-weight: 600;"
+                (click)="includeMatchingTransactions()">
+                ↩ Include All Matching Transactions Back
+              </button>
+            </div>
+          </ng-container>
+          <ng-template #noDescDefault>
+            No transactions match the current filter or search criteria.
+          </ng-template>
         </div>
       </ng-container>
 
@@ -1762,7 +1822,21 @@
             </tr>
             <tr *ngIf="sortedTransactions().length === 0">
               <td colspan="9" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
-                No transactions match the current filter.
+                <ng-container *ngIf="descriptionMatchKeyword().trim() && getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) > 0; else noTxDefault">
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 0.6rem;">
+                    <span>All {{ getMatchingExcludedTransactionsCount(descriptionMatchKeyword()) }} transaction(s) matching "{{ descriptionMatchKeyword() }}" are currently in the <strong>Excluded</strong> tab.</span>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-xs"
+                      style="color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.65rem; font-weight: 600;"
+                      (click)="includeMatchingTransactions()">
+                      ↩ Include All Matching Transactions Back
+                    </button>
+                  </div>
+                </ng-container>
+                <ng-template #noTxDefault>
+                  No transactions match the current filter.
+                </ng-template>
               </td>
             </tr>
           </tbody>
