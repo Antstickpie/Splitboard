@@ -35,7 +35,7 @@ export interface ImportCategoryMapping {
   selectedItem: string;
   selectedGroup: string;
   selectedPerson: string;
-  selectedSplitType: SplitType;
+  selectedSplitType: SplitType | '';
   isIncome?: boolean;
 }
 
@@ -46,7 +46,7 @@ export interface ImportDescriptionMapping {
   selectedItem: string;
   selectedGroup: string;
   selectedPerson: string;
-  selectedSplitType: SplitType;
+  selectedSplitType: SplitType | '';
   rawCategories: string[];
   isIncome?: boolean;
   isFullyAssigned?: boolean;
@@ -893,6 +893,37 @@ export class ImportComponent {
     } else {
       return tx.splitType === 'SELF' ? '100_P2' : '100_P1';
     }
+  }
+
+  public getTxBeneficiary(tx: Transaction): string {
+    if (!tx.splitType) return '';
+    if (tx.splitType === 'SPLIT') return 'SPLIT';
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    if (tx.paidBy === p1) {
+      return tx.splitType === 'SELF' ? p1 : p2;
+    } else {
+      return tx.splitType === 'SELF' ? p2 : p1;
+    }
+  }
+
+  public isMatchingGroupSplit(choice: 'SPLIT' | string): boolean {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return false;
+    const res = this.previewResult();
+    if (!res || !res.transactions || res.transactions.length === 0) return false;
+    const matched = res.transactions.filter(
+      (t) =>
+        !this.isTxOwnerExcluded(t) &&
+        ((t.description || '').toLowerCase().includes(q) ||
+          (t.merchant || '').toLowerCase().includes(q) ||
+          (t.rawCategory || '').toLowerCase().includes(q))
+    );
+    if (matched.length === 0) return false;
+    if (choice === 'SPLIT') {
+      return matched.every((t) => t.splitType === 'SPLIT');
+    }
+    return matched.every((t) => this.getTxBeneficiary(t) === choice);
   }
 
   public onInlineSplitButtonClick(tx: Transaction, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
@@ -1788,10 +1819,8 @@ export class ImportComponent {
     map.forEach((val, rawCategory) => {
       const definedItem = val.items.find((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
       const definedGroup = val.items.find((t) => t.categoryGroup && t.categoryGroup !== 'Uncategorized');
-      const firstSplit = val.items[0]?.splitType || 'SELF';
-      const allSameSplit = val.items.every((t) => t.splitType === firstSplit);
-      const firstOwner = val.items[0]?.paidBy || defaultPerson;
-      const allSameOwner = val.items.every((t) => t.paidBy === firstOwner);
+      const firstBeneficiary = val.items[0] ? this.getTxBeneficiary(val.items[0]) : '';
+      const allSameBeneficiary = val.items.length > 0 && val.items.every((t) => this.getTxBeneficiary(t) === firstBeneficiary);
 
       result.push({
         rawCategory,
@@ -1799,8 +1828,8 @@ export class ImportComponent {
         totalAmount: Math.round(val.totalAmount * 100) / 100,
         selectedItem: definedItem?.categoryItem || 'Uncategorized',
         selectedGroup: definedGroup?.categoryGroup || 'Uncategorized',
-        selectedPerson: allSameOwner ? firstOwner : '',
-        selectedSplitType: allSameSplit ? firstSplit : 'SELF',
+        selectedPerson: allSameBeneficiary && firstBeneficiary !== 'SPLIT' ? firstBeneficiary : '',
+        selectedSplitType: allSameBeneficiary && firstBeneficiary === 'SPLIT' ? 'SPLIT' : (allSameBeneficiary ? 'SELF' : ''),
         isIncome: val.isIncome
       });
     });
@@ -1838,10 +1867,8 @@ export class ImportComponent {
     map.forEach((val, description) => {
       const definedItem = val.items.find((t) => t.categoryItem && t.categoryItem !== 'Uncategorized');
       const definedGroup = val.items.find((t) => t.categoryGroup && t.categoryGroup !== 'Uncategorized');
-      const firstSplit = val.items[0]?.splitType || 'SELF';
-      const allSameSplit = val.items.every((t) => t.splitType === firstSplit);
-      const firstOwner = val.items[0]?.paidBy || defaultPerson;
-      const allSameOwner = val.items.every((t) => t.paidBy === firstOwner);
+      const firstBeneficiary = val.items[0] ? this.getTxBeneficiary(val.items[0]) : '';
+      const allSameBeneficiary = val.items.length > 0 && val.items.every((t) => this.getTxBeneficiary(t) === firstBeneficiary);
       const rawCategories = Array.from(
         new Set(val.items.map((t) => (t.rawCategory || t.categoryItem || '').trim()).filter(Boolean))
       );
@@ -1855,8 +1882,8 @@ export class ImportComponent {
         totalAmount: Math.round(val.totalAmount * 100) / 100,
         selectedItem: definedItem?.categoryItem || 'Uncategorized',
         selectedGroup: definedGroup?.categoryGroup || 'Uncategorized',
-        selectedPerson: allSameOwner ? firstOwner : '',
-        selectedSplitType: allSameSplit ? firstSplit : 'SELF',
+        selectedPerson: allSameBeneficiary && firstBeneficiary !== 'SPLIT' ? firstBeneficiary : '',
+        selectedSplitType: allSameBeneficiary && firstBeneficiary === 'SPLIT' ? 'SPLIT' : (allSameBeneficiary ? 'SELF' : ''),
         rawCategories,
         isIncome: val.isIncome,
         isFullyAssigned,
@@ -2162,8 +2189,7 @@ export class ImportComponent {
   }
 
   public setTxPerson(tx: Transaction, person: string): void {
-    tx.paidBy = person;
-    tx.splitType = 'SELF';
+    tx.splitType = tx.paidBy === person ? 'SELF' : 'OTHER';
     const res = this.previewResult();
     if (res) this.previewResult.set({ ...res });
   }
@@ -2184,8 +2210,7 @@ export class ImportComponent {
     if (!res) return;
     for (const tx of res.transactions) {
       if ((tx.rawCategory || tx.categoryItem || 'Uncategorized').trim() === rawCategory) {
-        tx.paidBy = personName;
-        tx.splitType = 'SELF';
+        tx.splitType = tx.paidBy === personName ? 'SELF' : 'OTHER';
       }
     }
     this.previewResult.set({ ...res });
@@ -2235,8 +2260,7 @@ export class ImportComponent {
     if (!res) return;
     for (const tx of res.transactions) {
       if ((tx.description || tx.merchant || 'Unspecified').trim() === desc) {
-        tx.paidBy = personName;
-        tx.splitType = 'SELF';
+        tx.splitType = tx.paidBy === personName ? 'SELF' : 'OTHER';
       }
     }
     this.previewResult.set({ ...res });
@@ -2391,8 +2415,7 @@ export class ImportComponent {
           skippedExcludedOwner++;
           continue;
         }
-        t.paidBy = personName;
-        t.splitType = 'SELF';
+        t.splitType = t.paidBy === personName ? 'SELF' : 'OTHER';
         matchedCount++;
       }
     }
@@ -2410,7 +2433,7 @@ export class ImportComponent {
       return;
     }
 
-    this.service.showToast(`Assigned ${matchedCount} transactions matching "${this.categoryMatchKeyword().trim()}" to ${personName}!`, 'success');
+    this.service.showToast(`Assigned split to ${personName} for ${matchedCount} transactions matching "${this.categoryMatchKeyword().trim()}"!`, 'success');
   }
 
   public assignMatchingCategoriesToSplit(): void {
@@ -2532,8 +2555,7 @@ export class ImportComponent {
           skippedCount++;
           continue;
         }
-        t.paidBy = personName;
-        t.splitType = 'SELF';
+        t.splitType = t.paidBy === personName ? 'SELF' : 'OTHER';
         matchedCount++;
       }
     }
@@ -2550,7 +2572,7 @@ export class ImportComponent {
     }
 
     const skippedMsg = skippedCount > 0 ? ` (${skippedCount} excluded)` : '';
-    this.service.showToast(`Assigned ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}" to ${personName}!${skippedMsg}`, 'success');
+    this.service.showToast(`Assigned split to ${personName} for ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}"!${skippedMsg}`, 'success');
   }
 
   public assignMatchingDescriptionsToSplit(): void {
@@ -2984,11 +3006,10 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res || !res.transactions || res.transactions.length === 0) return;
     for (const t of res.transactions) {
-      t.paidBy = personName;
-      t.splitType = 'SELF';
+      t.splitType = t.paidBy === personName ? 'SELF' : 'OTHER';
     }
     this.previewResult.set({ ...res });
-    this.service.showToast(`Assigned all ${res.transactions.length} transactions to ${personName}!`, 'success');
+    this.service.showToast(`Assigned split to ${personName} for all ${res.transactions.length} transactions!`, 'success');
   }
 
   public resetAllCategoryMappingsToUncategorized(): void {

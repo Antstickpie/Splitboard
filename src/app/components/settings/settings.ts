@@ -1841,14 +1841,14 @@ export class SettingsComponent {
     if (!personName) return;
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
-        if ((tx.description || 'No Description').trim() === desc) {
-          return { ...tx, paidBy: personName, splitType: 'SELF' };
+        if ((tx.description || 'No Description').trim() === desc.trim()) {
+          return { ...tx, splitType: tx.paidBy === personName ? 'SELF' : 'OTHER' };
         }
         return tx;
       })
     );
     this.syncCategoryMappingsFromPreview();
-    this.service.showToast(`Assigned transactions in "${desc}" to ${personName}.`, 'info');
+    this.service.showToast(`Assigned split to ${personName} for transactions in "${desc}".`, 'info');
   }
 
   public onDescriptionSplitTypeChange(desc: string, splitType: SplitType): void {
@@ -2329,6 +2329,18 @@ export class SettingsComponent {
     );
   }
 
+  public getTxBeneficiary(tx: Transaction): string {
+    if (!tx.splitType) return '';
+    if (tx.splitType === 'SPLIT') return 'SPLIT';
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    if (tx.paidBy === p1) {
+      return tx.splitType === 'SELF' ? p1 : p2;
+    } else {
+      return tx.splitType === 'SELF' ? p2 : p1;
+    }
+  }
+
   public onCategoryPersonChange(rawCategory: string, personName: string): void {
     if (!personName) return;
 
@@ -2341,21 +2353,20 @@ export class SettingsComponent {
       )
     );
 
-    // Update all matching staged preview transactions (split is SELF)
+    // Update all matching staged preview transactions (split relative to paidBy)
     this.edPreviewTransactions.update((curr) =>
       curr.map((tx) => {
-        if ((tx.rawCategory || 'Uncategorized') === rawCategory) {
+        if ((tx.rawCategory || 'Uncategorized').trim() === rawCategory.trim()) {
           return {
             ...tx,
-            paidBy: personName,
-            splitType: 'SELF',
+            splitType: tx.paidBy === personName ? 'SELF' : 'OTHER',
           };
         }
         return tx;
       })
     );
 
-    this.service.showToast(`Assigned all transactions in "${rawCategory}" to ${personName}.`, 'info');
+    this.service.showToast(`Assigned split to ${personName} for transactions in "${rawCategory}".`, 'info');
   }
 
   public onCategorySplitTypeChange(rawCategory: string, splitType: SplitType): void {
@@ -2388,16 +2399,16 @@ export class SettingsComponent {
     );
 
     this.edPreviewTransactions.update((curr) =>
-      curr.map((tx) => ({ ...tx, paidBy: personName, splitType: 'SELF' }))
+      curr.map((tx) => ({ ...tx, splitType: tx.paidBy === personName ? 'SELF' : 'OTHER' }))
     );
 
-    this.service.showToast(`Assigned all EveryDollar transactions to ${personName} (split: SELF).`, 'info');
+    this.service.showToast(`Assigned split to ${personName} for all EveryDollar transactions.`, 'info');
   }
 
   public setTxPerson(tx: Transaction, personName: string): void {
     if (!personName) return;
     this.edPreviewTransactions.update((curr) =>
-      curr.map((t) => (t.id === tx.id ? { ...t, paidBy: personName, splitType: 'SELF' } : t))
+      curr.map((t) => (t.id === tx.id ? { ...t, splitType: t.paidBy === personName ? 'SELF' : 'OTHER' } : t))
     );
   }
 

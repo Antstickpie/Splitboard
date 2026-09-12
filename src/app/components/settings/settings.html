@@ -1982,7 +1982,7 @@
                           class="split-btn split-btn-xs"
                           [class.split-btn-p1]="idx === 0"
                           [class.split-btn-p2]="idx === 1"
-                          [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                          [class.active]="getTxBeneficiary(tx) === p.name"
                           (click)="setTxPerson(tx, p.name)">
                           {{ p.name }}
                         </button>
@@ -2259,7 +2259,7 @@
                           class="split-btn split-btn-xs"
                           [class.split-btn-p1]="idx === 0"
                           [class.split-btn-p2]="idx === 1"
-                          [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                          [class.active]="getTxBeneficiary(tx) === p.name"
                           (click)="setTxPerson(tx, p.name)">
                           {{ p.name }}
                         </button>
@@ -2509,7 +2509,7 @@
                     class="split-btn split-btn-xs"
                     [class.split-btn-p1]="idx === 0"
                     [class.split-btn-p2]="idx === 1"
-                    [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                    [class.active]="getTxBeneficiary(tx) === p.name"
                     (click)="setTxPerson(tx, p.name)">
                     {{ p.name }}
                   </button>

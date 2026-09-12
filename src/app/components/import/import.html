@@ -688,6 +688,7 @@
             <button
               type="button"
               class="split-btn split-btn-5050"
+              [class.active]="isMatchingGroupSplit('SPLIT')"
               [disabled]="!descriptionMatchKeyword().trim() || getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) === 0"
               (click)="assignMatchingDescriptionsToSplit()"
               [title]="'Split transactions matching \'' + descriptionMatchKeyword() + '\' 50/50'">
@@ -702,9 +703,10 @@
               class="split-btn"
               [class.split-btn-p1]="pIdx === 0"
               [class.split-btn-p2]="pIdx === 1"
+              [class.active]="isMatchingGroupSplit(p.name)"
               [disabled]="!descriptionMatchKeyword().trim() || getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) === 0"
               (click)="assignMatchingDescriptionsToPerson(p.name)"
-              [title]="'Assign transactions matching \'' + descriptionMatchKeyword() + '\' to ' + p.name">
+              [title]="'Set split for transactions matching \'' + descriptionMatchKeyword() + '\' to 100% ' + p.name">
               {{ p.name }}
               <span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">
                 ({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})
@@ -1071,7 +1073,7 @@
                           class="split-btn split-btn-xs"
                           [class.split-btn-p1]="pIdx === 0"
                           [class.split-btn-p2]="pIdx === 1"
-                          [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                          [class.active]="getTxBeneficiary(tx) === p.name"
                           (click)="setTxPerson(tx, p.name)">
                           {{ p.name }}
                         </button>
@@ -1374,7 +1376,7 @@
                           class="split-btn split-btn-xs"
                           [class.split-btn-p1]="pIdx === 0"
                           [class.split-btn-p2]="pIdx === 1"
-                          [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                          [class.active]="getTxBeneficiary(tx) === p.name"
                           (click)="setTxPerson(tx, p.name)">
                           {{ p.name }}
                         </button>
@@ -1495,7 +1497,7 @@
                         class="split-btn"
                         [class.split-btn-p1]="pIdx === 0"
                         [class.split-btn-p2]="pIdx === 1"
-                        [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                        [class.active]="getTxBeneficiary(tx) === p.name"
                         (click)="setTxPerson(tx, p.name)">
                         {{ p.name }}
                       </button>
