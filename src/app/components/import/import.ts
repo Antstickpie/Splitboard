@@ -1293,6 +1293,74 @@ export class ImportComponent {
     );
   }
 
+  public isTransactionsAllNextMonth(txs: Transaction[]): boolean {
+    if (!txs || !txs.length) return false;
+    return txs.every((t) => {
+      const curM = (t.date || '').slice(0, 7);
+      return Boolean(t.incomeMonth && t.incomeMonth !== curM);
+    });
+  }
+
+  public toggleTransactionsIncomeMonth(txs: Transaction[]): void {
+    if (!txs || !txs.length) return;
+    const isAllNext = this.isTransactionsAllNextMonth(txs);
+    txs.forEach((t) => {
+      const curM = (t.date || '').slice(0, 7);
+      const nextM = this.service.getNextMonth(curM);
+      t.incomeMonth = isAllNext ? undefined : nextM;
+    });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.service.showToast(
+      isAllNext ? 'Reset group to receipt month' : 'Marked all group items for respective next month',
+      'info'
+    );
+  }
+
+  public isCategoryAllIncomes(rawCategory: string): boolean {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    return txs.length > 0 && txs.every((t) => this.isIncomeTx(t));
+  }
+
+  public isCategoryIncomeNextMonth(rawCategory: string): boolean {
+    return this.isTransactionsAllNextMonth(this.getTransactionsForCategory(rawCategory));
+  }
+
+  public toggleCategoryIncomeMonth(rawCategory: string): void {
+    this.toggleTransactionsIncomeMonth(this.getTransactionsForCategory(rawCategory));
+  }
+
+  public isDescriptionAllIncomes(desc: string): boolean {
+    const txs = this.getTransactionsForDescription(desc);
+    return txs.length > 0 && txs.every((t) => this.isIncomeTx(t));
+  }
+
+  public isDescriptionIncomeNextMonth(desc: string): boolean {
+    return this.isTransactionsAllNextMonth(this.getTransactionsForDescription(desc));
+  }
+
+  public toggleDescriptionIncomeMonth(desc: string): void {
+    this.toggleTransactionsIncomeMonth(this.getTransactionsForDescription(desc));
+  }
+
+  public getTransactionsDateRange(txs: Transaction[]): string {
+    if (!txs || txs.length === 0) return '';
+    const dates = txs.map((t) => t.date).filter(Boolean).sort();
+    if (dates.length === 0) return '';
+    if (dates[0] === dates[dates.length - 1]) {
+      return this.service.formatDate(dates[0]);
+    }
+    return `${this.service.formatDate(dates[0])} – ${this.service.formatDate(dates[dates.length - 1])}`;
+  }
+
+  public getCategoryDateRange(rawCategory: string): string {
+    return this.getTransactionsDateRange(this.getTransactionsForCategory(rawCategory));
+  }
+
+  public getDescriptionDateRange(desc: string): string {
+    return this.getTransactionsDateRange(this.getTransactionsForDescription(desc));
+  }
+
   public includeIncome(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;
@@ -1492,7 +1560,7 @@ export class ImportComponent {
       const existing = map.get(cat) || { count: 0, totalAmount: 0, isIncome: false, items: [] };
       existing.count++;
       existing.totalAmount += Number(tx.amount) || 0;
-      if (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income')) {
+      if (this.isIncomeTx(tx)) {
         existing.isIncome = true;
       }
       existing.items.push(tx);
@@ -1542,7 +1610,7 @@ export class ImportComponent {
       const existing = map.get(desc) || { count: 0, totalAmount: 0, isIncome: false, items: [] };
       existing.count++;
       existing.totalAmount += Number(tx.amount) || 0;
-      if (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income')) {
+      if (this.isIncomeTx(tx)) {
         existing.isIncome = true;
       }
       existing.items.push(tx);
@@ -2435,13 +2503,18 @@ export class ImportComponent {
 
   public isIncomeTx(tx: Transaction | undefined | null): boolean {
     if (!tx) return false;
-    return tx.type === 'INCOME' || this.previewTab() === 'incomes';
+    if (this.previewTab() === 'incomes') return true;
+    if (tx.type === 'INCOME' || tx.includedFrom === 'incomes') return true;
+    const catGroup = (tx.categoryGroup || '').toLowerCase();
+    const catItem = (tx.categoryItem || '').toLowerCase();
+    const rawCat = (tx.rawCategory || '').toLowerCase();
+    return catGroup.includes('income') || catItem.includes('income') || rawCat.includes('income');
   }
 
   public isIncomeGroup(grp: DescriptionGroup | TransactionGroup | undefined | null): boolean {
     if (!grp) return false;
     if (this.previewTab() === 'incomes') return true;
-    return !!grp.items && grp.items.length > 0 && grp.items.every((t) => t.type === 'INCOME');
+    return !!grp.items && grp.items.length > 0 && grp.items.every((t) => this.isIncomeTx(t));
   }
 
   public currentActiveTabTransactions = computed<Transaction[]>(() => {

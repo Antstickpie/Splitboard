@@ -806,6 +806,8 @@
                     <span>•</span>
                     <span class="font-mono" [class.text-success]="m.isIncome">{{ m.isIncome ? '+' : '' }}{{ service.formatCurrency(m.totalAmount) }}</span>
                     <span *ngIf="m.isIncome" class="badge badge-success" style="font-size: 0.65rem; padding: 1px 6px;">Income</span>
+                    <span *ngIf="getCategoryDateRange(m.rawCategory)">•</span>
+                    <span *ngIf="getCategoryDateRange(m.rawCategory)" style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">📅 {{ getCategoryDateRange(m.rawCategory) }}</span>
                   </div>
                 </div>
 
@@ -848,6 +850,19 @@
                     </app-category-select>
                   </div>
 
+                  <!-- Mark all for next month if category contains only incomes -->
+                  <button
+                    *ngIf="isCategoryAllIncomes(m.rawCategory)"
+                    type="button"
+                    class="btn btn-xs"
+                    [class.btn-primary]="isCategoryIncomeNextMonth(m.rawCategory)"
+                    [class.btn-secondary]="!isCategoryIncomeNextMonth(m.rawCategory)"
+                    (click)="toggleCategoryIncomeMonth(m.rawCategory)"
+                    style="padding: 0.2rem 0.55rem; font-size: 0.72rem; white-space: nowrap;"
+                    title="Toggle all transactions in this category to respective next month or receipt month">
+                    📅 {{ isCategoryIncomeNextMonth(m.rawCategory) ? 'Reset to Receipt Month' : 'All for Next Month' }}
+                  </button>
+
                   <!-- Inspect Individual Transactions Toggle -->
                   <button
                     type="button"
@@ -877,33 +892,61 @@
                 </div>
                 <div class="ed-drawer-list">
                   <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50)" class="ed-drawer-tx-item">
-                    <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ service.formatDate(tx.date) }}</span>
+                    <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
+                      <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
+                        📅 {{ service.formatDate(tx.date) }}
+                      </span>
+                      <span
+                        *ngIf="isIncomeTx(tx) && isIncomeShifted(tx)"
+                        (click)="toggleIncomeMonth(tx)"
+                        class="badge"
+                        style="cursor: pointer; font-size: 0.64rem; padding: 0.05rem 0.3rem; margin-top: 2px; width: fit-content; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
+                        [title]="getIncomeMonthBadgeTooltip(tx)">
+                        {{ getIncomeMonthBadgeLabel(tx) }}
+                      </span>
+                    </div>
                     <div class="ed-drawer-tx-desc">
                       <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
                       <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                     </div>
-                    <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                    <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
-                    <div class="split-button-group">
+                    <div style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
                       <button
+                        *ngIf="isIncomeTx(tx)"
                         type="button"
-                        class="split-btn split-btn-xs split-btn-5050"
-                        [class.active]="tx.splitType === 'SPLIT'"
-                        (click)="setTxSplit(tx, 'SPLIT')"
-                        title="50/50 Split">
-                        50/50
+                        class="btn btn-xs"
+                        [class.btn-secondary]="isIncomeShifted(tx)"
+                        [class.btn-primary]="!isIncomeShifted(tx)"
+                        [style.color]="isIncomeShifted(tx) ? '#10b981' : ''"
+                        [style.borderColor]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.35)' : ''"
+                        [style.background]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.1)' : ''"
+                        (click)="toggleIncomeMonth(tx)"
+                        style="padding: 0.18rem 0.45rem; font-size: 0.71rem; white-space: nowrap;"
+                        [title]="getIncomeMonthButtonTooltip(tx)">
+                        {{ getIncomeMonthButtonLabel(tx) }}
                       </button>
-                      <button
-                        type="button"
-                        *ngFor="let p of service.persons(); let pIdx = index"
-                        class="split-btn split-btn-xs"
-                        [class.split-btn-p1]="pIdx === 0"
-                        [class.split-btn-p2]="pIdx === 1"
-                        [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
-                        (click)="setTxPerson(tx, p.name)">
-                        {{ p.name }}
-                      </button>
+                      <div class="split-button-group">
+                        <button
+                          type="button"
+                          class="split-btn split-btn-xs split-btn-5050"
+                          [class.active]="tx.splitType === 'SPLIT'"
+                          (click)="setTxSplit(tx, 'SPLIT')"
+                          title="50/50 Split">
+                          50/50
+                        </button>
+                        <button
+                          type="button"
+                          *ngFor="let p of service.persons(); let pIdx = index"
+                          class="split-btn split-btn-xs"
+                          [class.split-btn-p1]="pIdx === 0"
+                          [class.split-btn-p2]="pIdx === 1"
+                          [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                          (click)="setTxPerson(tx, p.name)">
+                          {{ p.name }}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div *ngIf="getTransactionsForCategory(m.rawCategory).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
@@ -1083,6 +1126,8 @@
                     <span>•</span>
                     <span class="font-mono" [class.text-success]="d.isIncome">{{ d.isIncome ? '+' : '' }}{{ service.formatCurrency(d.totalAmount) }}</span>
                     <span *ngIf="d.isIncome" class="badge badge-success" style="font-size: 0.65rem; padding: 1px 6px;">Income</span>
+                    <span *ngIf="getDescriptionDateRange(d.description)">•</span>
+                    <span *ngIf="getDescriptionDateRange(d.description)" style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">📅 {{ getDescriptionDateRange(d.description) }}</span>
                   </div>
                 </div>
 
@@ -1125,6 +1170,19 @@
                     </app-category-select>
                   </div>
 
+                  <!-- Mark all for next month if description contains only incomes -->
+                  <button
+                    *ngIf="isDescriptionAllIncomes(d.description)"
+                    type="button"
+                    class="btn btn-xs"
+                    [class.btn-primary]="isDescriptionIncomeNextMonth(d.description)"
+                    [class.btn-secondary]="!isDescriptionIncomeNextMonth(d.description)"
+                    (click)="toggleDescriptionIncomeMonth(d.description)"
+                    style="padding: 0.2rem 0.55rem; font-size: 0.72rem; white-space: nowrap;"
+                    title="Toggle all transactions for this description to respective next month or receipt month">
+                    📅 {{ isDescriptionIncomeNextMonth(d.description) ? 'Reset to Receipt Month' : 'All for Next Month' }}
+                  </button>
+
                   <!-- Inspect Transactions -->
                   <button
                     type="button"
@@ -1154,33 +1212,61 @@
                 </div>
                 <div class="ed-drawer-list">
                   <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50)" class="ed-drawer-tx-item">
-                    <span class="font-mono text-muted" style="font-size: 0.74rem; width: 85px;">{{ service.formatDate(tx.date) }}</span>
+                    <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
+                      <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
+                        📅 {{ service.formatDate(tx.date) }}
+                      </span>
+                      <span
+                        *ngIf="isIncomeTx(tx) && isIncomeShifted(tx)"
+                        (click)="toggleIncomeMonth(tx)"
+                        class="badge"
+                        style="cursor: pointer; font-size: 0.64rem; padding: 0.05rem 0.3rem; margin-top: 2px; width: fit-content; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
+                        [title]="getIncomeMonthBadgeTooltip(tx)">
+                        {{ getIncomeMonthBadgeLabel(tx) }}
+                      </span>
+                    </div>
                     <div class="ed-drawer-tx-desc">
                       <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || tx.categoryItem || 'Uncategorized')"></span>
                       <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                     </div>
-                    <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.8rem;">
+                    <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
-                    <div class="split-button-group">
+                    <div style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
                       <button
+                        *ngIf="isIncomeTx(tx)"
                         type="button"
-                        class="split-btn split-btn-xs split-btn-5050"
-                        [class.active]="tx.splitType === 'SPLIT'"
-                        (click)="setTxSplit(tx, 'SPLIT')"
-                        title="50/50 Split">
-                        50/50
+                        class="btn btn-xs"
+                        [class.btn-secondary]="isIncomeShifted(tx)"
+                        [class.btn-primary]="!isIncomeShifted(tx)"
+                        [style.color]="isIncomeShifted(tx) ? '#10b981' : ''"
+                        [style.borderColor]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.35)' : ''"
+                        [style.background]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.1)' : ''"
+                        (click)="toggleIncomeMonth(tx)"
+                        style="padding: 0.18rem 0.45rem; font-size: 0.71rem; white-space: nowrap;"
+                        [title]="getIncomeMonthButtonTooltip(tx)">
+                        {{ getIncomeMonthButtonLabel(tx) }}
                       </button>
-                      <button
-                        type="button"
-                        *ngFor="let p of service.persons(); let pIdx = index"
-                        class="split-btn split-btn-xs"
-                        [class.split-btn-p1]="pIdx === 0"
-                        [class.split-btn-p2]="pIdx === 1"
-                        [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
-                        (click)="setTxPerson(tx, p.name)">
-                        {{ p.name }}
-                      </button>
+                      <div class="split-button-group">
+                        <button
+                          type="button"
+                          class="split-btn split-btn-xs split-btn-5050"
+                          [class.active]="tx.splitType === 'SPLIT'"
+                          (click)="setTxSplit(tx, 'SPLIT')"
+                          title="50/50 Split">
+                          50/50
+                        </button>
+                        <button
+                          type="button"
+                          *ngFor="let p of service.persons(); let pIdx = index"
+                          class="split-btn split-btn-xs"
+                          [class.split-btn-p1]="pIdx === 0"
+                          [class.split-btn-p2]="pIdx === 1"
+                          [class.active]="tx.splitType !== 'SPLIT' && tx.paidBy === p.name"
+                          (click)="setTxPerson(tx, p.name)">
+                          {{ p.name }}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div *ngIf="getTransactionsForDescription(d.description).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
