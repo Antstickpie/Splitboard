@@ -836,10 +836,18 @@ export class LedgerComponent {
     this.service.showToast('Reimbursement flag removed', 'info');
   }
 
-  public onInlineNoteChange(tx: Transaction, note: string): void {
-    const trimmed = (note || '').trim();
-    tx.note = trimmed ? trimmed : undefined;
-    this.service.updateTransaction(tx.id, { note: tx.note });
+  public onInlineNoteChange(tx: Transaction, note?: string): void {
+    const trimmed = (note || '').trim() || undefined;
+    const currentStoredTx = this.service.transactions().find((t) => t.id === tx.id);
+    if (currentStoredTx && currentStoredTx.note === trimmed) {
+      return;
+    }
+    tx.note = trimmed;
+    this.service.updateTransaction(tx.id, { note: trimmed });
+  }
+
+  public trackTx(_index: number, tx: Transaction): string {
+    return tx.id;
   }
 
   public openEditTxModal(tx: Transaction) {

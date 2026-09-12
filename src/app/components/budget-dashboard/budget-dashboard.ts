@@ -6,6 +6,19 @@ import { CategoryGroup, CategoryItem, Transaction, SplitType } from '../../model
 import { CategorySelectComponent } from '../category-select/category-select';
 import { AnalyticsSearchComponent } from '../analytics-search/analytics-search';
 
+interface CategoryItemSummary {
+  id: string;
+  name: string;
+  planned: number;
+  actual: number;
+  remaining: number;
+  percentage: number;
+  defaultOwner?: string;
+  isFund?: boolean;
+  startingBalance?: number;
+  totalAvailable?: number;
+}
+
 interface CategoryGroupSummary {
   id: string;
   name: string;
@@ -13,18 +26,7 @@ interface CategoryGroupSummary {
   plannedTotal: number;
   actualTotal: number;
   remainingTotal: number;
-  items: {
-    id: string;
-    name: string;
-    planned: number;
-    actual: number;
-    remaining: number;
-    percentage: number;
-    defaultOwner?: string;
-    isFund?: boolean;
-    startingBalance?: number;
-    totalAvailable?: number;
-  }[];
+  items: CategoryItemSummary[];
 }
 
 @Component({
@@ -67,16 +69,48 @@ export class BudgetDashboardComponent {
   public activeAddingGroupId = signal<string | null>(null);
   public newCategoryItemName = signal<string>('');
 
-  public expandedItemKey = signal<string | null>(null);
+  public expandedItemKeys = signal<Set<string>>(new Set());
+
+  public isItemExpanded(groupId: string, itemName: string): boolean {
+    return this.expandedItemKeys().has(`${groupId}::${itemName}`);
+  }
 
   public toggleItemExpand(groupId: string, itemName: string): void {
     const key = `${groupId}::${itemName}`;
-    if (this.expandedItemKey() === key) {
-      this.expandedItemKey.set(null);
-    } else {
-      this.expandedItemKey.set(key);
-    }
+    this.expandedItemKeys.update((keys) => {
+      const next = new Set(keys);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   }
+
+  public expandAllItems(): void {
+    const allKeys = new Set<string>();
+    for (const grp of this.activeGroupSummaries()) {
+      for (const item of grp.items) {
+        if (item.actual > 0) {
+          allKeys.add(`${grp.id}::${item.name}`);
+        }
+      }
+    }
+    this.expandedItemKeys.set(allKeys);
+  }
+
+  public collapseAllItems(): void {
+    this.expandedItemKeys.set(new Set());
+  }
+
+  public isAllExpanded = computed<boolean>(() => {
+    const activeItemsCount = this.activeGroupSummaries().reduce(
+      (sum, g) => sum + g.items.filter((i) => i.actual > 0).length,
+      0
+    );
+    return activeItemsCount > 0 && this.expandedItemKeys().size >= activeItemsCount;
+  });
 
   // Expanded Item Transactions Sorting & Filtering
   public expandedTableSearch = signal<string>('');
@@ -248,10 +282,26 @@ export class BudgetDashboardComponent {
     this.service.showToast(`Split set to ${nextSplit}`, 'info');
   }
 
-  public onInlineNoteChange(tx: Transaction, note: string): void {
-    const trimmed = (note || '').trim();
-    tx.note = trimmed ? trimmed : undefined;
-    this.service.updateTransaction(tx.id, { note: tx.note });
+  public onInlineNoteChange(tx: Transaction, note?: string): void {
+    const trimmed = (note || '').trim() || undefined;
+    const currentStoredTx = this.service.transactions().find((t) => t.id === tx.id);
+    if (currentStoredTx && currentStoredTx.note === trimmed) {
+      return;
+    }
+    tx.note = trimmed;
+    this.service.updateTransaction(tx.id, { note: trimmed });
+  }
+
+  public trackTx(_index: number, tx: Transaction): string {
+    return tx.id;
+  }
+
+  public trackGroupSummary(_index: number, grp: CategoryGroupSummary): string {
+    return grp.id;
+  }
+
+  public trackItemSummary(_index: number, item: CategoryItemSummary): string {
+    return item.name;
   }
 
   public showAllMatchingTransactions = signal<boolean>(false);

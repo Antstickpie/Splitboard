@@ -182,7 +182,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let tx of matchingMonthTransactions()" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+          <tr *ngFor="let tx of matchingMonthTransactions(); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
             <td style="padding: 0.35rem 0.45rem; white-space: nowrap; color: var(--text-muted);">{{ service.formatDate(tx.date) }}</td>
             <td style="padding: 0.35rem 0.45rem; font-weight: 500; color: var(--text-main);">
               {{ tx.description }}
@@ -210,8 +210,10 @@
             <td style="padding: 0.25rem 0.45rem;" (click)="$event.stopPropagation()">
               <input
                 type="text"
-                [ngModel]="tx.note || ''"
-                (ngModelChange)="onInlineNoteChange(tx, $event)"
+                [(ngModel)]="tx.note"
+                (change)="onInlineNoteChange(tx, tx.note)"
+                (blur)="onInlineNoteChange(tx, tx.note)"
+                (keydown.enter)="$any($event.target).blur()"
                 placeholder="💬 Add note..."
                 class="inline-note-input"
                 style="width: 100%; min-width: 100px; max-width: 170px; font-size: 0.72rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-main);"
@@ -251,7 +253,25 @@
 
       <!-- Category Group Cards (Only shown when active groups exist) -->
       <ng-container *ngIf="activeGroupSummaries().length > 0">
-        <div class="everydollar-group-card glass-card" *ngFor="let grp of activeGroupSummaries()"
+        <!-- Expand All / Collapse All Toolbar -->
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <button
+            type="button"
+            class="btn btn-secondary btn-xs"
+            (click)="expandAllItems()"
+            title="Expand all categories with transactions">
+            ▼ Expand All
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs"
+            (click)="collapseAllItems()"
+            title="Collapse all categories">
+            ▲ Collapse All
+          </button>
+        </div>
+
+        <div class="everydollar-group-card glass-card" *ngFor="let grp of activeGroupSummaries(); trackBy: trackGroupSummary"
           [style.border-color]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.4)' : (grp.id === 'grp-income' ? 'rgba(16, 185, 129, 0.35)' : null)"
           [style.background]="grp.id === 'grp-uncategorized' ? 'rgba(245, 158, 11, 0.04)' : (grp.id === 'grp-income' ? 'rgba(16, 185, 129, 0.04)' : null)">
           <!-- Group Header -->
@@ -268,7 +288,7 @@
 
           <!-- Items List: only items with actual spend -->
           <div class="group-items-body">
-            <ng-container *ngFor="let item of grp.items">
+            <ng-container *ngFor="let item of grp.items; trackBy: trackItemSummary">
               <div
                 class="item-line"
                 *ngIf="item.actual > 0"
@@ -279,7 +299,7 @@
                   <div class="item-name-col">
                     <span class="item-name-text">{{ item.name }}</span>
                     <span style="font-size: 0.65rem; color: var(--text-muted); margin-left: 0.25rem;">
-                      {{ expandedItemKey() === (grp.id + '::' + item.name) ? '▲' : '▼' }}
+                      {{ isItemExpanded(grp.id, item.name) ? '▲' : '▼' }}
                     </span>
                     <span *ngIf="item.defaultOwner" class="badge badge-neutral" style="font-size: 0.65rem;">
                       {{ item.defaultOwner }}
@@ -306,7 +326,7 @@
 
               <!-- Expanded Transaction Details for this Category Item -->
               <div
-                *ngIf="expandedItemKey() === (grp.id + '::' + item.name)"
+                *ngIf="isItemExpanded(grp.id, item.name)"
                 class="animate-fade-in"
                 style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; margin: 0.2rem 0 0.5rem 0; padding: 0.5rem; overflow-x: auto;">
                 <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
@@ -422,7 +442,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let tx of getExpandedFilteredTransactions(grp.id, item.name)" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <tr *ngFor="let tx of getExpandedFilteredTransactions(grp.id, item.name); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                       <td style="padding: 0.3rem 0.4rem; white-space: nowrap; color: var(--text-muted);">
                         <div>{{ service.formatDate(tx.date) }}</div>
                         <div *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)">
@@ -470,8 +490,10 @@
                       <td style="padding: 0.25rem 0.4rem;" (click)="$event.stopPropagation()">
                         <input
                           type="text"
-                          [ngModel]="tx.note || ''"
-                          (ngModelChange)="onInlineNoteChange(tx, $event)"
+                          [(ngModel)]="tx.note"
+                          (change)="onInlineNoteChange(tx, tx.note)"
+                          (blur)="onInlineNoteChange(tx, tx.note)"
+                          (keydown.enter)="$any($event.target).blur()"
                           placeholder="💬 Add note..."
                           class="inline-note-input"
                           style="width: 100%; min-width: 95px; max-width: 150px; font-size: 0.72rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-main);"

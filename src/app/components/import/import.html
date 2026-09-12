@@ -1481,7 +1481,7 @@
           </thead>
           <tbody>
             <tr
-              *ngFor="let tx of sortedTransactions()"
+              *ngFor="let tx of sortedTransactions(); trackBy: trackTx"
               [class.tx-row-done]="tx.isDone"
               [class.tx-row-review]="tx.isUnderReview">
               <td style="white-space: nowrap;">

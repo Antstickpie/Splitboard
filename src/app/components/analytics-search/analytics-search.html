@@ -463,7 +463,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let t of filteredAndSortedTransactions()">
+              <tr *ngFor="let t of filteredAndSortedTransactions(); trackBy: trackTx">
                 <td class="font-mono text-muted" style="font-size: 0.74rem; white-space: nowrap;">{{ service.formatDate(t.date) }}</td>
                 <td>
                   <div style="font-weight: 600; color: var(--text-main); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -500,8 +500,10 @@
                 <td (click)="$event.stopPropagation()">
                   <input
                     type="text"
-                    [ngModel]="t.note || ''"
-                    (ngModelChange)="onInlineNoteChange(t, $event)"
+                    [(ngModel)]="t.note"
+                    (change)="onInlineNoteChange(t, t.note)"
+                    (blur)="onInlineNoteChange(t, t.note)"
+                    (keydown.enter)="$any($event.target).blur()"
                     placeholder="💬 Note..."
                     class="inline-note-input"
                     style="width: 100%; min-width: 90px; max-width: 160px; font-size: 0.72rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-main);"

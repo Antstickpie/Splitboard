@@ -623,7 +623,7 @@
         </thead>
         <tbody>
           <tr
-            *ngFor="let tx of service.filteredTransactions()"
+            *ngFor="let tx of service.filteredTransactions(); trackBy: trackTx"
             [class.tx-row-review]="tx.isUnderReview">
             <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">
               <div>{{ service.formatDate(tx.date) }}</div>
@@ -731,8 +731,10 @@
             <td>
               <input
                 type="text"
-                [ngModel]="tx.note || ''"
-                (ngModelChange)="onInlineNoteChange(tx, $event)"
+                [(ngModel)]="tx.note"
+                (change)="onInlineNoteChange(tx, tx.note)"
+                (blur)="onInlineNoteChange(tx, tx.note)"
+                (keydown.enter)="$any($event.target).blur()"
                 placeholder="💬 Add note..."
                 class="inline-note-input"
                 title="Click to add/edit comment" />

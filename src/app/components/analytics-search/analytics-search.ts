@@ -436,10 +436,18 @@ export class AnalyticsSearchComponent implements OnInit {
 
   ngOnInit(): void {}
 
-  public onInlineNoteChange(t: Transaction, note: string): void {
-    const trimmed = (note || '').trim();
-    t.note = trimmed ? trimmed : undefined;
-    this.service.updateTransaction(t.id, { note: t.note });
+  public onInlineNoteChange(t: Transaction, note?: string): void {
+    const trimmed = (note || '').trim() || undefined;
+    const currentStoredTx = this.service.transactions().find((tx) => tx.id === t.id);
+    if (currentStoredTx && currentStoredTx.note === trimmed) {
+      return;
+    }
+    t.note = trimmed;
+    this.service.updateTransaction(t.id, { note: trimmed });
+  }
+
+  public trackTx(_index: number, t: Transaction): string {
+    return t.id;
   }
 
   public toggleSort(field: AuditSortField): void {
