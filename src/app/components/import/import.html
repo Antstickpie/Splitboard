@@ -419,16 +419,25 @@
       <div *ngIf="isGroupByDescription()" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 580px; overflow-y: auto; width: 100%; margin-top: 0.6rem;">
         <!-- Multi-Item Groups -->
         <div *ngIf="descriptionGroups().length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+          <div *ngFor="let grp of descriptionGroups(); trackBy: trackGroup" class="glass-card" [class.tx-group-done]="isGroupDone(grp)" style="padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.55rem; cursor: pointer; flex: 1; min-width: 220px;" (click)="toggleDescriptionGroup(grp.description)">
                 <span style="font-size: 0.8rem; color: var(--primary); flex-shrink: 0;">{{ isDescriptionGroupExpanded(grp.description) ? '▼' : '▶' }}</span>
-                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [title]="grp.description">{{ grp.description }}</div>
+                <div style="font-weight: 700; font-size: 0.86rem; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; min-width: 0;" [style.text-decoration]="isGroupDone(grp) ? 'line-through' : 'none'" [title]="grp.description">{{ grp.description }}</div>
                 <span class="badge badge-neutral" style="font-size: 0.7rem; padding: 0.1rem 0.4rem; flex-shrink: 0; white-space: nowrap;">{{ grp.count }} items</span>
                 <span class="font-mono" style="font-weight: 700; font-size: 0.86rem; color: #10b981; flex-shrink: 0; white-space: nowrap;">+{{ service.formatCurrency(grp.totalAmount) }}</span>
               </div>
 
               <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <button
+                  type="button"
+                  class="btn btn-xs tx-btn-done"
+                  [class.is-done]="isGroupDone(grp)"
+                  (click)="toggleGroupDone(grp)"
+                  [title]="isGroupDone(grp) ? 'Unmark all as done' : 'Mark all in this group as done'">
+                  <span class="btn-done-label">{{ isGroupDone(grp) ? '✓ Done' : '○ Done' }}</span>
+                  <span class="btn-undo-label">↩ Undo</span>
+                </button>
                 <button
                   type="button"
                   class="btn btn-xs"
@@ -469,12 +478,22 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let tx of grp.items">
+                  <tr *ngFor="let tx of grp.items" [class.tx-row-done]="tx.isDone">
                     <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
                     <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                     <td style="width: 90px;"><span class="badge badge-info">{{ tx.paidBy }}</span></td>
                     <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
-                    <td style="text-align: center; white-space: nowrap; width: 180px;">
+                    <td style="text-align: center; white-space: nowrap; width: 220px;">
+                      <button
+                        type="button"
+                        class="btn btn-xs tx-btn-done"
+                        [class.is-done]="tx.isDone"
+                        (click)="toggleTxDone(tx)"
+                        style="padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-right: 0.25rem;"
+                        [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done'">
+                        <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                        <span class="btn-undo-label">↩ Undo</span>
+                      </button>
                       <button
                         type="button"
                         class="btn btn-xs"
@@ -555,64 +574,19 @@
 
     <!-- TAB 1: Valid Transactions Ready to Import -->
     <div *ngIf="previewTab() === 'valid'">
-      <div class="ed-mapping-header">
-        <div>
-          <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
-            <h5 style="margin: 0; font-size: 0.95rem; color: #38bdf8; display: flex; align-items: center; gap: 0.45rem;">
-              <span>{{ importGroupByMode() === 'category' ? '🏷️ Group by Category' : (importGroupByMode() === 'description' ? '📝 Group by Description' : '📋 Flat Table View') }}</span>
-            </h5>
-            <div class="split-button-group">
-              <button
-                type="button"
-                class="split-btn"
-                [class.active]="importGroupByMode() === 'table'"
-                (click)="setGroupByMode('table')"
-                title="Standard flat transaction table">
-                📋 Flat Table
-              </button>
-              <button
-                type="button"
-                class="split-btn"
-                [class.active]="importGroupByMode() === 'category'"
-                (click)="setGroupByMode('category')"
-                title="Group transactions by category">
-                🏷️ Group by Category ({{ categoryMappings().length }})
-              </button>
-              <button
-                type="button"
-                class="split-btn"
-                [class.active]="importGroupByMode() === 'description'"
-                (click)="setGroupByMode('description')"
-                title="Group transactions by description / merchant">
-                📝 Group by Description ({{ descriptionMappings().length }})
-              </button>
-            </div>
-          </div>
-          <p class="subtitle" style="margin: 0.25rem 0 0 0; font-size: 0.78rem;">
-            {{ importGroupByMode() === 'category'
-              ? 'Categorized by statement / bank label. Assign owner/split or map to a Splitboard category.'
-              : (importGroupByMode() === 'description'
-                ? 'Grouped by transaction description. Type a description keyword to group and assign category or owner across matching transactions.'
-                : 'All transactions ready to import. Sort columns, assign splits and categories, or click Done.') }}
-          </p>
+      <!-- Category Mode Header Actions -->
+      <div class="ed-mapping-header" *ngIf="importGroupByMode() === 'category'">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="font-weight: 700; font-size: 0.88rem; color: #38bdf8;">🏷️ Grouped by Bank Category</span>
+          <span style="font-size: 0.74rem; color: var(--text-muted);">({{ categoryMappings().length }} groups)</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
           <button
             class="btn btn-primary btn-xs"
             (click)="autoMatchAllCategories()"
-            title="Automatically match categories with Splitboard categories (supports exact, partial, and word matching)">
+            title="Automatically match categories with Splitboard categories">
             ✨ Auto-Match Categories
           </button>
-          <div style="display: flex; align-items: center; gap: 0.35rem;">
-            <span style="font-size: 0.74rem; color: var(--text-muted);">Assign all:</span>
-            <button
-              *ngFor="let p of service.persons()"
-              class="btn btn-secondary btn-xs"
-              (click)="assignAllMappingsToPerson(p.name)"
-              [title]="'Assign all transactions to ' + p.name">
-              👤 {{ p.name }}
-            </button>
-          </div>
           <button
             class="btn btn-secondary btn-xs"
             (click)="resetAllCategoryMappingsToUncategorized()"
@@ -622,9 +596,17 @@
         </div>
       </div>
 
+      <!-- Description Mode Header -->
+      <div class="ed-mapping-header" *ngIf="importGroupByMode() === 'description'" style="margin-bottom: 0.4rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="font-weight: 700; font-size: 0.88rem; color: #38bdf8;">📝 Grouped by Description</span>
+          <span style="font-size: 0.74rem; color: var(--text-muted);">({{ descriptionMappings().length }} groups)</span>
+        </div>
+      </div>
+
       <!-- ==================== VIEW 1: GROUP BY CATEGORY ==================== -->
       <ng-container *ngIf="importGroupByMode() === 'category'">
-        <!-- Keyword Contains Matcher Bar (Owner) -->
+        <!-- Unified Category Filter & Batch Assign Bar -->
         <div class="ed-matcher-bar">
           <div class="ed-matcher-input-wrap">
             <span class="ed-matcher-icon">🔍</span>
@@ -632,21 +614,35 @@
               type="text"
               class="ed-matcher-text-input"
               [ngModel]="categoryMatchKeyword()"
-              (ngModelChange)="categoryMatchKeyword.set($event)"
-              placeholder="Type text to match category for owner (contains)..."
-              title="Type keyword to match categories and assign owner" />
+              (ngModelChange)="onCategoryFilterKeywordChange($event)"
+              placeholder="Filter categories (e.g. Groceries, Fuel, Amazon)..."
+              title="Type keyword to filter categories and batch-assign" />
             <button
               *ngIf="categoryMatchKeyword()"
               type="button"
               class="ed-matcher-clear-btn"
-              (click)="clearCategoryMatchKeyword()"
-              title="Clear text">
+              (click)="clearCategoryFilterKeyword()"
+              title="Clear filter">
               ✕
             </button>
           </div>
 
           <div class="ed-matcher-actions">
-            <span class="ed-matcher-label">Assign matches to:</span>
+            <!-- Set Splitboard Category for Matches -->
+            <span class="ed-matcher-label">Set Category:</span>
+            <div style="min-width: 160px;">
+              <app-category-select
+                [value]="typeBatchItem()"
+                [group]="typeBatchGroup()"
+                placeholder="Choose category..."
+                minWidth="160px"
+                (categoryChange)="assignMatchingCategoriesToType($event)"
+                (addNewRequested)="openAddCategoryModal($event, 'batch_cat')">
+              </app-category-select>
+            </div>
+
+            <!-- Set Split / Owner for Matches -->
+            <span class="ed-matcher-label" style="margin-left: 0.3rem;">Split:</span>
             <div class="split-button-group">
               <button
                 type="button"
@@ -654,7 +650,7 @@
                 [disabled]="!categoryMatchKeyword().trim() || getMatchingCategoriesCount(categoryMatchKeyword()) === 0"
                 (click)="assignMatchingCategoriesToSplit()"
                 [title]="'Split categories containing \'' + categoryMatchKeyword() + '\' 50/50'">
-                ⚖️ 50/50
+                50/50
                 <span *ngIf="categoryMatchKeyword().trim()" class="ed-match-counter">
                   ({{ getMatchingCategoriesCount(categoryMatchKeyword()) }})
                 </span>
@@ -668,7 +664,7 @@
                 [disabled]="!categoryMatchKeyword().trim() || getMatchingCategoriesCount(categoryMatchKeyword()) === 0"
                 (click)="assignMatchingCategoriesToPerson(p.name)"
                 [title]="'Assign categories containing \'' + categoryMatchKeyword() + '\' to ' + p.name">
-                👤 {{ p.name }}
+                {{ p.name }}
                 <span *ngIf="categoryMatchKeyword().trim()" class="ed-match-counter">
                   ({{ getMatchingCategoriesCount(categoryMatchKeyword()) }})
                 </span>
@@ -724,58 +720,12 @@
               </div>
             </div>
 
-            <label class="ed-matcher-checkbox-label" title="Exclude income transactions when searching by category">
-              <input
-                type="checkbox"
-                [ngModel]="categoryExcludeIncome()"
-                (ngModelChange)="categoryExcludeIncome.set($event)" />
-              <span>Exclude income</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Keyword Contains Matcher Bar (Category / Splitboard Type) -->
-        <div class="ed-matcher-bar">
-          <div class="ed-matcher-input-wrap">
-            <span class="ed-matcher-icon">🔍</span>
-            <input
-              type="text"
-              class="ed-matcher-text-input"
-              [ngModel]="typeMatchKeyword()"
-              (ngModelChange)="onTypeKeywordChange($event)"
-              placeholder="Type text to match category for Splitboard type (contains)..."
-              title="Type keyword to match categories and set Splitboard category" />
-            <button
-              *ngIf="typeMatchKeyword()"
-              type="button"
-              class="ed-matcher-clear-btn"
-              (click)="clearTypeMatchKeyword()"
-              title="Clear text">
-              ✕
-            </button>
-          </div>
-
-          <div class="ed-matcher-actions">
-            <span class="ed-matcher-label">
-              Set category for matches<span *ngIf="typeMatchKeyword().trim()" class="ed-match-counter">({{ getTypeMatchingCategoriesCount(typeMatchKeyword()) }})</span>:
-            </span>
-            <div style="min-width: 175px;">
-              <app-category-select
-                [value]="typeBatchItem()"
-                [group]="typeBatchGroup()"
-                placeholder="Choose category..."
-                minWidth="175px"
-                (categoryChange)="assignMatchingCategoriesToType($event)"
-                (addNewRequested)="openAddCategoryModal($event, 'batch_cat')">
-              </app-category-select>
-            </div>
-
-            <label class="ed-matcher-checkbox-label" title="Exclude categories that already have a category assigned (only match and assign unassigned categories)">
+            <label class="ed-matcher-checkbox-label" title="Exclude categories that already have a category assigned">
               <input
                 type="checkbox"
                 [ngModel]="typeExcludeAssigned()"
                 (ngModelChange)="typeExcludeAssigned.set($event)" />
-              <span>Exclude already assigned</span>
+              <span>Exclude assigned</span>
             </label>
 
             <label class="ed-matcher-checkbox-label" title="Exclude income categories when searching by category">
@@ -795,7 +745,7 @@
             <div *ngIf="isFirstUnmatched(m, idx)" class="ed-unmatched-divider">
               <span>Other Categories (Non-matching)</span>
             </div>
-            <div class="ed-mapping-card" [class.is-matched]="isCategoryMatched(m.rawCategory)">
+            <div class="ed-mapping-card" [class.is-matched]="isCategoryMatched(m.rawCategory)" [class.tx-group-done]="isCategoryDone(m.rawCategory)">
               <div class="ed-mapping-main-row">
                 <!-- Source Category Info -->
                 <div class="ed-mapping-source">
@@ -813,6 +763,17 @@
 
                 <!-- Owner & Category Controls -->
                 <div class="ed-mapping-controls">
+                  <!-- Done Button for Category Group -->
+                  <button
+                    type="button"
+                    class="btn btn-xs tx-btn-done"
+                    [class.is-done]="isCategoryDone(m.rawCategory)"
+                    (click)="toggleCategoryDone(m.rawCategory)"
+                    [title]="isCategoryDone(m.rawCategory) ? 'Marked as Done (click to unmark)' : 'Mark all in this category as Done'">
+                    <span class="btn-done-label">{{ isCategoryDone(m.rawCategory) ? '✓ Done' : '○ Done' }}</span>
+                    <span class="btn-undo-label">↩ Undo</span>
+                  </button>
+
                   <!-- Assign All in Category to Person or 50/50 Split -->
                   <div class="ed-control-group" title="Assign all transactions in this category">
                     <span class="ed-control-label">Split / Owner:</span>
@@ -905,7 +866,7 @@
                   <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
                 </div>
                 <div class="ed-drawer-list">
-                  <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50)" class="ed-drawer-tx-item">
+                  <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50)" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
                     <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
                       <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
                         📅 {{ service.formatDate(tx.date) }}
@@ -920,13 +881,23 @@
                       </span>
                     </div>
                     <div class="ed-drawer-tx-desc">
-                      <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
+                      <span style="font-weight: 500; color: #f1f5f9;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
                       <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                     </div>
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
                     <div style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
+                      <!-- Done Button -->
+                      <button
+                        type="button"
+                        class="btn btn-xs tx-btn-done"
+                        [class.is-done]="tx.isDone"
+                        (click)="toggleTxDone(tx)"
+                        [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done'">
+                        <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                        <span class="btn-undo-label">↩ Undo</span>
+                      </button>
                       <button
                         *ngIf="isIncomeTx(tx)"
                         type="button"
@@ -1005,7 +976,7 @@
               class="ed-matcher-text-input"
               [ngModel]="descriptionMatchKeyword()"
               (ngModelChange)="onDescriptionKeywordChange($event)"
-              placeholder="Type description to group & match category (e.g. Amazon, Shell, Costco)..."
+              placeholder="Filter descriptions (e.g. Amazon, Shell, Costco)..."
               title="Type description keyword to filter and batch-assign category or owner" />
             <button
               *ngIf="descriptionMatchKeyword()"
@@ -1019,7 +990,7 @@
 
           <div class="ed-matcher-actions">
             <span class="ed-matcher-label">
-              Set category for matches<span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">({{ getDescriptionMatchingCount(descriptionMatchKeyword()) }})</span>:
+              Set Category<span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">({{ getDescriptionMatchingCount(descriptionMatchKeyword()) }})</span>:
             </span>
             <div style="min-width: 175px;">
               <app-category-select
@@ -1040,7 +1011,7 @@
               <span>Exclude already assigned</span>
             </label>
 
-            <span class="ed-matcher-label" style="margin-left: 0.4rem;">Owner / Split:</span>
+            <span class="ed-matcher-label" style="margin-left: 0.4rem;">Split:</span>
             <div class="split-button-group">
               <button
                 type="button"
@@ -1048,7 +1019,7 @@
                 [disabled]="!descriptionMatchKeyword().trim() || getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) === 0"
                 (click)="assignMatchingDescriptionsToSplit()"
                 [title]="'Split transactions matching \'' + descriptionMatchKeyword() + '\' 50/50'">
-                ⚖️ 50/50
+                50/50
                 <span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">
                   ({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})
                 </span>
@@ -1062,7 +1033,7 @@
                 [disabled]="!descriptionMatchKeyword().trim() || getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) === 0"
                 (click)="assignMatchingDescriptionsToPerson(p.name)"
                 [title]="'Assign transactions matching \'' + descriptionMatchKeyword() + '\' to ' + p.name">
-                👤 {{ p.name }}
+                {{ p.name }}
                 <span *ngIf="descriptionMatchKeyword().trim()" class="ed-match-counter">
                   ({{ getMatchingTransactionsByDescriptionCount(descriptionMatchKeyword()) }})
                 </span>
@@ -1132,7 +1103,8 @@
 
             <div
               class="ed-mapping-card"
-              [class.is-matched]="isDescriptionMatched(d.description)">
+              [class.is-matched]="isDescriptionMatched(d.description)"
+              [class.tx-group-done]="isDescriptionDone(d.description)">
               <div class="ed-mapping-main-row">
                 <!-- Description Info -->
                 <div class="ed-mapping-source">
@@ -1158,6 +1130,17 @@
 
                 <!-- Controls -->
                 <div class="ed-mapping-controls">
+                  <!-- Done Button for Description Group -->
+                  <button
+                    type="button"
+                    class="btn btn-xs tx-btn-done"
+                    [class.is-done]="isDescriptionDone(d.description)"
+                    (click)="toggleDescriptionDone(d.description)"
+                    [title]="isDescriptionDone(d.description) ? 'Marked as Done (click to unmark)' : 'Mark all in this group as Done'">
+                    <span class="btn-done-label">{{ isDescriptionDone(d.description) ? '✓ Done' : '○ Done' }}</span>
+                    <span class="btn-undo-label">↩ Undo</span>
+                  </button>
+
                   <!-- Split / Owner -->
                   <div class="ed-control-group" title="Assign all transactions for this description">
                     <span class="ed-control-label">Split / Owner:</span>
@@ -1250,7 +1233,7 @@
                   <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
                 </div>
                 <div class="ed-drawer-list">
-                  <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50)" class="ed-drawer-tx-item">
+                  <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50)" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
                     <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
                       <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
                         📅 {{ service.formatDate(tx.date) }}
@@ -1265,13 +1248,23 @@
                       </span>
                     </div>
                     <div class="ed-drawer-tx-desc">
-                      <span style="font-weight: 500; color: #f1f5f9;" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || tx.categoryItem || 'Uncategorized')"></span>
+                      <span style="font-weight: 500; color: #f1f5f9;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || tx.categoryItem || 'Uncategorized')"></span>
                       <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                     </div>
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
                     <div style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
+                      <!-- Done Button -->
+                      <button
+                        type="button"
+                        class="btn btn-xs tx-btn-done"
+                        [class.is-done]="tx.isDone"
+                        (click)="toggleTxDone(tx)"
+                        [title]="tx.isDone ? 'Marked as Done (click to unmark)' : 'Mark as Done'">
+                        <span class="btn-done-label">{{ tx.isDone ? '✓ Done' : '○ Done' }}</span>
+                        <span class="btn-undo-label">↩ Undo</span>
+                      </button>
                       <button
                         *ngIf="isIncomeTx(tx)"
                         type="button"

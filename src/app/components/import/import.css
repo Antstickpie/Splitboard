@@ -1025,3 +1025,35 @@
   white-space: nowrap;
 }
 
+.ed-mapping-card.tx-group-done {
+  background: rgba(255, 255, 255, 0.01) !important;
+  border-color: rgba(255, 255, 255, 0.04) !important;
+  opacity: 0.45;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.ed-mapping-card.tx-group-done:hover {
+  opacity: 0.9;
+}
+
+.ed-mapping-card.tx-group-done .ed-mapping-source .ed-source-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.ed-drawer-tx-item.tx-row-done {
+  opacity: 0.4;
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.02);
+  transition: opacity 0.2s ease;
+}
+
+.ed-drawer-tx-item.tx-row-done:hover {
+  opacity: 0.9;
+}
+
+.ed-drawer-tx-item.tx-row-done .ed-drawer-tx-desc span {
+  text-decoration: line-through;
+  color: var(--text-muted) !important;
+}
+

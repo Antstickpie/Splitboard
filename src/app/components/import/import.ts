@@ -1831,6 +1831,50 @@ export class ImportComponent {
     );
   }
 
+  public isCategoryDone(rawCategory: string): boolean {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    return txs.length > 0 && txs.every((tx) => tx.isDone);
+  }
+
+  public toggleCategoryDone(rawCategory: string): void {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    if (txs.length === 0) return;
+    const targetState = !this.isCategoryDone(rawCategory);
+    txs.forEach((tx) => {
+      tx.isDone = targetState;
+    });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.service.showToast(
+      targetState
+        ? `✓ Marked all ${txs.length} "${rawCategory}" items as done`
+        : `↩ Unmarked done for all ${txs.length} "${rawCategory}" items`,
+      'info'
+    );
+  }
+
+  public isDescriptionDone(description: string): boolean {
+    const txs = this.getTransactionsForDescription(description);
+    return txs.length > 0 && txs.every((tx) => tx.isDone);
+  }
+
+  public toggleDescriptionDone(description: string): void {
+    const txs = this.getTransactionsForDescription(description);
+    if (txs.length === 0) return;
+    const targetState = !this.isDescriptionDone(description);
+    txs.forEach((tx) => {
+      tx.isDone = targetState;
+    });
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.service.showToast(
+      targetState
+        ? `✓ Marked all ${txs.length} "${description}" items as done`
+        : `↩ Unmarked done for all ${txs.length} "${description}" items`,
+      'info'
+    );
+  }
+
   public setTxSplit(tx: Transaction, split: SplitType): void {
     tx.splitType = split;
     const res = this.previewResult();
@@ -2305,6 +2349,16 @@ export class ImportComponent {
 
   public clearCategoryMatchKeyword(): void {
     this.categoryMatchKeyword.set('');
+  }
+
+  public onCategoryFilterKeywordChange(keyword: string): void {
+    this.categoryMatchKeyword.set(keyword);
+    this.typeMatchKeyword.set(keyword);
+  }
+
+  public clearCategoryFilterKeyword(): void {
+    this.clearCategoryMatchKeyword();
+    this.clearTypeMatchKeyword();
   }
 
   public onTypeKeywordChange(keyword: string): void {
