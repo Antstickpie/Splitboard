@@ -82,15 +82,15 @@ export class BudgetDashboardComponent {
   public expandedTableSearch = signal<string>('');
   public expandedTableOwnerFilter = signal<string>('ALL');
   public expandedTableSplitFilter = signal<string>('ALL');
-  public expandedTableSortField = signal<'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount'>('date');
+  public expandedTableSortField = signal<'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount' | 'note'>('date');
   public expandedTableSortAsc = signal<boolean>(false);
 
-  public toggleExpandedSort(field: 'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount'): void {
+  public toggleExpandedSort(field: 'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount' | 'note'): void {
     if (this.expandedTableSortField() === field) {
       this.expandedTableSortAsc.update((asc) => !asc);
     } else {
       this.expandedTableSortField.set(field);
-      this.expandedTableSortAsc.set(field === 'description' || field === 'category' || field === 'paidBy');
+      this.expandedTableSortAsc.set(field === 'description' || field === 'category' || field === 'paidBy' || field === 'note');
     }
   }
 
@@ -142,6 +142,8 @@ export class BudgetDashboardComponent {
         cmp = (a.splitType || '').localeCompare(b.splitType || '');
       } else if (field === 'amount') {
         cmp = (a.amount || 0) - (b.amount || 0);
+      } else if (field === 'note') {
+        cmp = (a.note || '').localeCompare(b.note || '');
       }
       return asc ? cmp : -cmp;
     });
@@ -180,6 +182,7 @@ export class BudgetDashboardComponent {
       if (!itemMatches) {
         return baseTxs.filter((tx) =>
           (tx.description || '').toLowerCase().includes(q) ||
+          (tx.note || '').toLowerCase().includes(q) ||
           (tx.bank || '').toLowerCase().includes(q) ||
           (tx.paidBy || '').toLowerCase().includes(q) ||
           (tx.merchant || '').toLowerCase().includes(q) ||
@@ -244,6 +247,41 @@ export class BudgetDashboardComponent {
     this.service.updateTransaction(tx.id, { splitType: nextSplit });
     this.service.showToast(`Split set to ${nextSplit}`, 'info');
   }
+
+  public onInlineNoteChange(tx: Transaction, note: string): void {
+    const trimmed = (note || '').trim();
+    tx.note = trimmed ? trimmed : undefined;
+    this.service.updateTransaction(tx.id, { note: tx.note });
+  }
+
+  public showAllMatchingTransactions = signal<boolean>(false);
+
+  public toggleShowAllMatching(): void {
+    this.showAllMatchingTransactions.update((v) => !v);
+  }
+
+  public monthTransactions = computed<Transaction[]>(() => {
+    const month = this.selectedMonth();
+    return this.service.transactions().filter(
+      (tx) => this.service.isTransactionInMonth(tx, month)
+    );
+  });
+
+  public matchingMonthTransactions = computed<Transaction[]>(() => {
+    const q = this.searchQuery().toLowerCase().trim();
+    const txs = this.monthTransactions();
+    if (!q) return [];
+    return txs.filter((t) =>
+      (t.description || '').toLowerCase().includes(q) ||
+      (t.merchant || '').toLowerCase().includes(q) ||
+      (t.note || '').toLowerCase().includes(q) ||
+      (t.bank || '').toLowerCase().includes(q) ||
+      (t.categoryItem || '').toLowerCase().includes(q) ||
+      (t.categoryGroup || '').toLowerCase().includes(q) ||
+      (t.paidBy || '').toLowerCase().includes(q) ||
+      String(t.amount).includes(q)
+    );
+  });
 
   public isPastMonth = computed(() => {
     return this.selectedMonth() < this.service.getCurrentMonthString();
@@ -530,6 +568,7 @@ export class BudgetDashboardComponent {
           return txs.some(
             (tx) =>
               (tx.description || '').toLowerCase().includes(q) ||
+              (tx.note || '').toLowerCase().includes(q) ||
               (tx.bank || '').toLowerCase().includes(q) ||
               (tx.paidBy || '').toLowerCase().includes(q) ||
               (tx.merchant || '').toLowerCase().includes(q) ||

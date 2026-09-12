@@ -14,7 +14,7 @@ import { TransactionService } from '../../services/transaction.service';
 import { AnalyticsNlpService, AnalyticsResult, DateRange, MonthBucket } from '../../services/analytics-nlp.service';
 import { Transaction } from '../../models';
 
-export type AuditSortField = 'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount';
+export type AuditSortField = 'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount' | 'note';
 
 @Component({
   selector: 'app-analytics-search',
@@ -422,6 +422,8 @@ export class AnalyticsSearchComponent implements OnInit {
         cmp = (a.splitType || '').localeCompare(b.splitType || '');
       } else if (field === 'amount') {
         cmp = Math.abs(a.amount) - Math.abs(b.amount);
+      } else if (field === 'note') {
+        cmp = (a.note || '').localeCompare(b.note || '');
       }
       return asc ? cmp : -cmp;
     });
@@ -433,6 +435,12 @@ export class AnalyticsSearchComponent implements OnInit {
   });
 
   ngOnInit(): void {}
+
+  public onInlineNoteChange(t: Transaction, note: string): void {
+    const trimmed = (note || '').trim();
+    t.note = trimmed ? trimmed : undefined;
+    this.service.updateTransaction(t.id, { note: t.note });
+  }
 
   public toggleSort(field: AuditSortField): void {
     if (this.auditSortField() === field) {

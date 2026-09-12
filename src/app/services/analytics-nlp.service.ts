@@ -25,6 +25,7 @@ export interface AnalyticsQueryAST {
   filters: {
     categoryGroup?: string;
     categoryItem?: string;
+    keyword?: string;
     merchant?: string;
     person?: string;
     splitType?: 'SELF' | 'OTHER' | 'SPLIT';
@@ -275,23 +276,52 @@ export class AnalyticsNlpService {
       const targetType = filters.type || 'EXPENSE';
       if (t.type !== targetType) return false;
 
-      // 3. Category Item & Group
-      if (filters.categoryItem) {
+      // 3. Category Item, Group & Comments / Notes matching
+      if (filters.categoryItem || filters.categoryGroup || filters.keyword) {
         const itm = (t.categoryItem || '').toLowerCase();
+        const grp = (t.categoryGroup || '').toLowerCase();
         const raw = (t.rawCategory || '').toLowerCase();
         const desc = (t.description || '').toLowerCase();
         const merch = (t.merchant || '').toLowerCase();
-        const target = filters.categoryItem.toLowerCase();
-        if (!itm.includes(target) && !raw.includes(target) && !desc.includes(target) && !merch.includes(target)) {
+        const note = (t.note || '').toLowerCase();
+
+        let itemMatches = false;
+        if (filters.categoryItem) {
+          const target = filters.categoryItem.toLowerCase();
+          const targetWords = target.split(/[\s&,/+]+/).filter((w) => w.length >= 3);
+          itemMatches =
+            itm.includes(target) ||
+            raw.includes(target) ||
+            desc.includes(target) ||
+            merch.includes(target) ||
+            note.includes(target) ||
+            targetWords.some((w) => itm.includes(w) || raw.includes(w) || desc.includes(w) || merch.includes(w) || note.includes(w));
+        }
+
+        let groupMatches = false;
+        if (filters.categoryGroup) {
+          const target = filters.categoryGroup.toLowerCase();
+          const targetWords = target.split(/[\s&,/+]+/).filter((w) => w.length >= 3);
+          groupMatches =
+            grp.includes(target) ||
+            itm.includes(target) ||
+            raw.includes(target) ||
+            desc.includes(target) ||
+            merch.includes(target) ||
+            note.includes(target) ||
+            targetWords.some((w) => grp.includes(w) || itm.includes(w) || desc.includes(w) || merch.includes(w) || note.includes(w));
+        }
+
+        let keywordMatches = false;
+        if (filters.keyword) {
+          const kw = filters.keyword.toLowerCase();
+          keywordMatches = note.includes(kw) || desc.includes(kw) || merch.includes(kw) || itm.includes(kw) || raw.includes(kw);
+        }
+
+        if (filters.categoryItem && !itemMatches && !keywordMatches) {
           return false;
         }
-      } else if (filters.categoryGroup) {
-        const grp = (t.categoryGroup || '').toLowerCase();
-        const itm = (t.categoryItem || '').toLowerCase();
-        const raw = (t.rawCategory || '').toLowerCase();
-        const desc = (t.description || '').toLowerCase();
-        const target = filters.categoryGroup.toLowerCase();
-        if (!grp.includes(target) && !itm.includes(target) && !raw.includes(target) && !desc.includes(target)) {
+        if (filters.categoryGroup && !filters.categoryItem && !groupMatches && !keywordMatches) {
           return false;
         }
       }
@@ -314,7 +344,15 @@ export class AnalyticsNlpService {
         const note = (t.note || '').toLowerCase();
         const raw = (t.rawCategory || '').toLowerCase();
         const itm = (t.categoryItem || '').toLowerCase();
-        if (!desc.includes(m) && !merch.includes(m) && !note.includes(m) && !raw.includes(m) && !itm.includes(m)) {
+        const mWords = m.split(/\s+/).filter((w) => w.length >= 2);
+        const matches =
+          desc.includes(m) ||
+          merch.includes(m) ||
+          note.includes(m) ||
+          raw.includes(m) ||
+          itm.includes(m) ||
+          (mWords.length > 1 && mWords.some((w) => note.includes(w) || desc.includes(w)));
+        if (!matches) {
           return false;
         }
       }
@@ -927,6 +965,7 @@ export class AnalyticsNlpService {
         const itmName = item.name.toLowerCase();
         if (itmName.length >= 3 && new RegExp(`\\b${itmName}\\b`, 'i').test(q)) {
           filters.categoryItem = item.name;
+          filters.keyword = itmName;
           q = q.replace(new RegExp(`\\b${itmName}\\b`, 'gi'), '').trim();
           categoryMatched = true;
           break;
@@ -941,6 +980,7 @@ export class AnalyticsNlpService {
         const grpName = g.name.toLowerCase();
         if (grpName.length >= 3 && new RegExp(`\\b${grpName}\\b`, 'i').test(q)) {
           filters.categoryGroup = g.name;
+          filters.keyword = grpName;
           q = q.replace(new RegExp(`\\b${grpName}\\b`, 'gi'), '').trim();
           categoryMatched = true;
           break;
@@ -962,9 +1002,11 @@ export class AnalyticsNlpService {
                 filters.categoryGroup = found.group;
               }
               categoryMatched = true;
+              filters.keyword = syn;
             } else {
               // Set search merchant/keyword to the synonym
               filters.merchant = syn;
+              filters.keyword = syn;
             }
             q = q.replace(new RegExp(`\\b${syn}\\b`, 'gi'), '').trim();
             break;
@@ -982,6 +1024,7 @@ export class AnalyticsNlpService {
     const residual = q.replace(noiseWords, '').trim().replace(/\s+/g, ' ');
     if (residual && residual.length >= 2 && !filters.categoryItem && !filters.categoryGroup && !filters.merchant) {
       filters.merchant = residual;
+      filters.keyword = residual;
     }
 
     return filters;

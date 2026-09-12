@@ -377,16 +377,26 @@
               <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">
                 Positive Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}
               </th>
+              <th>Note</th>
               <th style="text-align: center;">Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let tx of sortedIncomes()">
+            <tr *ngFor="let tx of sortedIncomes(); trackBy: trackTx">
               <td>{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;" [title]="tx.description">{{ tx.description }}</td>
               <td><span class="badge badge-neutral">{{ tx.bank }}</span></td>
               <td><span class="badge badge-info">{{ tx.paidBy }}</span></td>
               <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
+              <td style="width: 120px;">
+                <input
+                  type="text"
+                  [(ngModel)]="tx.note"
+                  placeholder="💬 Note..."
+                  class="inline-note-input"
+                  style="height: 22px; font-size: 0.72rem; padding: 0.1rem 0.35rem; width: 100%;"
+                  title="Add or edit transaction note" />
+              </td>
               <td style="text-align: center; white-space: nowrap;">
                 <button
                   type="button"
@@ -461,6 +471,17 @@
                   style="padding: 0.18rem 0.45rem; font-size: 0.72rem;">
                   {{ hasMatchingRule(grp.items[0]) ? '✏️ Edit Rule' : '⚡ Rule' }}
                 </button>
+                <!-- Group Note / Comment Input -->
+                <div style="min-width: 120px; max-width: 170px;">
+                  <input
+                    type="text"
+                    [ngModel]="grp.note !== undefined ? grp.note : ''"
+                    (ngModelChange)="onGroupNoteChange(grp, $event)"
+                    [placeholder]="grp.note === undefined ? '💬 Mixed notes...' : '💬 Group note...'"
+                    class="inline-note-input"
+                    style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main);"
+                    title="Apply note/comment to all {{ grp.count }} items in this group" />
+                </div>
                 <button class="btn-icon-delete" (click)="removeGroupTransactions(grp)" title="Skip all items in this group">✕</button>
               </div>
             </div>
@@ -474,15 +495,25 @@
                     <th>Bank</th>
                     <th>Owner</th>
                     <th style="text-align: right;">Amount</th>
+                    <th>Note</th>
                     <th style="text-align: center;">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let tx of grp.items" [class.tx-row-done]="tx.isDone">
+                  <tr *ngFor="let tx of grp.items; trackBy: trackTx" [class.tx-row-done]="tx.isDone">
                     <td style="width: 100px;">{{ service.formatDate(tx.date) }}</td>
                     <td style="width: 90px;"><span class="badge badge-neutral">{{ tx.bank }}</span></td>
                     <td style="width: 90px;"><span class="badge badge-info">{{ tx.paidBy }}</span></td>
                     <td class="font-mono" style="text-align: right; font-weight: bold; color: #10b981;">+{{ service.formatCurrency(tx.amount) }}</td>
+                    <td style="width: 120px;">
+                      <input
+                        type="text"
+                        [(ngModel)]="tx.note"
+                        placeholder="💬 Note..."
+                        class="inline-note-input"
+                        style="height: 22px; font-size: 0.72rem; padding: 0.1rem 0.35rem; width: 100%;"
+                        title="Add or edit transaction note" />
+                    </td>
                     <td style="text-align: center; white-space: nowrap; width: 220px;">
                       <button
                         type="button"
@@ -740,7 +771,7 @@
 
         <!-- Category Mapping Cards Grid -->
         <div class="ed-mapping-grid">
-          <ng-container *ngFor="let m of displayedCategoryMappings().slice(0, categoryDisplayLimit()); let idx = index">
+          <ng-container *ngFor="let m of displayedCategoryMappings().slice(0, categoryDisplayLimit()); let idx = index; trackBy: trackCategoryMapping">
             <!-- Unmatched Divider when keyword is active and items matched -->
             <div *ngIf="isFirstUnmatched(m, idx)" class="ed-unmatched-divider">
               <span>Other Categories (Non-matching)</span>
@@ -811,6 +842,18 @@
                     </app-category-select>
                   </div>
 
+                  <!-- Category Group Note / Comment Input -->
+                  <div style="min-width: 120px; max-width: 170px;">
+                    <input
+                      type="text"
+                      [ngModel]="getCategoryNote(m.rawCategory)"
+                      (ngModelChange)="onCategoryNoteChange(m.rawCategory, $event)"
+                      [placeholder]="isCategoryNoteMixed(m.rawCategory) ? '💬 Mixed notes...' : '💬 Category note...'"
+                      class="inline-note-input"
+                      style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main);"
+                      title="Apply comment/note to all {{ m.count }} transactions in this category" />
+                  </div>
+
                   <!-- Mark all for next month if category contains only incomes -->
                   <button
                     *ngIf="isCategoryAllIncomes(m.rawCategory)"
@@ -866,7 +909,7 @@
                   <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
                 </div>
                 <div class="ed-drawer-list">
-                  <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50)" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
+                  <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
                     <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
                       <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
                         📅 {{ service.formatDate(tx.date) }}
@@ -882,11 +925,20 @@
                     </div>
                     <div class="ed-drawer-tx-desc">
                       <span style="font-weight: 500; color: #f1f5f9;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
-                      <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                     </div>
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
+                    <!-- Individual Note / Comment Input -->
+                    <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
+                      <input
+                        type="text"
+                        [(ngModel)]="tx.note"
+                        placeholder="💬 Note..."
+                        class="inline-note-input"
+                        style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-main);"
+                        title="Add or edit transaction note" />
+                    </div>
                     <div style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
                       <!-- Done Button -->
                       <button
@@ -1093,7 +1145,7 @@
 
         <!-- Description Mapping Grid -->
         <div class="ed-mapping-grid">
-          <ng-container *ngFor="let d of displayedDescriptionMappings().slice(0, descriptionDisplayLimit()); let i = index">
+          <ng-container *ngFor="let d of displayedDescriptionMappings().slice(0, descriptionDisplayLimit()); let i = index; trackBy: trackDescriptionMapping">
             <!-- Divider between matching and unmatched descriptions -->
             <div
               *ngIf="isFirstUnmatchedDescription(d, i)"
@@ -1178,6 +1230,18 @@
                     </app-category-select>
                   </div>
 
+                  <!-- Description Group Note / Comment Input -->
+                  <div style="min-width: 120px; max-width: 170px;">
+                    <input
+                      type="text"
+                      [ngModel]="getDescriptionNote(d.description)"
+                      (ngModelChange)="onDescriptionNoteChange(d.description, $event)"
+                      [placeholder]="isDescriptionNoteMixed(d.description) ? '💬 Mixed notes...' : '💬 Group note...'"
+                      class="inline-note-input"
+                      style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main);"
+                      title="Apply comment/note to all {{ d.count }} transactions for this description" />
+                  </div>
+
                   <!-- Mark all for next month if description contains only incomes -->
                   <button
                     *ngIf="isDescriptionAllIncomes(d.description)"
@@ -1233,7 +1297,7 @@
                   <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual owner or split if needed</span>
                 </div>
                 <div class="ed-drawer-list">
-                  <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50)" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
+                  <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
                     <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
                       <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
                         📅 {{ service.formatDate(tx.date) }}
@@ -1249,11 +1313,20 @@
                     </div>
                     <div class="ed-drawer-tx-desc">
                       <span style="font-weight: 500; color: #f1f5f9;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || tx.categoryItem || 'Uncategorized')"></span>
-                      <span *ngIf="tx.note" style="font-size: 0.7rem; color: #94a3b8; margin-left: 0.4rem;">({{ tx.note }})</span>
                     </div>
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
+                    <!-- Individual Note / Comment Input -->
+                    <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
+                      <input
+                        type="text"
+                        [(ngModel)]="tx.note"
+                        placeholder="💬 Note..."
+                        class="inline-note-input"
+                        style="height: 24px; font-size: 0.72rem; padding: 0.15rem 0.45rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-main);"
+                        title="Add or edit transaction note" />
+                    </div>
                     <div style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
                       <!-- Done Button -->
                       <button

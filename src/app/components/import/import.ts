@@ -1878,6 +1878,58 @@ export class ImportComponent {
     );
   }
 
+  public getCategoryNote(rawCategory: string): string {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    if (txs.length === 0) return '';
+    const firstNote = txs[0].note || '';
+    const allSame = txs.every((t) => (t.note || '') === firstNote);
+    return allSame ? firstNote : '';
+  }
+
+  public isCategoryNoteMixed(rawCategory: string): boolean {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    if (txs.length <= 1) return false;
+    const firstNote = txs[0].note || '';
+    return !txs.every((t) => (t.note || '') === firstNote);
+  }
+
+  public onCategoryNoteChange(rawCategory: string, newNote: string): void {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    txs.forEach((tx) => {
+      tx.note = newNote;
+    });
+  }
+
+  public getDescriptionNote(desc: string): string {
+    const txs = this.getTransactionsForDescription(desc);
+    if (txs.length === 0) return '';
+    const firstNote = txs[0].note || '';
+    const allSame = txs.every((t) => (t.note || '') === firstNote);
+    return allSame ? firstNote : '';
+  }
+
+  public isDescriptionNoteMixed(desc: string): boolean {
+    const txs = this.getTransactionsForDescription(desc);
+    if (txs.length <= 1) return false;
+    const firstNote = txs[0].note || '';
+    return !txs.every((t) => (t.note || '') === firstNote);
+  }
+
+  public onDescriptionNoteChange(desc: string, newNote: string): void {
+    const txs = this.getTransactionsForDescription(desc);
+    txs.forEach((tx) => {
+      tx.note = newNote;
+    });
+  }
+
+  public trackCategoryMapping(_index: number, m: ImportCategoryMapping): string {
+    return m.rawCategory;
+  }
+
+  public trackDescriptionMapping(_index: number, d: ImportDescriptionMapping): string {
+    return d.description;
+  }
+
   public setTxSplit(tx: Transaction, split: SplitType): void {
     tx.splitType = split;
     const res = this.previewResult();
