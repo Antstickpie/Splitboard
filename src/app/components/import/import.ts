@@ -5,6 +5,7 @@ import { TransactionService, ImportedBatch, RuleTxDiffItem } from '../../service
 import { StatementParserService, ParsedStatementResult } from '../../services/statement-parser.service';
 import { Transaction, SplitType, ImportDraft, CategoryRule, StatementBatchSnapshot } from '../../models';
 import { CategorySelectComponent } from '../category-select/category-select';
+import { CategorySplitModalComponent } from '../category-split-modal/category-split-modal';
 
 export interface TransactionGroup {
   id: string;
@@ -65,7 +66,7 @@ export type CustomSplitTarget =
 @Component({
   selector: 'app-import',
   standalone: true,
-  imports: [CommonModule, FormsModule, CategorySelectComponent],
+  imports: [CommonModule, FormsModule, CategorySelectComponent, CategorySplitModalComponent],
   templateUrl: './import.html',
   styleUrl: './import.css'
 })
@@ -219,6 +220,10 @@ export class ImportComponent {
     }
     if (this.showBankSelectModal()) {
       this.closeBankSelectModal();
+      return;
+    }
+    if (this.categorySplitTarget()) {
+      this.closeCategorySplitModal();
       return;
     }
     if (this.customSplitTarget()) {
@@ -415,6 +420,135 @@ export class ImportComponent {
   public customSplitP1Percentage = signal<number>(50);
   public customSplitP1Amount = signal<number>(0);
   public customSplitP2Amount = signal<number>(0);
+
+  // Category Split Modal State
+  public categorySplitTarget = signal<Transaction | null>(null);
+
+  public allImportTransactions = computed(() => {
+    const res = this.previewResult();
+    if (!res) return [];
+    return [...(res.transactions || []), ...(res.incomes || []), ...(res.duplicates || [])];
+  });
+
+  public openCategorySplitModal(tx: Transaction): void {
+    this.categorySplitTarget.set(tx);
+  }
+
+  public closeCategorySplitModal(): void {
+    this.categorySplitTarget.set(null);
+  }
+
+  public onSaveCategorySplit(splitTxs: Transaction[]): void {
+    const target = this.categorySplitTarget();
+    const res = this.previewResult();
+    if (!target || !res || !splitTxs || splitTxs.length === 0) return;
+
+    const replaceInList = (list: Transaction[]): { updated: Transaction[]; found: boolean } => {
+      const splitGroupId = target.splitGroupId;
+      let found = false;
+      let replaced = false;
+      const result: Transaction[] = [];
+      for (const t of list) {
+        if ((splitGroupId && t.splitGroupId === splitGroupId) || t.id === target.id) {
+          found = true;
+          if (!replaced) {
+            result.push(...splitTxs);
+            replaced = true;
+          }
+        } else {
+          result.push(t);
+        }
+      }
+      return { updated: result, found };
+    };
+
+    const txRes = replaceInList(res.transactions);
+    if (txRes.found) {
+      this.previewResult.set({ ...res, transactions: txRes.updated });
+      this.service.showToast(`✓ Split into ${splitTxs.length} categories`, 'success');
+      this.categorySplitTarget.set(null);
+      return;
+    }
+
+    const incRes = replaceInList(res.incomes);
+    if (incRes.found) {
+      this.previewResult.set({ ...res, incomes: incRes.updated, incomesCount: incRes.updated.length });
+      this.service.showToast(`✓ Split into ${splitTxs.length} categories`, 'success');
+      this.categorySplitTarget.set(null);
+      return;
+    }
+
+    const dupRes = replaceInList(res.duplicates);
+    if (dupRes.found) {
+      this.previewResult.set({ ...res, duplicates: dupRes.updated, duplicatesCount: dupRes.updated.length });
+      this.service.showToast(`✓ Split into ${splitTxs.length} categories`, 'success');
+      this.categorySplitTarget.set(null);
+      return;
+    }
+
+    this.categorySplitTarget.set(null);
+  }
+
+  public onMergeCategorySplit(splitGroupId: string): void {
+    const res = this.previewResult();
+    if (!res || !splitGroupId) return;
+
+    const mergeInList = (list: Transaction[]): { updated: Transaction[]; found: boolean } => {
+      const siblings = list.filter((t) => t.splitGroupId === splitGroupId);
+      if (siblings.length === 0) return { updated: list, found: false };
+
+      const totalAmt = parseFloat(siblings.reduce((acc, t) => acc + (Number(t.amount) || 0), 0).toFixed(2));
+      const first = siblings[0];
+      const mergedTx: Transaction = {
+        ...first,
+        amount: totalAmt,
+        splitGroupId: undefined,
+        splitOriginalAmount: undefined,
+        splitPartIndex: undefined,
+        splitTotalParts: undefined
+      };
+
+      let inserted = false;
+      const result: Transaction[] = [];
+      for (const t of list) {
+        if (t.splitGroupId === splitGroupId) {
+          if (!inserted) {
+            result.push(mergedTx);
+            inserted = true;
+          }
+        } else {
+          result.push(t);
+        }
+      }
+      return { updated: result, found: true };
+    };
+
+    const txRes = mergeInList(res.transactions);
+    if (txRes.found) {
+      this.previewResult.set({ ...res, transactions: txRes.updated });
+      this.service.showToast('✓ Merged back into 1 transaction', 'info');
+      this.categorySplitTarget.set(null);
+      return;
+    }
+
+    const incRes = mergeInList(res.incomes);
+    if (incRes.found) {
+      this.previewResult.set({ ...res, incomes: incRes.updated, incomesCount: incRes.updated.length });
+      this.service.showToast('✓ Merged back into 1 transaction', 'info');
+      this.categorySplitTarget.set(null);
+      return;
+    }
+
+    const dupRes = mergeInList(res.duplicates);
+    if (dupRes.found) {
+      this.previewResult.set({ ...res, duplicates: dupRes.updated, duplicatesCount: dupRes.updated.length });
+      this.service.showToast('✓ Merged back into 1 transaction', 'info');
+      this.categorySplitTarget.set(null);
+      return;
+    }
+
+    this.categorySplitTarget.set(null);
+  }
 
   public findMatchingCategoryRuleForTx(tx: Transaction): { type: 'category'; rule: CategoryRule } | null {
     const desc = (tx.description || '').trim().toLowerCase();

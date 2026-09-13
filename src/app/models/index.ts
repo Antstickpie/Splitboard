@@ -64,6 +64,12 @@ export interface Transaction {
   includedFrom?: 'duplicates' | 'incomes' | 'excluded' | 'deleted'; // Original source tab when included into preview
   incomeMonth?: string; // e.g. 'YYYY-MM' - shifts income to fund a different month (e.g. salary at end of month funding next month)
   
+  // Category Split Linkage
+  splitGroupId?: string; // Group ID linking sub-transactions split from the same parent
+  splitOriginalAmount?: number; // Original transaction amount before category splitting
+  splitPartIndex?: number; // 1-based index (e.g. 1 of 2)
+  splitTotalParts?: number; // Total parts count (e.g. 2)
+
   note?: string;
   sourceFile?: string;
   rawDate?: string; // Exact statement timestamp including seconds if present (e.g. 2026-03-06 18:20:14)

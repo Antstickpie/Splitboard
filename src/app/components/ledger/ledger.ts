@@ -5,6 +5,7 @@ import { TransactionService, ImportedBatch } from '../../services/transaction.se
 import { Transaction, SplitType, SplitMode } from '../../models';
 import { ImportComponent } from '../import/import';
 import { CategorySelectComponent } from '../category-select/category-select';
+import { CategorySplitModalComponent } from '../category-split-modal/category-split-modal';
 
 export interface MonthCategoryGroup {
   category: string;
@@ -74,7 +75,7 @@ export interface MonthOwesItem {
 @Component({
   selector: 'app-ledger',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImportComponent, CategorySelectComponent],
+  imports: [CommonModule, FormsModule, ImportComponent, CategorySelectComponent, CategorySplitModalComponent],
   templateUrl: './ledger.html',
   styleUrl: './ledger.css'
 })
@@ -954,6 +955,38 @@ export class LedgerComponent {
   public customSplitP1Amount = 0;
   public customSplitP2Amount = 0;
   public customSplitPercentage = 50;
+
+  // Category Split Modal State
+  public categorySplitTarget = signal<Transaction | null>(null);
+
+  public openCategorySplitModal(tx: Transaction): void {
+    this.categorySplitTarget.set(tx);
+  }
+
+  public openCategorySplitFromEdit(): void {
+    const tx = this.editingTx();
+    if (tx) {
+      this.editingTx.set(null);
+      this.categorySplitTarget.set(tx);
+    }
+  }
+
+  public onSaveCategorySplit(splitTxs: Transaction[]): void {
+    const target = this.categorySplitTarget();
+    if (target) {
+      this.service.applyCategorySplits(target.id, splitTxs);
+      this.categorySplitTarget.set(null);
+    }
+  }
+
+  public onMergeCategorySplit(splitGroupId: string): void {
+    this.service.mergeSplitTransactions(splitGroupId);
+    this.categorySplitTarget.set(null);
+  }
+
+  public closeCategorySplitModal(): void {
+    this.categorySplitTarget.set(null);
+  }
 
   // EveryDollar Month / Year / Date Range Picker Popover State
   public isMonthPickerOpen = signal<boolean>(false);

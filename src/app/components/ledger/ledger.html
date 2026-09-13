@@ -798,6 +798,14 @@
                   [title]="tx.reimbursementStatus === 'REIMBURSED' ? 'Reimbursed! Click to view / edit settlement' : 'Pending reimbursement. Click to settle'">
                   {{ tx.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
                 </span>
+                <span
+                  *ngIf="tx.splitGroupId"
+                  class="badge"
+                  (click)="openCategorySplitModal(tx)"
+                  style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; margin-left: 0.35rem; flex-shrink: 0;"
+                  [title]="'Split transaction: part ' + tx.splitPartIndex + ' of ' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">
+                  ✂️ Split {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}
+                </span>
               </div>
             </td>
             <td>
@@ -894,6 +902,13 @@
                   style="padding: 0.18rem 0.4rem; font-size: 0.71rem; white-space: nowrap;"
                   [title]="getIncomeMonthButtonTooltip(tx)">
                   {{ getIncomeMonthButtonLabel(tx) }}
+                </button>
+                <button
+                  class="btn btn-secondary btn-xs"
+                  (click)="openCategorySplitModal(tx)"
+                  [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into categories'"
+                  style="padding: 0.2rem 0.45rem; font-size: 0.72rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35);">
+                  ✂️
                 </button>
                 <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
                   ✏ Edit
@@ -1219,7 +1234,18 @@
       </div>
 
       <div>
-        <label class="input-label">Category</label>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+          <label class="input-label" style="margin: 0;">Category</label>
+          <button
+            type="button"
+            class="btn btn-secondary btn-xs"
+            (click)="openCategorySplitFromEdit()"
+            style="font-size: 0.72rem; padding: 0.15rem 0.45rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08);"
+            title="Split this transaction into 2 or more categories">
+            <span *ngIf="!tx.splitGroupId">✂️ Split into Categories...</span>
+            <span *ngIf="tx.splitGroupId">✂️ Edit Splits ({{ tx.splitTotalParts }} parts)...</span>
+          </button>
+        </div>
         <app-category-select
           [value]="editCategoryItem"
           [group]="editCategoryGroup"
@@ -2070,6 +2096,14 @@
                       [title]="item.tx.reimbursementStatus === 'REIMBURSED' ? 'Reimbursed! Click to view / edit settlement' : 'Pending reimbursement. Click to settle'">
                       {{ item.tx.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
                     </span>
+                    <span
+                      *ngIf="item.tx.splitGroupId"
+                      class="badge"
+                      (click)="openCategorySplitModal(item.tx)"
+                      style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; margin-left: 0.35rem; flex-shrink: 0;"
+                      [title]="'Split transaction: part ' + item.tx.splitPartIndex + ' of ' + item.tx.splitTotalParts + ' (' + service.formatCurrency(item.tx.splitOriginalAmount || item.tx.amount) + ' total). Click to edit split.'">
+                      ✂️ Split {{ item.tx.splitPartIndex }}/{{ item.tx.splitTotalParts }}
+                    </span>
                   </div>
                 </td>
                 <td>
@@ -2190,6 +2224,13 @@
                       [title]="getIncomeMonthButtonTooltip(item.tx)">
                       {{ getIncomeMonthButtonLabel(item.tx) }}
                     </button>
+                    <button
+                      class="btn btn-secondary btn-xs"
+                      (click)="openCategorySplitModal(item.tx)"
+                      [title]="item.tx.splitGroupId ? 'Edit category splits' : 'Split into categories'"
+                      style="padding: 0.2rem 0.45rem; font-size: 0.72rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35);">
+                      ✂️
+                    </button>
                     <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(item.tx)" title="Edit transaction" style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
                       ✏ Edit
                     </button>
@@ -2298,3 +2339,14 @@
     </div>
   </div>
 </ng-template>
+
+<!-- Category Split Modal -->
+<app-category-split-modal
+  *ngIf="categorySplitTarget()"
+  [targetTx]="categorySplitTarget()"
+  [contextTransactions]="service.transactions()"
+  (save)="onSaveCategorySplit($event)"
+  (merge)="onMergeCategorySplit($event)"
+  (close)="closeCategorySplitModal()">
+</app-category-split-modal>
+

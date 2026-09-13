@@ -1,0 +1,34 @@
+.modal-backdrop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-content-card {
+  background: #13171f;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.split-line-card:hover {
+  border-color: rgba(56, 189, 248, 0.25) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.split-lines-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.split-lines-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}

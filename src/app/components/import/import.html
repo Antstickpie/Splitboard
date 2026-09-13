@@ -1100,9 +1100,11 @@
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
-                    <!-- Move Category Option -->
-                    <div style="min-width: 140px; max-width: 185px; flex-shrink: 0;" (click)="$event.stopPropagation()">
+                    <!-- Move Category Option & Split -->
+                    <div style="min-width: 140px; max-width: 235px; flex-shrink: 0; display: flex; align-items: center; gap: 0.35rem;" (click)="$event.stopPropagation()">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
                       <app-category-select
+                        style="flex: 1;"
                         [value]="tx.categoryItem || (m.selectedItem !== 'Uncategorized' ? m.selectedItem : '')"
                         [group]="tx.categoryGroup || (m.selectedGroup !== 'Uncategorized' ? m.selectedGroup : '')"
                         [compact]="true"
@@ -1112,6 +1114,7 @@
                         (categoryChange)="moveIndividualTransactionCategory(tx, $event.item, $event.group)"
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
+                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="height: 24px; font-size: 0.72rem; padding: 0 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
                     </div>
                     <!-- Individual Note / Comment Input -->
                     <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
@@ -1436,9 +1439,11 @@
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
-                    <!-- Move Category Option -->
-                    <div style="min-width: 140px; max-width: 185px; flex-shrink: 0;" (click)="$event.stopPropagation()">
+                    <!-- Move Category Option & Split -->
+                    <div style="min-width: 140px; max-width: 235px; flex-shrink: 0; display: flex; align-items: center; gap: 0.35rem;" (click)="$event.stopPropagation()">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
                       <app-category-select
+                        style="flex: 1;"
                         [value]="tx.categoryItem || (d.selectedItem !== 'Uncategorized' ? d.selectedItem : '')"
                         [group]="tx.categoryGroup || (d.selectedGroup !== 'Uncategorized' ? d.selectedGroup : '')"
                         [compact]="true"
@@ -1448,6 +1453,7 @@
                         (categoryChange)="moveIndividualTransactionCategory(tx, $event.item, $event.group)"
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
+                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="height: 24px; font-size: 0.72rem; padding: 0 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
                     </div>
                     <!-- Individual Note / Comment Input -->
                     <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
@@ -1620,13 +1626,18 @@
                     </span>
                   </td>
                   <td>
-                    <app-category-select
-                      [value]="tx.categoryItem || ''"
-                      [group]="tx.categoryGroup || ''"
-                      placeholder="Select category..."
-                      (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                      (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                    </app-category-select>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                      <app-category-select
+                        style="flex: 1;"
+                        [value]="tx.categoryItem || ''"
+                        [group]="tx.categoryGroup || ''"
+                        placeholder="Select category..."
+                        (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                      </app-category-select>
+                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
+                    </div>
                   </td>
                   <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">
                     {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
@@ -1864,12 +1875,17 @@
                 </span>
               </td>
               <td>
-                <app-category-select
-                  [value]="tx.categoryItem || ''"
-                  [group]="tx.categoryGroup || ''"
-                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                </app-category-select>
+                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                  <app-category-select
+                    style="flex: 1;"
+                    [value]="tx.categoryItem || ''"
+                    [group]="tx.categoryGroup || ''"
+                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                  </app-category-select>
+                  <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
+                </div>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
@@ -2093,12 +2109,17 @@
                 </span>
               </td>
               <td>
-                <app-category-select
-                  [value]="tx.categoryItem || ''"
-                  [group]="tx.categoryGroup || ''"
-                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                </app-category-select>
+                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                  <app-category-select
+                    style="flex: 1;"
+                    [value]="tx.categoryItem || ''"
+                    [group]="tx.categoryGroup || ''"
+                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                  </app-category-select>
+                  <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
+                </div>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
@@ -2495,12 +2516,17 @@
                     </span>
                   </td>
                   <td>
-                    <app-category-select
-                      [value]="tx.categoryItem || ''"
-                      [group]="tx.categoryGroup || ''"
-                      (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                      (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                    </app-category-select>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                      <app-category-select
+                        style="flex: 1;"
+                        [value]="tx.categoryItem || ''"
+                        [group]="tx.categoryGroup || ''"
+                        (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                      </app-category-select>
+                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
+                    </div>
                   </td>
                   <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                   <td>
@@ -2667,12 +2693,17 @@
                 </span>
               </td>
               <td>
-                <app-category-select
-                  [value]="tx.categoryItem || ''"
-                  [group]="tx.categoryGroup || ''"
-                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                </app-category-select>
+                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                  <app-category-select
+                    style="flex: 1;"
+                    [value]="tx.categoryItem || ''"
+                    [group]="tx.categoryGroup || ''"
+                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                  </app-category-select>
+                  <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
+                </div>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
@@ -3679,4 +3710,15 @@
       </div>
     </div>
   </div>
+
+  <!-- Category Split Modal (Split 1 transaction into multiple categories) -->
+  <app-category-split-modal
+    *ngIf="categorySplitTarget()"
+    [targetTx]="categorySplitTarget()"
+    [contextTransactions]="allImportTransactions()"
+    (save)="onSaveCategorySplit($event)"
+    (merge)="onMergeCategorySplit($event)"
+    (close)="closeCategorySplitModal()">
+  </app-category-split-modal>
 </div>
+

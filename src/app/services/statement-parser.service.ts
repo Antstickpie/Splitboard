@@ -447,6 +447,24 @@ export class StatementParserService {
         if (!sourceFileMap.has(k.sf)) sourceFileMap.set(k.sf, []);
         sourceFileMap.get(k.sf)!.push(t);
       }
+
+      if (t.splitOriginalAmount && t.splitPartIndex === 1) {
+        const kOrig = getKeys({ ...t, amount: t.splitOriginalAmount });
+        if (!exactMap.has(kOrig.exact)) exactMap.set(kOrig.exact, []);
+        exactMap.get(kOrig.exact)!.push(t);
+
+        if (!noBankMap.has(kOrig.noBank)) noBankMap.set(kOrig.noBank, []);
+        noBankMap.get(kOrig.noBank)!.push(t);
+
+        if (kOrig.norm) {
+          if (!normMap.has(kOrig.norm)) normMap.set(kOrig.norm, []);
+          normMap.get(kOrig.norm)!.push(t);
+        }
+        if (kOrig.sf) {
+          if (!sourceFileMap.has(kOrig.sf)) sourceFileMap.set(kOrig.sf, []);
+          sourceFileMap.get(kOrig.sf)!.push(t);
+        }
+      }
     }
 
     const popMatched = (map: Map<string, Transaction[]>, key: string): Transaction | null => {

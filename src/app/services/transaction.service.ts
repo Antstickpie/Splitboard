@@ -1837,6 +1837,69 @@ export class TransactionService {
     this.triggerAutoSyncIfEnabled();
   }
 
+  public applyCategorySplits(originalTxId: string, splitTxs: Transaction[]): void {
+    if (!splitTxs || splitTxs.length === 0) return;
+    this.transactions.update((curr) => {
+      const targetTx = curr.find((t) => t.id === originalTxId);
+      if (!targetTx) return curr;
+
+      const splitGroupId = targetTx.splitGroupId;
+      let replaced = false;
+      const result: Transaction[] = [];
+      for (const tx of curr) {
+        if ((splitGroupId && tx.splitGroupId === splitGroupId) || tx.id === originalTxId) {
+          if (!replaced) {
+            result.push(...splitTxs);
+            replaced = true;
+          }
+        } else {
+          result.push(tx);
+        }
+      }
+      if (!replaced) {
+        result.push(...splitTxs);
+      }
+      return result;
+    });
+    this.showToast(`✓ Split into ${splitTxs.length} categories`, 'success');
+    this.triggerAutoSyncIfEnabled();
+  }
+
+  public mergeSplitTransactions(splitGroupId: string): void {
+    if (!splitGroupId) return;
+    this.transactions.update((curr) => {
+      const siblings = curr.filter((t) => t.splitGroupId === splitGroupId);
+      if (siblings.length === 0) return curr;
+
+      const totalAmount = parseFloat(siblings.reduce((sum, t) => sum + (Number(t.amount) || 0), 0).toFixed(2));
+      const first = siblings[0];
+      const mergedTx: Transaction = {
+        ...first,
+        amount: totalAmount,
+        splitGroupId: undefined,
+        splitOriginalAmount: undefined,
+        splitPartIndex: undefined,
+        splitTotalParts: undefined
+      };
+
+      let inserted = false;
+      const result: Transaction[] = [];
+      for (const tx of curr) {
+        if (tx.splitGroupId === splitGroupId) {
+          if (!inserted) {
+            result.push(mergedTx);
+            inserted = true;
+          }
+        } else {
+          result.push(tx);
+        }
+      }
+      return result;
+    });
+    this.showToast('✓ Merged back into 1 transaction', 'info');
+    this.triggerAutoSyncIfEnabled();
+  }
+
   public deleteTransaction(id: string): void {
     const tx = this.transactions().find((t) => t.id === id);
     if (tx) {
