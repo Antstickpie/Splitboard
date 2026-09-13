@@ -1750,17 +1750,27 @@
         </button>
       </div>
 
-      <!-- Action Buttons: Hide No-Change Toggle, Category Group Toggle & Expand All -->
+      <!-- Action Buttons: Debt Filter, Category Group Toggle & Expand All -->
       <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          [class.active-mode-btn]="monthlyOwesHideNoChange()"
-          (click)="toggleMonthlyOwesHideNoChange()"
-          [title]="monthlyOwesHideNoChange() ? 'Currently hiding transactions that do not change the owe balance (click to show all)' : 'Currently showing all transactions including $0 impact items (click to hide)'"
-          style="font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.7rem; border-radius: 6px;">
-          {{ monthlyOwesHideNoChange() ? '⚡ Hide No-Change' : '📋 Show All' }}
-        </button>
+        <!-- Filter: Debt Changes Only vs All Transactions -->
+        <div class="ledger-segmented-nav" style="background: rgba(255, 255, 255, 0.04);">
+          <button
+            type="button"
+            class="ledger-seg-btn"
+            [class.active]="monthlyOwesHideNoChange()"
+            (click)="monthlyOwesHideNoChange.set(true)"
+            title="Show only transactions that impact debt / running balance">
+            ⚡ Debt Changes
+          </button>
+          <button
+            type="button"
+            class="ledger-seg-btn"
+            [class.active]="!monthlyOwesHideNoChange()"
+            (click)="monthlyOwesHideNoChange.set(false)"
+            title="Show all transactions including $0 debt impact">
+            All
+          </button>
+        </div>
 
         <button
           type="button"
