@@ -830,6 +830,12 @@
         </div>
         <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
           <button
+            class="btn btn-secondary btn-xs"
+            (click)="toggleAllCategoryDrawersShowAll()"
+            [title]="allCategoryDrawersShowAll() ? 'Limit category drawers to first 50 transactions' : 'Show all transactions in all category drawers'">
+            {{ allCategoryDrawersShowAll() ? 'Limit Drawers to 50' : '📂 Show All in Drawers' }}
+          </button>
+          <button
             class="btn btn-primary btn-xs"
             (click)="autoMatchAllCategories()"
             title="Automatically match categories with Splitboard categories">
@@ -989,12 +995,22 @@
 
               <!-- Expandable Individual Transactions Drawer -->
               <div *ngIf="expandedCategory() === m.rawCategory" class="ed-category-drawer animate-fade-in">
-                <div class="ed-drawer-header">
-                  <span>Individual Transactions in "{{ m.rawCategory }}" ({{ getTransactionsForCategory(m.rawCategory).length }})</span>
-                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual category, owner, split, or note if needed</span>
+                <div class="ed-drawer-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span style="font-weight: 600;">Individual Transactions in "{{ m.rawCategory }}" ({{ getTransactionsForCategory(m.rawCategory).length }})</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual category, owner, split, or note if needed</span>
+                  </div>
+                  <button
+                    *ngIf="getTransactionsForCategory(m.rawCategory).length > 50"
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="toggleCategoryShowAll(m.rawCategory)"
+                    style="font-size: 0.72rem; padding: 0.18rem 0.55rem;">
+                    {{ isCategoryShowingAll(m.rawCategory) ? 'Show First 50' : 'Show All (' + getTransactionsForCategory(m.rawCategory).length + ')' }}
+                  </button>
                 </div>
                 <div class="ed-drawer-list">
-                  <div *ngFor="let tx of getTransactionsForCategory(m.rawCategory).slice(0, 50); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
+                  <div *ngFor="let tx of getCategoryDisplayedTransactions(m.rawCategory); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
                     <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
                       <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
                         📅 {{ service.formatDate(tx.date) }}
@@ -1103,8 +1119,15 @@
                       </button>
                     </div>
                   </div>
-                  <div *ngIf="getTransactionsForCategory(m.rawCategory).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
-                    Showing first 50 of {{ getTransactionsForCategory(m.rawCategory).length }} transactions
+                  <div *ngIf="getTransactionsForCategory(m.rawCategory).length > 50" style="text-align: center; padding: 0.5rem; font-size: 0.74rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 0.6rem;">
+                    <span>Showing {{ isCategoryShowingAll(m.rawCategory) ? 'all ' + getTransactionsForCategory(m.rawCategory).length : 'first 50 of ' + getTransactionsForCategory(m.rawCategory).length }} transactions</span>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-xs"
+                      (click)="toggleCategoryShowAll(m.rawCategory)"
+                      style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
+                      {{ isCategoryShowingAll(m.rawCategory) ? 'Show First 50' : 'Show All (' + getTransactionsForCategory(m.rawCategory).length + ')' }}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1292,12 +1315,22 @@
 
               <!-- Expandable Individual Transactions Drawer for Description -->
               <div *ngIf="expandedDescription() === d.description" class="ed-category-drawer animate-fade-in">
-                <div class="ed-drawer-header">
-                  <span>Transactions for "{{ d.description }}" ({{ getTransactionsForDescription(d.description).length }})</span>
-                  <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual category, owner, split, or note if needed</span>
+                <div class="ed-drawer-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span style="font-weight: 600;">Transactions for "{{ d.description }}" ({{ getTransactionsForDescription(d.description).length }})</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted);">Change individual category, owner, split, or note if needed</span>
+                  </div>
+                  <button
+                    *ngIf="getTransactionsForDescription(d.description).length > 50"
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    (click)="toggleDescriptionShowAll(d.description)"
+                    style="font-size: 0.72rem; padding: 0.18rem 0.55rem;">
+                    {{ isDescriptionShowingAll(d.description) ? 'Show First 50' : 'Show All (' + getTransactionsForDescription(d.description).length + ')' }}
+                  </button>
                 </div>
                 <div class="ed-drawer-list">
-                  <div *ngFor="let tx of getTransactionsForDescription(d.description).slice(0, 50); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
+                  <div *ngFor="let tx of getDescriptionDisplayedTransactions(d.description); trackBy: trackTx" class="ed-drawer-tx-item" [class.tx-row-done]="tx.isDone">
                     <div style="display: flex; flex-direction: column; min-width: 95px; flex-shrink: 0;">
                       <span style="font-family: monospace; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap;">
                         📅 {{ service.formatDate(tx.date) }}
@@ -1406,8 +1439,15 @@
                       </button>
                     </div>
                   </div>
-                  <div *ngIf="getTransactionsForDescription(d.description).length > 50" style="text-align: center; padding: 0.4rem; font-size: 0.74rem; color: var(--text-muted);">
-                    Showing first 50 of {{ getTransactionsForDescription(d.description).length }} transactions
+                  <div *ngIf="getTransactionsForDescription(d.description).length > 50" style="text-align: center; padding: 0.5rem; font-size: 0.74rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 0.6rem;">
+                    <span>Showing {{ isDescriptionShowingAll(d.description) ? 'all ' + getTransactionsForDescription(d.description).length : 'first 50 of ' + getTransactionsForDescription(d.description).length }} transactions</span>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-xs"
+                      (click)="toggleDescriptionShowAll(d.description)"
+                      style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
+                      {{ isDescriptionShowingAll(d.description) ? 'Show First 50' : 'Show All (' + getTransactionsForDescription(d.description).length + ')' }}
+                    </button>
                   </div>
                 </div>
               </div>

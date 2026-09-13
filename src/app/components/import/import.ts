@@ -1782,6 +1782,10 @@ export class ImportComponent {
   public descriptionDisplayLimit = signal<number>(60);
   public showPreviewTable = signal<boolean>(true);
 
+  public categoryShowAllTxs = signal<Set<string>>(new Set());
+  public allCategoryDrawersShowAll = signal<boolean>(false);
+  public descriptionShowAllTxs = signal<Set<string>>(new Set());
+
   // Description Grouping for Valid Transactions
   public isGroupByDescription = signal<boolean>(false);
   public expandedDescriptionGroups = signal<Set<string>>(new Set());
@@ -2092,6 +2096,66 @@ export class ImportComponent {
     return res.transactions.filter(
       (t) => (t.description || t.merchant || 'Unspecified').trim() === desc
     );
+  }
+
+  public isCategoryShowingAll(rawCategory: string): boolean {
+    return this.allCategoryDrawersShowAll() || this.categoryShowAllTxs().has(rawCategory);
+  }
+
+  public toggleCategoryShowAll(rawCategory: string): void {
+    const current = new Set(this.categoryShowAllTxs());
+    if (this.allCategoryDrawersShowAll()) {
+      this.allCategoryDrawersShowAll.set(false);
+      this.categoryMappings().forEach((m) => {
+        if (m.rawCategory !== rawCategory) {
+          current.add(m.rawCategory);
+        }
+      });
+      current.delete(rawCategory);
+    } else if (current.has(rawCategory)) {
+      current.delete(rawCategory);
+    } else {
+      current.add(rawCategory);
+    }
+    this.categoryShowAllTxs.set(current);
+  }
+
+  public toggleAllCategoryDrawersShowAll(): void {
+    const nextState = !this.allCategoryDrawersShowAll();
+    this.allCategoryDrawersShowAll.set(nextState);
+    if (!nextState) {
+      this.categoryShowAllTxs.set(new Set());
+    }
+  }
+
+  public isDescriptionShowingAll(desc: string): boolean {
+    return this.descriptionShowAllTxs().has(desc);
+  }
+
+  public toggleDescriptionShowAll(desc: string): void {
+    const current = new Set(this.descriptionShowAllTxs());
+    if (current.has(desc)) {
+      current.delete(desc);
+    } else {
+      current.add(desc);
+    }
+    this.descriptionShowAllTxs.set(current);
+  }
+
+  public getCategoryDisplayedTransactions(rawCategory: string): Transaction[] {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    if (this.isCategoryShowingAll(rawCategory)) {
+      return txs;
+    }
+    return txs.slice(0, 50);
+  }
+
+  public getDescriptionDisplayedTransactions(desc: string): Transaction[] {
+    const txs = this.getTransactionsForDescription(desc);
+    if (this.isDescriptionShowingAll(desc)) {
+      return txs;
+    }
+    return txs.slice(0, 50);
   }
 
   public isCategoryDone(rawCategory: string): boolean {
