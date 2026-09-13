@@ -236,7 +236,7 @@ export class LedgerComponent {
   public isSettlementExpanded = signal(false);
 
   // Quick filters collapsible
-  public isFiltersOpen = signal(false);
+  public isFiltersOpen = signal(true);
   public hasActiveFilters = computed(() => {
     return (
       this.service.filterOwner() !== 'ALL' ||
@@ -248,9 +248,8 @@ export class LedgerComponent {
   });
 
   public totalMonthTxs = computed(() => {
-    const m = this.service.selectedMonth();
     return this.service.transactions().filter(
-      (tx) => m === 'ALL' || (tx.date && tx.date.startsWith(m))
+      (tx) => this.service.isTransactionInActiveRange(tx)
     ).length;
   });
 
@@ -638,6 +637,7 @@ export class LedgerComponent {
   }
 
   public showAllMonths(): void {
+    this.service.resetAllTimeToInitial();
     this.service.dateFilterMode.set('ALL');
     this.service.selectedMonth.set('ALL');
     this.isMonthPickerOpen.set(false);

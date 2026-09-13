@@ -374,6 +374,40 @@ export class TransactionService {
   public dateRangeStart = signal<string>('');
   public dateRangeEnd = signal<string>('');
 
+  // All-Time Windowing & Pagination Signals
+  public allTimeYearsToShow = signal<number>(1);
+  public showAllTimeFull = signal<boolean>(false);
+
+  // Table Sorting Signals
+  public sortColumn = signal<'date' | 'bank' | 'paidBy' | 'description' | 'category' | 'amount' | 'split'>('date');
+  public sortDirection = signal<'asc' | 'desc'>('desc');
+
+  public toggleSort(col: 'date' | 'bank' | 'paidBy' | 'description' | 'category' | 'amount' | 'split'): void {
+    if (this.sortColumn() === col) {
+      this.sortDirection.update((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.sortColumn.set(col);
+      if (col === 'date' || col === 'amount') {
+        this.sortDirection.set('desc');
+      } else {
+        this.sortDirection.set('asc');
+      }
+    }
+  }
+
+  public loadMoreAllTimeYears(increment = 1): void {
+    this.allTimeYearsToShow.update((y) => y + increment);
+  }
+
+  public expandAllTimeFull(): void {
+    this.showAllTimeFull.set(true);
+  }
+
+  public resetAllTimeToInitial(): void {
+    this.showAllTimeFull.set(false);
+    this.allTimeYearsToShow.set(1);
+  }
+
   // Google Drive State
   public isGoogleConnected = signal<boolean>(false);
   public isGoogleSyncing = signal<boolean>(false);
@@ -438,7 +472,14 @@ export class TransactionService {
 
   public isTransactionInActiveRange(tx: Transaction): boolean {
     const mode = this.dateFilterMode();
-    if (mode === 'ALL') return true;
+    if (mode === 'ALL') {
+      if (this.showAllTimeFull()) return true;
+      const years = this.allTimeYearsToShow();
+      const now = new Date();
+      const cutoff = new Date(now.getFullYear() - years, now.getMonth(), now.getDate());
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      return Boolean(tx.date && tx.date >= cutoffStr);
+    }
     if (mode === 'MONTH') {
       const m = this.selectedMonth();
       if (m === 'ALL') return true;
@@ -479,7 +520,14 @@ export class TransactionService {
   public isDatePriorToActiveRange(txDate: string): boolean {
     if (!txDate) return false;
     const mode = this.dateFilterMode();
-    if (mode === 'ALL') return false;
+    if (mode === 'ALL') {
+      if (this.showAllTimeFull()) return false;
+      const years = this.allTimeYearsToShow();
+      const now = new Date();
+      const cutoff = new Date(now.getFullYear() - years, now.getMonth(), now.getDate());
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      return txDate.slice(0, 10) < cutoffStr;
+    }
     if (mode === 'MONTH') {
       const m = this.selectedMonth();
       if (m === 'ALL') return false;
@@ -496,6 +544,48 @@ export class TransactionService {
     }
     return false;
   }
+
+  public hasMoreAllTimeHistory = computed(() => {
+    if (this.dateFilterMode() !== 'ALL') return false;
+    if (this.showAllTimeFull()) return false;
+    const years = this.allTimeYearsToShow();
+    const now = new Date();
+    const cutoff = new Date(now.getFullYear() - years, now.getMonth(), now.getDate());
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    return this.transactions().some((tx) => Boolean(tx.date && tx.date < cutoffStr));
+  });
+
+  public allTimeMatchingCount = computed(() => {
+    if (this.dateFilterMode() !== 'ALL') return 0;
+    const q = this.searchQuery().toLowerCase().trim();
+    const bank = this.filterBank();
+    const owner = this.filterOwner();
+    const split = this.filterSplitType();
+    const cat = this.filterCategory();
+    const status = this.filterStatus();
+
+    return this.transactions().filter((tx) => {
+      if (bank !== 'ALL' && tx.bank !== bank) return false;
+      if (owner !== 'ALL' && tx.paidBy !== owner) return false;
+      if (split !== 'ALL' && tx.splitType !== split) return false;
+      if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) return false;
+      if (status === 'REVIEW' && !tx.isUnderReview) return false;
+      if (status === 'PENDING' && tx.isDone) return false;
+      if (status === 'DONE' && !tx.isDone) return false;
+      if (q) {
+        const matchDesc = (tx.description || '').toLowerCase().includes(q);
+        const matchBank = (tx.bank || '').toLowerCase().includes(q);
+        const matchNote = (tx.note || '').toLowerCase().includes(q);
+        const matchCat = (tx.categoryItem || '').toLowerCase().includes(q);
+        const matchGroup = (tx.categoryGroup || '').toLowerCase().includes(q);
+        const matchOwner = (tx.paidBy || '').toLowerCase().includes(q);
+        const matchAmount = String(tx.amount || '').includes(q);
+        const matchSplit = (tx.splitType || '').toLowerCase().includes(q);
+        if (!matchDesc && !matchBank && !matchNote && !matchCat && !matchGroup && !matchOwner && !matchAmount && !matchSplit) return false;
+      }
+      return true;
+    }).length;
+  });
 
   public reviewTransactionsForSelectedMonth = computed(() => {
     return this.transactions().filter(
@@ -553,7 +643,7 @@ export class TransactionService {
     const cat = this.filterCategory();
     const status = this.filterStatus();
 
-    return this.transactions()
+    const filtered = this.transactions()
       .filter((tx) => {
         if (!this.isTransactionInActiveRange(tx)) return false;
         if (bank !== 'ALL' && tx.bank !== bank) return false;
@@ -575,8 +665,40 @@ export class TransactionService {
           if (!matchDesc && !matchBank && !matchNote && !matchCat && !matchGroup && !matchOwner && !matchAmount && !matchSplit) return false;
         }
         return true;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      });
+
+    const col = this.sortColumn();
+    const dir = this.sortDirection() === 'asc' ? 1 : -1;
+
+    return filtered.sort((a, b) => {
+      if (col === 'date') {
+        const diff = (a.date || '').localeCompare(b.date || '');
+        return dir * diff;
+      }
+      if (col === 'amount') {
+        const aAmt = Number(a.amount) || 0;
+        const bAmt = Number(b.amount) || 0;
+        return dir * (aAmt - bAmt);
+      }
+      if (col === 'bank') {
+        return dir * (a.bank || '').localeCompare(b.bank || '');
+      }
+      if (col === 'paidBy') {
+        return dir * (a.paidBy || '').localeCompare(b.paidBy || '');
+      }
+      if (col === 'description') {
+        return dir * (a.description || '').localeCompare(b.description || '');
+      }
+      if (col === 'category') {
+        const aCat = a.categoryItem || a.categoryGroup || '';
+        const bCat = b.categoryItem || b.categoryGroup || '';
+        return dir * aCat.localeCompare(bCat);
+      }
+      if (col === 'split') {
+        return dir * (a.splitType || '').localeCompare(b.splitType || '');
+      }
+      return 0;
+    });
   });
 
   public calculateTxDebt(tx: Transaction, p1: string, p2: string): { p1OwesP2: number; p2OwesP1: number; p1Paid: number; p2Paid: number; p1Share: number; p2Share: number } {

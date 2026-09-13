@@ -382,8 +382,34 @@
         <span class="past-month-badge" style="background: rgba(0, 229, 255, 0.12); color: var(--primary); border-color: rgba(0, 229, 255, 0.25); font-size: 0.68rem; padding: 0.15rem 0.4rem;" *ngIf="service.dateFilterMode() === 'RANGE' || service.dateFilterMode() === 'YEAR'">🗓️ Multi-Period</span>
 
         <!-- Transactions Count (Appended after controls) -->
-        <h3 style="margin: 0 0 0 0.4rem; font-size: 0.92rem; font-weight: 700; color: var(--text-main); white-space: nowrap;">
-          Transactions ({{ service.filteredTransactions().length }}<span *ngIf="service.searchQuery()" style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ totalMonthTxs() }}</span>)
+        <h3 style="margin: 0 0 0 0.4rem; font-size: 0.92rem; font-weight: 700; color: var(--text-main); white-space: nowrap; display: flex; align-items: center; gap: 0.4rem;">
+          <span *ngIf="service.dateFilterMode() !== 'ALL'">
+            Transactions ({{ service.filteredTransactions().length }}<span *ngIf="service.searchQuery() || hasActiveFilters()" style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ totalMonthTxs() }}</span>)
+          </span>
+          <span *ngIf="service.dateFilterMode() === 'ALL'">
+            <span *ngIf="!service.showAllTimeFull()">
+              Transactions ({{ service.filteredTransactions().length }}<span style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> of {{ service.allTimeMatchingCount() }} • Past {{ service.allTimeYearsToShow() }} Yr{{ service.allTimeYearsToShow() > 1 ? 's' : '' }}</span>)
+            </span>
+            <span *ngIf="service.showAllTimeFull()">
+              Transactions ({{ service.filteredTransactions().length }}<span style="font-weight: 400; color: var(--text-muted); font-size: 0.78rem;"> • All Time</span>)
+            </span>
+          </span>
+          <button
+            *ngIf="service.dateFilterMode() === 'ALL' && service.hasMoreAllTimeHistory()"
+            class="btn btn-secondary btn-xs"
+            (click)="service.expandAllTimeFull()"
+            style="font-size: 0.68rem; padding: 0.1rem 0.4rem; height: 22px; color: var(--primary); border-color: rgba(0, 229, 255, 0.35); background: rgba(0, 229, 255, 0.08);"
+            title="Load all historical transactions">
+            Show all {{ service.allTimeMatchingCount() }}
+          </button>
+          <button
+            *ngIf="service.dateFilterMode() === 'ALL' && service.showAllTimeFull()"
+            class="btn btn-secondary btn-xs"
+            (click)="service.resetAllTimeToInitial()"
+            style="font-size: 0.68rem; padding: 0.1rem 0.4rem; height: 22px;"
+            title="Show only past 1 year of transactions">
+            Past 1 yr only
+          </button>
         </h3>
       </div>
 
@@ -529,33 +555,63 @@
       </div>
 
       <select [ngModel]="service.filterOwner()" (ngModelChange)="service.filterOwner.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-        <option value="ALL">All Payers</option>
+        <option value="ALL">👤 All Payers</option>
         <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
       </select>
 
       <select [ngModel]="service.filterBank()" (ngModelChange)="service.filterBank.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-        <option value="ALL">All Banks</option>
+        <option value="ALL">🏦 All Banks</option>
         <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
         <option value="Cash">Cash</option>
       </select>
 
       <select [ngModel]="service.filterSplitType()" (ngModelChange)="service.filterSplitType.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-        <option value="ALL">All Splits</option>
+        <option value="ALL">⚖️ All Splits</option>
+        <option value="SPLIT">Split</option>
         <option value="SELF">Self Only</option>
         <option value="OTHER">For Other</option>
-        <option value="SPLIT">Split</option>
       </select>
 
       <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
-        <option value="ALL">All Categories</option>
+        <option value="ALL">🏷️ All Categories</option>
         <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
           <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
         </optgroup>
       </select>
 
-      <button class="btn btn-secondary btn-xs" (click)="resetFilters()" *ngIf="hasActiveFilters()" style="font-size: 0.72rem;">
-        Reset Filters
+      <button class="btn btn-secondary btn-xs" (click)="resetFilters()" *ngIf="hasActiveFilters()" style="font-size: 0.72rem; color: #f87171; border-color: rgba(239, 68, 68, 0.3);">
+        ✕ Reset Filters
       </button>
+
+      <!-- Active Filter Tags Row (Visible when any filter is active) -->
+      <div *ngIf="hasActiveFilters()" class="active-filters-chips-row animate-fade-in" style="width: 100%; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; padding-top: 0.35rem; border-top: 1px solid rgba(255,255,255,0.06);">
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">Filtered by:</span>
+        
+        <span *ngIf="service.filterBank() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.3); color: var(--text-main);">
+          🏦 {{ service.filterBank() }}
+          <button (click)="service.filterBank.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+
+        <span *ngIf="service.filterOwner() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.3); color: var(--text-main);">
+          👤 {{ service.filterOwner() }}
+          <button (click)="service.filterOwner.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+
+        <span *ngIf="service.filterSplitType() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--text-main);">
+          ⚖️ {{ service.filterSplitType() }}
+          <button (click)="service.filterSplitType.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+
+        <span *ngIf="service.filterCategory() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--text-main);">
+          🏷️ {{ service.filterCategory() }}
+          <button (click)="service.filterCategory.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+
+        <span *ngIf="service.filterStatus() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-main);">
+          🎯 {{ service.filterStatus() }}
+          <button (click)="service.filterStatus.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+      </div>
     </div>
 
     <!-- Month Highlight Banner: Income Allocated From Prior Month Statement -->
@@ -617,13 +673,27 @@
       <table>
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Bank / Account</th>
-            <th>Paid By / Owner</th>
-            <th>Description</th>
-            <th>Category</th>
-            <th style="text-align: right;">Amount</th>
-            <th style="text-align: center;">Split Allocation</th>
+            <th class="sortable-th" [class.sorted]="service.sortColumn() === 'date'" (click)="service.toggleSort('date')" title="Click to sort by Date">
+              Date <span class="sort-icon">{{ service.sortColumn() === 'date' ? (service.sortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable-th" [class.sorted]="service.sortColumn() === 'bank'" (click)="service.toggleSort('bank')" title="Click to sort by Bank">
+              Bank / Account <span class="sort-icon">{{ service.sortColumn() === 'bank' ? (service.sortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable-th" [class.sorted]="service.sortColumn() === 'paidBy'" (click)="service.toggleSort('paidBy')" title="Click to sort by Paid By">
+              Paid By / Owner <span class="sort-icon">{{ service.sortColumn() === 'paidBy' ? (service.sortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable-th" [class.sorted]="service.sortColumn() === 'description'" (click)="service.toggleSort('description')" title="Click to sort by Description">
+              Description <span class="sort-icon">{{ service.sortColumn() === 'description' ? (service.sortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable-th" [class.sorted]="service.sortColumn() === 'category'" (click)="service.toggleSort('category')" title="Click to sort by Category">
+              Category <span class="sort-icon">{{ service.sortColumn() === 'category' ? (service.sortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable-th" [class.sorted]="service.sortColumn() === 'amount'" (click)="service.toggleSort('amount')" style="text-align: right;" title="Click to sort by Amount">
+              Amount <span class="sort-icon">{{ service.sortColumn() === 'amount' ? (service.sortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable-th" [class.sorted]="service.sortColumn() === 'split'" (click)="service.toggleSort('split')" style="text-align: center;" title="Click to sort by Split Allocation">
+              Split Allocation <span class="sort-icon">{{ service.sortColumn() === 'split' ? (service.sortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
             <th>Note</th>
             <th style="text-align: center;">Actions</th>
           </tr>
@@ -792,6 +862,44 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- All-Time Load More / Historical Expansion Banner -->
+    <div
+      *ngIf="service.dateFilterMode() === 'ALL' && service.hasMoreAllTimeHistory()"
+      class="glass-card animate-fade-in all-time-load-more-card"
+      style="margin-top: 0.75rem; padding: 0.8rem 1.1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; border: 1px solid rgba(0, 229, 255, 0.25); background: rgba(0, 229, 255, 0.04); border-radius: 8px;">
+      <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <span style="font-size: 1.25rem;">⏱️</span>
+        <div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);">
+            Showing past {{ service.allTimeYearsToShow() }} year{{ service.allTimeYearsToShow() > 1 ? 's' : '' }} ({{ service.filteredTransactions().length }} of {{ service.allTimeMatchingCount() }} transactions)
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;">
+            Earlier transactions are collapsed to keep browsing fast and responsive.
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 0.45rem; align-items: center;">
+        <button class="btn btn-secondary btn-xs" (click)="service.loadMoreAllTimeYears(1)" style="font-size: 0.75rem; padding: 0.25rem 0.65rem;">
+          ➕ Load +1 Year More
+        </button>
+        <button class="btn btn-primary btn-xs" (click)="service.expandAllTimeFull()" style="font-size: 0.75rem; padding: 0.25rem 0.7rem;">
+          📜 Show All History ({{ service.allTimeMatchingCount() - service.filteredTransactions().length }} more)
+        </button>
+      </div>
+    </div>
+
+    <div
+      *ngIf="service.dateFilterMode() === 'ALL' && service.showAllTimeFull()"
+      class="glass-card animate-fade-in"
+      style="margin-top: 0.75rem; padding: 0.6rem 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); border-radius: 8px;">
+      <div style="font-size: 0.78rem; color: var(--text-muted);">
+        📜 Showing all {{ service.filteredTransactions().length }} historical transactions across all time.
+      </div>
+      <button class="btn btn-secondary btn-xs" (click)="service.resetAllTimeToInitial()" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
+        ⏱️ Show Past 1 Year Only
+      </button>
     </div>
   </div>
 </div>
