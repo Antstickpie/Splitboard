@@ -181,6 +181,21 @@
           style="font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); color: #f87171; display: flex; align-items: center; gap: 0.35rem;">
           <span>🗑</span> Discard Draft
         </button>
+        <input
+          #rehydrateFileInput
+          type="file"
+          (change)="onRehydrateFileSelected($event)"
+          accept=".pdf,.csv,.tsv,.xlsx,.xls,.txt"
+          style="display: none;">
+        <button
+          *ngIf="editingBatchFileName()"
+          type="button"
+          class="btn btn-secondary btn-sm"
+          (click)="rehydrateFileInput.click()"
+          title="Pick the original statement CSV/PDF to restore all original excluded rules, duplicates, and raw rows while preserving all your category/split edits"
+          style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08); color: #38bdf8; display: flex; align-items: center; gap: 0.35rem; font-weight: 600;">
+          <span>📁</span> Re-hydrate with File
+        </button>
         <button class="btn btn-secondary btn-sm" (click)="onCancelPreview()">Cancel</button>
         <button
           class="btn btn-sm"

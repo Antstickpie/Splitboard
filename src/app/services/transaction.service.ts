@@ -12,7 +12,8 @@ import {
   CategoryRule,
   ExcludeRule,
   ImportDraft,
-  EveryDollarPeriodCurrencyRule
+  EveryDollarPeriodCurrencyRule,
+  StatementBatchSnapshot
 } from '../models';
 import { DEFAULT_PERSONS, DEFAULT_BANKS, DEFAULT_CATEGORY_GROUPS, DEFAULT_RULES } from '../constants/default-data';
 import { StorageService } from './storage.service';
@@ -148,8 +149,31 @@ export class TransactionService {
   public excludeRules = signal<ExcludeRule[]>(DEFAULT_EXCLUDE_RULES);
   public deletedSignatures = signal<string[]>([]);
   public deletedTransactions = signal<Transaction[]>([]);
+  public statementSnapshots = signal<StatementBatchSnapshot[]>([]);
   public batchToEdit = signal<string | null>(null);
   public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
+
+  public saveStatementSnapshot(snapshot: StatementBatchSnapshot): void {
+    if (!snapshot || !snapshot.fileName) return;
+    this.statementSnapshots.update((list) => {
+      const idx = list.findIndex((s) => s.fileName === snapshot.fileName);
+      if (idx >= 0) {
+        const next = [...list];
+        next[idx] = snapshot;
+        return next;
+      }
+      return [...list, snapshot];
+    });
+  }
+
+  public deleteStatementSnapshot(fileName: string): void {
+    if (!fileName) return;
+    this.statementSnapshots.update((list) => list.filter((s) => s.fileName !== fileName));
+  }
+
+  public getStatementSnapshot(fileName: string): StatementBatchSnapshot | undefined {
+    return this.statementSnapshots().find((s) => s.fileName === fileName);
+  }
 
   // Statement Import Draft Signal
   private readonly DRAFT_STORAGE_KEY = 'splitboard_import_draft';
@@ -960,6 +984,7 @@ export class TransactionService {
       excludeRules: this.excludeRules(),
       deletedSignatures: this.deletedSignatures(),
       deletedTransactions: this.deletedTransactions(),
+      statementSnapshots: this.statementSnapshots(),
       settings: {
         currency: this.currency(),
         dateFormat: this.dateFormat(),
@@ -1058,6 +1083,9 @@ export class TransactionService {
     }
     if (data.deletedTransactions !== undefined) {
       this.deletedTransactions.set(data.deletedTransactions);
+    }
+    if (data.statementSnapshots !== undefined) {
+      this.statementSnapshots.set(data.statementSnapshots);
     }
     if (data.settings) {
       if (data.settings.currency) this.currency.set(data.settings.currency);
@@ -1355,6 +1383,7 @@ export class TransactionService {
     if (ok) {
       const before = this.transactions().length;
       this.transactions.update((curr) => curr.filter((t) => t.sourceFile !== fileName));
+      this.deleteStatementSnapshot(fileName);
       const deleted = before - this.transactions().length;
       this.showToast(`Undid import: removed ${deleted} transactions`, 'info');
     }

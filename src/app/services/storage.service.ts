@@ -152,6 +152,7 @@ export class StorageService {
             excludeRules: metaMap.get('excludeRules') || [],
             deletedSignatures: metaMap.get('deletedSignatures') || [],
             deletedTransactions: metaMap.get('deletedTransactions') || [],
+            statementSnapshots: metaMap.get('statementSnapshots') || [],
             settings: metaMap.get('settings') || {}
           };
 
@@ -226,6 +227,7 @@ export class StorageService {
           { key: 'excludeRules', value: data.excludeRules || [] },
           { key: 'deletedSignatures', value: data.deletedSignatures || [] },
           { key: 'deletedTransactions', value: data.deletedTransactions || [] },
+          { key: 'statementSnapshots', value: data.statementSnapshots || [] },
           { key: 'settings', value: data.settings || {} }
         ];
 

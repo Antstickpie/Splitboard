@@ -140,6 +140,7 @@ export interface AppDataBackup {
   };
   deletedSignatures?: string[];
   deletedTransactions?: Transaction[];
+  statementSnapshots?: StatementBatchSnapshot[];
 }
 
 export interface EveryDollarPeriodCurrencyRule {
@@ -172,5 +173,17 @@ export interface ImportDraft {
   owner: string;
   previewResult: ParsedStatementResult;
   hasPdf?: boolean;
+}
+
+export interface StatementBatchSnapshot {
+  fileName: string;
+  importedAt: string;
+  bankName: string;
+  owner?: string;
+  transactions: Transaction[];
+  incomes: Transaction[];
+  duplicates: Transaction[];
+  excluded: Transaction[];
+  deleted: Transaction[];
 }
 

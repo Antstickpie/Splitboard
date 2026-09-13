@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService, ImportedBatch, RuleTxDiffItem } from '../../services/transaction.service';
 import { StatementParserService, ParsedStatementResult } from '../../services/statement-parser.service';
-import { Transaction, SplitType, ImportDraft, CategoryRule } from '../../models';
+import { Transaction, SplitType, ImportDraft, CategoryRule, StatementBatchSnapshot } from '../../models';
 import { CategorySelectComponent } from '../category-select/category-select';
 
 export interface TransactionGroup {
@@ -3717,6 +3717,22 @@ export class ImportComponent {
     const allToAdd = [...toAdd, ...toAddIncomes];
 
     const editBatch = this.editingBatchFileName();
+    const batchFileName = editBatch || this.uploadedFileName() || res.bankName || 'Imported Statement';
+
+    // Persist full statement batch snapshot (transactions, incomes, duplicates, excluded, deleted)
+    const snapshot: StatementBatchSnapshot = {
+      fileName: batchFileName,
+      importedAt: new Date().toISOString(),
+      bankName: res.bankName || this.selectedBank() || 'Generic Bank',
+      owner: this.selectedOwner() || '',
+      transactions: [...toAdd],
+      incomes: [...toAddIncomes],
+      duplicates: [...(res.duplicates || [])],
+      excluded: [...(res.excluded || [])],
+      deleted: [...(res.deleted || [])],
+    };
+    this.service.saveStatementSnapshot(snapshot);
+
     if (editBatch) {
       this.service.transactions.update((curr) => [
         ...allToAdd,
@@ -3744,21 +3760,30 @@ export class ImportComponent {
 
   public async undoAndReopenBatch(fileName: string): Promise<void> {
     const batchTxns = this.service.transactions().filter((t) => t.sourceFile === fileName);
-    if (batchTxns.length === 0) {
+    const snapshot = this.service.getStatementSnapshot(fileName);
+
+    if (batchTxns.length === 0 && !snapshot) {
       this.service.showToast(`No transactions found for statement "${fileName}".`, 'info');
       return;
     }
 
     this.editingBatchFileName.set(fileName);
 
-    // Clone transactions back into previewResult with all configured categories & splits intact
-    const cloned = batchTxns.map((t) => ({ ...t }));
-    const bankName = cloned[0]?.bank || 'Generic Bank';
-    const payerName = cloned[0]?.paidBy || '';
+    // Prefer active ledger transactions (which reflect any user edits/splits/categories)
+    const sourceTxns = batchTxns.length > 0 ? batchTxns : (snapshot?.transactions || []);
+    const cloned = sourceTxns.map((t) => ({ ...t }));
+    const bankName = cloned[0]?.bank || snapshot?.bankName || 'Generic Bank';
+    const payerName = cloned[0]?.paidBy || snapshot?.owner || '';
 
-    // Separate expenses and incomes
+    // Separate expenses and incomes from active batch
     const expenses = cloned.filter((t) => t.type !== 'INCOME');
     const incomes = cloned.filter((t) => t.type === 'INCOME');
+
+    // Combine with any extra incomes preserved in snapshot
+    const snapshotIncomes = (snapshot?.incomes || []).filter(
+      (si) => !incomes.some((i) => i.id === si.id || this.service.getTransactionSignature(i) === this.service.getTransactionSignature(si))
+    );
+    const allIncomes = [...incomes, ...snapshotIncomes];
 
     // Determine date range of this statement
     const dates = cloned.map((t) => t.date || '').filter(Boolean).sort();
@@ -3766,9 +3791,23 @@ export class ImportComponent {
     const maxDate = dates[dates.length - 1] || '';
 
     // Find previously deleted transactions associated with this statement batch
-    const deletedForBatch = this.service.deletedTransactions().filter(
-      (t) => t.sourceFile === fileName || (bankName && t.bank === bankName && minDate && maxDate && t.date >= minDate && t.date <= maxDate)
-    );
+    const deletedForBatch = [
+      ...(snapshot?.deleted || []),
+      ...this.service.deletedTransactions().filter(
+        (t) => t.sourceFile === fileName || (bankName && t.bank === bankName && minDate && maxDate && t.date >= minDate && t.date <= maxDate)
+      )
+    ];
+    const uniqueDeletedMap = new Map<string, Transaction>();
+    for (const d of deletedForBatch) {
+      const sig = d.id || this.service.getTransactionSignature(d);
+      if (!uniqueDeletedMap.has(sig)) {
+        uniqueDeletedMap.set(sig, d);
+      }
+    }
+    const finalDeleted = Array.from(uniqueDeletedMap.values());
+
+    const finalDuplicates = snapshot?.duplicates ? snapshot.duplicates.map((t) => ({ ...t })) : [];
+    const finalExcluded = snapshot?.excluded ? snapshot.excluded.map((t) => ({ ...t })) : [];
 
     this.uploadedFileName.set(fileName);
     this.selectedBank.set(bankName);
@@ -3780,16 +3819,16 @@ export class ImportComponent {
     this.isGroupByDescription.set(true);
     this.previewResult.set({
       transactions: expenses,
-      incomes: incomes,
-      duplicates: [],
-      excluded: [],
-      deleted: deletedForBatch.map((t) => ({ ...t })),
-      incomesCount: incomes.length,
-      duplicatesCount: 0,
-      excludedCount: 0,
-      deletedCount: deletedForBatch.length,
+      incomes: allIncomes,
+      duplicates: finalDuplicates,
+      excluded: finalExcluded,
+      deleted: finalDeleted,
+      incomesCount: allIncomes.length,
+      duplicatesCount: finalDuplicates.length,
+      excludedCount: finalExcluded.length,
+      deletedCount: finalDeleted.length,
       bankName: bankName,
-      totalParsed: cloned.length + deletedForBatch.length
+      totalParsed: cloned.length + allIncomes.length + finalDuplicates.length + finalExcluded.length + finalDeleted.length
     });
 
     this.previewTab.set('valid');
@@ -3797,8 +3836,120 @@ export class ImportComponent {
 
     this.scrollToPreviewOrImport();
 
-    const delMsg = deletedForBatch.length > 0 ? ` (${deletedForBatch.length} previously deleted in 🗑️ tab)` : '';
-    this.service.showToast(`Loaded statement "${fileName}" with all selections intact.${delMsg}`, 'info');
+    const parts: string[] = [];
+    if (finalExcluded.length > 0) parts.push(`${finalExcluded.length} excluded`);
+    if (finalDuplicates.length > 0) parts.push(`${finalDuplicates.length} duplicates`);
+    if (finalDeleted.length > 0) parts.push(`${finalDeleted.length} previously deleted`);
+    const extraMsg = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+    this.service.showToast(`Loaded statement "${fileName}" with all original state restored${extraMsg}.`, 'info');
+  }
+
+  public async onRehydrateFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    await this.rehydrateBatchFromFile(file);
+    input.value = '';
+  }
+
+  public async rehydrateBatchFromFile(file: File): Promise<void> {
+    const batchFileName = this.editingBatchFileName();
+    if (!batchFileName) return;
+
+    this.isParsing.set(true);
+    try {
+      const bankName = this.selectedBank() || 'Generic Bank';
+      const owner = this.selectedOwner() || this.service.personOne().name;
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+
+      if (isPdf) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          this.pdfArrayBuffer = arrayBuffer;
+          await this.renderPdfDoc(arrayBuffer);
+        } catch (err) {
+          console.warn('PDF pre-render notice:', err);
+        }
+      }
+
+      const parsed = await this.parser.parseFile(file, bankName, owner);
+      parsed.bankName = bankName;
+
+      // Build a lookup of existing user edits from active ledger and current preview
+      const existingTxs = this.service.transactions().filter((t) => t.sourceFile === batchFileName);
+      const currentPreviewTxs = this.previewResult()?.transactions || [];
+      const userEditsMap = new Map<string, Transaction>();
+
+      for (const t of [...existingTxs, ...currentPreviewTxs]) {
+        const sig = this.service.getTransactionSignature(t);
+        userEditsMap.set(sig, t);
+        if (t.id) userEditsMap.set(t.id, t);
+      }
+
+      // Merge user edits into parsed transactions and duplicates
+      const applyUserEdits = (t: Transaction): Transaction => {
+        const sig = this.service.getTransactionSignature(t);
+        const match = userEditsMap.get(sig) || (t.id ? userEditsMap.get(t.id) : undefined);
+        if (match) {
+          return {
+            ...t,
+            id: match.id || t.id,
+            categoryGroup: match.categoryGroup || t.categoryGroup,
+            categoryItem: match.categoryItem || t.categoryItem,
+            splitType: match.splitType || t.splitType,
+            splitMode: match.splitMode || t.splitMode,
+            splitPercentage: match.splitPercentage !== undefined ? match.splitPercentage : t.splitPercentage,
+            paidBy: match.paidBy || t.paidBy,
+            customSplitAmounts: match.customSplitAmounts ? { ...match.customSplitAmounts } : t.customSplitAmounts,
+            note: match.note !== undefined ? match.note : t.note,
+            sourceFile: batchFileName,
+            isDone: true
+          };
+        }
+        return { ...t, sourceFile: batchFileName };
+      };
+
+      const mergedTransactions = parsed.transactions.map(applyUserEdits);
+
+      // Check if any items in duplicates actually belong to this batch being edited
+      const realDuplicates: Transaction[] = [];
+      for (const d of parsed.duplicates) {
+        const sig = this.service.getTransactionSignature(d);
+        const match = userEditsMap.get(sig);
+        if (match) {
+          mergedTransactions.push(applyUserEdits(d));
+        } else {
+          realDuplicates.push(d);
+        }
+      }
+
+      const mergedIncomes = parsed.incomes.map(applyUserEdits);
+
+      const rehydratedResult: ParsedStatementResult = {
+        transactions: mergedTransactions,
+        incomes: mergedIncomes,
+        duplicates: realDuplicates,
+        excluded: parsed.excluded.map((t) => ({ ...t, sourceFile: batchFileName })),
+        deleted: parsed.deleted.map((t) => ({ ...t, sourceFile: batchFileName })),
+        incomesCount: mergedIncomes.length,
+        duplicatesCount: realDuplicates.length,
+        excludedCount: parsed.excluded.length,
+        deletedCount: parsed.deleted.length,
+        bankName: bankName,
+        totalParsed: mergedTransactions.length + mergedIncomes.length + realDuplicates.length + parsed.excluded.length + parsed.deleted.length
+      };
+
+      this.previewResult.set(rehydratedResult);
+      this.service.showToast(
+        `Re-hydrated "${batchFileName}" with original file: ${parsed.excluded.length} excluded and ${realDuplicates.length} duplicates restored!`,
+        'success'
+      );
+    } catch (err: any) {
+      console.error('Failed to rehydrate statement from file:', err);
+      this.service.showToast('Failed to parse statement file: ' + (err?.message || err), 'error');
+    } finally {
+      this.isParsing.set(false);
+    }
   }
 
   public viewingBatch = signal<ImportedBatch | null>(null);
