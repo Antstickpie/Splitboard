@@ -1058,6 +1058,14 @@ export class ImportComponent {
     }
   }
 
+  @Input() set batchToEdit(fileName: string | null | undefined) {
+    if (fileName) {
+      this.undoAndReopenBatch(fileName);
+    }
+  }
+
+  public editingBatchFileName = signal<string | null>(null);
+
   public async saveDraft(): Promise<void> {
     const res = this.previewResult();
     if (!res) return;
@@ -3705,8 +3713,22 @@ export class ImportComponent {
     }
 
     const toAdd = res.transactions.map(({ includedFrom, ...rest }) => rest);
-    this.service.addTransactions(toAdd);
-    this.service.showToast(`Successfully imported ${res.transactions.length} transactions!`, 'success');
+    const toAddIncomes = (res.incomes || []).map(({ includedFrom, ...rest }) => rest);
+    const allToAdd = [...toAdd, ...toAddIncomes];
+
+    const editBatch = this.editingBatchFileName();
+    if (editBatch) {
+      this.service.transactions.update((curr) => [
+        ...allToAdd,
+        ...curr.filter((t) => t.sourceFile !== editBatch)
+      ]);
+      this.service.showToast(`Successfully updated statement "${editBatch}" (${allToAdd.length} transactions)!`, 'success');
+      this.editingBatchFileName.set(null);
+      this.service.batchToEdit.set(null);
+    } else {
+      this.service.addTransactions(allToAdd);
+      this.service.showToast(`Successfully imported ${res.transactions.length} transactions!`, 'success');
+    }
 
     if (res.duplicatesCount > 0 || res.excludedCount > 0) {
       let msg = `Imported ${res.transactions.length} new transactions.`;
@@ -3722,40 +3744,52 @@ export class ImportComponent {
 
   public async undoAndReopenBatch(fileName: string): Promise<void> {
     const batchTxns = this.service.transactions().filter((t) => t.sourceFile === fileName);
-    if (batchTxns.length === 0) return;
+    if (batchTxns.length === 0) {
+      this.service.showToast(`No transactions found for statement "${fileName}".`, 'info');
+      return;
+    }
 
-    const ok = await this.service.showConfirm(
-      'Re-open Statement for Editing',
-      `Re-open ${batchTxns.length} transactions from "${fileName}" into the preview table with all your configured categories and splits?\n\nThey will be staged in the editor so you can review, edit, and click "Import" to save again.`
-    );
-    if (!ok) return;
+    this.editingBatchFileName.set(fileName);
 
-    // 1. Temporarily remove from DB ledger so they are ready to be re-saved without duplicating
-    this.service.transactions.update((curr) => curr.filter((t) => t.sourceFile !== fileName));
-
-    // 2. Clone transactions back into previewResult with all configured categories & splits intact
+    // Clone transactions back into previewResult with all configured categories & splits intact
     const cloned = batchTxns.map((t) => ({ ...t }));
     const bankName = cloned[0]?.bank || 'Generic Bank';
+    const payerName = cloned[0]?.paidBy || '';
+
+    // Separate expenses and incomes
+    const expenses = cloned.filter((t) => t.type !== 'INCOME');
+    const incomes = cloned.filter((t) => t.type === 'INCOME');
+
+    // Determine date range of this statement
+    const dates = cloned.map((t) => t.date || '').filter(Boolean).sort();
+    const minDate = dates[0] || '';
+    const maxDate = dates[dates.length - 1] || '';
+
+    // Find previously deleted transactions associated with this statement batch
+    const deletedForBatch = this.service.deletedTransactions().filter(
+      (t) => t.sourceFile === fileName || (bankName && t.bank === bankName && minDate && maxDate && t.date >= minDate && t.date <= maxDate)
+    );
 
     this.uploadedFileName.set(fileName);
     this.selectedBank.set(bankName);
+    if (payerName) this.selectedOwner.set(payerName);
     this.isPdfLoaded.set(false);
     this.pdfDocInstance = null;
     this.pdfArrayBuffer = null;
     this.pdfPagesList.set([]);
     this.isGroupByDescription.set(true);
     this.previewResult.set({
-      transactions: cloned,
-      incomes: [],
+      transactions: expenses,
+      incomes: incomes,
       duplicates: [],
       excluded: [],
-      deleted: [],
-      incomesCount: 0,
+      deleted: deletedForBatch.map((t) => ({ ...t })),
+      incomesCount: incomes.length,
       duplicatesCount: 0,
       excludedCount: 0,
-      deletedCount: 0,
+      deletedCount: deletedForBatch.length,
       bankName: bankName,
-      totalParsed: cloned.length
+      totalParsed: cloned.length + deletedForBatch.length
     });
 
     this.previewTab.set('valid');
@@ -3763,7 +3797,8 @@ export class ImportComponent {
 
     this.scrollToPreviewOrImport();
 
-    this.service.showToast(`Loaded ${cloned.length} transactions into editor. Edit and click "Import" to save!`, 'info');
+    const delMsg = deletedForBatch.length > 0 ? ` (${deletedForBatch.length} previously deleted in 🗑️ tab)` : '';
+    this.service.showToast(`Loaded statement "${fileName}" with all selections intact.${delMsg}`, 'info');
   }
 
   public viewingBatch = signal<ImportedBatch | null>(null);
@@ -3801,6 +3836,8 @@ export class ImportComponent {
     this.pdfArrayBuffer = null;
     this.pdfPagesList.set([]);
     this.isGroupByDescription.set(false);
+    this.editingBatchFileName.set(null);
+    this.service.batchToEdit.set(null);
     this.importCompleted.emit();
   }
 }

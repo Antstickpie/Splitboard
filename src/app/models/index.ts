@@ -139,6 +139,7 @@ export interface AppDataBackup {
     theme: 'dark' | 'light';
   };
   deletedSignatures?: string[];
+  deletedTransactions?: Transaction[];
 }
 
 export interface EveryDollarPeriodCurrencyRule {

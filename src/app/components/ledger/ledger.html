@@ -175,6 +175,13 @@
                 <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
                   <button
                     class="btn btn-secondary btn-xs"
+                    (click)="editStatementBatch(b.fileName)"
+                    style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.08);"
+                    title="Edit categories, splits, and restore deleted transactions">
+                    ✏️ Edit
+                  </button>
+                  <button
+                    class="btn btn-secondary btn-xs"
                     (click)="openBatchModal(b)"
                     style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
                     👁️ View Transactions
@@ -196,7 +203,7 @@
 
   <!-- Inline Statement Importer in Same Window -->
   <div *ngIf="isImportOpen()" id="inline-import-section" class="animate-fade-in" style="position: relative; z-index: 100000;">
-    <app-import [initialFile]="pendingImportFile()" [autoResumeDraft]="isResumingDraft()" (importCompleted)="closeImport()"></app-import>
+    <app-import [initialFile]="pendingImportFile()" [autoResumeDraft]="isResumingDraft()" [batchToEdit]="service.batchToEdit()" (importCompleted)="closeImport()"></app-import>
   </div>
 
   <!-- Transactions Table Card with Integrated Header Controls -->
@@ -1344,6 +1351,13 @@
                 <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
                   <button
                     class="btn btn-secondary btn-xs"
+                    (click)="editStatementBatch(b.fileName)"
+                    style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.08);"
+                    title="Edit categories, splits, and restore deleted transactions">
+                    ✏️ Edit
+                  </button>
+                  <button
+                    class="btn btn-secondary btn-xs"
                     (click)="openBatchModal(b)"
                     style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
                     👁️ View Transactions
@@ -1461,7 +1475,10 @@
       <button class="btn btn-secondary btn-sm" (click)="deleteBatchFromModal(batch.fileName)" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
         🗑️ Delete Statement Batch
       </button>
-      <div style="display: flex; gap: 0.5rem;">
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn btn-secondary btn-sm" (click)="editStatementBatch(batch.fileName)" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.08);">
+          ✏️ Edit Statement
+        </button>
         <button class="btn btn-secondary btn-sm" (click)="closeBatchModal()">Close</button>
       </div>
     </div>

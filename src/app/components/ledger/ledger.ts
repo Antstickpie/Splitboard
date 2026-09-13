@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, HostListener, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, HostListener, ElementRef, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService, ImportedBatch } from '../../services/transaction.service';
@@ -26,6 +26,12 @@ export class LedgerComponent {
   public expandedPeriods = signal<Set<string>>(new Set());
   public expandedOwners = signal<Set<string>>(new Set());
   public viewingBatch = signal<ImportedBatch | null>(null);
+  public editStatementBatch(fileName: string): void {
+    this.closeBatchModal();
+    this.service.batchToEdit.set(fileName);
+    this.isImportOpen.set(true);
+    this.scrollToImportSection();
+  }
 
   public toggleBatchesCollapsed(): void {
     const next = !this.isBatchesCollapsed();
@@ -167,6 +173,7 @@ export class LedgerComponent {
     this.isImportOpen.set(false);
     this.pendingImportFile.set(null);
     this.isResumingDraft.set(false);
+    this.service.batchToEdit.set(null);
   }
 
   public discardDraftFromLedger(event: MouseEvent): void {
@@ -341,6 +348,13 @@ export class LedgerComponent {
     this.cashPaidBy = this.service.personOne().name;
     this.cashTransferTo = this.service.personTwo().name;
     this.cashCurrency = this.service.currency();
+    effect(() => {
+      const batch = this.service.batchToEdit();
+      if (batch) {
+        this.isImportOpen.set(true);
+        this.scrollToImportSection();
+      }
+    });
   }
 
   public getOtherPersonName(paidBy?: string): string {

@@ -1126,6 +1126,14 @@
                       ✏️ Edit
                     </button>
                     <button
+                      *ngIf="!b.fileName.startsWith('EveryDollar')"
+                      class="btn btn-secondary btn-xs"
+                      (click)="service.requestEditBatch(b.fileName)"
+                      style="font-size: 0.74rem; padding: 0.22rem 0.6rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.08);"
+                      title="Edit categories, splits, and restore deleted transactions">
+                      ✏️ Edit
+                    </button>
+                    <button
                       class="btn btn-secondary btn-xs"
                       (click)="openBatchModal(b)"
                       style="font-size: 0.74rem; padding: 0.22rem 0.6rem;">
@@ -2820,6 +2828,12 @@
             class="btn btn-primary btn-sm"
             (click)="closeBatchModal(); editEveryDollarBatch(batch.fileName)">
             ✏️ Edit Owners & Categories
+          </button>
+          <button
+            *ngIf="!batch.fileName.startsWith('EveryDollar')"
+            class="btn btn-primary btn-sm"
+            (click)="closeBatchModal(); service.requestEditBatch(batch.fileName)">
+            ✏️ Edit Statement
           </button>
           <button class="btn btn-secondary btn-sm" (click)="closeBatchModal()">Close</button>
         </div>

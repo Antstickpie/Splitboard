@@ -147,6 +147,8 @@ export class TransactionService {
   public rules = signal<CategoryRule[]>(DEFAULT_RULES);
   public excludeRules = signal<ExcludeRule[]>(DEFAULT_EXCLUDE_RULES);
   public deletedSignatures = signal<string[]>([]);
+  public deletedTransactions = signal<Transaction[]>([]);
+  public batchToEdit = signal<string | null>(null);
   public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
 
   // Statement Import Draft Signal
@@ -155,6 +157,14 @@ export class TransactionService {
 
   public switchTab(tab: 'dashboard' | 'ledger' | 'import' | 'settings'): void {
     this.activeTab.set(tab);
+  }
+
+  public requestEditBatch(fileName: string): void {
+    if (!fileName) return;
+    this.batchToEdit.set(fileName);
+    if (this.activeTab() !== 'ledger') {
+      this.switchTab('ledger');
+    }
   }
 
   // Settings Signals
@@ -949,6 +959,7 @@ export class TransactionService {
       rules: this.rules(),
       excludeRules: this.excludeRules(),
       deletedSignatures: this.deletedSignatures(),
+      deletedTransactions: this.deletedTransactions(),
       settings: {
         currency: this.currency(),
         dateFormat: this.dateFormat(),
@@ -1044,6 +1055,9 @@ export class TransactionService {
     }
     if (data.deletedSignatures !== undefined) {
       this.deletedSignatures.set(data.deletedSignatures);
+    }
+    if (data.deletedTransactions !== undefined) {
+      this.deletedTransactions.set(data.deletedTransactions);
     }
     if (data.settings) {
       if (data.settings.currency) this.currency.set(data.settings.currency);
@@ -1597,6 +1611,13 @@ export class TransactionService {
   }
 
   public addTransactions(newTxs: Transaction[]): void {
+    if (!newTxs || newTxs.length === 0) return;
+    const newSigs = new Set(newTxs.map((t) => this.getTransactionSignature(t)));
+    const newIds = new Set(newTxs.map((t) => t.id));
+    this.deletedTransactions.update((curr) =>
+      curr.filter((t) => !newIds.has(t.id) && !newSigs.has(this.getTransactionSignature(t)))
+    );
+    this.deletedSignatures.update((curr) => curr.filter((s) => !newSigs.has(s)));
     this.transactions.update((curr) => [...newTxs, ...curr]);
     this.triggerAutoSyncIfEnabled();
   }
@@ -1684,6 +1705,10 @@ export class TransactionService {
     if (!tx) return;
     const sig = this.getTransactionSignature(tx);
     this.recordDeletedSignature(sig);
+    this.deletedTransactions.update((curr) => {
+      if (curr.some((t) => t.id === tx.id || this.getTransactionSignature(t) === sig)) return curr;
+      return [...curr, tx];
+    });
   }
 
   // EveryDollar Data Parsing & Import
@@ -1912,6 +1937,11 @@ export class TransactionService {
       sigs.forEach((s) => set.add(s));
       return Array.from(set);
     });
+    this.deletedTransactions.update((curr) => {
+      const set = new Set(curr.map((t) => this.getTransactionSignature(t)));
+      const toAdd = txs.filter((t) => !set.has(this.getTransactionSignature(t)));
+      return [...curr, ...toAdd];
+    });
   }
 
   private normalizeDateHelper(str: string): string | null {
@@ -2000,6 +2030,14 @@ export class TransactionService {
       curr.filter((s) => {
         if (s === sig) return false;
         if (tx && this.matchesDeletedSignature(s, tx)) return false;
+        return true;
+      })
+    );
+    this.deletedTransactions.update((curr) =>
+      curr.filter((t) => {
+        if (this.getTransactionSignature(t) === sig) return false;
+        if (tx && t.id === tx.id) return false;
+        if (tx && this.matchesDeletedSignature(sig, t)) return false;
         return true;
       })
     );
@@ -2741,6 +2779,7 @@ export class TransactionService {
         rules: this.rules(),
         excludeRules: this.excludeRules(),
         deletedSignatures: this.deletedSignatures(),
+        deletedTransactions: this.deletedTransactions(),
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
@@ -2852,6 +2891,7 @@ export class TransactionService {
       if (data.rules) this.rules.set(data.rules);
       if (data.excludeRules) this.excludeRules.set(data.excludeRules);
       if (data.deletedSignatures) this.deletedSignatures.set(data.deletedSignatures);
+      if (data.deletedTransactions) this.deletedTransactions.set(data.deletedTransactions);
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);

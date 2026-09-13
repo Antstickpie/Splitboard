@@ -110,7 +110,7 @@
     <div class="preview-header">
       <div>
         <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <h3 style="margin: 0;">Statement Preview ({{ res.transactions.length }} ready to import)</h3>
+          <h3 style="margin: 0;">{{ editingBatchFileName() ? '✏️ Edit Statement: ' + (uploadedFileName() || editingBatchFileName()) : 'Statement Preview (' + res.transactions.length + ' ready to import)' }}</h3>
           <span *ngIf="isPdfLoaded()" class="badge badge-info" style="font-size: 0.72rem; padding: 0.15rem 0.5rem; background: rgba(0, 229, 255, 0.12); color: var(--primary);">
             📄 PDF Inspector
           </span>
@@ -189,7 +189,7 @@
           (click)="commitImport()"
           [disabled]="res.transactions.length === 0 || !selectedBank()"
           [title]="unselectedSplitCount() > 0 ? ('⚠️ Please select a split for ' + unselectedSplitCount() + ' transaction' + (unselectedSplitCount() > 1 ? 's' : '') + ' before importing') : (!selectedBank() ? 'Please select or confirm Bank before importing' : 'Import transactions')">
-          <span *ngIf="unselectedSplitCount() === 0">✓ Confirm & Import {{ res.transactions.length }} Rows</span>
+          <span *ngIf="unselectedSplitCount() === 0">✓ {{ editingBatchFileName() ? 'Save Updated Statement' : 'Confirm & Import' }} ({{ res.transactions.length }} Rows)</span>
           <span *ngIf="unselectedSplitCount() > 0">⚠️ Select Split ({{ unselectedSplitCount() }} left)</span>
         </button>
       </div>
