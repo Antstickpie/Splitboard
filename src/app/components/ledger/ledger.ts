@@ -385,14 +385,15 @@ export class LedgerComponent {
       // Carryover baseline at the start of this month:
       const startP1OwesP2 = cumP1OwesP2;
       const startP2OwesP1 = cumP2OwesP1;
-      const startDiff = startP2OwesP1 - startP1OwesP2;
-      const startNetOwed = parseFloat(Math.abs(startDiff).toFixed(2));
+      const startBalance = startP2OwesP1 - startP1OwesP2;
+      const startDiff = startBalance;
+      const startNetOwed = parseFloat(Math.abs(startBalance).toFixed(2));
       let startDebtor = '';
       let startCreditor = '';
-      if (startDiff > 0.005) {
+      if (startBalance > 0.005) {
         startDebtor = p2;
         startCreditor = p1;
-      } else if (startDiff < -0.005) {
+      } else if (startBalance < -0.005) {
         startDebtor = p1;
         startCreditor = p2;
       }
