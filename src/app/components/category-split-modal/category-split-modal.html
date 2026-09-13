@@ -1,156 +1,135 @@
 <div class="modal-backdrop-overlay animate-fade-in" *ngIf="targetTx" (click)="onCancel()">
-  <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()" style="max-width: 820px; width: 95%;">
+  <div class="modal-content-card glass-card animate-scale-in" (click)="$event.stopPropagation()">
     
     <!-- Modal Header -->
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.9rem; margin-bottom: 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.85rem; margin-bottom: 1rem;">
       <div>
         <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem;">
-          <span>✂️</span> Split Transaction Across Categories
+          <span>✂️</span> Split Transaction into Categories
         </h3>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <span>📅 {{ originalTx()?.date }}</span>
           <span>•</span>
-          <span style="font-weight: 600; color: var(--text-main);">{{ originalTx()?.description }}</span>
+          <strong style="color: var(--text-main);">{{ originalTx()?.description }}</strong>
           <span>•</span>
           <span>Paid by <strong>{{ originalTx()?.paidBy }}</strong></span>
           <span *ngIf="isAlreadySplit()" class="badge badge-warning" style="font-size: 0.68rem;">
-            ✂️ Currently Split ({{ splitLines().length }} parts)
+            ✂️ Split into {{ splitLines().length }} categories
           </span>
         </div>
       </div>
       <button type="button" class="btn btn-icon btn-xs" (click)="onCancel()" style="color: var(--text-muted); font-size: 1.2rem;">✕</button>
     </div>
 
-    <!-- Total & Quick Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.8rem;">
+    <!-- Total Banner & Actions -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.8rem;">
       <div>
-        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Original Total Amount</div>
-        <div style="font-size: 1.4rem; font-weight: 800; color: var(--primary); font-family: monospace;">
+        <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Original Amount</div>
+        <div style="font-size: 1.45rem; font-weight: 800; color: var(--primary); font-family: monospace;">
           {{ service.formatCurrency(totalAmount()) }}
         </div>
       </div>
 
       <div style="display: flex; align-items: center; gap: 0.5rem;">
-        <button type="button" class="btn btn-secondary btn-xs" (click)="splitEvenly()" title="Divide total amount evenly among all lines" style="font-size: 0.76rem; padding: 0.3rem 0.65rem;">
+        <button type="button" class="btn btn-secondary btn-xs" (click)="splitEvenly()" title="Divide total amount equally between categories" style="font-size: 0.76rem; padding: 0.3rem 0.65rem;">
           ⚖️ Split Evenly
         </button>
         <button type="button" class="btn btn-primary btn-xs" (click)="addLine()" style="font-size: 0.76rem; padding: 0.3rem 0.75rem; background: rgba(56, 189, 248, 0.2); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
-          ➕ Add Category Split
+          ➕ Add Category
         </button>
       </div>
     </div>
 
-    <!-- Split Lines List -->
-    <div class="split-lines-container" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 52vh; overflow-y: auto; padding-right: 0.25rem;">
-      <div
-        *ngFor="let line of splitLines(); let idx = index"
-        class="split-line-card"
-        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.65rem; position: relative;">
-        
-        <!-- Line Top Row: Part Badge, Amount, Category, Split Type, Delete -->
-        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-          <span class="line-index-badge" style="background: rgba(255,255,255,0.08); color: var(--text-muted); font-size: 0.72rem; font-weight: 700; border-radius: 4px; padding: 0.2rem 0.45rem; min-width: 24px; text-align: center;">
-            #{{ idx + 1 }}
-          </span>
+    <!-- Table of Category Splits -->
+    <div class="split-table-container" style="max-height: 50vh; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.2rem;">
+      <table class="split-table">
+        <thead>
+          <tr>
+            <th style="width: 36px; text-align: center;">#</th>
+            <th style="min-width: 250px;">Category</th>
+            <th style="width: 170px;">Amount</th>
+            <th style="min-width: 160px;">Note (Optional)</th>
+            <th style="width: 38px; text-align: center;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let line of splitLines(); let idx = index" class="split-row">
+            <!-- Line Index -->
+            <td style="text-align: center;">
+              <span class="line-badge">#{{ idx + 1 }}</span>
+            </td>
 
-          <!-- Amount Input -->
-          <div style="display: flex; align-items: center; gap: 0.3rem;">
-            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Amount:</label>
-            <div style="position: relative; width: 110px;">
+            <!-- Category Picker -->
+            <td>
+              <app-category-select
+                [value]="line.categoryItem"
+                [group]="line.categoryGroup"
+                placeholder="📁 Choose category..."
+                minWidth="220px"
+                (categoryChange)="onCategoryChanged(idx, $event)">
+              </app-category-select>
+            </td>
+
+            <!-- Amount Input -->
+            <td>
+              <div>
+                <div class="amount-input-wrapper">
+                  <span class="currency-symbol">{{ service.currency() }}</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    [(ngModel)]="line.amount"
+                    class="amount-input"
+                    placeholder="0.00" />
+                </div>
+                <div *ngIf="remainingAmount() > 0.005">
+                  <button
+                    type="button"
+                    class="btn-allocate-chip"
+                    (click)="allocateRemainingTo(idx)"
+                    title="Add remaining balance to this category">
+                    +{{ service.formatCurrency(remainingAmount()) }}
+                  </button>
+                </div>
+              </div>
+            </td>
+
+            <!-- Line Note -->
+            <td>
               <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                [(ngModel)]="line.amount"
-                class="styled-input font-mono"
-                style="width: 100%; box-sizing: border-box; font-weight: 700; padding: 0.25rem 0.4rem; font-size: 0.88rem; text-align: right; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: var(--text-main);" />
-            </div>
-            <button
-              *ngIf="remainingAmount() > 0.005"
-              type="button"
-              class="btn btn-secondary btn-xs"
-              (click)="allocateRemainingTo(idx)"
-              title="Add remaining balance to this item"
-              style="font-size: 0.68rem; padding: 0.15rem 0.35rem; white-space: nowrap; color: #fbbf24; border-color: rgba(251, 191, 36, 0.4);">
-              +{{ service.formatCurrency(remainingAmount()) }}
-            </button>
-          </div>
+                type="text"
+                [(ngModel)]="line.note"
+                placeholder="Optional memo/note..."
+                class="note-input" />
+            </td>
 
-          <!-- Category Selector -->
-          <div style="flex: 1; min-width: 200px;">
-            <app-category-select
-              [value]="line.categoryItem"
-              [group]="line.categoryGroup"
-              [minWidth]="'180px'"
-              (categoryChange)="onCategoryChanged(idx, $event)">
-            </app-category-select>
-          </div>
-
-          <!-- Split Allocation for this Item -->
-          <div style="display: flex; gap: 0.2rem; align-items: center;">
-            <button
-              type="button"
-              class="split-btn split-btn-50"
-              [class.active]="line.splitType === 'SPLIT' && (line.splitPercentage === 50 || line.splitPercentage === undefined)"
-              (click)="setLineSplitOption(idx, 'SPLIT_5050')"
-              title="Split 50/50"
-              style="font-size: 0.7rem; padding: 0.2rem 0.45rem; height: 26px;">
-              50/50
-            </button>
-            <button
-              type="button"
-              class="split-btn split-btn-p1"
-              [class.active]="line.splitType === 'SELF'"
-              (click)="setLineSplitOption(idx, 'P1')"
-              [title]="'100% ' + service.personOne().name"
-              style="font-size: 0.7rem; padding: 0.2rem 0.45rem; height: 26px;">
-              {{ service.personOne().name }}
-            </button>
-            <button
-              type="button"
-              class="split-btn split-btn-p2"
-              [class.active]="line.splitType === 'OTHER'"
-              (click)="setLineSplitOption(idx, 'P2')"
-              [title]="'100% ' + service.personTwo().name"
-              style="font-size: 0.7rem; padding: 0.2rem 0.45rem; height: 26px;">
-              {{ service.personTwo().name }}
-            </button>
-          </div>
-
-          <!-- Delete Line Button -->
-          <button
-            type="button"
-            class="btn btn-icon btn-xs"
-            [disabled]="splitLines().length <= 2"
-            (click)="removeLine(idx)"
-            title="Remove split line"
-            style="color: #ef4444; opacity: 0.75; font-size: 0.95rem; margin-left: auto;">
-            ✕
-          </button>
-        </div>
-
-        <!-- Line Bottom Row: Optional Description / Note -->
-        <div style="display: flex; gap: 0.6rem; align-items: center;">
-          <input
-            type="text"
-            [(ngModel)]="line.description"
-            placeholder="Description for this portion (defaults to original)"
-            style="flex: 1.5; font-size: 0.75rem; padding: 0.2rem 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); border-radius: 5px; color: var(--text-main);" />
-          <input
-            type="text"
-            [(ngModel)]="line.note"
-            placeholder="💬 Note for this item (optional)..."
-            style="flex: 1; font-size: 0.75rem; padding: 0.2rem 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); border-radius: 5px; color: var(--text-muted);" />
-        </div>
-      </div>
+            <!-- Delete Line Action -->
+            <td style="text-align: center;">
+              <button
+                type="button"
+                class="btn-delete-row"
+                [disabled]="splitLines().length <= 2"
+                (click)="removeLine(idx)"
+                title="Remove category">
+                ✕
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <!-- Allocation Status & Live Balancer -->
-    <div style="margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;"
+    <!-- Allocation Status Bar -->
+    <div style="padding: 0.75rem 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;"
          [style.background]="isValid() ? 'rgba(16, 185, 129, 0.08)' : (remainingAmount() > 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)')"
          [style.border]="isValid() ? '1px solid rgba(16, 185, 129, 0.3)' : (remainingAmount() > 0 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)')">
       
-      <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.82rem;">
+      <div style="display: flex; align-items: center; gap: 1.2rem; font-size: 0.82rem;">
+        <div>
+          <span style="color: var(--text-muted);">Total:</span>
+          <strong class="font-mono" style="margin-left: 0.3rem; color: var(--text-main);">{{ service.formatCurrency(totalAmount()) }}</strong>
+        </div>
         <div>
           <span style="color: var(--text-muted);">Allocated:</span>
           <strong class="font-mono" style="margin-left: 0.3rem; color: var(--text-main);">{{ service.formatCurrency(allocatedAmount()) }}</strong>
@@ -166,10 +145,10 @@
 
       <div style="font-size: 0.8rem; font-weight: 600;">
         <span *ngIf="isValid()" style="color: #10b981; display: flex; align-items: center; gap: 0.3rem;">
-          ✓ Perfect! Exactly matches {{ service.formatCurrency(totalAmount()) }}
+          ✓ Fully allocated ({{ service.formatCurrency(totalAmount()) }})
         </span>
         <span *ngIf="remainingAmount() > 0.005" style="color: #fbbf24;">
-          ⚠️ Allocate remaining {{ service.formatCurrency(remainingAmount()) }} to proceed
+          ⚠️ {{ service.formatCurrency(remainingAmount()) }} unallocated
         </span>
         <span *ngIf="remainingAmount() < -0.005" style="color: #ef4444;">
           ⚠️ Over-allocated by {{ service.formatCurrency(Math.abs(remainingAmount())) }}
@@ -178,14 +157,14 @@
     </div>
 
     <!-- Modal Actions Footer -->
-    <div class="modal-actions" style="margin-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+    <div style="margin-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
       <div>
         <button
           *ngIf="isAlreadySplit()"
           type="button"
           class="btn btn-secondary btn-sm"
           (click)="onMerge()"
-          title="Recombine split items into a single transaction"
+          title="Recombine all split parts back into a single transaction"
           style="color: #f87171; border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); font-size: 0.78rem;">
           🔗 Merge into 1 Transaction
         </button>
@@ -198,8 +177,8 @@
           class="btn btn-primary btn-sm"
           [disabled]="!isValid()"
           (click)="onSave()"
-          style="background: #38bdf8; border-color: #0284c7; color: #0f172a; font-weight: 700; font-size: 0.84rem; padding: 0.35rem 1rem;">
-          ✓ Apply Category Split
+          style="background: #38bdf8; border-color: #0284c7; color: #0f172a; font-weight: 700; font-size: 0.84rem; padding: 0.4rem 1.1rem;">
+          ✓ Save Category Splits
         </button>
       </div>
     </div>
