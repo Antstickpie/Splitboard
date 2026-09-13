@@ -31,6 +31,11 @@ export interface ReviewSequenceTxItem {
   runningCreditor: string;
   runningNetOwed: number;
   stepCalculation: string;
+  mathPrev: string;
+  mathOperator: '+' | '−' | '';
+  mathDelta: string;
+  mathResult: string;
+  isDebtReduction: boolean;
 }
 
 export interface MonthOwesItem {
@@ -467,27 +472,28 @@ export class LedgerComponent {
         if (stepBalance > 0.005) { runD = p2; runC = p1; }
         else if (stepBalance < -0.005) { runD = p1; runC = p2; }
 
-        // Human-readable sequential calculation
+        // Clean, simple mathematical calculation
+        let mathPrev = this.service.formatCurrency(prevNet);
+        let mathOperator: '+' | '−' | '' = '';
+        let mathDelta = this.service.formatCurrency(txOwed);
+        let mathResult = this.service.formatCurrency(runNet);
+        let isDebtReduction = false;
         let stepCalculation = '';
+
         if (isExcluded) {
-          stepCalculation = `Excluded from split • Balance remains unchanged`;
+          stepCalculation = 'Excluded from split';
         } else if (txOwed <= 0.005) {
-          stepCalculation = prevNet > 0.005
-            ? `No split debt change • Balance remains ${prevD} owes ${this.service.formatCurrency(prevNet)}`
-            : `No split debt change • Balance remains settled ($0.00)`;
+          stepCalculation = 'No debt impact ($0.00)';
         } else if (prevNet <= 0.005) {
-          stepCalculation = `$0.00 + ${this.service.formatCurrency(txOwed)} (${txD} owes) = ${this.service.formatCurrency(runNet)} (${runD} owes)`;
+          mathOperator = '+';
+          stepCalculation = `${this.service.formatCurrency(0)} + ${mathDelta} = ${mathResult}`;
         } else if (prevD === txD) {
-          stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) + ${this.service.formatCurrency(txOwed)} = ${this.service.formatCurrency(runNet)} (${runD} owes)`;
+          mathOperator = '+';
+          stepCalculation = `${mathPrev} + ${mathDelta} = ${mathResult}`;
         } else {
-          // opposite party paid / reduced debt
-          if (runD === prevD) {
-            stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) − ${this.service.formatCurrency(txOwed)} (${txD} paid) = ${this.service.formatCurrency(runNet)} (${runD} owes)`;
-          } else if (runNet <= 0.005) {
-            stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) − ${this.service.formatCurrency(txOwed)} (${txD} paid) = $0.00 (All Settled)`;
-          } else {
-            stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) − ${this.service.formatCurrency(txOwed)} = flipped to ${this.service.formatCurrency(runNet)} (${runD} now owes)`;
-          }
+          mathOperator = '−';
+          isDebtReduction = true;
+          stepCalculation = `${mathPrev} − ${mathDelta} = ${mathResult}`;
         }
 
         allSequenceItems.push({
@@ -507,7 +513,12 @@ export class LedgerComponent {
           runningDebtor: runD,
           runningCreditor: runC,
           runningNetOwed: runNet,
-          stepCalculation
+          stepCalculation,
+          mathPrev,
+          mathOperator,
+          mathDelta,
+          mathResult,
+          isDebtReduction
         });
       }
 

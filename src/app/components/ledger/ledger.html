@@ -1947,18 +1947,18 @@
 
       <!-- Expanded Content for this Month -->
       <div *ngIf="isMonthlyMonthExpanded(m.month)" class="monthly-owes-expanded-body animate-fade-in">
-        <!-- View 1: Flat Table Mode with Exact Same 9 Columns & Headings -->
-        <div *ngIf="monthlyOwesGroupByMode() === 'table'" class="table-container ledger-table-wrapper" style="overflow-x: auto;">
+        <!-- View 1: Flat Table Mode -->
+        <div *ngIf="monthlyOwesGroupByMode() === 'table'" class="table-container monthly-review-table-wrapper">
           <table>
             <thead>
               <tr>
-                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'date'" (click)="setMonthlyOwesSort('date')" title="Click to sort by Date">
+                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'date'" (click)="setMonthlyOwesSort('date')" title="Click to sort by Date" style="white-space: nowrap;">
                   Date <span class="sort-icon">{{ monthlyOwesSortColumn() === 'date' ? (monthlyOwesSortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
                 </th>
-                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'bank'" (click)="setMonthlyOwesSort('bank')" title="Click to sort by Bank">
+                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'bank'" (click)="setMonthlyOwesSort('bank')" title="Click to sort by Bank" style="white-space: nowrap;">
                   Bank / Account <span class="sort-icon">{{ monthlyOwesSortColumn() === 'bank' ? (monthlyOwesSortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
                 </th>
-                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'paidBy'" (click)="setMonthlyOwesSort('paidBy')" title="Click to sort by Paid By">
+                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'paidBy'" (click)="setMonthlyOwesSort('paidBy')" title="Click to sort by Paid By" style="white-space: nowrap;">
                   Paid By / Owner <span class="sort-icon">{{ monthlyOwesSortColumn() === 'paidBy' ? (monthlyOwesSortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
                 </th>
                 <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'description'" (click)="setMonthlyOwesSort('description')" title="Click to sort by Description">
@@ -1967,17 +1967,17 @@
                 <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'category'" (click)="setMonthlyOwesSort('category')" title="Click to sort by Category">
                   Category <span class="sort-icon">{{ monthlyOwesSortColumn() === 'category' ? (monthlyOwesSortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
                 </th>
-                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'amount'" (click)="setMonthlyOwesSort('amount')" style="text-align: right;" title="Click to sort by Amount">
+                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'amount'" (click)="setMonthlyOwesSort('amount')" style="text-align: right; white-space: nowrap;" title="Click to sort by Amount">
                   Amount <span class="sort-icon">{{ monthlyOwesSortColumn() === 'amount' ? (monthlyOwesSortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
                 </th>
-                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'split'" (click)="setMonthlyOwesSort('split')" style="text-align: center;" title="Click to sort by Split Allocation">
+                <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'split'" (click)="setMonthlyOwesSort('split')" style="text-align: center; white-space: nowrap;" title="Click to sort by Split Allocation">
                   Split Allocation <span class="sort-icon">{{ monthlyOwesSortColumn() === 'split' ? (monthlyOwesSortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
                 </th>
-                <th style="min-width: 260px;" title="Step-by-step owe calculation and running balance sequence">
-                  📊 Owe Calculation & Sequence
+                <th style="min-width: 170px; white-space: nowrap;" title="Running balance after each transaction">
+                  📊 Running Balance
                 </th>
-                <th>Note</th>
-                <th style="text-align: center;">Actions</th>
+                <th style="max-width: 120px;">Note</th>
+                <th style="text-align: center; white-space: nowrap; min-width: 110px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2120,15 +2120,22 @@
                     </button>
                   </div>
                 </td>
-                <td style="padding: 0.4rem 0.6rem; min-width: 250px;">
+                <td style="padding: 0.35rem 0.6rem; min-width: 165px; white-space: nowrap;">
                   <div class="seq-calc-container">
-                    <div class="seq-calc-formula font-mono" [title]="item.stepCalculation">
+                    <div class="seq-math-row font-mono" *ngIf="item.mathOperator">
+                      <span>{{ item.mathPrev }}</span>
+                      <span [class.seq-op-minus]="item.isDebtReduction" [class.seq-op-plus]="!item.isDebtReduction">
+                        {{ item.mathOperator }} {{ item.mathDelta }}
+                      </span>
+                      <span class="seq-eq">=</span>
+                      <span class="seq-res-val">{{ item.mathResult }}</span>
+                    </div>
+                    <div class="seq-math-row font-mono" *ngIf="!item.mathOperator" style="color: var(--text-muted); font-size: 0.72rem;">
                       {{ item.stepCalculation }}
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem;">
-                      <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Balance:</span>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
                       <span *ngIf="item.runningNetOwed <= 0.005" class="badge badge-success-outline font-mono" style="font-size: 0.68rem; padding: 0.08rem 0.35rem;">
-                        ✓ Settled ($0.00)
+                        ✓ Settled
                       </span>
                       <span *ngIf="item.runningNetOwed > 0.005" class="badge badge-cyan-outline font-mono" style="font-size: 0.68rem; padding: 0.08rem 0.35rem;">
                         <strong>{{ item.runningDebtor }}</strong> owes {{ service.formatCurrency(item.runningNetOwed) }}
@@ -2136,7 +2143,7 @@
                     </div>
                   </div>
                 </td>
-                <td>
+                <td style="max-width: 120px;">
                   <input
                     type="text"
                     [(ngModel)]="item.tx.note"
@@ -2147,8 +2154,8 @@
                     class="inline-note-input"
                     title="Click to add/edit comment" />
                 </td>
-                <td style="text-align: center;">
-                  <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
+                <td style="text-align: center; white-space: nowrap; width: 1%; min-width: 110px;">
+                  <div style="display: inline-flex; justify-content: center; align-items: center; gap: 0.3rem; white-space: nowrap;">
                     <button
                       class="btn btn-xs"
                       [style.color]="item.tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
@@ -2173,7 +2180,7 @@
                       [title]="getIncomeMonthButtonTooltip(item.tx)">
                       {{ getIncomeMonthButtonLabel(item.tx) }}
                     </button>
-                    <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(item.tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
+                    <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(item.tx)" title="Edit transaction" style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
                       ✏ Edit
                     </button>
                     <button class="btn-icon-delete" (click)="deleteTx(item.tx)" title="Delete transaction">✕</button>
