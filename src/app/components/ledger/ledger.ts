@@ -63,8 +63,9 @@ export class LedgerComponent {
   public monthlyOwesSplitFilter = signal<string>('ALL');
   public monthlyOwesCategoryFilter = signal<string>('ALL');
   public monthlyOwesGroupByMode = signal<'table' | 'category'>('table');
-  public monthlyOwesSortColumn = signal<'date' | 'amount' | 'description' | 'category' | 'paidBy' | 'split'>('date');
+  public monthlyOwesSortColumn = signal<'date' | 'bank' | 'paidBy' | 'description' | 'category' | 'amount' | 'split'>('date');
   public monthlyOwesSortDirection = signal<'asc' | 'desc'>('desc');
+  public ledgerViewMode = signal<'TRANSACTIONS' | 'MONTHLY_REVIEW'>('TRANSACTIONS');
 
   // Statement Batches Viewer / Manager Modal
   public isManageBatchesModalOpen = signal<boolean>(false);
@@ -434,8 +435,11 @@ export class LedgerComponent {
         if (sortCol === 'date') {
           return sortDir * (a.date || '').localeCompare(b.date || '');
         }
-        if (sortCol === 'amount') {
-          return sortDir * ((Number(a.amount) || 0) - (Number(b.amount) || 0));
+        if (sortCol === 'bank') {
+          return sortDir * (a.bank || '').localeCompare(b.bank || '');
+        }
+        if (sortCol === 'paidBy') {
+          return sortDir * (a.paidBy || '').localeCompare(b.paidBy || '');
         }
         if (sortCol === 'description') {
           return sortDir * (a.description || '').localeCompare(b.description || '');
@@ -445,8 +449,8 @@ export class LedgerComponent {
           const bCat = b.categoryItem || b.categoryGroup || '';
           return sortDir * aCat.localeCompare(bCat);
         }
-        if (sortCol === 'paidBy') {
-          return sortDir * (a.paidBy || '').localeCompare(b.paidBy || '');
+        if (sortCol === 'amount') {
+          return sortDir * ((Number(a.amount) || 0) - (Number(b.amount) || 0));
         }
         if (sortCol === 'split') {
           return sortDir * (a.splitType || '').localeCompare(b.splitType || '');
@@ -646,12 +650,32 @@ export class LedgerComponent {
     this.monthlyOwesGroupByMode.set(this.monthlyOwesGroupByMode() === 'category' ? 'table' : 'category');
   }
 
-  public setMonthlyOwesSort(column: 'date' | 'amount' | 'description' | 'category' | 'paidBy' | 'split'): void {
+  public setMonthlyOwesSort(column: 'date' | 'bank' | 'paidBy' | 'description' | 'category' | 'amount' | 'split'): void {
     if (this.monthlyOwesSortColumn() === column) {
       this.monthlyOwesSortDirection.set(this.monthlyOwesSortDirection() === 'asc' ? 'desc' : 'asc');
     } else {
       this.monthlyOwesSortColumn.set(column);
       this.monthlyOwesSortDirection.set(column === 'amount' || column === 'date' ? 'desc' : 'asc');
+    }
+  }
+
+  public toggleMonthlyReviewView(): void {
+    if (this.ledgerViewMode() === 'MONTHLY_REVIEW') {
+      this.ledgerViewMode.set('TRANSACTIONS');
+    } else {
+      this.ledgerViewMode.set('MONTHLY_REVIEW');
+      const curMonth = this.service.selectedMonth();
+      if (curMonth && curMonth !== 'ALL') {
+        this.monthlyOwesSelectedMonth.set(curMonth);
+        this.monthlyOwesPickerYear.set(parseInt(curMonth.slice(0, 4), 10));
+        this.monthlyOwesExpandedMonths.set(new Set([curMonth]));
+      }
+      setTimeout(() => {
+        const el = document.getElementById('ledger-table-section');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 50);
     }
   }
 
