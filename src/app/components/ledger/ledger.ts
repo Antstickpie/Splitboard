@@ -53,6 +53,9 @@ export class LedgerComponent {
 
   // Monthly Owes Review & Breakdown Modal
   public isMonthlyOwesModalOpen = signal<boolean>(false);
+  public monthlyOwesSelectedMonth = signal<string>('ALL');
+  public isMonthlyOwesMonthPickerOpen = signal<boolean>(false);
+  public monthlyOwesPickerYear = signal<number>(new Date().getFullYear());
   public monthlyOwesExpandedMonths = signal<Set<string>>(new Set());
   public monthlyOwesSearchQuery = signal<string>('');
   public monthlyOwesBankFilter = signal<string>('ALL');
@@ -244,15 +247,25 @@ export class LedgerComponent {
   @HostListener('document:click', ['$event'])
   public onDocumentClick(event: MouseEvent): void {
     if (this.isMonthPickerOpen()) {
-      const container = this.elementRef.nativeElement.querySelector('.everydollar-month-container');
+      const container = this.elementRef.nativeElement.querySelector('.everydollar-month-container:not(.monthly-owes-month-container)');
       if (container && !container.contains(event.target as Node)) {
         this.isMonthPickerOpen.set(false);
+      }
+    }
+    if (this.isMonthlyOwesMonthPickerOpen()) {
+      const owesContainer = this.elementRef.nativeElement.querySelector('.monthly-owes-month-container');
+      if (owesContainer && !owesContainer.contains(event.target as Node)) {
+        this.isMonthlyOwesMonthPickerOpen.set(false);
       }
     }
   }
 
   @HostListener('window:keydown.escape')
   public onEscapeKey(): void {
+    if (this.isMonthlyOwesMonthPickerOpen()) {
+      this.isMonthlyOwesMonthPickerOpen.set(false);
+      return;
+    }
     if (this.reimbursingTx()) {
       this.closeReimbursementModal();
       return;
@@ -489,24 +502,112 @@ export class LedgerComponent {
     // Return in reverse chronological order (newest month first)
     const result = items.reverse();
 
-    const hasFilter = Boolean(q || bank !== 'ALL' || owner !== 'ALL' || split !== 'ALL' || cat !== 'ALL');
-    if (hasFilter) {
-      return result.filter((m) => m.filteredTransactions.length > 0);
+    // If a specific month is selected in the modal, filter down to that month
+    const selMonth = this.monthlyOwesSelectedMonth();
+    let displayList = result;
+    if (selMonth !== 'ALL') {
+      displayList = displayList.filter((m) => m.month === selMonth);
     }
 
-    return result;
+    const hasFilter = Boolean(q || bank !== 'ALL' || owner !== 'ALL' || split !== 'ALL' || cat !== 'ALL');
+    if (hasFilter) {
+      return displayList.filter((m) => m.filteredTransactions.length > 0);
+    }
+
+    return displayList;
   });
 
   public openMonthlyOwesModal(): void {
     this.isMonthlyOwesModalOpen.set(true);
-    const breakdown = this.monthlyOwesBreakdown();
-    if (breakdown.length > 0 && this.monthlyOwesExpandedMonths().size === 0) {
-      this.monthlyOwesExpandedMonths.set(new Set([breakdown[0].month]));
+    const curMonth = this.service.selectedMonth();
+    if (curMonth && curMonth !== 'ALL') {
+      this.monthlyOwesSelectedMonth.set(curMonth);
+      this.monthlyOwesPickerYear.set(parseInt(curMonth.slice(0, 4), 10));
+      this.monthlyOwesExpandedMonths.set(new Set([curMonth]));
+    } else {
+      this.monthlyOwesSelectedMonth.set('ALL');
+      const breakdown = this.monthlyOwesBreakdown();
+      if (breakdown.length > 0 && this.monthlyOwesExpandedMonths().size === 0) {
+        this.monthlyOwesExpandedMonths.set(new Set([breakdown[0].month]));
+      }
     }
   }
 
   public closeMonthlyOwesModal(): void {
     this.isMonthlyOwesModalOpen.set(false);
+    this.isMonthlyOwesMonthPickerOpen.set(false);
+  }
+
+  public getMonthlyOwesDateRangeLabel(): string {
+    if (this.monthlyOwesSelectedMonth() === 'ALL') return 'All Time';
+    return this.service.formatMonth(this.monthlyOwesSelectedMonth());
+  }
+
+  public toggleMonthlyOwesMonthPicker(): void {
+    this.isMonthlyOwesMonthPickerOpen.set(!this.isMonthlyOwesMonthPickerOpen());
+  }
+
+  public selectMonthlyOwesMonth(monthIdx: number): void {
+    const mStr = `${this.monthlyOwesPickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    this.monthlyOwesSelectedMonth.set(mStr);
+    this.isMonthlyOwesMonthPickerOpen.set(false);
+    this.monthlyOwesExpandedMonths.update((s) => new Set([...s, mStr]));
+  }
+
+  public selectMonthlyOwesAllTime(): void {
+    this.monthlyOwesSelectedMonth.set('ALL');
+    this.isMonthlyOwesMonthPickerOpen.set(false);
+  }
+
+  public isMonthlyOwesMonthSelected(monthIdx: number): boolean {
+    if (this.monthlyOwesSelectedMonth() === 'ALL') return false;
+    const mStr = `${this.monthlyOwesPickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    return this.monthlyOwesSelectedMonth() === mStr;
+  }
+
+  public hasMonthlyOwesMonthData(monthIdx: number): boolean {
+    const mStr = `${this.monthlyOwesPickerYear()}-${String(monthIdx + 1).padStart(2, '0')}`;
+    return this.service.transactions().some((t) => t.date && t.date.startsWith(mStr));
+  }
+
+  public monthlyOwesPrevYear(): void {
+    this.monthlyOwesPickerYear.update((y) => y - 1);
+  }
+
+  public monthlyOwesNextYear(): void {
+    this.monthlyOwesPickerYear.update((y) => y + 1);
+  }
+
+  public monthlyOwesPrevMonth(): void {
+    const curr = this.monthlyOwesSelectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.monthlyOwesSelectedMonth();
+    const [y, m] = curr.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    const newY = d.getFullYear();
+    const newM = String(d.getMonth() + 1).padStart(2, '0');
+    const target = `${newY}-${newM}`;
+    this.monthlyOwesSelectedMonth.set(target);
+    this.monthlyOwesPickerYear.set(newY);
+    this.monthlyOwesExpandedMonths.update((s) => new Set([...s, target]));
+  }
+
+  public monthlyOwesNextMonth(): void {
+    const curr = this.monthlyOwesSelectedMonth() === 'ALL' ? this.service.getCurrentMonthString() : this.monthlyOwesSelectedMonth();
+    const [y, m] = curr.split('-').map(Number);
+    const d = new Date(y, m, 1);
+    const newY = d.getFullYear();
+    const newM = String(d.getMonth() + 1).padStart(2, '0');
+    const target = `${newY}-${newM}`;
+    this.monthlyOwesSelectedMonth.set(target);
+    this.monthlyOwesPickerYear.set(newY);
+    this.monthlyOwesExpandedMonths.update((s) => new Set([...s, target]));
+  }
+
+  public goToMonthlyOwesCurrentMonth(): void {
+    const cur = this.service.getCurrentMonthString();
+    this.monthlyOwesSelectedMonth.set(cur);
+    this.monthlyOwesPickerYear.set(parseInt(cur.slice(0, 4), 10));
+    this.isMonthlyOwesMonthPickerOpen.set(false);
+    this.monthlyOwesExpandedMonths.update((s) => new Set([...s, cur]));
   }
 
   public toggleMonthlyMonthExpanded(month: string): void {

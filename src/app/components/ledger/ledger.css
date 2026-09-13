@@ -826,8 +826,25 @@
   gap: 0.75rem;
 }
 
+.monthly-owes-month-container {
+  position: relative;
+}
+
+.monthly-owes-month-container .everydollar-month-trigger {
+  height: 32px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.monthly-owes-month-container .everydollar-month-popover {
+  top: calc(100% + 6px);
+  z-index: 10005;
+}
+
 /* Monthly Owes Month Card */
 .monthly-owes-card {
+  flex-shrink: 0;
+  min-height: auto;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
@@ -841,6 +858,7 @@
 
 .monthly-owes-card-header {
   padding: 0.75rem 1rem;
+  min-height: 52px;
   display: flex;
   justify-content: space-between;
   align-items: center;
