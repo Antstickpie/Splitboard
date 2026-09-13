@@ -19,6 +19,12 @@
           title="Log a settlement payment to balance accounts">
           🤝 Record Settle Up
         </button>
+        <button
+          class="btn btn-secondary btn-xs review-monthly-btn"
+          (click)="openMonthlyOwesModal()"
+          title="Review monthly owes breakdown, category spend, and balance history">
+          📊 Review Monthly Owes
+        </button>
       </div>
 
       <div *ngIf="service.monthSettlement().carryoverAmount > 0 && !service.monthSettlement().isSettled" class="settlement-breakdown-subtext">
@@ -1589,6 +1595,383 @@
         </button>
         <button class="btn btn-secondary btn-sm" (click)="closeBatchModal()">Close</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Monthly Owes Review & Breakdown -->
+<div class="modal-backdrop-overlay animate-fade-in" *ngIf="isMonthlyOwesModalOpen()" (click)="closeMonthlyOwesModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="modal-content-card glass-card animate-scale-in monthly-owes-modal-dialog" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="modal-header monthly-owes-modal-header">
+      <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+          <span style="font-size: 1.35rem;">📊</span>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main);">Monthly Owes Review & Breakdown</h3>
+          <span *ngIf="!service.monthSettlement().isSettled" class="badge badge-warning font-mono" style="font-size: 0.76rem; font-weight: 600; padding: 0.2rem 0.6rem;">
+            Overall: {{ service.monthSettlement().debtorName }} owes {{ service.monthSettlement().creditorName }} {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
+          </span>
+          <span *ngIf="service.monthSettlement().isSettled" class="badge badge-success font-mono" style="font-size: 0.76rem; font-weight: 600; padding: 0.2rem 0.6rem;">
+            Overall: All Settled Up 🎉
+          </span>
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-muted);">
+          Monthly spending, individual shares, net debt per month, and running cumulative balance.
+        </div>
+      </div>
+      <button class="btn-icon-remove" (click)="closeMonthlyOwesModal()" style="font-size: 1.2rem; width: 32px; height: 32px; cursor: pointer; background: transparent; border: none; color: var(--text-muted); display: flex; align-items: center; justify-content: center;" title="Close (Esc)">✕</button>
+    </div>
+
+    <!-- Modal Filter & Action Controls -->
+    <div class="monthly-owes-controls-bar">
+      <!-- Row 1: Search box, View Mode, and Expand/Collapse -->
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <!-- Search Box -->
+        <div class="monthly-owes-search-wrap">
+          <span style="font-size: 0.85rem; opacity: 0.7;">🔍</span>
+          <input
+            type="text"
+            [ngModel]="monthlyOwesSearchQuery()"
+            (ngModelChange)="monthlyOwesSearchQuery.set($event)"
+            placeholder="Search transactions (desc, note, category, bank, amount)..."
+            class="filter-input-search"
+            style="flex: 1; min-width: 220px; font-size: 0.78rem;" />
+          <button
+            *ngIf="monthlyOwesSearchQuery()"
+            (click)="monthlyOwesSearchQuery.set('')"
+            style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 0.2rem; font-size: 0.8rem;">
+            ✕
+          </button>
+        </div>
+
+        <!-- Action Buttons: Category Group Toggle & Expand All -->
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            [class.active-mode-btn]="monthlyOwesGroupByMode() === 'category'"
+            (click)="toggleMonthlyOwesGroupByMode()"
+            style="font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.7rem; border-radius: 6px;">
+            {{ monthlyOwesGroupByMode() === 'category' ? '📋 Flat Table' : '🏷️ Group by Category' }}
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            (click)="toggleAllMonthlyOwesExpanded()"
+            style="font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.7rem; border-radius: 6px;">
+            {{ areAllMonthlyOwesExpanded() ? '📁 Collapse All' : '📂 Expand All' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: Filter Dropdowns -->
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.06);">
+        <select
+          [ngModel]="monthlyOwesOwnerFilter()"
+          (ngModelChange)="monthlyOwesOwnerFilter.set($event)"
+          class="filter-select"
+          style="font-size: 0.75rem; padding: 0.22rem 0.45rem;">
+          <option value="ALL">👤 All Payers</option>
+          <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+        </select>
+
+        <select
+          [ngModel]="monthlyOwesBankFilter()"
+          (ngModelChange)="monthlyOwesBankFilter.set($event)"
+          class="filter-select"
+          style="font-size: 0.75rem; padding: 0.22rem 0.45rem;">
+          <option value="ALL">🏦 All Banks</option>
+          <option *ngFor="let b of service.bankConfigs()" [value]="b.name">{{ b.name }}</option>
+          <option value="Cash">Cash</option>
+        </select>
+
+        <select
+          [ngModel]="monthlyOwesSplitFilter()"
+          (ngModelChange)="monthlyOwesSplitFilter.set($event)"
+          class="filter-select"
+          style="font-size: 0.75rem; padding: 0.22rem 0.45rem;">
+          <option value="ALL">⚖️ All Splits</option>
+          <option value="SPLIT">Split</option>
+          <option value="SELF">Self Only</option>
+          <option value="OTHER">For Other</option>
+        </select>
+
+        <select
+          [ngModel]="monthlyOwesCategoryFilter()"
+          (ngModelChange)="monthlyOwesCategoryFilter.set($event)"
+          class="filter-select"
+          style="font-size: 0.75rem; padding: 0.22rem 0.45rem;">
+          <option value="ALL">🏷️ All Categories</option>
+          <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
+            <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
+          </optgroup>
+        </select>
+
+        <button
+          *ngIf="hasMonthlyOwesFilters()"
+          class="btn btn-secondary btn-xs"
+          (click)="resetMonthlyOwesFilters()"
+          style="font-size: 0.72rem; color: #f87171; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
+          ✕ Reset Filters
+        </button>
+
+        <div style="margin-left: auto; font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+          <span>{{ monthlyOwesOverallSummary().monthCount }} month{{ monthlyOwesOverallSummary().monthCount > 1 ? 's' : '' }}</span>
+          <span>•</span>
+          <span>{{ monthlyOwesOverallSummary().totalFilteredTxs }} txs</span>
+          <span>•</span>
+          <span class="font-mono" style="color: var(--text-main); font-weight: 600;">Total Spend: {{ service.formatCurrency(monthlyOwesOverallSummary().totalSpend) }}</span>
+        </div>
+      </div>
+
+      <!-- Active Filter Chips -->
+      <div *ngIf="hasMonthlyOwesFilters()" class="animate-fade-in" style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.06);">
+        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Filtered by:</span>
+        <span *ngIf="monthlyOwesSearchQuery()" class="badge badge-neutral" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-main);">
+          🔍 "{{ monthlyOwesSearchQuery() }}"
+          <button (click)="monthlyOwesSearchQuery.set('')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+        <span *ngIf="monthlyOwesOwnerFilter() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.3); color: var(--text-main);">
+          👤 {{ monthlyOwesOwnerFilter() }}
+          <button (click)="monthlyOwesOwnerFilter.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+        <span *ngIf="monthlyOwesBankFilter() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.3); color: var(--text-main);">
+          🏦 {{ monthlyOwesBankFilter() }}
+          <button (click)="monthlyOwesBankFilter.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+        <span *ngIf="monthlyOwesSplitFilter() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--text-main);">
+          ⚖️ {{ monthlyOwesSplitFilter() }}
+          <button (click)="monthlyOwesSplitFilter.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+        <span *ngIf="monthlyOwesCategoryFilter() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--text-main);">
+          🏷️ {{ monthlyOwesCategoryFilter() }}
+          <button (click)="monthlyOwesCategoryFilter.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
+        </span>
+      </div>
+    </div>
+
+    <!-- Modal Body: Month Accordion Cards -->
+    <div class="modal-body monthly-owes-modal-body">
+      <!-- Empty state when no matches -->
+      <div *ngIf="monthlyOwesBreakdown().length === 0" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
+        <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;">No transactions found</div>
+        <div style="font-size: 0.78rem;">No transactions match your current search and filter criteria.</div>
+        <button class="btn btn-secondary btn-xs" (click)="resetMonthlyOwesFilters()" style="margin-top: 0.75rem;">Reset Filters</button>
+      </div>
+
+      <!-- Month Cards -->
+      <div *ngFor="let m of monthlyOwesBreakdown()" class="monthly-owes-card">
+        <!-- Month Summary Header (Click to Expand / Collapse) -->
+        <div class="monthly-owes-card-header" (click)="toggleMonthlyMonthExpanded(m.month)">
+          <!-- Left: Chevron, Month Name, Tx Count -->
+          <div style="display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;">
+            <span class="accordion-arrow" [style.transform]="isMonthlyMonthExpanded(m.month) ? 'rotate(90deg)' : 'rotate(0deg)'">
+              ▶
+            </span>
+            <div style="display: flex; align-items: baseline; gap: 0.4rem;">
+              <span style="font-size: 0.92rem; font-weight: 700; color: var(--text-main);">{{ m.monthLabel }}</span>
+              <span class="font-mono" style="font-size: 0.72rem; color: var(--text-muted);">{{ m.month }}</span>
+            </div>
+            <span class="badge badge-neutral" style="font-size: 0.68rem; font-weight: 600;">
+              {{ m.filteredTransactions.length }} tx{{ m.filteredTransactions.length !== 1 ? 's' : '' }}
+              <span *ngIf="m.filteredTransactions.length !== m.transactions.length" style="color: var(--text-muted); margin-left: 0.2rem;">
+                (of {{ m.transactions.length }})
+              </span>
+            </span>
+          </div>
+
+          <!-- Middle: Spend & Payer Metrics -->
+          <div class="monthly-owes-header-metrics">
+            <div class="monthly-header-metric-box">
+              <span class="metric-caption">Spend</span>
+              <span class="metric-val font-mono">{{ service.formatCurrency(m.totalSpend) }}</span>
+            </div>
+
+            <div class="monthly-header-metric-box">
+              <span class="metric-caption">{{ service.personOne().name }}</span>
+              <span class="metric-val font-mono">{{ service.formatCurrency(m.p1Paid) }}</span>
+              <span class="metric-sub font-mono">Share: {{ service.formatCurrency(m.p1Share) }}</span>
+            </div>
+
+            <div class="monthly-header-metric-box">
+              <span class="metric-caption">{{ service.personTwo().name }}</span>
+              <span class="metric-val font-mono">{{ service.formatCurrency(m.p2Paid) }}</span>
+              <span class="metric-sub font-mono">Share: {{ service.formatCurrency(m.p2Share) }}</span>
+            </div>
+          </div>
+
+          <!-- Right: This Month Net & Running Balance -->
+          <div class="monthly-owes-header-status">
+            <!-- This Month Net -->
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem;">
+              <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">This Month</span>
+              <span *ngIf="m.thisMonthIsSettled" class="badge badge-success-outline" style="font-size: 0.7rem; font-weight: 600;">
+                ✓ Settled
+              </span>
+              <span *ngIf="!m.thisMonthIsSettled" class="badge badge-warning-outline font-mono" style="font-size: 0.7rem; font-weight: 600;">
+                <strong>{{ m.thisMonthDebtor }}</strong> owes <strong>{{ m.thisMonthCreditor }}</strong> {{ service.formatCurrency(m.thisMonthNetOwed) }}
+              </span>
+            </div>
+
+            <!-- Running Balance -->
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem;">
+              <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Running Balance</span>
+              <span *ngIf="m.cumulativeIsSettled" class="badge badge-success-outline" style="font-size: 0.7rem; font-weight: 600;">
+                ✓ Settled
+              </span>
+              <span *ngIf="!m.cumulativeIsSettled" class="badge badge-cyan-outline font-mono" style="font-size: 0.7rem; font-weight: 600;">
+                <strong>{{ m.cumulativeDebtor }}</strong> owes <strong>{{ m.cumulativeCreditor }}</strong> {{ service.formatCurrency(m.cumulativeNetOwed) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expanded Content for this Month -->
+        <div *ngIf="isMonthlyMonthExpanded(m.month)" class="monthly-owes-expanded-body animate-fade-in">
+          <!-- View 1: Flat Table Mode -->
+          <div *ngIf="monthlyOwesGroupByMode() === 'table'" class="owes-table-scroll-container">
+            <table class="owes-tx-table">
+              <thead>
+                <tr>
+                  <th (click)="setMonthlyOwesSort('date')" class="sortable-header" style="width: 105px;">
+                    Date
+                    <span class="sort-direction-arrow" *ngIf="monthlyOwesSortColumn() === 'date'">{{ monthlyOwesSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th (click)="setMonthlyOwesSort('description')" class="sortable-header">
+                    Description
+                    <span class="sort-direction-arrow" *ngIf="monthlyOwesSortColumn() === 'description'">{{ monthlyOwesSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th (click)="setMonthlyOwesSort('category')" class="sortable-header" style="width: 160px;">
+                    Category
+                    <span class="sort-direction-arrow" *ngIf="monthlyOwesSortColumn() === 'category'">{{ monthlyOwesSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th style="width: 95px;">Bank</th>
+                  <th (click)="setMonthlyOwesSort('paidBy')" class="sortable-header" style="width: 100px;">
+                    Paid By
+                    <span class="sort-direction-arrow" *ngIf="monthlyOwesSortColumn() === 'paidBy'">{{ monthlyOwesSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th (click)="setMonthlyOwesSort('split')" class="sortable-header" style="width: 110px;">
+                    Split
+                    <span class="sort-direction-arrow" *ngIf="monthlyOwesSortColumn() === 'split'">{{ monthlyOwesSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th (click)="setMonthlyOwesSort('amount')" class="sortable-header text-right" style="width: 110px;">
+                    Amount
+                    <span class="sort-direction-arrow" *ngIf="monthlyOwesSortColumn() === 'amount'">{{ monthlyOwesSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th class="text-right" style="width: 160px;">
+                    Shares ({{ service.personOne().name }} / {{ service.personTwo().name }})
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let tx of m.filteredTransactions" class="owes-tx-row">
+                  <td class="font-mono text-nowrap" style="font-size: 0.76rem; color: var(--text-muted);">{{ tx.date }}</td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                      <span style="font-size: 0.78rem; font-weight: 500; color: var(--text-main);">{{ tx.description }}</span>
+                      <span *ngIf="tx.type === 'INCOME'" class="badge badge-success" style="font-size: 0.62rem; padding: 0.1rem 0.3rem;">Income</span>
+                      <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="font-size: 0.62rem; padding: 0.1rem 0.3rem;">💸 Transfer</span>
+                      <span *ngIf="tx.note" style="font-size: 0.7rem; color: var(--text-muted);" [title]="tx.note">💬 {{ tx.note }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge badge-neutral" style="font-size: 0.7rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">
+                      🏷️ {{ tx.categoryItem || tx.categoryGroup || 'Uncategorized' }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge" style="font-size: 0.68rem; background: rgba(255,255,255,0.04); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);">
+                      {{ tx.bank }}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      class="badge"
+                      [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                      [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(167, 139, 250, 0.1)'"
+                      style="font-size: 0.7rem; font-weight: 600;">
+                      👤 {{ tx.paidBy }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge badge-neutral" style="font-size: 0.68rem;">
+                      {{ tx.splitType === 'SPLIT' ? (tx.splitPercentage ? tx.splitPercentage + '%' : '50/50') : (tx.splitType === 'SELF' ? 'Self Only' : 'For Other') }}
+                    </span>
+                  </td>
+                  <td class="font-mono text-right" style="font-size: 0.8rem; font-weight: 700;" [class.text-success]="tx.type === 'INCOME'">
+                    {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
+                  </td>
+                  <td class="font-mono text-right" style="font-size: 0.74rem; color: var(--text-muted);">
+                    <span [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'inherit'">{{ service.formatCurrency(getTxSplitShares(tx).p1Share) }}</span>
+                    <span style="opacity: 0.4; margin: 0 0.2rem;">/</span>
+                    <span [style.color]="tx.paidBy === service.personTwo().name ? 'var(--secondary)' : 'inherit'">{{ service.formatCurrency(getTxSplitShares(tx).p2Share) }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- View 2: Group by Category Mode -->
+          <div *ngIf="monthlyOwesGroupByMode() === 'category'" class="category-groups-grid">
+            <div *ngFor="let cg of m.categoryGroups" class="category-summary-card">
+              <!-- Category Header -->
+              <div class="category-summary-header">
+                <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden;">
+                  <span style="font-size: 0.9rem;">🏷️</span>
+                  <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                    {{ cg.category }}
+                  </span>
+                  <span class="badge badge-neutral" style="font-size: 0.66rem; font-weight: 600;">
+                    {{ cg.count }} tx{{ cg.count > 1 ? 's' : '' }}
+                  </span>
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 0.35rem; flex-shrink: 0;">
+                  <span class="font-mono" style="font-size: 0.84rem; font-weight: 700; color: var(--text-main);">
+                    {{ service.formatCurrency(cg.totalAmount) }}
+                  </span>
+                  <span class="font-mono" style="font-size: 0.68rem; color: var(--text-muted);" *ngIf="m.totalSpend > 0">
+                    ({{ ((cg.totalAmount / m.totalSpend) * 100).toFixed(0) }}%)
+                  </span>
+                </div>
+              </div>
+
+              <!-- Transactions inside this Category -->
+              <div class="category-tx-items-list">
+                <div *ngFor="let tx of cg.transactions" class="category-tx-row">
+                  <div style="display: flex; align-items: center; gap: 0.4rem; min-width: 0; flex: 1;">
+                    <span class="font-mono" style="font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0;">{{ tx.date.slice(5) }}</span>
+                    <span style="font-size: 0.74rem; color: var(--text-main); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" [title]="tx.description">
+                      {{ tx.description }}
+                    </span>
+                    <span *ngIf="tx.note" style="font-size: 0.66rem; color: var(--text-muted); flex-shrink: 0;" [title]="tx.note">💬</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;">
+                    <span
+                      class="badge"
+                      [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'"
+                      style="font-size: 0.65rem; padding: 0.08rem 0.3rem; background: rgba(255,255,255,0.04);">
+                      {{ tx.paidBy }}
+                    </span>
+                    <span class="badge badge-neutral" style="font-size: 0.64rem; padding: 0.08rem 0.3rem;">
+                      {{ tx.splitType === 'SPLIT' ? (tx.splitPercentage ? tx.splitPercentage + '%' : '50/50') : (tx.splitType === 'SELF' ? 'Self' : 'Other') }}
+                    </span>
+                    <span class="font-mono" style="font-size: 0.76rem; font-weight: 700; color: var(--text-main);">
+                      {{ service.formatCurrency(tx.amount) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="display: flex; justify-content: flex-end; align-items: center; padding-top: 0.8rem; border-top: 1px solid rgba(255,255,255,0.08);">
+      <button class="btn btn-secondary btn-sm" (click)="closeMonthlyOwesModal()">Close</button>
     </div>
   </div>
 </div>

@@ -6,6 +6,37 @@ import { Transaction, SplitType, SplitMode } from '../../models';
 import { ImportComponent } from '../import/import';
 import { CategorySelectComponent } from '../category-select/category-select';
 
+export interface MonthCategoryGroup {
+  category: string;
+  totalAmount: number;
+  count: number;
+  transactions: Transaction[];
+}
+
+export interface MonthOwesItem {
+  month: string;
+  monthLabel: string;
+  totalSpend: number;
+  sharedSpend: number;
+  p1Paid: number;
+  p2Paid: number;
+  p1Share: number;
+  p2Share: number;
+  thisMonthP1OwesP2: number;
+  thisMonthP2OwesP1: number;
+  thisMonthNetOwed: number;
+  thisMonthDebtor: string;
+  thisMonthCreditor: string;
+  thisMonthIsSettled: boolean;
+  cumulativeNetOwed: number;
+  cumulativeDebtor: string;
+  cumulativeCreditor: string;
+  cumulativeIsSettled: boolean;
+  transactions: Transaction[];
+  filteredTransactions: Transaction[];
+  categoryGroups: MonthCategoryGroup[];
+}
+
 @Component({
   selector: 'app-ledger',
   standalone: true,
@@ -19,6 +50,18 @@ export class LedgerComponent {
   public isImportOpen = signal<boolean>(false);
   public pendingImportFile = signal<File | null>(null);
   public isImportDragOver = signal<boolean>(false);
+
+  // Monthly Owes Review & Breakdown Modal
+  public isMonthlyOwesModalOpen = signal<boolean>(false);
+  public monthlyOwesExpandedMonths = signal<Set<string>>(new Set());
+  public monthlyOwesSearchQuery = signal<string>('');
+  public monthlyOwesBankFilter = signal<string>('ALL');
+  public monthlyOwesOwnerFilter = signal<string>('ALL');
+  public monthlyOwesSplitFilter = signal<string>('ALL');
+  public monthlyOwesCategoryFilter = signal<string>('ALL');
+  public monthlyOwesGroupByMode = signal<'table' | 'category'>('table');
+  public monthlyOwesSortColumn = signal<'date' | 'amount' | 'description' | 'category' | 'paidBy' | 'split'>('date');
+  public monthlyOwesSortDirection = signal<'asc' | 'desc'>('desc');
 
   // Statement Batches Viewer / Manager Modal
   public isManageBatchesModalOpen = signal<boolean>(false);
@@ -222,6 +265,10 @@ export class LedgerComponent {
       this.activeCustomSplitTx.set(null);
       return;
     }
+    if (this.isMonthlyOwesModalOpen()) {
+      this.closeMonthlyOwesModal();
+      return;
+    }
     if (this.isCashModalOpen()) {
       this.isCashModalOpen.set(false);
       return;
@@ -230,6 +277,296 @@ export class LedgerComponent {
       this.isMonthPickerOpen.set(false);
       return;
     }
+  }
+
+  // Monthly Owes Review & Breakdown State & Helpers
+  public hasMonthlyOwesFilters = computed<boolean>(() => {
+    return Boolean(
+      this.monthlyOwesSearchQuery().trim() ||
+      this.monthlyOwesBankFilter() !== 'ALL' ||
+      this.monthlyOwesOwnerFilter() !== 'ALL' ||
+      this.monthlyOwesSplitFilter() !== 'ALL' ||
+      this.monthlyOwesCategoryFilter() !== 'ALL'
+    );
+  });
+
+  public monthlyOwesOverallSummary = computed(() => {
+    const breakdown = this.monthlyOwesBreakdown();
+    let totalAllSpend = 0;
+    let totalAllSharedSpend = 0;
+    let totalTxs = 0;
+    for (const m of breakdown) {
+      totalAllSpend += m.totalSpend;
+      totalAllSharedSpend += m.sharedSpend;
+      totalTxs += m.filteredTransactions.length;
+    }
+    return {
+      monthCount: breakdown.length,
+      totalSpend: parseFloat(totalAllSpend.toFixed(2)),
+      totalSharedSpend: parseFloat(totalAllSharedSpend.toFixed(2)),
+      totalFilteredTxs: totalTxs
+    };
+  });
+
+  public monthlyOwesBreakdown = computed<MonthOwesItem[]>(() => {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    const allTxs = this.service.transactions();
+
+    // Collect all unique months from transactions
+    const monthsSet = new Set<string>();
+    for (const tx of allTxs) {
+      if (tx.date && tx.date.length >= 7) {
+        monthsSet.add(tx.date.slice(0, 7));
+      }
+    }
+
+    // Sort chronologically ascending (earliest first) to compute running cumulative balances
+    const chronologicalMonths = Array.from(monthsSet).sort();
+
+    let cumP1OwesP2 = 0;
+    let cumP2OwesP1 = 0;
+
+    const q = this.monthlyOwesSearchQuery().toLowerCase().trim();
+    const bank = this.monthlyOwesBankFilter();
+    const owner = this.monthlyOwesOwnerFilter();
+    const split = this.monthlyOwesSplitFilter();
+    const cat = this.monthlyOwesCategoryFilter();
+    const sortCol = this.monthlyOwesSortColumn();
+    const sortDir = this.monthlyOwesSortDirection() === 'asc' ? 1 : -1;
+
+    const items: MonthOwesItem[] = [];
+
+    for (const m of chronologicalMonths) {
+      const monthTxs = allTxs.filter((tx) => tx.date && tx.date.slice(0, 7) === m);
+
+      let p1Paid = 0;
+      let p2Paid = 0;
+      let p1Share = 0;
+      let p2Share = 0;
+      let sharedSpend = 0;
+      let totalSpend = 0;
+      let monthP1OwesP2 = 0;
+      let monthP2OwesP1 = 0;
+
+      for (const tx of monthTxs) {
+        if (!this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx)) {
+          continue;
+        }
+
+        const res = this.service.calculateTxDebt(tx, p1, p2);
+        p1Paid += res.p1Paid;
+        p2Paid += res.p2Paid;
+        if (tx.type !== 'INCOME') {
+          p1Share += res.p1Share;
+          p2Share += res.p2Share;
+          sharedSpend += (res.p1Share + res.p2Share);
+          totalSpend += (Number(tx.amount) || 0);
+        }
+        monthP1OwesP2 += res.p1OwesP2;
+        monthP2OwesP1 += res.p2OwesP1;
+      }
+
+      cumP1OwesP2 += monthP1OwesP2;
+      cumP2OwesP1 += monthP2OwesP1;
+
+      const monthDiff = monthP2OwesP1 - monthP1OwesP2;
+      const thisMonthNetOwed = parseFloat(Math.abs(monthDiff).toFixed(2));
+      let thisMonthDebtor = '';
+      let thisMonthCreditor = '';
+      if (monthDiff > 0.005) {
+        thisMonthDebtor = p2;
+        thisMonthCreditor = p1;
+      } else if (monthDiff < -0.005) {
+        thisMonthDebtor = p1;
+        thisMonthCreditor = p2;
+      }
+
+      const cumDiff = cumP2OwesP1 - cumP1OwesP2;
+      const cumulativeNetOwed = parseFloat(Math.abs(cumDiff).toFixed(2));
+      let cumulativeDebtor = '';
+      let cumulativeCreditor = '';
+      if (cumDiff > 0.005) {
+        cumulativeDebtor = p2;
+        cumulativeCreditor = p1;
+      } else if (cumDiff < -0.005) {
+        cumulativeDebtor = p1;
+        cumulativeCreditor = p2;
+      }
+
+      // Filter transactions for this month
+      const filtered = monthTxs.filter((tx) => {
+        if (bank !== 'ALL' && tx.bank !== bank) return false;
+        if (owner !== 'ALL' && tx.paidBy !== owner) return false;
+        if (split !== 'ALL' && tx.splitType !== split) return false;
+        if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) return false;
+        if (q) {
+          const matchDesc = (tx.description || '').toLowerCase().includes(q);
+          const matchBank = (tx.bank || '').toLowerCase().includes(q);
+          const matchNote = (tx.note || '').toLowerCase().includes(q);
+          const matchCat = (tx.categoryItem || '').toLowerCase().includes(q);
+          const matchGrp = (tx.categoryGroup || '').toLowerCase().includes(q);
+          const matchOwner = (tx.paidBy || '').toLowerCase().includes(q);
+          const matchAmt = String(tx.amount || '').includes(q);
+          const matchSplit = (tx.splitType || '').toLowerCase().includes(q);
+          if (!matchDesc && !matchBank && !matchNote && !matchCat && !matchGrp && !matchOwner && !matchAmt && !matchSplit) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      // Sort filtered transactions
+      filtered.sort((a, b) => {
+        if (sortCol === 'date') {
+          return sortDir * (a.date || '').localeCompare(b.date || '');
+        }
+        if (sortCol === 'amount') {
+          return sortDir * ((Number(a.amount) || 0) - (Number(b.amount) || 0));
+        }
+        if (sortCol === 'description') {
+          return sortDir * (a.description || '').localeCompare(b.description || '');
+        }
+        if (sortCol === 'category') {
+          const aCat = a.categoryItem || a.categoryGroup || '';
+          const bCat = b.categoryItem || b.categoryGroup || '';
+          return sortDir * aCat.localeCompare(bCat);
+        }
+        if (sortCol === 'paidBy') {
+          return sortDir * (a.paidBy || '').localeCompare(b.paidBy || '');
+        }
+        if (sortCol === 'split') {
+          return sortDir * (a.splitType || '').localeCompare(b.splitType || '');
+        }
+        return 0;
+      });
+
+      // Build Category Groups
+      const catMap = new Map<string, Transaction[]>();
+      for (const tx of filtered) {
+        const c = tx.categoryItem || tx.categoryGroup || 'Uncategorized';
+        if (!catMap.has(c)) {
+          catMap.set(c, []);
+        }
+        catMap.get(c)!.push(tx);
+      }
+
+      const categoryGroups: MonthCategoryGroup[] = Array.from(catMap.entries()).map(([category, txs]) => {
+        const total = txs.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+        return {
+          category,
+          totalAmount: parseFloat(total.toFixed(2)),
+          count: txs.length,
+          transactions: txs
+        };
+      }).sort((a, b) => b.totalAmount - a.totalAmount);
+
+      items.push({
+        month: m,
+        monthLabel: this.service.formatMonth(m),
+        totalSpend: parseFloat(totalSpend.toFixed(2)),
+        sharedSpend: parseFloat(sharedSpend.toFixed(2)),
+        p1Paid: parseFloat(p1Paid.toFixed(2)),
+        p2Paid: parseFloat(p2Paid.toFixed(2)),
+        p1Share: parseFloat(p1Share.toFixed(2)),
+        p2Share: parseFloat(p2Share.toFixed(2)),
+        thisMonthP1OwesP2: parseFloat(monthP1OwesP2.toFixed(2)),
+        thisMonthP2OwesP1: parseFloat(monthP2OwesP1.toFixed(2)),
+        thisMonthNetOwed,
+        thisMonthDebtor,
+        thisMonthCreditor,
+        thisMonthIsSettled: thisMonthNetOwed <= 0.005,
+        cumulativeNetOwed,
+        cumulativeDebtor,
+        cumulativeCreditor,
+        cumulativeIsSettled: cumulativeNetOwed <= 0.005,
+        transactions: monthTxs,
+        filteredTransactions: filtered,
+        categoryGroups
+      });
+    }
+
+    // Return in reverse chronological order (newest month first)
+    const result = items.reverse();
+
+    const hasFilter = Boolean(q || bank !== 'ALL' || owner !== 'ALL' || split !== 'ALL' || cat !== 'ALL');
+    if (hasFilter) {
+      return result.filter((m) => m.filteredTransactions.length > 0);
+    }
+
+    return result;
+  });
+
+  public openMonthlyOwesModal(): void {
+    this.isMonthlyOwesModalOpen.set(true);
+    const breakdown = this.monthlyOwesBreakdown();
+    if (breakdown.length > 0 && this.monthlyOwesExpandedMonths().size === 0) {
+      this.monthlyOwesExpandedMonths.set(new Set([breakdown[0].month]));
+    }
+  }
+
+  public closeMonthlyOwesModal(): void {
+    this.isMonthlyOwesModalOpen.set(false);
+  }
+
+  public toggleMonthlyMonthExpanded(month: string): void {
+    this.monthlyOwesExpandedMonths.update((set) => {
+      const next = new Set(set);
+      if (next.has(month)) {
+        next.delete(month);
+      } else {
+        next.add(month);
+      }
+      return next;
+    });
+  }
+
+  public isMonthlyMonthExpanded(month: string): boolean {
+    return this.monthlyOwesExpandedMonths().has(month);
+  }
+
+  public areAllMonthlyOwesExpanded(): boolean {
+    const list = this.monthlyOwesBreakdown();
+    if (list.length === 0) return false;
+    const currentSet = this.monthlyOwesExpandedMonths();
+    return list.every((m) => currentSet.has(m.month));
+  }
+
+  public toggleAllMonthlyOwesExpanded(): void {
+    const list = this.monthlyOwesBreakdown();
+    if (this.areAllMonthlyOwesExpanded()) {
+      this.monthlyOwesExpandedMonths.set(new Set());
+    } else {
+      this.monthlyOwesExpandedMonths.set(new Set(list.map((m) => m.month)));
+    }
+  }
+
+  public toggleMonthlyOwesGroupByMode(): void {
+    this.monthlyOwesGroupByMode.set(this.monthlyOwesGroupByMode() === 'category' ? 'table' : 'category');
+  }
+
+  public setMonthlyOwesSort(column: 'date' | 'amount' | 'description' | 'category' | 'paidBy' | 'split'): void {
+    if (this.monthlyOwesSortColumn() === column) {
+      this.monthlyOwesSortDirection.set(this.monthlyOwesSortDirection() === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.monthlyOwesSortColumn.set(column);
+      this.monthlyOwesSortDirection.set(column === 'amount' || column === 'date' ? 'desc' : 'asc');
+    }
+  }
+
+  public resetMonthlyOwesFilters(): void {
+    this.monthlyOwesSearchQuery.set('');
+    this.monthlyOwesBankFilter.set('ALL');
+    this.monthlyOwesOwnerFilter.set('ALL');
+    this.monthlyOwesSplitFilter.set('ALL');
+    this.monthlyOwesCategoryFilter.set('ALL');
+  }
+
+  public getTxSplitShares(tx: Transaction): { p1Share: number; p2Share: number } {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    const res = this.service.calculateTxDebt(tx, p1, p2);
+    return { p1Share: res.p1Share, p2Share: res.p2Share };
   }
 
   // Settlement breakdown drawer toggle
