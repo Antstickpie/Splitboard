@@ -1094,17 +1094,16 @@
                         {{ getIncomeMonthBadgeLabel(tx) }}
                       </span>
                     </div>
-                    <div class="ed-drawer-tx-desc">
-                      <span style="font-weight: 500; color: #f1f5f9;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
+                    <div class="ed-drawer-tx-desc" style="display: flex; align-items: center; gap: 0.35rem; min-width: 0;">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap; flex-shrink: 0;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                      <span style="font-weight: 500; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedDescriptionHtml(tx.description)"></span>
                     </div>
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
-                    <!-- Move Category Option & Split -->
-                    <div style="min-width: 140px; max-width: 235px; flex-shrink: 0; display: flex; align-items: center; gap: 0.35rem;" (click)="$event.stopPropagation()">
-                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                    <!-- Move Category Option -->
+                    <div style="min-width: 140px; max-width: 180px; flex-shrink: 0;" (click)="$event.stopPropagation()">
                       <app-category-select
-                        style="flex: 1;"
                         [value]="tx.categoryItem || (m.selectedItem !== 'Uncategorized' ? m.selectedItem : '')"
                         [group]="tx.categoryGroup || (m.selectedGroup !== 'Uncategorized' ? m.selectedGroup : '')"
                         [compact]="true"
@@ -1114,7 +1113,6 @@
                         (categoryChange)="moveIndividualTransactionCategory(tx, $event.item, $event.group)"
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
-                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="height: 24px; font-size: 0.72rem; padding: 0 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
                     </div>
                     <!-- Individual Note / Comment Input -->
                     <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
@@ -1161,6 +1159,14 @@
                         [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
                         style="padding: 0.18rem 0.42rem; font-size: 0.71rem; white-space: nowrap;">
                         {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-xs tx-btn-split"
+                        (click)="openCategorySplitModal(tx)"
+                        [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'"
+                        style="height: 24px; font-size: 0.71rem; padding: 0 0.4rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); white-space: nowrap; flex-shrink: 0;">
+                        ✂️ Split
                       </button>
                       <div class="split-button-group">
                         <button
@@ -1433,17 +1439,16 @@
                         {{ getIncomeMonthBadgeLabel(tx) }}
                       </span>
                     </div>
-                    <div class="ed-drawer-tx-desc">
-                      <span style="font-weight: 500; color: #f1f5f9;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || tx.categoryItem || 'Uncategorized')"></span>
+                    <div class="ed-drawer-tx-desc" style="display: flex; align-items: center; gap: 0.35rem; min-width: 0;">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap; flex-shrink: 0;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                      <span style="font-weight: 500; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'" [innerHTML]="getHighlightedCategoryHtml(tx.rawCategory || tx.categoryItem || 'Uncategorized')"></span>
                     </div>
                     <span class="font-mono" [class.text-success]="isIncomeTx(tx)" style="font-weight: 600; font-size: 0.8rem; margin: 0 0.6rem; flex-shrink: 0; white-space: nowrap;">
                       {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
                     </span>
-                    <!-- Move Category Option & Split -->
-                    <div style="min-width: 140px; max-width: 235px; flex-shrink: 0; display: flex; align-items: center; gap: 0.35rem;" (click)="$event.stopPropagation()">
-                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
+                    <!-- Move Category Option -->
+                    <div style="min-width: 140px; max-width: 180px; flex-shrink: 0;" (click)="$event.stopPropagation()">
                       <app-category-select
-                        style="flex: 1;"
                         [value]="tx.categoryItem || (d.selectedItem !== 'Uncategorized' ? d.selectedItem : '')"
                         [group]="tx.categoryGroup || (d.selectedGroup !== 'Uncategorized' ? d.selectedGroup : '')"
                         [compact]="true"
@@ -1453,7 +1458,6 @@
                         (categoryChange)="moveIndividualTransactionCategory(tx, $event.item, $event.group)"
                         (addNewRequested)="openAddCategoryModal(tx, 'row')">
                       </app-category-select>
-                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="height: 24px; font-size: 0.72rem; padding: 0 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
                     </div>
                     <!-- Individual Note / Comment Input -->
                     <div style="min-width: 110px; max-width: 160px; flex-shrink: 0;">
@@ -1500,6 +1504,14 @@
                         [style.color]="hasMatchingRule(tx) ? 'var(--primary)' : ''"
                         style="padding: 0.18rem 0.42rem; font-size: 0.71rem; white-space: nowrap;">
                         {{ hasMatchingRule(tx) ? '✏️ Edit Rule' : '⚡ Rule' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-xs tx-btn-split"
+                        (click)="openCategorySplitModal(tx)"
+                        [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'"
+                        style="height: 24px; font-size: 0.71rem; padding: 0 0.4rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); white-space: nowrap; flex-shrink: 0;">
+                        ✂️ Split
                       </button>
                       <div class="split-button-group">
                         <button
@@ -1585,7 +1597,7 @@
                   <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}</th>
                   <th>Split</th>
                   <th>💬 Note</th>
-                  <th style="text-align: center; width: 320px; min-width: 320px;">Action</th>
+                  <th style="text-align: center; width: 380px; min-width: 380px;">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -1607,6 +1619,7 @@
                   </td>
                   <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
                     <div class="tx-description-cell">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; margin-right: 0.35rem; white-space: nowrap; flex-shrink: 0;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
                       <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
                       <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
                         🔍 Review
@@ -1626,18 +1639,13 @@
                     </span>
                   </td>
                   <td>
-                    <div style="display: flex; align-items: center; gap: 0.35rem;">
-                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
-                      <app-category-select
-                        style="flex: 1;"
-                        [value]="tx.categoryItem || ''"
-                        [group]="tx.categoryGroup || ''"
-                        placeholder="Select category..."
-                        (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                      </app-category-select>
-                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
-                    </div>
+                    <app-category-select
+                      [value]="tx.categoryItem || ''"
+                      [group]="tx.categoryGroup || ''"
+                      placeholder="Select category..."
+                      (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                      (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                    </app-category-select>
                   </td>
                   <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">
                     {{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
@@ -1680,7 +1688,7 @@
                       style="height: 26px; font-size: 0.75rem; padding: 0.15rem 0.4rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-main);"
                       title="Add comment before importing" />
                   </td>
-                  <td style="text-align: center; white-space: nowrap; width: 320px; min-width: 320px;">
+                  <td style="text-align: center; white-space: nowrap; width: 380px; min-width: 380px;">
                     <div class="tx-actions-cell">
                       <button
                         type="button"
@@ -1699,6 +1707,14 @@
                         (click)="toggleTxReview(tx)"
                         [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
                         {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-xs tx-btn-split"
+                        (click)="openCategorySplitModal(tx)"
+                        [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'"
+                        style="padding: 0.18rem 0.42rem; font-size: 0.71rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); white-space: nowrap;">
+                        ✂️ Split
                       </button>
                       <button
                         class="btn btn-secondary btn-xs tx-btn-rule"
@@ -1830,7 +1846,7 @@
               </th>
               <th>Split</th>
               <th>💬 Note</th>
-              <th style="text-align: center; width: 320px; min-width: 320px;">Action</th>
+              <th style="text-align: center; width: 380px; min-width: 380px;">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -1852,6 +1868,7 @@
               </td>
               <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
                 <div class="tx-description-cell">
+                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; margin-right: 0.35rem; white-space: nowrap; flex-shrink: 0;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
                   <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
                   <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
                     🔍 Review
@@ -1875,17 +1892,12 @@
                 </span>
               </td>
               <td>
-                <div style="display: flex; align-items: center; gap: 0.35rem;">
-                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
-                  <app-category-select
-                    style="flex: 1;"
-                    [value]="tx.categoryItem || ''"
-                    [group]="tx.categoryGroup || ''"
-                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                  </app-category-select>
-                  <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
-                </div>
+                <app-category-select
+                  [value]="tx.categoryItem || ''"
+                  [group]="tx.categoryGroup || ''"
+                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                </app-category-select>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
@@ -1932,7 +1944,7 @@
                   style="height: 26px; font-size: 0.75rem; padding: 0.15rem 0.4rem; width: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-main);"
                   title="Add comment before importing" />
               </td>
-              <td style="text-align: center; white-space: nowrap; width: 320px; min-width: 320px;">
+              <td style="text-align: center; white-space: nowrap; width: 380px; min-width: 380px;">
                 <div class="tx-actions-cell">
                   <!-- Done Button -->
                   <button
@@ -1953,6 +1965,15 @@
                     (click)="toggleTxReview(tx)"
                     [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'">
                     {{ tx.isUnderReview ? '🔍 In Review' : '🔍 Review' }}
+                  </button>
+                  <!-- Split into categories button -->
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs tx-btn-split"
+                    (click)="openCategorySplitModal(tx)"
+                    [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'"
+                    style="padding: 0.18rem 0.42rem; font-size: 0.71rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); white-space: nowrap;">
+                    ✂️ Split
                   </button>
                   <!-- Rule Button -->
                   <button
@@ -2080,7 +2101,7 @@
               <th (click)="toggleSort('amount')" style="text-align: right; cursor: pointer; user-select: none;">Amount {{ sortColumn() === 'amount' ? (sortAsc() ? '▲' : '▼') : '' }}</th>
               <th>Split</th>
               <th>💬 Note</th>
-              <th style="text-align: center; width: 295px; min-width: 295px;">Actions</th>
+              <th style="text-align: center; width: 360px; min-width: 360px;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -2091,6 +2112,7 @@
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
                 <div class="tx-description-cell">
+                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; margin-right: 0.35rem; white-space: nowrap; flex-shrink: 0;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
                   <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
                   <span class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
                     🔍 In Review
@@ -2109,17 +2131,12 @@
                 </span>
               </td>
               <td>
-                <div style="display: flex; align-items: center; gap: 0.35rem;">
-                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
-                  <app-category-select
-                    style="flex: 1;"
-                    [value]="tx.categoryItem || ''"
-                    [group]="tx.categoryGroup || ''"
-                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                  </app-category-select>
-                  <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
-                </div>
+                <app-category-select
+                  [value]="tx.categoryItem || ''"
+                  [group]="tx.categoryGroup || ''"
+                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                </app-category-select>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>
@@ -2164,7 +2181,7 @@
                   placeholder="💬 Add note..."
                   class="inline-note-input" />
               </td>
-              <td style="text-align: center; white-space: nowrap; width: 295px; min-width: 295px;">
+              <td style="text-align: center; white-space: nowrap; width: 360px; min-width: 360px;">
                 <div class="tx-actions-cell">
                   <button
                     type="button"
@@ -2181,6 +2198,14 @@
                     (click)="toggleTxReview(tx)"
                     title="Resolve review for this transaction">
                     ✓ Resolve
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs tx-btn-split"
+                    (click)="openCategorySplitModal(tx)"
+                    [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'"
+                    style="padding: 0.18rem 0.42rem; font-size: 0.71rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); white-space: nowrap;">
+                    ✂️ Split
                   </button>
                   <button
                     class="btn btn-secondary btn-xs tx-btn-rule"
@@ -2487,7 +2512,7 @@
                   <th style="text-align: right;">Amount</th>
                   <th>Split</th>
                   <th>💬 Note</th>
-                  <th style="text-align: center; width: 295px; min-width: 295px;">Actions</th>
+                  <th style="text-align: center; width: 360px; min-width: 360px;">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -2498,6 +2523,7 @@
                   <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
                   <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
                     <div class="tx-description-cell">
+                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; margin-right: 0.35rem; white-space: nowrap; flex-shrink: 0;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
                       <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
                       <span class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
                         🔍 In Review
@@ -2516,17 +2542,12 @@
                     </span>
                   </td>
                   <td>
-                    <div style="display: flex; align-items: center; gap: 0.35rem;">
-                      <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
-                      <app-category-select
-                        style="flex: 1;"
-                        [value]="tx.categoryItem || ''"
-                        [group]="tx.categoryGroup || ''"
-                        (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                        (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                      </app-category-select>
-                      <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
-                    </div>
+                    <app-category-select
+                      [value]="tx.categoryItem || ''"
+                      [group]="tx.categoryGroup || ''"
+                      (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                      (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                    </app-category-select>
                   </td>
                   <td class="font-mono" style="text-align: right; font-weight: bold;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
                   <td>
@@ -2571,7 +2592,7 @@
                       placeholder="💬 Add note..."
                       class="inline-note-input" />
                   </td>
-                  <td style="text-align: center; white-space: nowrap; width: 295px; min-width: 295px;">
+                  <td style="text-align: center; white-space: nowrap; width: 360px; min-width: 360px;">
                     <div class="tx-actions-cell">
                       <button
                         type="button"
@@ -2588,6 +2609,14 @@
                         (click)="toggleTxReview(tx)"
                         title="Resolve review for this transaction">
                         ✓ Resolve
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-xs tx-btn-split"
+                        (click)="openCategorySplitModal(tx)"
+                        [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'"
+                        style="padding: 0.18rem 0.42rem; font-size: 0.71rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); white-space: nowrap;">
+                        ✂️ Split
                       </button>
                       <button
                         class="btn btn-secondary btn-xs tx-btn-rule"
@@ -2672,6 +2701,7 @@
               <td style="white-space: nowrap;">{{ service.formatDate(tx.date) }}</td>
               <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
                 <div class="tx-description-cell">
+                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; margin-right: 0.35rem; white-space: nowrap; flex-shrink: 0;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
                   <span class="tx-description-text" [style.text-decoration]="tx.isDone ? 'line-through' : 'none'">{{ tx.description }}</span>
                   <span class="badge badge-success" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
                     ✓ In Ledger
@@ -2693,17 +2723,12 @@
                 </span>
               </td>
               <td>
-                <div style="display: flex; align-items: center; gap: 0.35rem;">
-                  <span *ngIf="tx.splitGroupId" class="badge" (click)="openCategorySplitModal(tx)" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 0.65rem; padding: 0.1rem 0.35rem; white-space: nowrap;" [title]="'Split: ' + tx.splitPartIndex + '/' + tx.splitTotalParts + ' (' + service.formatCurrency(tx.splitOriginalAmount || tx.amount) + ' total). Click to edit split.'">✂️ {{ tx.splitPartIndex }}/{{ tx.splitTotalParts }}</span>
-                  <app-category-select
-                    style="flex: 1;"
-                    [value]="tx.categoryItem || ''"
-                    [group]="tx.categoryGroup || ''"
-                    (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
-                    (addNewRequested)="openAddCategoryModal(tx, 'row')">
-                  </app-category-select>
-                  <button type="button" class="btn btn-secondary btn-xs" (click)="openCategorySplitModal(tx)" [title]="tx.splitGroupId ? 'Edit category splits' : 'Split into multiple categories'" style="font-size: 0.72rem; padding: 0.18rem 0.38rem; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); flex-shrink: 0;">✂️</button>
-                </div>
+                <app-category-select
+                  [value]="tx.categoryItem || ''"
+                  [group]="tx.categoryGroup || ''"
+                  (categoryChange)="onRowCategoryChange(tx, $event.item, $event.group)"
+                  (addNewRequested)="openAddCategoryModal(tx, 'row')">
+                </app-category-select>
               </td>
               <td class="font-mono" style="text-align: right; font-weight: 600;" [class.text-income]="isIncomeTx(tx)">{{ isIncomeTx(tx) ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</td>
               <td>

@@ -24,7 +24,7 @@
     <!-- Total Banner & Actions -->
     <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.8rem;">
       <div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Original Amount</div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Original Total Amount</div>
         <div style="font-size: 1.45rem; font-weight: 800; color: var(--primary); font-family: monospace;">
           {{ service.formatCurrency(totalAmount()) }}
         </div>
@@ -41,14 +41,15 @@
     </div>
 
     <!-- Table of Category Splits -->
-    <div class="split-table-container" style="max-height: 50vh; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.2rem;">
+    <div class="split-table-container" style="max-height: 52vh; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.2rem;">
       <table class="split-table">
         <thead>
           <tr>
             <th style="width: 36px; text-align: center;">#</th>
-            <th style="min-width: 250px;">Category</th>
-            <th style="width: 170px;">Amount</th>
-            <th style="min-width: 160px;">Note (Optional)</th>
+            <th style="min-width: 220px;">Category</th>
+            <th style="width: 140px;">Amount</th>
+            <th style="width: 185px;">Split Allocation</th>
+            <th style="min-width: 150px;">Note (Optional)</th>
             <th style="width: 38px; text-align: center;"></th>
           </tr>
         </thead>
@@ -65,7 +66,7 @@
                 [value]="line.categoryItem"
                 [group]="line.categoryGroup"
                 placeholder="📁 Choose category..."
-                minWidth="220px"
+                minWidth="200px"
                 (categoryChange)="onCategoryChanged(idx, $event)">
               </app-category-select>
             </td>
@@ -92,6 +93,36 @@
                     +{{ service.formatCurrency(remainingAmount()) }}
                   </button>
                 </div>
+              </div>
+            </td>
+
+            <!-- Split Allocation -->
+            <td>
+              <div class="split-button-group">
+                <button
+                  type="button"
+                  class="split-btn split-btn-5050"
+                  [class.active]="line.splitType === 'SPLIT' && (line.splitPercentage === 50 || line.splitPercentage === undefined)"
+                  (click)="setLineSplitOption(idx, 'SPLIT_5050')"
+                  title="50/50 Split">
+                  50/50
+                </button>
+                <button
+                  type="button"
+                  class="split-btn split-btn-p1"
+                  [class.active]="line.splitType === 'SELF'"
+                  (click)="setLineSplitOption(idx, 'P1')"
+                  [title]="'100% ' + service.personOne().name">
+                  {{ service.personOne().name }}
+                </button>
+                <button
+                  type="button"
+                  class="split-btn split-btn-p2"
+                  [class.active]="line.splitType === 'OTHER'"
+                  (click)="setLineSplitOption(idx, 'P2')"
+                  [title]="'100% ' + service.personTwo().name">
+                  {{ service.personTwo().name }}
+                </button>
               </div>
             </td>
 

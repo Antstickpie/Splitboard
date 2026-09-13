@@ -13,11 +13,11 @@
 .modal-content-card {
   background: #11151c;
   border: 1px solid rgba(56, 189, 248, 0.3);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
   border-radius: 14px;
   padding: 1.5rem;
   box-sizing: border-box;
-  max-width: 860px;
+  max-width: 980px;
   width: 96%;
 }
 
@@ -106,6 +106,59 @@
   text-align: right;
   width: 100%;
   outline: none;
+}
+
+/* Split Button Group in Modal */
+.split-button-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.split-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.split-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.split-btn.split-btn-5050.active {
+  background: rgba(52, 211, 153, 0.22);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.45);
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.2);
+}
+
+.split-btn.split-btn-p1.active {
+  background: rgba(56, 189, 248, 0.22);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.45);
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+}
+
+.split-btn.split-btn-p2.active {
+  background: rgba(167, 139, 250, 0.22);
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.45);
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.2);
 }
 
 .note-input {
