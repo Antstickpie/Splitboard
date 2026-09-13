@@ -62,6 +62,7 @@ export interface MonthOwesItem {
   transactions: Transaction[];
   filteredTransactions: Transaction[];
   sequenceItems: ReviewSequenceTxItem[];
+  noChangeCount: number;
   categoryGroups: MonthCategoryGroup[];
 }
 
@@ -93,6 +94,7 @@ export class LedgerComponent {
   public monthlyOwesGroupByMode = signal<'table' | 'category'>('table');
   public monthlyOwesSortColumn = signal<'date' | 'bank' | 'paidBy' | 'description' | 'category' | 'amount' | 'split'>('date');
   public monthlyOwesSortDirection = signal<'asc' | 'desc'>('desc');
+  public monthlyOwesHideNoChange = signal<boolean>(true);
   public ledgerViewMode = signal<'TRANSACTIONS' | 'MONTHLY_REVIEW'>('TRANSACTIONS');
 
   // Statement Batches Viewer / Manager Modal
@@ -376,6 +378,7 @@ export class LedgerComponent {
     const cat = this.monthlyOwesCategoryFilter();
     const sortCol = this.monthlyOwesSortColumn();
     const sortDir = this.monthlyOwesSortDirection() === 'asc' ? 1 : -1;
+    const hideNoChange = this.monthlyOwesHideNoChange();
 
     const items: MonthOwesItem[] = [];
 
@@ -535,8 +538,13 @@ export class LedgerComponent {
         cumulativeCreditor = p2;
       }
 
+      const noChangeCount = allSequenceItems.filter((i) => i.txOwedAmount <= 0.005).length;
+
       // Filter sequence items for this month
       const filteredSeq = allSequenceItems.filter((item) => {
+        if (hideNoChange && item.txOwedAmount <= 0.005) {
+          return false;
+        }
         const tx = item.tx;
         if (bank !== 'ALL' && tx.bank !== bank) return false;
         if (owner !== 'ALL' && tx.paidBy !== owner) return false;
@@ -637,6 +645,7 @@ export class LedgerComponent {
         transactions: monthTxs,
         filteredTransactions: filtered,
         sequenceItems: filteredSeq,
+        noChangeCount,
         categoryGroups
       });
     }
@@ -815,12 +824,17 @@ export class LedgerComponent {
     }
   }
 
+  public toggleMonthlyOwesHideNoChange(): void {
+    this.monthlyOwesHideNoChange.set(!this.monthlyOwesHideNoChange());
+  }
+
   public resetMonthlyOwesFilters(): void {
     this.monthlyOwesSearchQuery.set('');
     this.monthlyOwesBankFilter.set('ALL');
     this.monthlyOwesOwnerFilter.set('ALL');
     this.monthlyOwesSplitFilter.set('ALL');
     this.monthlyOwesCategoryFilter.set('ALL');
+    this.monthlyOwesHideNoChange.set(true);
   }
 
   public getTxSplitShares(tx: Transaction): { p1Share: number; p2Share: number } {

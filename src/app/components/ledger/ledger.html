@@ -24,8 +24,8 @@
           [class.btn-primary]="ledgerViewMode() === 'MONTHLY_REVIEW'"
           [class.btn-secondary]="ledgerViewMode() !== 'MONTHLY_REVIEW'"
           (click)="toggleMonthlyReviewView()"
-          title="Review monthly owes breakdown, category spend, and balance history">
-          📊 {{ ledgerViewMode() === 'MONTHLY_REVIEW' ? 'Showing Monthly Review ▼' : 'Review Monthly Owes' }}
+          title="Review owes breakdown, category spend, and balance history">
+          📊 {{ ledgerViewMode() === 'MONTHLY_REVIEW' ? 'Review ▼' : 'Review' }}
         </button>
       </div>
 
@@ -234,14 +234,14 @@
             class="ledger-seg-btn"
             [class.active]="ledgerViewMode() === 'MONTHLY_REVIEW'"
             (click)="toggleMonthlyReviewView()"
-            title="Monthly owes review and breakdown">
-            📊 Monthly Review
+            title="Review owes and audit sequence">
+            📊 Review
           </button>
         </div>
 
-        <!-- Monthly Review Title when in review mode -->
+        <!-- Review Title when in review mode -->
         <div *ngIf="ledgerViewMode() === 'MONTHLY_REVIEW'" style="display: flex; align-items: center; gap: 0.45rem;">
-          <span style="font-size: 0.92rem; font-weight: 700; color: var(--text-main);">Monthly Owes Review</span>
+          <span style="font-size: 0.92rem; font-weight: 700; color: var(--text-main);">Review</span>
           <span class="badge badge-cyan-outline font-mono" style="font-size: 0.68rem; font-weight: 600;">
             {{ monthlyOwesOverallSummary().monthCount }} Month{{ monthlyOwesOverallSummary().monthCount !== 1 ? 's' : '' }} • {{ monthlyOwesOverallSummary().totalFilteredTxs }} txs
           </span>
@@ -1750,8 +1750,18 @@
         </button>
       </div>
 
-      <!-- Action Buttons: Category Group Toggle & Expand All -->
+      <!-- Action Buttons: Hide No-Change Toggle, Category Group Toggle & Expand All -->
       <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          [class.active-mode-btn]="monthlyOwesHideNoChange()"
+          (click)="toggleMonthlyOwesHideNoChange()"
+          [title]="monthlyOwesHideNoChange() ? 'Currently hiding transactions that do not change the owe balance (click to show all)' : 'Currently showing all transactions including $0 impact items (click to hide)'"
+          style="font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.7rem; border-radius: 6px;">
+          {{ monthlyOwesHideNoChange() ? '⚡ Hide No-Change' : '📋 Show All' }}
+        </button>
+
         <button
           type="button"
           class="btn btn-secondary btn-sm"
@@ -2200,7 +2210,15 @@
               <!-- Empty state when no transactions match -->
               <tr *ngIf="m.sequenceItems.length === 0">
                 <td colspan="10" style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.82rem;">
-                  No transactions found for this month matching the active filters.
+                  <span *ngIf="monthlyOwesHideNoChange() && m.noChangeCount > 0">
+                    All {{ m.noChangeCount }} transaction{{ m.noChangeCount > 1 ? 's' : '' }} in this month had $0 debt impact.
+                    <button type="button" class="btn btn-xs btn-secondary" (click)="toggleMonthlyOwesHideNoChange()" style="margin-left: 0.5rem; font-size: 0.72rem;">
+                      Show All
+                    </button>
+                  </span>
+                  <span *ngIf="!monthlyOwesHideNoChange() || m.noChangeCount === 0">
+                    No transactions found for this month matching the active filters.
+                  </span>
                 </td>
               </tr>
             </tbody>
