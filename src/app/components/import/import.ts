@@ -35,7 +35,8 @@ export interface ImportCategoryMapping {
   selectedItem: string;
   selectedGroup: string;
   selectedPerson: string;
-  selectedSplitType: SplitType | '';
+  selectedSplitType: SplitType | 'CUSTOM' | '';
+  customSplitLabel?: string;
   isIncome?: boolean;
 }
 
@@ -46,12 +47,20 @@ export interface ImportDescriptionMapping {
   selectedItem: string;
   selectedGroup: string;
   selectedPerson: string;
-  selectedSplitType: SplitType | '';
+  selectedSplitType: SplitType | 'CUSTOM' | '';
+  customSplitLabel?: string;
   rawCategories: string[];
   isIncome?: boolean;
   isFullyAssigned?: boolean;
   unassignedCount?: number;
 }
+
+export type CustomSplitTarget =
+  | { type: 'transaction'; tx: Transaction }
+  | { type: 'category'; rawCategory: string; count: number; totalAmount: number }
+  | { type: 'description'; description: string; count: number; totalAmount: number }
+  | { type: 'matching'; keyword: string; count: number; totalAmount: number }
+  | { type: 'group'; group: DescriptionGroup; count: number; totalAmount: number };
 
 @Component({
   selector: 'app-import',
@@ -212,6 +221,10 @@ export class ImportComponent {
       this.closeBankSelectModal();
       return;
     }
+    if (this.customSplitTarget()) {
+      this.closeCustomSplitModal();
+      return;
+    }
     if (this.showRuleModal()) {
       this.closeRuleModal();
       return;
@@ -251,8 +264,22 @@ export class ImportComponent {
     if (res) this.previewResult.set({ ...res });
   }
 
+  public readonly Math = Math;
+
   public sortColumn = signal<'date' | 'description' | 'amount' | 'bank' | 'paidBy' | 'categoryItem' | 'original'>('original');
   public sortAsc = signal<boolean>(true);
+
+  public groupSortField = signal<'count' | 'amount'>('count');
+  public groupSortAsc = signal<boolean>(false);
+
+  public toggleGroupSort(field: 'count' | 'amount'): void {
+    if (this.groupSortField() === field) {
+      this.groupSortAsc.set(!this.groupSortAsc());
+    } else {
+      this.groupSortField.set(field);
+      this.groupSortAsc.set(false); // default descending (highest first)
+    }
+  }
 
   // Side-by-Side Live PDF Viewer State
   public isPdfLoaded = signal<boolean>(false);
@@ -359,6 +386,8 @@ export class ImportComponent {
       this.sortColumn.set(column);
       if (column === 'date') {
         this.sortAsc.set(this.isPdfLoaded());
+      } else if (column === 'amount') {
+        this.sortAsc.set(false); // Default to highest amount first
       } else {
         this.sortAsc.set(column === 'description' || column === 'bank');
       }
@@ -373,11 +402,19 @@ export class ImportComponent {
   public ruleBank = 'All';
   public ruleCategory = '';
   public ruleCategoryGroup = '';
-  public ruleSplitType: SplitType = 'SELF';
+  public ruleSplitType: SplitType | 'CUSTOM' = 'SELF';
+  public ruleSplitPercentage: number = 50;
   public rulePaidBy = '';
   public ruleIncomeNextMonth = false;
   public ruleDefaultNote = '';
   public editingExistingRuleId: string | null = null;
+
+  // Custom Split Modal State
+  public customSplitTarget = signal<CustomSplitTarget | null>(null);
+  public customSplitMode = signal<'PERCENTAGE' | 'EXACT'>('PERCENTAGE');
+  public customSplitP1Percentage = signal<number>(50);
+  public customSplitP1Amount = signal<number>(0);
+  public customSplitP2Amount = signal<number>(0);
 
   public findMatchingCategoryRuleForTx(tx: Transaction): { type: 'category'; rule: CategoryRule } | null {
     const desc = (tx.description || '').trim().toLowerCase();
@@ -467,7 +504,13 @@ export class ImportComponent {
       this.ruleType.set('categorize');
       this.ruleCategory = tx.categoryItem && tx.categoryItem !== 'Uncategorized' ? tx.categoryItem : '';
       this.ruleCategoryGroup = tx.categoryGroup && tx.categoryGroup !== 'Uncategorized' ? tx.categoryGroup : '';
-      this.ruleSplitType = tx.splitType || 'SPLIT';
+      if (this.isTxCustomSplit(tx)) {
+        this.ruleSplitType = 'CUSTOM';
+        this.ruleSplitPercentage = tx.splitPercentage !== undefined ? tx.splitPercentage : 50;
+      } else {
+        this.ruleSplitType = tx.splitType || 'SPLIT';
+        this.ruleSplitPercentage = 50;
+      }
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
       this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
       this.ruleDefaultNote = tx.note || '';
@@ -485,7 +528,13 @@ export class ImportComponent {
       this.ruleBank = tx.bank || 'All';
       this.ruleCategory = tx.categoryItem && tx.categoryItem !== 'Uncategorized' ? tx.categoryItem : '';
       this.ruleCategoryGroup = tx.categoryGroup && tx.categoryGroup !== 'Uncategorized' ? tx.categoryGroup : '';
-      this.ruleSplitType = tx.splitType || 'SPLIT';
+      if (this.isTxCustomSplit(tx)) {
+        this.ruleSplitType = 'CUSTOM';
+        this.ruleSplitPercentage = tx.splitPercentage !== undefined ? tx.splitPercentage : 50;
+      } else {
+        this.ruleSplitType = tx.splitType || 'SPLIT';
+        this.ruleSplitPercentage = 50;
+      }
       this.rulePaidBy = tx.paidBy || this.service.personOne().name;
       this.ruleIncomeNextMonth = Boolean(tx.incomeMonth && tx.incomeMonth !== (tx.date || '').slice(0, 7));
       this.ruleDefaultNote = tx.note || '';
@@ -574,7 +623,13 @@ export class ImportComponent {
     if (info.type === 'category') {
       this.ruleCategory = info.rule.categoryItem || '';
       this.ruleCategoryGroup = info.rule.categoryGroup || '';
-      this.ruleSplitType = info.rule.splitType || 'SPLIT';
+      if (info.rule.splitPercentage !== undefined && info.rule.splitPercentage !== 50) {
+        this.ruleSplitType = 'CUSTOM';
+        this.ruleSplitPercentage = info.rule.splitPercentage;
+      } else {
+        this.ruleSplitType = info.rule.splitType || 'SPLIT';
+        this.ruleSplitPercentage = 50;
+      }
       this.rulePaidBy = info.rule.paidBy || '';
       this.ruleIncomeNextMonth = Boolean(info.rule.incomeNextMonth);
       this.ruleDefaultNote = info.rule.defaultNote || '';
@@ -646,11 +701,17 @@ export class ImportComponent {
         ? this.service.rules().find((r) => r.id === editingId) || null
         : null;
 
+      const ruleSplit = this.ruleSplitType;
+      const isCustomSplit = ruleSplit === 'CUSTOM';
+      const actualSplitType: SplitType = isCustomSplit ? 'SPLIT' : ruleSplit;
+      const actualSplitPct: number | undefined = isCustomSplit ? (this.ruleSplitPercentage ?? 50) : undefined;
+
       const ruleData: Omit<CategoryRule, 'id'> = {
         keyword,
         categoryItem: this.ruleCategory || '',
         categoryGroup: catGroup,
-        splitType: this.ruleSplitType,
+        splitType: actualSplitType,
+        splitPercentage: actualSplitPct,
         paidBy: this.rulePaidBy || undefined,
         bank: this.ruleBank,
         incomeNextMonth: this.ruleIncomeNextMonth || undefined,
@@ -710,6 +771,9 @@ export class ImportComponent {
                 categoryItem: newRule.categoryItem || t.categoryItem,
                 categoryGroup: catGroup || t.categoryGroup,
                 splitType: newRule.splitType || t.splitType,
+                splitMode: newRule.splitPercentage !== undefined ? 'PERCENTAGE' : (newRule.splitType === 'SPLIT' ? t.splitMode : undefined),
+                splitPercentage: newRule.splitPercentage,
+                customSplitAmounts: newRule.splitPercentage !== undefined ? undefined : t.customSplitAmounts,
                 paidBy: newRule.paidBy || t.paidBy
               };
 
@@ -884,8 +948,17 @@ export class ImportComponent {
     return res.transactions.filter((t) => !t.splitType).length;
   });
 
-  public getInlineSplitValue(tx: Transaction): 'SPLIT_5050' | '100_P1' | '100_P2' | null {
+  public isTxCustomSplit(tx: Transaction): boolean {
+    return (
+      tx.splitType === 'SPLIT' &&
+      ((tx.splitMode === 'EXACT' && !!tx.customSplitAmounts) ||
+        (tx.splitPercentage !== undefined && tx.splitPercentage !== 50))
+    );
+  }
+
+  public getInlineSplitValue(tx: Transaction): 'SPLIT_5050' | '100_P1' | '100_P2' | 'CUSTOM' | null {
     if (!tx.splitType) return null;
+    if (this.isTxCustomSplit(tx)) return 'CUSTOM';
     const p1 = this.service.personOne().name;
     if (tx.splitType === 'SPLIT') return 'SPLIT_5050';
     if (tx.paidBy === p1) {
@@ -895,8 +968,22 @@ export class ImportComponent {
     }
   }
 
+  public getInlineCustomSplitLabel(tx: Transaction): string {
+    if (!this.isTxCustomSplit(tx)) return 'Custom';
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+      const a1 = Math.round(tx.customSplitAmounts[p1] ?? 0);
+      const a2 = Math.round(tx.customSplitAmounts[p2] ?? 0);
+      return `${a1}/${a2}`;
+    }
+    const pct = tx.splitPercentage !== undefined ? tx.splitPercentage : 50;
+    return `${pct}/${100 - pct}`;
+  }
+
   public getTxBeneficiary(tx: Transaction): string {
     if (!tx.splitType) return '';
+    if (this.isTxCustomSplit(tx)) return 'CUSTOM';
     if (tx.splitType === 'SPLIT') return 'SPLIT';
     const p1 = this.service.personOne().name;
     const p2 = this.service.personTwo().name;
@@ -907,7 +994,41 @@ export class ImportComponent {
     }
   }
 
-  public isMatchingGroupSplit(choice: 'SPLIT' | string): boolean {
+  public isCategoryCustomSplit(rawCategory: string): boolean {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    return txs.length > 0 && txs.every((t) => this.isTxCustomSplit(t));
+  }
+
+  public getCategoryCustomSplitLabel(rawCategory: string): string {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    if (txs.length === 0 || !this.isCategoryCustomSplit(rawCategory)) return 'Custom';
+    const first = txs[0];
+    const firstPct = first.splitPercentage !== undefined ? first.splitPercentage : 50;
+    const allSamePct = txs.every((t) => (t.splitPercentage !== undefined ? t.splitPercentage : 50) === firstPct && t.splitMode !== 'EXACT');
+    if (allSamePct) {
+      return `${firstPct}/${100 - firstPct}`;
+    }
+    return 'Custom';
+  }
+
+  public isDescriptionCustomSplit(desc: string): boolean {
+    const txs = this.getTransactionsForDescription(desc);
+    return txs.length > 0 && txs.every((t) => this.isTxCustomSplit(t));
+  }
+
+  public getDescriptionCustomSplitLabel(desc: string): string {
+    const txs = this.getTransactionsForDescription(desc);
+    if (txs.length === 0 || !this.isDescriptionCustomSplit(desc)) return 'Custom';
+    const first = txs[0];
+    const firstPct = first.splitPercentage !== undefined ? first.splitPercentage : 50;
+    const allSamePct = txs.every((t) => (t.splitPercentage !== undefined ? t.splitPercentage : 50) === firstPct && t.splitMode !== 'EXACT');
+    if (allSamePct) {
+      return `${firstPct}/${100 - firstPct}`;
+    }
+    return 'Custom';
+  }
+
+  public isMatchingGroupSplit(choice: 'SPLIT' | 'CUSTOM' | string): boolean {
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) return false;
     const res = this.previewResult();
@@ -920,13 +1041,45 @@ export class ImportComponent {
           (t.rawCategory || '').toLowerCase().includes(q))
     );
     if (matched.length === 0) return false;
+    if (choice === 'CUSTOM') {
+      return matched.every((t) => this.isTxCustomSplit(t));
+    }
     if (choice === 'SPLIT') {
-      return matched.every((t) => t.splitType === 'SPLIT');
+      return matched.every((t) => t.splitType === 'SPLIT' && !this.isTxCustomSplit(t));
     }
     return matched.every((t) => this.getTxBeneficiary(t) === choice);
   }
 
-  public onInlineSplitButtonClick(tx: Transaction, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
+  public getMatchingGroupCustomSplitLabel(): string {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    if (!q) return 'Custom';
+    const res = this.previewResult();
+    if (!res || !res.transactions) return 'Custom';
+    const matched = res.transactions.filter(
+      (t) =>
+        !this.isTxOwnerExcluded(t) &&
+        ((t.description || '').toLowerCase().includes(q) ||
+          (t.merchant || '').toLowerCase().includes(q) ||
+          (t.rawCategory || '').toLowerCase().includes(q))
+    );
+    if (matched.length === 0 || !matched.every((t) => this.isTxCustomSplit(t))) return 'Custom';
+    const first = matched[0];
+    const firstPct = first.splitPercentage !== undefined ? first.splitPercentage : 50;
+    const allSamePct = matched.every((t) => (t.splitPercentage !== undefined ? t.splitPercentage : 50) === firstPct && t.splitMode !== 'EXACT');
+    if (allSamePct) {
+      return `${firstPct}/${100 - firstPct}`;
+    }
+    return 'Custom';
+  }
+
+  public onInlineSplitButtonClick(tx: Transaction, choice: 'SPLIT_5050' | '100_P1' | '100_P2' | 'CUSTOM'): void {
+    if (choice === 'CUSTOM') {
+      this.openCustomSplitModal(tx);
+      return;
+    }
+    delete tx.customSplitAmounts;
+    delete tx.splitPercentage;
+    delete tx.splitMode;
     const p1 = this.service.personOne().name;
     if (choice === 'SPLIT_5050') {
       tx.splitType = 'SPLIT';
@@ -937,6 +1090,193 @@ export class ImportComponent {
     }
     const res = this.previewResult();
     if (res) this.previewResult.set({ ...res });
+  }
+
+  // Custom Split Modal Methods
+  public openCustomSplitModal(tx: Transaction): void {
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+    this.customSplitTarget.set({ type: 'transaction', tx });
+    if (tx.splitMode === 'EXACT' && tx.customSplitAmounts) {
+      this.customSplitMode.set('EXACT');
+      this.customSplitP1Amount.set(tx.customSplitAmounts[p1] ?? 0);
+      this.customSplitP2Amount.set(tx.customSplitAmounts[p2] ?? 0);
+      const total = Number(tx.amount) || 0;
+      const pct = total > 0 ? Math.round(((tx.customSplitAmounts[p1] ?? 0) / total) * 100) : 50;
+      this.customSplitP1Percentage.set(pct);
+    } else {
+      this.customSplitMode.set('PERCENTAGE');
+      const pct = tx.splitPercentage !== undefined ? tx.splitPercentage : 50;
+      this.customSplitP1Percentage.set(pct);
+      const total = Number(tx.amount) || 0;
+      this.customSplitP1Amount.set(Math.round((total * (pct / 100)) * 100) / 100);
+      this.customSplitP2Amount.set(Math.round((total * ((100 - pct) / 100)) * 100) / 100);
+    }
+  }
+
+  public openCategoryCustomSplitModal(rawCategory: string): void {
+    const txs = this.getTransactionsForCategory(rawCategory);
+    const totalAmount = txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    this.customSplitTarget.set({ type: 'category', rawCategory, count: txs.length, totalAmount });
+    this.customSplitMode.set('PERCENTAGE');
+    const firstWithPct = txs.find((t) => t.splitPercentage !== undefined);
+    this.customSplitP1Percentage.set(firstWithPct?.splitPercentage ?? 50);
+  }
+
+  public openDescriptionCustomSplitModal(description: string): void {
+    const txs = this.getTransactionsForDescription(description);
+    const totalAmount = txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    this.customSplitTarget.set({ type: 'description', description, count: txs.length, totalAmount });
+    this.customSplitMode.set('PERCENTAGE');
+    const firstWithPct = txs.find((t) => t.splitPercentage !== undefined);
+    this.customSplitP1Percentage.set(firstWithPct?.splitPercentage ?? 50);
+  }
+
+  public openMatchingGroupCustomSplitModal(): void {
+    const q = this.descriptionMatchKeyword().trim().toLowerCase();
+    const res = this.previewResult();
+    const txs = (res?.transactions || []).filter(
+      (t) =>
+        !this.isTxOwnerExcluded(t) &&
+        ((t.description || '').toLowerCase().includes(q) ||
+          (t.merchant || '').toLowerCase().includes(q) ||
+          (t.rawCategory || '').toLowerCase().includes(q))
+    );
+    const totalAmount = txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    this.customSplitTarget.set({ type: 'matching', keyword: this.descriptionMatchKeyword().trim(), count: txs.length, totalAmount });
+    this.customSplitMode.set('PERCENTAGE');
+    const firstWithPct = txs.find((t) => t.splitPercentage !== undefined);
+    this.customSplitP1Percentage.set(firstWithPct?.splitPercentage ?? 50);
+  }
+
+  public openGroupCustomSplitModal(group: DescriptionGroup): void {
+    this.customSplitTarget.set({ type: 'group', group, count: group.count, totalAmount: group.totalAmount });
+    this.customSplitMode.set('PERCENTAGE');
+    const firstWithPct = group.items.find((t) => t.splitPercentage !== undefined);
+    this.customSplitP1Percentage.set(firstWithPct?.splitPercentage ?? 50);
+  }
+
+  public closeCustomSplitModal(): void {
+    this.customSplitTarget.set(null);
+  }
+
+  public applyCustomPercentagePreset(p1Pct: number): void {
+    this.customSplitP1Percentage.set(p1Pct);
+    const target = this.customSplitTarget();
+    if (target && target.type === 'transaction') {
+      const total = Number(target.tx.amount) || 0;
+      this.customSplitP1Amount.set(Math.round((total * (p1Pct / 100)) * 100) / 100);
+      this.customSplitP2Amount.set(Math.round((total * ((100 - p1Pct) / 100)) * 100) / 100);
+    }
+  }
+
+  public onCustomP1AmountChange(val: number): void {
+    this.customSplitP1Amount.set(val);
+    const target = this.customSplitTarget();
+    if (target && target.type === 'transaction') {
+      const total = Number(target.tx.amount) || 0;
+      const remaining = Math.max(0, Math.round((total - val) * 100) / 100);
+      this.customSplitP2Amount.set(remaining);
+      if (total > 0) {
+        this.customSplitP1Percentage.set(Math.round((val / total) * 100));
+      }
+    }
+  }
+
+  public onCustomP2AmountChange(val: number): void {
+    this.customSplitP2Amount.set(val);
+    const target = this.customSplitTarget();
+    if (target && target.type === 'transaction') {
+      const total = Number(target.tx.amount) || 0;
+      const remaining = Math.max(0, Math.round((total - val) * 100) / 100);
+      this.customSplitP1Amount.set(remaining);
+      if (total > 0) {
+        this.customSplitP1Percentage.set(Math.round((remaining / total) * 100));
+      }
+    }
+  }
+
+  public saveCustomSplitModal(): void {
+    const target = this.customSplitTarget();
+    if (!target) return;
+    const mode = this.customSplitMode();
+    const pct = this.customSplitP1Percentage();
+    const p1 = this.service.personOne().name;
+    const p2 = this.service.personTwo().name;
+
+    const applyToTx = (tx: Transaction) => {
+      tx.splitType = 'SPLIT';
+      if (mode === 'EXACT') {
+        tx.splitMode = 'EXACT';
+        tx.customSplitAmounts = {
+          [p1]: this.customSplitP1Amount(),
+          [p2]: this.customSplitP2Amount()
+        };
+        tx.splitPercentage = pct;
+      } else {
+        tx.splitMode = 'PERCENTAGE';
+        tx.splitPercentage = pct;
+        delete tx.customSplitAmounts;
+      }
+    };
+
+    if (target.type === 'transaction') {
+      applyToTx(target.tx);
+      this.service.showToast(
+        mode === 'EXACT'
+          ? `Custom split applied: ${p1} $${this.customSplitP1Amount()} / ${p2} $${this.customSplitP2Amount()}`
+          : `Custom split applied: ${pct}% / ${100 - pct}%`,
+        'success'
+      );
+    } else if (target.type === 'category') {
+      const txs = this.getTransactionsForCategory(target.rawCategory);
+      txs.forEach((t) => {
+        t.splitType = 'SPLIT';
+        t.splitMode = 'PERCENTAGE';
+        t.splitPercentage = pct;
+        delete t.customSplitAmounts;
+      });
+      this.service.showToast(`Set ${txs.length} transactions in "${target.rawCategory}" to ${pct}/${100 - pct} split!`, 'success');
+    } else if (target.type === 'description') {
+      const txs = this.getTransactionsForDescription(target.description);
+      txs.forEach((t) => {
+        t.splitType = 'SPLIT';
+        t.splitMode = 'PERCENTAGE';
+        t.splitPercentage = pct;
+        delete t.customSplitAmounts;
+      });
+      this.service.showToast(`Set ${txs.length} transactions for "${target.description}" to ${pct}/${100 - pct} split!`, 'success');
+    } else if (target.type === 'matching') {
+      const q = target.keyword.toLowerCase();
+      const res = this.previewResult();
+      const txs = (res?.transactions || []).filter(
+        (t) =>
+          !this.isTxOwnerExcluded(t) &&
+          ((t.description || '').toLowerCase().includes(q) ||
+            (t.merchant || '').toLowerCase().includes(q) ||
+            (t.rawCategory || '').toLowerCase().includes(q))
+      );
+      txs.forEach((t) => {
+        t.splitType = 'SPLIT';
+        t.splitMode = 'PERCENTAGE';
+        t.splitPercentage = pct;
+        delete t.customSplitAmounts;
+      });
+      this.service.showToast(`Set ${txs.length} transactions matching "${target.keyword}" to ${pct}/${100 - pct} split!`, 'success');
+    } else if (target.type === 'group') {
+      target.group.items.forEach((t) => {
+        t.splitType = 'SPLIT';
+        t.splitMode = 'PERCENTAGE';
+        t.splitPercentage = pct;
+        delete t.customSplitAmounts;
+      });
+      target.group.splitType = 'SPLIT';
+      this.service.showToast(`Set ${target.group.count} transactions in "${target.group.description}" to ${pct}/${100 - pct} split!`, 'success');
+    }
+
+    const res = this.previewResult();
+    if (res) this.previewResult.set({ ...res });
+    this.closeCustomSplitModal();
   }
 
   public invertPreviewSigns(): void {
@@ -1833,6 +2173,19 @@ export class ImportComponent {
       const definedGroup = val.items.find((t) => t.categoryGroup && t.categoryGroup !== 'Uncategorized');
       const firstBeneficiary = val.items[0] ? this.getTxBeneficiary(val.items[0]) : '';
       const allSameBeneficiary = val.items.length > 0 && val.items.every((t) => this.getTxBeneficiary(t) === firstBeneficiary);
+      const allCustom = val.items.length > 0 && val.items.every((t) => this.isTxCustomSplit(t));
+
+      let selectedSplitType: SplitType | 'CUSTOM' | '' = '';
+      let customSplitLabel: string | undefined = undefined;
+      if (allCustom) {
+        selectedSplitType = 'CUSTOM';
+        const first = val.items[0];
+        const firstPct = first.splitPercentage !== undefined ? first.splitPercentage : 50;
+        const allSamePct = val.items.every((t) => (t.splitPercentage !== undefined ? t.splitPercentage : 50) === firstPct && t.splitMode !== 'EXACT');
+        customSplitLabel = allSamePct ? `${firstPct}/${100 - firstPct}` : 'Custom';
+      } else if (allSameBeneficiary) {
+        selectedSplitType = firstBeneficiary === 'SPLIT' ? 'SPLIT' : 'SELF';
+      }
 
       result.push({
         rawCategory,
@@ -1840,13 +2193,21 @@ export class ImportComponent {
         totalAmount: Math.round(val.totalAmount * 100) / 100,
         selectedItem: definedItem?.categoryItem || 'Uncategorized',
         selectedGroup: definedGroup?.categoryGroup || 'Uncategorized',
-        selectedPerson: allSameBeneficiary && firstBeneficiary !== 'SPLIT' ? firstBeneficiary : '',
-        selectedSplitType: allSameBeneficiary && firstBeneficiary === 'SPLIT' ? 'SPLIT' : (allSameBeneficiary ? 'SELF' : ''),
+        selectedPerson: !allCustom && allSameBeneficiary && firstBeneficiary !== 'SPLIT' ? firstBeneficiary : '',
+        selectedSplitType,
+        customSplitLabel,
         isIncome: val.isIncome
       });
     });
 
-    return result.sort((a, b) => b.count - a.count);
+    const sortField = this.groupSortField();
+    const sortAsc = this.groupSortAsc();
+    return result.sort((a, b) => {
+      if (sortField === 'amount') {
+        return sortAsc ? a.totalAmount - b.totalAmount : b.totalAmount - a.totalAmount;
+      }
+      return sortAsc ? a.count - b.count : b.count - a.count;
+    });
   });
 
   public descriptionMappings = computed<ImportDescriptionMapping[]>(() => {
@@ -1881,6 +2242,7 @@ export class ImportComponent {
       const definedGroup = val.items.find((t) => t.categoryGroup && t.categoryGroup !== 'Uncategorized');
       const firstBeneficiary = val.items[0] ? this.getTxBeneficiary(val.items[0]) : '';
       const allSameBeneficiary = val.items.length > 0 && val.items.every((t) => this.getTxBeneficiary(t) === firstBeneficiary);
+      const allCustom = val.items.length > 0 && val.items.every((t) => this.isTxCustomSplit(t));
       const rawCategories = Array.from(
         new Set(val.items.map((t) => (t.rawCategory || t.categoryItem || '').trim()).filter(Boolean))
       );
@@ -1888,14 +2250,27 @@ export class ImportComponent {
       const unassignedCount = val.items.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized').length;
       const isFullyAssigned = unassignedCount === 0;
 
+      let selectedSplitType: SplitType | 'CUSTOM' | '' = '';
+      let customSplitLabel: string | undefined = undefined;
+      if (allCustom) {
+        selectedSplitType = 'CUSTOM';
+        const first = val.items[0];
+        const firstPct = first.splitPercentage !== undefined ? first.splitPercentage : 50;
+        const allSamePct = val.items.every((t) => (t.splitPercentage !== undefined ? t.splitPercentage : 50) === firstPct && t.splitMode !== 'EXACT');
+        customSplitLabel = allSamePct ? `${firstPct}/${100 - firstPct}` : 'Custom';
+      } else if (allSameBeneficiary) {
+        selectedSplitType = firstBeneficiary === 'SPLIT' ? 'SPLIT' : 'SELF';
+      }
+
       result.push({
         description,
         count: val.count,
         totalAmount: Math.round(val.totalAmount * 100) / 100,
         selectedItem: definedItem?.categoryItem || 'Uncategorized',
         selectedGroup: definedGroup?.categoryGroup || 'Uncategorized',
-        selectedPerson: allSameBeneficiary && firstBeneficiary !== 'SPLIT' ? firstBeneficiary : '',
-        selectedSplitType: allSameBeneficiary && firstBeneficiary === 'SPLIT' ? 'SPLIT' : (allSameBeneficiary ? 'SELF' : ''),
+        selectedPerson: !allCustom && allSameBeneficiary && firstBeneficiary !== 'SPLIT' ? firstBeneficiary : '',
+        selectedSplitType,
+        customSplitLabel,
         rawCategories,
         isIncome: val.isIncome,
         isFullyAssigned,
@@ -1903,7 +2278,14 @@ export class ImportComponent {
       });
     });
 
-    return result.sort((a, b) => b.count - a.count);
+    const sortField = this.groupSortField();
+    const sortAsc = this.groupSortAsc();
+    return result.sort((a, b) => {
+      if (sortField === 'amount') {
+        return sortAsc ? a.totalAmount - b.totalAmount : b.totalAmount - a.totalAmount;
+      }
+      return sortAsc ? a.count - b.count : b.count - a.count;
+    });
   });
 
   public displayedCategoryMappings = computed<ImportCategoryMapping[]>(() => {
@@ -2085,17 +2467,27 @@ export class ImportComponent {
   public getTransactionsForCategory(rawCategory: string): Transaction[] {
     const res = this.previewResult();
     if (!res) return [];
-    return res.transactions.filter(
+    let list = res.transactions.filter(
       (t) => (t.rawCategory || t.categoryItem || 'Uncategorized').trim() === rawCategory
     );
+    if (this.groupSortField() === 'amount' || this.sortColumn() === 'amount') {
+      const asc = this.groupSortField() === 'amount' ? this.groupSortAsc() : this.sortAsc();
+      list = [...list].sort((a, b) => (asc ? (Number(a.amount) || 0) - (Number(b.amount) || 0) : (Number(b.amount) || 0) - (Number(a.amount) || 0)));
+    }
+    return list;
   }
 
   public getTransactionsForDescription(desc: string): Transaction[] {
     const res = this.previewResult();
     if (!res) return [];
-    return res.transactions.filter(
+    let list = res.transactions.filter(
       (t) => (t.description || t.merchant || 'Unspecified').trim() === desc
     );
+    if (this.groupSortField() === 'amount' || this.sortColumn() === 'amount') {
+      const asc = this.groupSortField() === 'amount' ? this.groupSortAsc() : this.sortAsc();
+      list = [...list].sort((a, b) => (asc ? (Number(a.amount) || 0) - (Number(b.amount) || 0) : (Number(b.amount) || 0) - (Number(a.amount) || 0)));
+    }
+    return list;
   }
 
   public isCategoryShowingAll(rawCategory: string): boolean {
@@ -2255,12 +2647,18 @@ export class ImportComponent {
   }
 
   public setTxSplit(tx: Transaction, split: SplitType): void {
+    delete tx.customSplitAmounts;
+    delete tx.splitPercentage;
+    delete tx.splitMode;
     tx.splitType = split;
     const res = this.previewResult();
     if (res) this.previewResult.set({ ...res });
   }
 
   public setTxPerson(tx: Transaction, person: string): void {
+    delete tx.customSplitAmounts;
+    delete tx.splitPercentage;
+    delete tx.splitMode;
     tx.splitType = tx.paidBy === person ? 'SELF' : 'OTHER';
     const res = this.previewResult();
     if (res) this.previewResult.set({ ...res });
@@ -2271,6 +2669,9 @@ export class ImportComponent {
     if (!res) return;
     for (const tx of res.transactions) {
       if ((tx.rawCategory || tx.categoryItem || 'Uncategorized').trim() === rawCategory) {
+        delete tx.customSplitAmounts;
+        delete tx.splitPercentage;
+        delete tx.splitMode;
         tx.splitType = splitType;
       }
     }
@@ -2282,6 +2683,9 @@ export class ImportComponent {
     if (!res) return;
     for (const tx of res.transactions) {
       if ((tx.rawCategory || tx.categoryItem || 'Uncategorized').trim() === rawCategory) {
+        delete tx.customSplitAmounts;
+        delete tx.splitPercentage;
+        delete tx.splitMode;
         tx.splitType = tx.paidBy === personName ? 'SELF' : 'OTHER';
       }
     }
@@ -2321,6 +2725,9 @@ export class ImportComponent {
     if (!res) return;
     for (const tx of res.transactions) {
       if ((tx.description || tx.merchant || 'Unspecified').trim() === desc) {
+        delete tx.customSplitAmounts;
+        delete tx.splitPercentage;
+        delete tx.splitMode;
         tx.splitType = splitType;
       }
     }
@@ -2332,6 +2739,9 @@ export class ImportComponent {
     if (!res) return;
     for (const tx of res.transactions) {
       if ((tx.description || tx.merchant || 'Unspecified').trim() === desc) {
+        delete tx.customSplitAmounts;
+        delete tx.splitPercentage;
+        delete tx.splitMode;
         tx.splitType = tx.paidBy === personName ? 'SELF' : 'OTHER';
       }
     }
@@ -2487,6 +2897,9 @@ export class ImportComponent {
           skippedExcludedOwner++;
           continue;
         }
+        delete t.customSplitAmounts;
+        delete t.splitPercentage;
+        delete t.splitMode;
         t.splitType = t.paidBy === personName ? 'SELF' : 'OTHER';
         matchedCount++;
       }
@@ -2534,6 +2947,9 @@ export class ImportComponent {
           skippedExcludedOwner++;
           continue;
         }
+        delete t.customSplitAmounts;
+        delete t.splitPercentage;
+        delete t.splitMode;
         t.splitType = 'SPLIT';
         matchedCount++;
       }
@@ -2627,6 +3043,9 @@ export class ImportComponent {
           skippedCount++;
           continue;
         }
+        delete t.customSplitAmounts;
+        delete t.splitPercentage;
+        delete t.splitMode;
         t.splitType = t.paidBy === personName ? 'SELF' : 'OTHER';
         matchedCount++;
       }
@@ -2670,6 +3089,9 @@ export class ImportComponent {
           skippedCount++;
           continue;
         }
+        delete t.customSplitAmounts;
+        delete t.splitPercentage;
+        delete t.splitMode;
         t.splitType = 'SPLIT';
         matchedCount++;
       }
@@ -3236,9 +3658,16 @@ export class ImportComponent {
       map.get(key)!.push(tx);
     }
 
+    const sortField = this.groupSortField();
+    const sortAsc = this.groupSortAsc();
+
     const groups: DescriptionGroup[] = [];
     for (const [description, items] of map.entries()) {
       if (items.length < 2) continue; // Only group when at least 2 items exist!
+
+      if (sortField === 'amount') {
+        items.sort((a, b) => (sortAsc ? (Number(a.amount) || 0) - (Number(b.amount) || 0) : (Number(b.amount) || 0) - (Number(a.amount) || 0)));
+      }
 
       const totalAmount = items.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
       const firstCat = (items[0]?.categoryItem || '').trim();
@@ -3294,7 +3723,12 @@ export class ImportComponent {
       });
     }
 
-    return groups;
+    return groups.sort((a, b) => {
+      if (sortField === 'amount') {
+        return sortAsc ? a.totalAmount - b.totalAmount : b.totalAmount - a.totalAmount;
+      }
+      return sortAsc ? a.count - b.count : b.count - a.count;
+    });
   });
 
   public onGroupNoteChange(group: DescriptionGroup, newNote: string): void {
@@ -3314,7 +3748,8 @@ export class ImportComponent {
 
   public singleTransactions = computed<Transaction[]>(() => {
     const multiDescriptions = new Set(this.descriptionGroups().map((g) => g.description));
-    return this.currentActiveTabTransactions().filter((t) => !multiDescriptions.has((t.description || 'Unspecified').trim()));
+    const list = this.currentActiveTabTransactions().filter((t) => !multiDescriptions.has((t.description || 'Unspecified').trim()));
+    return this.sortTxList(list);
   });
 
   public onGroupCategoryChange(group: DescriptionGroup, newCategory: string, newGroup?: string): void {
@@ -3344,7 +3779,7 @@ export class ImportComponent {
     this.service.showToast(`Updated category for all ${group.count} "${group.description}" items`, 'success');
   }
 
-  public getGroupSplitValue(group: DescriptionGroup): 'SPLIT_5050' | '100_P1' | '100_P2' | 'MIXED' | 'NONE' {
+  public getGroupSplitValue(group: DescriptionGroup): 'SPLIT_5050' | '100_P1' | '100_P2' | 'CUSTOM' | 'MIXED' | 'NONE' {
     if (!group.items || group.items.length === 0) return 'NONE';
     const firstVal = this.getInlineSplitValue(group.items[0]);
     if (!firstVal) {
@@ -3355,13 +3790,35 @@ export class ImportComponent {
     return allSame ? firstVal : 'MIXED';
   }
 
+  public isGroupCustomSplit(group: DescriptionGroup): boolean {
+    return group.items.length > 0 && group.items.every((t) => this.isTxCustomSplit(t));
+  }
+
+  public getGroupCustomSplitLabel(group: DescriptionGroup): string {
+    if (!this.isGroupCustomSplit(group)) return 'Custom';
+    const first = group.items[0];
+    const firstPct = first.splitPercentage !== undefined ? first.splitPercentage : 50;
+    const allSamePct = group.items.every((t) => (t.splitPercentage !== undefined ? t.splitPercentage : 50) === firstPct && t.splitMode !== 'EXACT');
+    if (allSamePct) {
+      return `${firstPct}/${100 - firstPct}`;
+    }
+    return 'Custom';
+  }
+
   public hasUnselectedSplits(group: DescriptionGroup): boolean {
     return group.items.some((t) => !t.splitType);
   }
 
-  public onGroupSplitChange(group: DescriptionGroup, choice: 'SPLIT_5050' | '100_P1' | '100_P2'): void {
+  public onGroupSplitChange(group: DescriptionGroup, choice: 'SPLIT_5050' | '100_P1' | '100_P2' | 'CUSTOM'): void {
+    if (choice === 'CUSTOM') {
+      this.openGroupCustomSplitModal(group);
+      return;
+    }
     const p1 = this.service.personOne().name;
     group.items.forEach((tx) => {
+      delete tx.customSplitAmounts;
+      delete tx.splitPercentage;
+      delete tx.splitMode;
       if (choice === 'SPLIT_5050') {
         tx.splitType = 'SPLIT';
       } else if (choice === '100_P1') {
@@ -3635,7 +4092,14 @@ export class ImportComponent {
       g.items.push(tx);
     }
 
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+    const sortField = this.groupSortField();
+    const sortAsc = this.groupSortAsc();
+    return Array.from(map.values()).sort((a, b) => {
+      if (sortField === 'amount') {
+        return sortAsc ? a.totalAmount - b.totalAmount : b.totalAmount - a.totalAmount;
+      }
+      return sortAsc ? a.count - b.count : b.count - a.count;
+    });
   }
 
   public groupedExcluded = computed(() => {

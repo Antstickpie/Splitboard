@@ -1559,12 +1559,15 @@ export class TransactionService {
       }
 
       // 2. Split Check
-      if (newRule.splitType && tx.splitType !== newRule.splitType) {
+      const targetSplitType = newRule.splitType || 'SPLIT';
+      const isCustomTarget = newRule.splitPercentage !== undefined && newRule.splitPercentage !== 50;
+      const isCustomTx = tx.splitPercentage !== undefined && tx.splitPercentage !== 50;
+      if (tx.splitType !== targetSplitType || (targetSplitType === 'SPLIT' && tx.splitPercentage !== newRule.splitPercentage)) {
         changes.push({
           field: 'split',
           label: 'Split',
-          from: tx.splitType || 'SPLIT',
-          to: newRule.splitType
+          from: tx.splitType ? (isCustomTx ? `Custom (${tx.splitPercentage}%)` : tx.splitType) : 'SPLIT',
+          to: isCustomTarget ? `Custom (${newRule.splitPercentage}%)` : targetSplitType
         });
       }
 
@@ -1660,6 +1663,21 @@ export class TransactionService {
         }
         if (newRule.splitType) {
           updated.splitType = newRule.splitType;
+          if (newRule.splitType === 'SPLIT') {
+            if (newRule.splitPercentage !== undefined) {
+              updated.splitMode = 'PERCENTAGE';
+              updated.splitPercentage = newRule.splitPercentage;
+              delete updated.customSplitAmounts;
+            } else {
+              delete updated.splitPercentage;
+              delete updated.customSplitAmounts;
+              delete updated.splitMode;
+            }
+          } else {
+            delete updated.splitPercentage;
+            delete updated.customSplitAmounts;
+            delete updated.splitMode;
+          }
         }
         if (newRule.paidBy) {
           updated.paidBy = newRule.paidBy;

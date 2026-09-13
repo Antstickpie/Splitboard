@@ -271,6 +271,14 @@
   font-weight: 700;
 }
 
+.split-btn.split-btn-custom.active {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.5);
+  font-weight: 700;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.2);
+}
+
 /* Inline Category Dropdown in Preview Table */
 .inline-category-select {
   appearance: none;
