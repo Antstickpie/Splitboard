@@ -220,24 +220,20 @@
       <!-- LEFT: View Mode Toggle & Month Navigation Controls -->
       <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
         <!-- View Mode Segmented Control -->
-        <div class="ledger-view-mode-toggle" style="display: inline-flex; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; padding: 2px; height: 28px; box-sizing: border-box;">
+        <div class="ledger-segmented-nav">
           <button
             type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="ledgerViewMode() === 'TRANSACTIONS'"
-            [class.btn-ghost]="ledgerViewMode() !== 'TRANSACTIONS'"
+            class="ledger-seg-btn"
+            [class.active]="ledgerViewMode() === 'TRANSACTIONS'"
             (click)="ledgerViewMode.set('TRANSACTIONS')"
-            style="font-size: 0.72rem; padding: 0 0.55rem; height: 100%; border: none; border-radius: 4px;"
             title="Standard transactions ledger">
             📋 Standard
           </button>
           <button
             type="button"
-            class="btn btn-xs"
-            [class.btn-primary]="ledgerViewMode() === 'MONTHLY_REVIEW'"
-            [class.btn-ghost]="ledgerViewMode() !== 'MONTHLY_REVIEW'"
+            class="ledger-seg-btn"
+            [class.active]="ledgerViewMode() === 'MONTHLY_REVIEW'"
             (click)="toggleMonthlyReviewView()"
-            style="font-size: 0.72rem; padding: 0 0.55rem; height: 100%; border: none; border-radius: 4px;"
             title="Monthly owes review and breakdown">
             📊 Monthly Review
           </button>
@@ -553,13 +549,6 @@
       </ng-container>
 
       <ng-container *ngIf="ledgerViewMode() === 'MONTHLY_REVIEW'">
-        <button
-          class="btn btn-secondary btn-xs"
-          (click)="openMonthlyOwesModal()"
-          title="Open in fullscreen pop-out modal"
-          style="height: 28px; font-size: 0.75rem; padding: 0 0.55rem;">
-          ⛶ Pop-out Modal
-        </button>
         <button
           class="btn btn-secondary btn-xs"
           (click)="openCashModal()"
@@ -1663,40 +1652,6 @@
   </div>
 </div>
 
-<!-- Modal: Monthly Owes Review & Breakdown -->
-<div class="modal-backdrop-overlay animate-fade-in" *ngIf="isMonthlyOwesModalOpen()" (click)="closeMonthlyOwesModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;">
-  <div class="modal-content-card glass-card animate-scale-in monthly-owes-modal-dialog" (click)="$event.stopPropagation()">
-    <!-- Modal Header -->
-    <div class="modal-header monthly-owes-modal-header">
-      <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-          <span style="font-size: 1.35rem;">📊</span>
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main);">Monthly Owes Review & Breakdown</h3>
-          <span *ngIf="!service.monthSettlement().isSettled" class="badge badge-warning font-mono" style="font-size: 0.76rem; font-weight: 600; padding: 0.2rem 0.6rem;">
-            Overall: {{ service.monthSettlement().debtorName }} owes {{ service.monthSettlement().creditorName }} {{ service.formatCurrency(service.monthSettlement().netOwedAmount) }}
-          </span>
-          <span *ngIf="service.monthSettlement().isSettled" class="badge badge-success font-mono" style="font-size: 0.76rem; font-weight: 600; padding: 0.2rem 0.6rem;">
-            Overall: All Settled Up 🎉
-          </span>
-        </div>
-        <div style="font-size: 0.76rem; color: var(--text-muted);">
-          Monthly spending, individual shares, net debt per month, and running cumulative balance.
-        </div>
-      </div>
-      <button class="btn-icon-remove" (click)="closeMonthlyOwesModal()" style="font-size: 1.2rem; width: 32px; height: 32px; cursor: pointer; background: transparent; border: none; color: var(--text-muted); display: flex; align-items: center; justify-content: center;" title="Close (Esc)">✕</button>
-    </div>
-
-    <!-- Modal Body -->
-    <div class="modal-body monthly-owes-modal-body">
-      <ng-container *ngTemplateOutlet="monthlyOwesTemplate"></ng-container>
-    </div>
-
-    <!-- Modal Footer -->
-    <div style="display: flex; justify-content: flex-end; align-items: center; padding-top: 0.8rem; border-top: 1px solid rgba(255,255,255,0.08);">
-      <button class="btn btn-secondary btn-sm" (click)="closeMonthlyOwesModal()">Close</button>
-    </div>
-  </div>
-</div>
 
 <!-- Reusable Monthly Owes Review Template (Shared between Inline Ledger View & Pop-out Modal) -->
 <ng-template #monthlyOwesTemplate>
@@ -2008,123 +1963,175 @@
                 <th class="sortable-th" [class.sorted]="monthlyOwesSortColumn() === 'split'" (click)="setMonthlyOwesSort('split')" style="text-align: center;" title="Click to sort by Split Allocation">
                   Split Allocation <span class="sort-icon">{{ monthlyOwesSortColumn() === 'split' ? (monthlyOwesSortDirection() === 'asc' ? '▲' : '▼') : '↕' }}</span>
                 </th>
+                <th style="min-width: 260px;" title="Step-by-step owe calculation and running balance sequence">
+                  📊 Owe Calculation & Sequence
+                </th>
                 <th>Note</th>
                 <th style="text-align: center;">Actions</th>
               </tr>
             </thead>
             <tbody>
+              <!-- Step 0: Starting Carryover from Previous Month -->
+              <tr class="carryover-row">
+                <td style="font-weight: 600; font-size: 0.76rem; color: var(--text-muted); white-space: nowrap;">
+                  <span class="badge badge-neutral" style="font-size: 0.68rem; font-weight: 700;">Step 0</span>
+                </td>
+                <td colspan="6" style="font-weight: 600; font-size: 0.82rem; color: var(--text-main); vertical-align: middle;">
+                  <span>🏁 <strong>Starting Carryover Balance</strong></span>
+                  <span *ngIf="m.priorMonthLabel" style="color: var(--text-muted); font-size: 0.74rem; font-weight: normal; margin-left: 0.4rem;">
+                    (carried over from {{ m.priorMonthLabel }})
+                  </span>
+                  <span *ngIf="!m.priorMonthLabel" style="color: var(--text-muted); font-size: 0.74rem; font-weight: normal; margin-left: 0.4rem;">
+                    (initial starting balance)
+                  </span>
+                </td>
+                <td style="padding: 0.45rem 0.6rem; vertical-align: middle;">
+                  <div class="seq-calc-box">
+                    <span *ngIf="m.startIsSettled" class="badge badge-success-outline font-mono" style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.5rem;">
+                      ✓ Settled ($0.00)
+                    </span>
+                    <span *ngIf="!m.startIsSettled" class="badge badge-warning-outline font-mono" style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.5rem;">
+                      <strong>{{ m.startDebtor }}</strong> owes <strong>{{ m.startCreditor }}</strong> {{ service.formatCurrency(m.startNetOwed) }}
+                    </span>
+                  </div>
+                </td>
+                <td colspan="2" style="font-size: 0.72rem; color: var(--text-muted); font-style: italic; vertical-align: middle;">
+                  Baseline starting debt
+                </td>
+              </tr>
+
+              <!-- Step 1..N: Chronological Sequence Rows -->
               <tr
-                *ngFor="let tx of m.filteredTransactions; trackBy: trackTx"
-                [class.tx-row-review]="tx.isUnderReview">
+                *ngFor="let item of m.sequenceItems; trackBy: trackSeqItem"
+                [class.tx-row-review]="item.tx.isUnderReview">
                 <td style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">
-                  <div>{{ service.formatDate(tx.date) }}</div>
-                  <div *ngIf="isIncomeShifted(tx)" style="margin-top: 0.2rem;">
+                  <div style="display: flex; align-items: center; gap: 0.35rem;">
+                    <span class="seq-step-badge" title="Step #{{ item.txIndex }}">#{{ item.txIndex }}</span>
+                    <span>{{ service.formatDate(item.tx.date) }}</span>
+                  </div>
+                  <div *ngIf="isIncomeShifted(item.tx)" style="margin-top: 0.2rem;">
                     <span
                       class="badge"
-                      (click)="toggleTxIncomeMonth(tx)"
+                      (click)="toggleTxIncomeMonth(item.tx)"
                       style="cursor: pointer; font-size: 0.68rem; padding: 0.1rem 0.35rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"
-                      [title]="getIncomeMonthBadgeTooltip(tx)">
-                      {{ getIncomeMonthBadgeLabel(tx) }}
+                      [title]="getIncomeMonthBadgeTooltip(item.tx)">
+                      {{ getIncomeMonthBadgeLabel(item.tx) }}
                     </span>
                   </div>
                 </td>
                 <td>
-                  <span class="badge badge-neutral">{{ tx.bank }}</span>
+                  <span class="badge badge-neutral">{{ item.tx.bank }}</span>
                 </td>
                 <td>
-                  <ng-container *ngIf="tx.type !== 'INCOME'">
-                    <span class="badge" [style.color]="tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-weight: 600;">
-                      {{ tx.paidBy }}
+                  <ng-container *ngIf="item.tx.type !== 'INCOME'">
+                    <span class="badge" [style.color]="item.tx.paidBy === service.personOne().name ? 'var(--primary)' : 'var(--secondary)'" [style.background]="item.tx.paidBy === service.personOne().name ? 'rgba(0, 229, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)'" style="font-weight: 600;">
+                      {{ item.tx.paidBy }}
                     </span>
                   </ng-container>
-                  <ng-container *ngIf="tx.type === 'INCOME'">
-                    <span style="color: var(--text-muted); font-size: 0.85rem;" [title]="tx.paidBy ? 'Deposited to ' + tx.paidBy : 'Income Inflow'">—</span>
+                  <ng-container *ngIf="item.tx.type === 'INCOME'">
+                    <span style="color: var(--text-muted); font-size: 0.85rem;" [title]="item.tx.paidBy ? 'Deposited to ' + item.tx.paidBy : 'Income Inflow'">—</span>
                   </ng-container>
                 </td>
-                <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="tx.description">
+                <td style="font-weight: 500; max-width: 280px; min-width: 140px; cursor: default;" [title]="item.tx.description">
                   <div class="tx-description-cell">
-                    <span class="tx-description-text">{{ tx.description }}</span>
-                    <span *ngIf="tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
+                    <span class="tx-description-text">{{ item.tx.description }}</span>
+                    <span *ngIf="item.tx.isUnderReview" class="badge badge-warning" style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;">
                       🔍 Review
                     </span>
-                    <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem; flex-shrink: 0;">Cash Transfer</span>
+                    <span *ngIf="item.tx.isCashTransfer" class="badge badge-warning" style="margin-left: 0.3rem; flex-shrink: 0;">Cash Transfer</span>
                     <span
-                      *ngIf="tx.isReimbursable"
+                      *ngIf="item.tx.isReimbursable"
                       class="badge"
-                      (click)="openReimbursementModal(tx)"
+                      (click)="openReimbursementModal(item.tx)"
                       [style.cursor]="'pointer'"
-                      [class.badge-warning]="tx.reimbursementStatus === 'PENDING'"
-                      [class.badge-success]="tx.reimbursementStatus === 'REIMBURSED'"
+                      [class.badge-warning]="item.tx.reimbursementStatus === 'PENDING'"
+                      [class.badge-success]="item.tx.reimbursementStatus === 'REIMBURSED'"
                       style="margin-left: 0.35rem; font-size: 0.7rem; padding: 0.15rem 0.45rem; font-weight: 600; flex-shrink: 0;"
-                      [title]="tx.reimbursementStatus === 'REIMBURSED' ? 'Reimbursed! Click to view / edit settlement' : 'Pending reimbursement. Click to settle'">
-                      {{ tx.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
+                      [title]="item.tx.reimbursementStatus === 'REIMBURSED' ? 'Reimbursed! Click to view / edit settlement' : 'Pending reimbursement. Click to settle'">
+                      {{ item.tx.reimbursementStatus === 'REIMBURSED' ? '✓ Reimbursed' : '⏳ Reimbursable' }}
                     </span>
                   </div>
                 </td>
                 <td>
                   <app-category-select
-                    [value]="tx.categoryItem || ''"
-                    [group]="tx.categoryGroup || ''"
-                    (categoryChange)="onInlineCategoryChange(tx, $event.item, $event.group)">
+                    [value]="item.tx.categoryItem || ''"
+                    [group]="item.tx.categoryGroup || ''"
+                    (categoryChange)="onInlineCategoryChange(item.tx, $event.item, $event.group)">
                   </app-category-select>
                 </td>
-                <td class="font-mono" style="text-align: right; font-weight: 700; font-size: 0.88rem;" [class.text-success]="tx.type === 'INCOME'">
-                  <div>{{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}</div>
-                  <div *ngIf="tx.originalCurrency && tx.originalCurrency !== service.currency() && tx.originalAmount" style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500;">
-                    ({{ service.getCurrencySymbol(tx.originalCurrency) }}{{ tx.originalAmount }} {{ tx.originalCurrency }})
+                <td class="font-mono" style="text-align: right; font-weight: 700; font-size: 0.88rem;" [class.text-success]="item.tx.type === 'INCOME'">
+                  <div>{{ item.tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(item.tx.amount) }}</div>
+                  <div *ngIf="item.tx.originalCurrency && item.tx.originalCurrency !== service.currency() && item.tx.originalAmount" style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500;">
+                    ({{ service.getCurrencySymbol(item.tx.originalCurrency) }}{{ item.tx.originalAmount }} {{ item.tx.originalCurrency }})
                   </div>
                 </td>
                 <td style="text-align: center;">
-                  <span *ngIf="tx.isCashTransfer" class="badge badge-warning" style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.55rem;">
+                  <span *ngIf="item.tx.isCashTransfer" class="badge badge-warning" style="font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.55rem;">
                     💸 Cash Transfer
                   </span>
-                  <span *ngIf="!tx.isCashTransfer && !service.edIncludeInSplit() && service.isEveryDollarTransaction(tx)"
+                  <span *ngIf="!item.tx.isCashTransfer && !service.edIncludeInSplit() && service.isEveryDollarTransaction(item.tx)"
                     class="badge"
                     style="background: rgba(56, 189, 248, 0.08); color: #94a3b8; border: 1px dashed rgba(56, 189, 248, 0.25); font-size: 0.72rem; font-weight: 500; padding: 0.2rem 0.5rem;"
                     title="EveryDollar transactions are excluded from split calculations by default (Settings > EveryDollar)">
                     🚫 Not in Split
                   </span>
-                  <div *ngIf="!tx.isCashTransfer && (service.edIncludeInSplit() || !service.isEveryDollarTransaction(tx))" class="split-button-group">
+                  <div *ngIf="!item.tx.isCashTransfer && (service.edIncludeInSplit() || !service.isEveryDollarTransaction(item.tx))" class="split-button-group">
                     <button
                       type="button"
                       class="split-btn split-btn-5050"
-                      [class.active]="getInlineSplitValue(tx) === 'SPLIT_5050'"
-                      (click)="onInlineSplitChange(tx, 'SPLIT_5050')"
+                      [class.active]="getInlineSplitValue(item.tx) === 'SPLIT_5050'"
+                      (click)="onInlineSplitChange(item.tx, 'SPLIT_5050')"
                       title="Split 50/50">
                       50/50
                     </button>
                     <button
                       type="button"
                       class="split-btn split-btn-p1"
-                      [class.active]="getInlineSplitValue(tx) === '100_P1'"
-                      (click)="onInlineSplitChange(tx, '100_P1')"
+                      [class.active]="getInlineSplitValue(item.tx) === '100_P1'"
+                      (click)="onInlineSplitChange(item.tx, '100_P1')"
                       [title]="'100% ' + service.personOne().name">
                       {{ service.personOne().name }}
                     </button>
                     <button
                       type="button"
                       class="split-btn split-btn-p2"
-                      [class.active]="getInlineSplitValue(tx) === '100_P2'"
-                      (click)="onInlineSplitChange(tx, '100_P2')"
+                      [class.active]="getInlineSplitValue(item.tx) === '100_P2'"
+                      (click)="onInlineSplitChange(item.tx, '100_P2')"
                       [title]="'100% ' + service.personTwo().name">
                       {{ service.personTwo().name }}
                     </button>
                     <button
                       type="button"
                       class="split-btn split-btn-custom"
-                      [class.active]="getInlineSplitValue(tx) === 'CUSTOM'"
-                      (click)="openEditTxModal(tx)"
+                      [class.active]="getInlineSplitValue(item.tx) === 'CUSTOM'"
+                      (click)="openEditTxModal(item.tx)"
                       title="Custom Split...">
                       ⚙
                     </button>
                   </div>
                 </td>
+                <td style="padding: 0.4rem 0.6rem; min-width: 250px;">
+                  <div class="seq-calc-container">
+                    <div class="seq-calc-formula font-mono" [title]="item.stepCalculation">
+                      {{ item.stepCalculation }}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem;">
+                      <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Balance:</span>
+                      <span *ngIf="item.runningNetOwed <= 0.005" class="badge badge-success-outline font-mono" style="font-size: 0.68rem; padding: 0.08rem 0.35rem;">
+                        ✓ Settled ($0.00)
+                      </span>
+                      <span *ngIf="item.runningNetOwed > 0.005" class="badge badge-cyan-outline font-mono" style="font-size: 0.68rem; padding: 0.08rem 0.35rem;">
+                        <strong>{{ item.runningDebtor }}</strong> owes {{ service.formatCurrency(item.runningNetOwed) }}
+                      </span>
+                    </div>
+                  </div>
+                </td>
                 <td>
                   <input
                     type="text"
-                    [(ngModel)]="tx.note"
-                    (change)="onInlineNoteChange(tx, tx.note)"
-                    (blur)="onInlineNoteChange(tx, tx.note)"
+                    [(ngModel)]="item.tx.note"
+                    (change)="onInlineNoteChange(item.tx, item.tx.note)"
+                    (blur)="onInlineNoteChange(item.tx, item.tx.note)"
                     (keydown.enter)="$any($event.target).blur()"
                     placeholder="💬 Add note..."
                     class="inline-note-input"
@@ -2134,33 +2141,66 @@
                   <div style="display: flex; justify-content: center; align-items: center; gap: 0.35rem;">
                     <button
                       class="btn btn-xs"
-                      [style.color]="tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
-                      [style.background]="tx.isUnderReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)'"
-                      [style.border]="tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
-                      (click)="service.toggleTransactionReview(tx.id)"
-                      [title]="tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'"
+                      [style.color]="item.tx.isUnderReview ? '#fbbf24' : 'var(--text-muted)'"
+                      [style.background]="item.tx.isUnderReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)'"
+                      [style.border]="item.tx.isUnderReview ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'"
+                      (click)="service.toggleTransactionReview(item.tx.id)"
+                      [title]="item.tx.isUnderReview ? 'Under review (click to resolve)' : 'Flag for review'"
                       style="padding: 0.2rem 0.45rem; font-size: 0.72rem;">
-                      {{ tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
+                      {{ item.tx.isUnderReview ? '🔍 Reviewing' : '🔍 Review' }}
                     </button>
                     <button
-                      *ngIf="tx.type === 'INCOME'"
+                      *ngIf="item.tx.type === 'INCOME'"
                       type="button"
                       class="btn btn-xs"
-                      [class.btn-secondary]="isIncomeShifted(tx)"
-                      [class.btn-primary]="!isIncomeShifted(tx)"
-                      [style.color]="isIncomeShifted(tx) ? '#10b981' : ''"
-                      [style.borderColor]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.35)' : ''"
-                      [style.background]="isIncomeShifted(tx) ? 'rgba(16, 185, 129, 0.1)' : ''"
-                      (click)="toggleTxIncomeMonth(tx)"
+                      [class.btn-secondary]="isIncomeShifted(item.tx)"
+                      [class.btn-primary]="!isIncomeShifted(item.tx)"
+                      [style.color]="isIncomeShifted(item.tx) ? '#10b981' : ''"
+                      [style.borderColor]="isIncomeShifted(item.tx) ? 'rgba(16, 185, 129, 0.35)' : ''"
+                      [style.background]="isIncomeShifted(item.tx) ? 'rgba(16, 185, 129, 0.1)' : ''"
+                      (click)="toggleTxIncomeMonth(item.tx)"
                       style="padding: 0.18rem 0.4rem; font-size: 0.71rem; white-space: nowrap;"
-                      [title]="getIncomeMonthButtonTooltip(tx)">
-                      {{ getIncomeMonthButtonLabel(tx) }}
+                      [title]="getIncomeMonthButtonTooltip(item.tx)">
+                      {{ getIncomeMonthButtonLabel(item.tx) }}
                     </button>
-                    <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
+                    <button class="btn btn-secondary btn-xs" (click)="openEditTxModal(item.tx)" title="Edit transaction" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;">
                       ✏ Edit
                     </button>
-                    <button class="btn-icon-delete" (click)="deleteTx(tx)" title="Delete transaction">✕</button>
+                    <button class="btn-icon-delete" (click)="deleteTx(item.tx)" title="Delete transaction">✕</button>
                   </div>
+                </td>
+              </tr>
+
+              <!-- Month-End Cumulative Row -->
+              <tr class="month-end-row">
+                <td style="font-weight: 700; font-size: 0.76rem; color: var(--text-muted); white-space: nowrap;">
+                  <span class="badge badge-primary font-mono" style="font-size: 0.68rem; font-weight: 700;">End</span>
+                </td>
+                <td colspan="6" style="font-weight: 700; font-size: 0.84rem; color: var(--text-main); vertical-align: middle;">
+                  <span>🏁 <strong>Month-End Total: Cumulative Balance at End of {{ m.monthLabel }}</strong></span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal; margin-left: 0.4rem;">
+                    (carries forward into next month)
+                  </span>
+                </td>
+                <td style="padding: 0.45rem 0.6rem; vertical-align: middle;">
+                  <div class="seq-calc-box">
+                    <span *ngIf="m.cumulativeIsSettled" class="badge badge-success font-mono" style="font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem;">
+                      ✓ Fully Settled ($0.00)
+                    </span>
+                    <span *ngIf="!m.cumulativeIsSettled" class="badge badge-warning font-mono" style="font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem;">
+                      <strong>{{ m.cumulativeDebtor }}</strong> owes <strong>{{ m.cumulativeCreditor }}</strong> {{ service.formatCurrency(m.cumulativeNetOwed) }}
+                    </span>
+                  </div>
+                </td>
+                <td colspan="2" style="font-size: 0.73rem; color: var(--text-muted); font-weight: 600; vertical-align: middle;">
+                  This Month Net: {{ m.thisMonthIsSettled ? 'Settled' : (m.thisMonthDebtor + ' owes ' + service.formatCurrency(m.thisMonthNetOwed)) }}
+                </td>
+              </tr>
+
+              <!-- Empty state when no transactions match -->
+              <tr *ngIf="m.sequenceItems.length === 0">
+                <td colspan="10" style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.82rem;">
+                  No transactions found for this month matching the active filters.
                 </td>
               </tr>
             </tbody>

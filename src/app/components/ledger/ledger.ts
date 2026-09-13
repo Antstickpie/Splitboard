@@ -13,9 +13,36 @@ export interface MonthCategoryGroup {
   transactions: Transaction[];
 }
 
+export interface ReviewSequenceTxItem {
+  tx: Transaction;
+  txIndex: number;
+  p1OwesP2: number;
+  p2OwesP1: number;
+  txDebtDelta: number; // positive: p2 owes p1, negative: p1 owes p2
+  txDebtor: string;
+  txCreditor: string;
+  txOwedAmount: number;
+  prevBalance: number;
+  prevDebtor: string;
+  prevCreditor: string;
+  prevNetOwed: number;
+  runningBalance: number;
+  runningDebtor: string;
+  runningCreditor: string;
+  runningNetOwed: number;
+  stepCalculation: string;
+}
+
 export interface MonthOwesItem {
   month: string;
   monthLabel: string;
+  priorMonth: string;
+  priorMonthLabel: string;
+  startBalance: number;
+  startDebtor: string;
+  startCreditor: string;
+  startNetOwed: number;
+  startIsSettled: boolean;
   totalSpend: number;
   sharedSpend: number;
   p1Paid: number;
@@ -34,6 +61,7 @@ export interface MonthOwesItem {
   cumulativeIsSettled: boolean;
   transactions: Transaction[];
   filteredTransactions: Transaction[];
+  sequenceItems: ReviewSequenceTxItem[];
   categoryGroups: MonthCategoryGroup[];
 }
 
@@ -354,6 +382,37 @@ export class LedgerComponent {
     for (const m of chronologicalMonths) {
       const monthTxs = allTxs.filter((tx) => tx.date && tx.date.slice(0, 7) === m);
 
+      // Carryover baseline at the start of this month:
+      const startP1OwesP2 = cumP1OwesP2;
+      const startP2OwesP1 = cumP2OwesP1;
+      const startDiff = startP2OwesP1 - startP1OwesP2;
+      const startNetOwed = parseFloat(Math.abs(startDiff).toFixed(2));
+      let startDebtor = '';
+      let startCreditor = '';
+      if (startDiff > 0.005) {
+        startDebtor = p2;
+        startCreditor = p1;
+      } else if (startDiff < -0.005) {
+        startDebtor = p1;
+        startCreditor = p2;
+      }
+
+      // Prior month label
+      const curDate = new Date(parseInt(m.slice(0, 4), 10), parseInt(m.slice(5, 7), 10) - 1, 1);
+      curDate.setMonth(curDate.getMonth() - 1);
+      const priorM = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}`;
+      const priorMonthLabel = this.service.formatMonth(priorM);
+
+      // Sort this month's transactions in strict chronological order for the sequential calculation:
+      const chronologicalMonthTxs = [...monthTxs].sort((a, b) => {
+        const d = (a.date || '').localeCompare(b.date || '');
+        if (d !== 0) return d;
+        return (a.id || '').localeCompare(b.id || '');
+      });
+
+      let stepBalance = startDiff;
+      const allSequenceItems: ReviewSequenceTxItem[] = [];
+
       let p1Paid = 0;
       let p2Paid = 0;
       let p1Share = 0;
@@ -363,22 +422,89 @@ export class LedgerComponent {
       let monthP1OwesP2 = 0;
       let monthP2OwesP1 = 0;
 
-      for (const tx of monthTxs) {
-        if (!this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx)) {
-          continue;
+      for (let idx = 0; idx < chronologicalMonthTxs.length; idx++) {
+        const tx = chronologicalMonthTxs[idx];
+        const isExcluded = !this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx);
+
+        let res = { p1OwesP2: 0, p2OwesP1: 0, p1Paid: 0, p2Paid: 0, p1Share: 0, p2Share: 0 };
+        if (!isExcluded) {
+          res = this.service.calculateTxDebt(tx, p1, p2);
+          p1Paid += res.p1Paid;
+          p2Paid += res.p2Paid;
+          if (tx.type !== 'INCOME') {
+            p1Share += res.p1Share;
+            p2Share += res.p2Share;
+            sharedSpend += (res.p1Share + res.p2Share);
+            totalSpend += (Number(tx.amount) || 0);
+          }
+          monthP1OwesP2 += res.p1OwesP2;
+          monthP2OwesP1 += res.p2OwesP1;
         }
 
-        const res = this.service.calculateTxDebt(tx, p1, p2);
-        p1Paid += res.p1Paid;
-        p2Paid += res.p2Paid;
-        if (tx.type !== 'INCOME') {
-          p1Share += res.p1Share;
-          p2Share += res.p2Share;
-          sharedSpend += (res.p1Share + res.p2Share);
-          totalSpend += (Number(tx.amount) || 0);
+        const txDelta = res.p2OwesP1 - res.p1OwesP2;
+        const prevBal = stepBalance;
+        stepBalance = parseFloat((stepBalance + txDelta).toFixed(2));
+
+        const prevNet = parseFloat(Math.abs(prevBal).toFixed(2));
+        let prevD = '';
+        let prevC = '';
+        if (prevBal > 0.005) { prevD = p2; prevC = p1; }
+        else if (prevBal < -0.005) { prevD = p1; prevC = p2; }
+
+        const txOwed = parseFloat(Math.abs(txDelta).toFixed(2));
+        let txD = '';
+        let txC = '';
+        if (txDelta > 0.005) { txD = p2; txC = p1; }
+        else if (txDelta < -0.005) { txD = p1; txC = p2; }
+
+        const runNet = parseFloat(Math.abs(stepBalance).toFixed(2));
+        let runD = '';
+        let runC = '';
+        if (stepBalance > 0.005) { runD = p2; runC = p1; }
+        else if (stepBalance < -0.005) { runD = p1; runC = p2; }
+
+        // Human-readable sequential calculation
+        let stepCalculation = '';
+        if (isExcluded) {
+          stepCalculation = `Excluded from split • Balance remains unchanged`;
+        } else if (txOwed <= 0.005) {
+          stepCalculation = prevNet > 0.005
+            ? `No split debt change • Balance remains ${prevD} owes ${this.service.formatCurrency(prevNet)}`
+            : `No split debt change • Balance remains settled ($0.00)`;
+        } else if (prevNet <= 0.005) {
+          stepCalculation = `$0.00 + ${this.service.formatCurrency(txOwed)} (${txD} owes) = ${this.service.formatCurrency(runNet)} (${runD} owes)`;
+        } else if (prevD === txD) {
+          stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) + ${this.service.formatCurrency(txOwed)} = ${this.service.formatCurrency(runNet)} (${runD} owes)`;
+        } else {
+          // opposite party paid / reduced debt
+          if (runD === prevD) {
+            stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) − ${this.service.formatCurrency(txOwed)} (${txD} paid) = ${this.service.formatCurrency(runNet)} (${runD} owes)`;
+          } else if (runNet <= 0.005) {
+            stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) − ${this.service.formatCurrency(txOwed)} (${txD} paid) = $0.00 (All Settled)`;
+          } else {
+            stepCalculation = `${this.service.formatCurrency(prevNet)} (${prevD} owed) − ${this.service.formatCurrency(txOwed)} = flipped to ${this.service.formatCurrency(runNet)} (${runD} now owes)`;
+          }
         }
-        monthP1OwesP2 += res.p1OwesP2;
-        monthP2OwesP1 += res.p2OwesP1;
+
+        allSequenceItems.push({
+          tx,
+          txIndex: idx + 1,
+          p1OwesP2: res.p1OwesP2,
+          p2OwesP1: res.p2OwesP1,
+          txDebtDelta: txDelta,
+          txDebtor: txD,
+          txCreditor: txC,
+          txOwedAmount: txOwed,
+          prevBalance: prevBal,
+          prevDebtor: prevD,
+          prevCreditor: prevC,
+          prevNetOwed: prevNet,
+          runningBalance: stepBalance,
+          runningDebtor: runD,
+          runningCreditor: runC,
+          runningNetOwed: runNet,
+          stepCalculation
+        });
       }
 
       cumP1OwesP2 += monthP1OwesP2;
@@ -408,8 +534,9 @@ export class LedgerComponent {
         cumulativeCreditor = p2;
       }
 
-      // Filter transactions for this month
-      const filtered = monthTxs.filter((tx) => {
+      // Filter sequence items for this month
+      const filteredSeq = allSequenceItems.filter((item) => {
+        const tx = item.tx;
         if (bank !== 'ALL' && tx.bank !== bank) return false;
         if (owner !== 'ALL' && tx.paidBy !== owner) return false;
         if (split !== 'ALL' && tx.splitType !== split) return false;
@@ -430,33 +557,35 @@ export class LedgerComponent {
         return true;
       });
 
-      // Sort filtered transactions
-      filtered.sort((a, b) => {
+      // Sort sequence items if user clicked a column header
+      filteredSeq.sort((a, b) => {
         if (sortCol === 'date') {
-          return sortDir * (a.date || '').localeCompare(b.date || '');
+          return sortDir * (a.tx.date || '').localeCompare(b.tx.date || '');
         }
         if (sortCol === 'bank') {
-          return sortDir * (a.bank || '').localeCompare(b.bank || '');
+          return sortDir * (a.tx.bank || '').localeCompare(b.tx.bank || '');
         }
         if (sortCol === 'paidBy') {
-          return sortDir * (a.paidBy || '').localeCompare(b.paidBy || '');
+          return sortDir * (a.tx.paidBy || '').localeCompare(b.tx.paidBy || '');
         }
         if (sortCol === 'description') {
-          return sortDir * (a.description || '').localeCompare(b.description || '');
+          return sortDir * (a.tx.description || '').localeCompare(b.tx.description || '');
         }
         if (sortCol === 'category') {
-          const aCat = a.categoryItem || a.categoryGroup || '';
-          const bCat = b.categoryItem || b.categoryGroup || '';
+          const aCat = a.tx.categoryItem || a.tx.categoryGroup || '';
+          const bCat = b.tx.categoryItem || b.tx.categoryGroup || '';
           return sortDir * aCat.localeCompare(bCat);
         }
         if (sortCol === 'amount') {
-          return sortDir * ((Number(a.amount) || 0) - (Number(b.amount) || 0));
+          return sortDir * ((Number(a.tx.amount) || 0) - (Number(b.tx.amount) || 0));
         }
         if (sortCol === 'split') {
-          return sortDir * (a.splitType || '').localeCompare(b.splitType || '');
+          return sortDir * (a.tx.splitType || '').localeCompare(b.tx.splitType || '');
         }
         return 0;
       });
+
+      const filtered = filteredSeq.map((i) => i.tx);
 
       // Build Category Groups
       const catMap = new Map<string, Transaction[]>();
@@ -481,6 +610,13 @@ export class LedgerComponent {
       items.push({
         month: m,
         monthLabel: this.service.formatMonth(m),
+        priorMonth: priorM,
+        priorMonthLabel,
+        startBalance,
+        startDebtor,
+        startCreditor,
+        startNetOwed,
+        startIsSettled: startNetOwed <= 0.005,
         totalSpend: parseFloat(totalSpend.toFixed(2)),
         sharedSpend: parseFloat(sharedSpend.toFixed(2)),
         p1Paid: parseFloat(p1Paid.toFixed(2)),
@@ -499,6 +635,7 @@ export class LedgerComponent {
         cumulativeIsSettled: cumulativeNetOwed <= 0.005,
         transactions: monthTxs,
         filteredTransactions: filtered,
+        sequenceItems: filteredSeq,
         categoryGroups
       });
     }
@@ -506,7 +643,7 @@ export class LedgerComponent {
     // Return in reverse chronological order (newest month first)
     const result = items.reverse();
 
-    // If a specific month is selected in the modal, filter down to that month
+    // If a specific month is selected in the review, filter down to that month
     const selMonth = this.monthlyOwesSelectedMonth();
     let displayList = result;
     if (selMonth !== 'ALL') {
@@ -521,24 +658,15 @@ export class LedgerComponent {
     return displayList;
   });
 
+  public trackSeqItem(_index: number, item: ReviewSequenceTxItem): string {
+    return item.tx.id;
+  }
+
   public openMonthlyOwesModal(): void {
-    this.isMonthlyOwesModalOpen.set(true);
-    const curMonth = this.service.selectedMonth();
-    if (curMonth && curMonth !== 'ALL') {
-      this.monthlyOwesSelectedMonth.set(curMonth);
-      this.monthlyOwesPickerYear.set(parseInt(curMonth.slice(0, 4), 10));
-      this.monthlyOwesExpandedMonths.set(new Set([curMonth]));
-    } else {
-      this.monthlyOwesSelectedMonth.set('ALL');
-      const breakdown = this.monthlyOwesBreakdown();
-      if (breakdown.length > 0 && this.monthlyOwesExpandedMonths().size === 0) {
-        this.monthlyOwesExpandedMonths.set(new Set([breakdown[0].month]));
-      }
-    }
+    this.toggleMonthlyReviewView();
   }
 
   public closeMonthlyOwesModal(): void {
-    this.isMonthlyOwesModalOpen.set(false);
     this.isMonthlyOwesMonthPickerOpen.set(false);
   }
 
@@ -664,11 +792,18 @@ export class LedgerComponent {
       this.ledgerViewMode.set('TRANSACTIONS');
     } else {
       this.ledgerViewMode.set('MONTHLY_REVIEW');
+      this.monthlyOwesSortColumn.set('date');
+      this.monthlyOwesSortDirection.set('asc');
       const curMonth = this.service.selectedMonth();
       if (curMonth && curMonth !== 'ALL') {
         this.monthlyOwesSelectedMonth.set(curMonth);
         this.monthlyOwesPickerYear.set(parseInt(curMonth.slice(0, 4), 10));
         this.monthlyOwesExpandedMonths.set(new Set([curMonth]));
+      } else {
+        const breakdown = this.monthlyOwesBreakdown();
+        if (breakdown.length > 0) {
+          this.monthlyOwesExpandedMonths.set(new Set([breakdown[0].month]));
+        }
       }
       setTimeout(() => {
         const el = document.getElementById('ledger-table-section');

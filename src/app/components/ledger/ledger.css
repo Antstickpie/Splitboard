@@ -817,6 +817,45 @@
   color: var(--primary, #00e5ff) !important;
 }
 
+/* Ledger View Mode Segmented Control */
+.ledger-segmented-nav {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.ledger-seg-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.28rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.18s ease;
+  line-height: 1.2;
+}
+
+.ledger-seg-btn:hover {
+  color: var(--text-main, #f8fafc);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ledger-seg-btn.active {
+  background: rgba(0, 229, 255, 0.15);
+  color: var(--primary, #00e5ff);
+  border-color: rgba(0, 229, 255, 0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
 .monthly-owes-modal-body {
   flex: 1;
   overflow-y: auto;
@@ -1048,5 +1087,46 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* Sequential Audit Trail Styles for Monthly Review */
+.carryover-row {
+  background: rgba(56, 189, 248, 0.04) !important;
+  border-top: 1px solid rgba(56, 189, 248, 0.25);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+}
 
+.month-end-row {
+  background: rgba(16, 185, 129, 0.05) !important;
+  border-top: 2px solid rgba(16, 185, 129, 0.3);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+}
 
+.seq-step-badge {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--primary, #00e5ff);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.seq-calc-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.seq-calc-formula {
+  font-size: 0.72rem;
+  color: var(--text-main, #f8fafc);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.seq-calc-box {
+  display: inline-flex;
+  align-items: center;
+}
