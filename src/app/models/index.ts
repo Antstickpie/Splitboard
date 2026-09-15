@@ -147,6 +147,8 @@ export interface AppDataBackup {
   deletedSignatures?: string[];
   deletedTransactions?: Transaction[];
   statementSnapshots?: StatementBatchSnapshot[];
+  excludedSignatures?: string[];
+  excludedTransactions?: Transaction[];
 }
 
 export interface EveryDollarPeriodCurrencyRule {

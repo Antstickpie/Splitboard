@@ -305,14 +305,14 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
-      // 1. Check Bank Exclusion Rules (e.g. Daily Interest, Internal Transfers)
+      // 1. Check Bank Exclusion Rules (e.g. Daily Interest, Internal Transfers) & Excluded Signatures
       const fullRowText = (cleanDesc + ' ' + (row[0] || '') + ' ' + (row[1] || '')).trim();
-      if (this.service.isTransactionExcluded(fullRowText, effectiveBank)) {
+      const sig = this.service.getTransactionSignature(tx);
+
+      if (this.service.isTransactionExcluded(fullRowText, effectiveBank) || this.service.isSignatureExcluded(sig, tx)) {
         excluded.push(tx);
         continue;
       }
-
-      const sig = this.service.getTransactionSignature(tx);
 
       // 2. Check Duplicates against Database first
       // If the transaction already exists in the ledger, it is a DUPLICATE, not deleted.
@@ -320,6 +320,7 @@ export class StatementParserService {
       if (matchedDbTx) {
         // If an accidental deleted signature exists for an active ledger transaction, clean it up
         this.service.restoreDeletedSignature(sig, tx);
+        this.service.restoreExcludedSignature(sig, tx);
         if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
         if (matchedDbTx.categoryItem) tx.categoryItem = matchedDbTx.categoryItem;
         if (matchedDbTx.splitType) tx.splitType = matchedDbTx.splitType;
@@ -710,12 +711,12 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
-      if (this.service.isTransactionExcluded(cleanDesc, effectiveBank)) {
+      const sig = this.service.getTransactionSignature(tx);
+
+      if (this.service.isTransactionExcluded(cleanDesc, effectiveBank) || this.service.isSignatureExcluded(sig, tx)) {
         excluded.push(tx);
         continue;
       }
-
-      const sig = this.service.getTransactionSignature(tx);
 
       // Check Duplicates against Database first
       // If the transaction already exists in the ledger, it is a DUPLICATE, not deleted.
@@ -723,6 +724,7 @@ export class StatementParserService {
       if (matchedDbTx) {
         // If an accidental deleted signature exists for an active ledger transaction, clean it up
         this.service.restoreDeletedSignature(sig, tx);
+        this.service.restoreExcludedSignature(sig, tx);
         if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
         if (matchedDbTx.categoryItem) tx.categoryItem = matchedDbTx.categoryItem;
         if (matchedDbTx.splitType) tx.splitType = matchedDbTx.splitType;

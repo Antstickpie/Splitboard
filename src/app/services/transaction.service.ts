@@ -149,6 +149,8 @@ export class TransactionService {
   public excludeRules = signal<ExcludeRule[]>(DEFAULT_EXCLUDE_RULES);
   public deletedSignatures = signal<string[]>([]);
   public deletedTransactions = signal<Transaction[]>([]);
+  public excludedSignatures = signal<string[]>([]);
+  public excludedTransactions = signal<Transaction[]>([]);
   public statementSnapshots = signal<StatementBatchSnapshot[]>([]);
   public batchToEdit = signal<string | null>(null);
   public activeTab = signal<'dashboard' | 'ledger' | 'import' | 'settings'>('dashboard');
@@ -1106,6 +1108,8 @@ export class TransactionService {
       excludeRules: this.excludeRules(),
       deletedSignatures: this.deletedSignatures(),
       deletedTransactions: this.deletedTransactions(),
+      excludedSignatures: this.excludedSignatures(),
+      excludedTransactions: this.excludedTransactions(),
       statementSnapshots: this.statementSnapshots(),
       settings: {
         currency: this.currency(),
@@ -1205,6 +1209,12 @@ export class TransactionService {
     }
     if (data.deletedTransactions !== undefined) {
       this.deletedTransactions.set(data.deletedTransactions);
+    }
+    if (data.excludedSignatures !== undefined) {
+      this.excludedSignatures.set(data.excludedSignatures);
+    }
+    if (data.excludedTransactions !== undefined) {
+      this.excludedTransactions.set(data.excludedTransactions);
     }
     if (data.statementSnapshots !== undefined) {
       this.statementSnapshots.set(data.statementSnapshots);
@@ -2285,6 +2295,88 @@ export class TransactionService {
     return false;
   }
 
+  // Excluded Transaction Memory
+  public matchesExcludedSignature(sigRecord: string, tx: Transaction): boolean {
+    return this.matchesDeletedSignature(sigRecord, tx);
+  }
+
+  public recordExcludedSignature(sig: string): void {
+    if (!sig) return;
+    this.excludedSignatures.update((curr) => {
+      if (curr.includes(sig)) return curr;
+      return [...curr, sig];
+    });
+  }
+
+  public recordExcludedTransaction(tx: Transaction): void {
+    if (!tx) return;
+    const sig = this.getTransactionSignature(tx);
+    this.recordExcludedSignature(sig);
+    this.excludedTransactions.update((curr) => {
+      if (curr.some((t) => (t.id && tx.id && t.id === tx.id) || this.getTransactionSignature(t) === sig)) return curr;
+      return [...curr, tx];
+    });
+  }
+
+  public recordExcludedTransactions(txs: Transaction[]): void {
+    if (!txs || txs.length === 0) return;
+    const sigs = txs.map((t) => this.getTransactionSignature(t)).filter(Boolean);
+    this.excludedSignatures.update((curr) => {
+      const set = new Set(curr);
+      sigs.forEach((s) => set.add(s));
+      return Array.from(set);
+    });
+    this.excludedTransactions.update((curr) => {
+      const set = new Set(curr.map((t) => this.getTransactionSignature(t)));
+      const toAdd = txs.filter((t) => !set.has(this.getTransactionSignature(t)));
+      return [...curr, ...toAdd];
+    });
+  }
+
+  public restoreExcludedSignature(sig: string, tx?: Transaction): void {
+    if (!sig && !tx) return;
+    this.excludedSignatures.update((curr) =>
+      curr.filter((s) => {
+        if (sig && s === sig) return false;
+        if (tx && this.matchesExcludedSignature(s, tx)) return false;
+        return true;
+      })
+    );
+    this.excludedTransactions.update((curr) =>
+      curr.filter((t) => {
+        if (sig && this.getTransactionSignature(t) === sig) return false;
+        if (tx && t.id && tx.id && t.id === tx.id) return false;
+        if (tx && this.matchesExcludedSignature(this.getTransactionSignature(tx), t)) return false;
+        return true;
+      })
+    );
+  }
+
+  public isSignatureExcluded(sig: string, tx?: Transaction): boolean {
+    if (!sig && !tx) return false;
+    const list = this.excludedSignatures();
+    if (sig && list.includes(sig)) return true;
+    if (tx && list.some((s) => this.matchesExcludedSignature(s, tx))) return true;
+
+    const txList = this.excludedTransactions();
+    if (sig && txList.some((t) => this.getTransactionSignature(t) === sig)) return true;
+    if (tx && txList.some((t) => (t.id && tx.id && t.id === tx.id) || (sig && this.getTransactionSignature(t) === sig) || this.matchesExcludedSignature(this.getTransactionSignature(t), tx))) return true;
+
+    // Also check all statementSnapshots
+    const snapshots = this.statementSnapshots();
+    for (const snap of snapshots) {
+      if (snap.excluded && snap.excluded.length > 0) {
+        for (const ex of snap.excluded) {
+          const exSig = this.getTransactionSignature(ex);
+          if (sig && exSig === sig) return true;
+          if (tx && ((ex.id && tx.id && ex.id === tx.id) || this.matchesExcludedSignature(exSig, tx))) return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   // Person Operations
   public addPerson(name: string): void {
     const trimmed = name.trim();
@@ -3012,6 +3104,8 @@ export class TransactionService {
         excludeRules: this.excludeRules(),
         deletedSignatures: this.deletedSignatures(),
         deletedTransactions: this.deletedTransactions(),
+        excludedSignatures: this.excludedSignatures(),
+        excludedTransactions: this.excludedTransactions(),
         settings: {
           currency: this.currency(),
           dateFormat: this.dateFormat(),
@@ -3124,6 +3218,8 @@ export class TransactionService {
       if (data.excludeRules) this.excludeRules.set(data.excludeRules);
       if (data.deletedSignatures) this.deletedSignatures.set(data.deletedSignatures);
       if (data.deletedTransactions) this.deletedTransactions.set(data.deletedTransactions);
+      if (data.excludedSignatures) this.excludedSignatures.set(data.excludedSignatures);
+      if (data.excludedTransactions) this.excludedTransactions.set(data.excludedTransactions);
       if (data.settings) {
         if (data.settings.currency) this.currency.set(data.settings.currency);
         if (data.settings.dateFormat) this.dateFormat.set(data.settings.dateFormat);

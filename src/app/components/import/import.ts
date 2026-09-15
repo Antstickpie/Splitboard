@@ -1461,7 +1461,8 @@ export class ImportComponent {
 
     for (const t of allExpenses) {
       t.bank = bankName;
-      if (this.service.isTransactionExcluded(t.description, bankName)) {
+      const sig = this.service.getTransactionSignature(t);
+      if (this.service.isTransactionExcluded(t.description, bankName) || this.service.isSignatureExcluded(sig, t)) {
         newExcluded.push(t);
       } else {
         // Apply matching category & split rules for this bank
@@ -2154,6 +2155,7 @@ export class ImportComponent {
   public includeExcluded(tx: Transaction): void {
     const res = this.previewResult();
     if (!res) return;
+    this.service.restoreExcludedSignature(this.service.getTransactionSignature(tx), tx);
     const taggedTx: Transaction = { ...tx, includedFrom: 'excluded' };
     this.previewResult.set({
       ...res,
@@ -2219,6 +2221,7 @@ export class ImportComponent {
       });
       this.service.showToast('Returned transaction back to Incomes', 'info');
     } else if (fromTab === 'excluded') {
+      this.service.recordExcludedTransaction(cleanedTx);
       this.previewResult.set({
         ...res,
         transactions: remainingTxs,
@@ -3420,6 +3423,8 @@ export class ImportComponent {
       return;
     }
 
+    this.service.recordExcludedTransactions(toExclude);
+
     this.previewResult.set({
       ...res,
       transactions: remaining,
@@ -3436,6 +3441,8 @@ export class ImportComponent {
     const remaining = res.transactions.filter((t) => t.id !== tx.id);
     const cleaned: Transaction = { ...tx };
     delete cleaned.includedFrom;
+
+    this.service.recordExcludedTransaction(cleaned);
 
     this.previewResult.set({
       ...res,
@@ -3464,6 +3471,7 @@ export class ImportComponent {
         (t.merchant || '').toLowerCase().includes(q) ||
         (t.rawCategory || '').toLowerCase().includes(q)
       ) {
+        this.service.restoreExcludedSignature(this.service.getTransactionSignature(t), t);
         const tagged: Transaction = { ...t, includedFrom: 'excluded' };
         toInclude.push(tagged);
       } else {
@@ -4091,6 +4099,7 @@ export class ImportComponent {
       });
       this.service.showToast(`Included all ${group.count} "${group.description}" items into import list`, 'success');
     } else if (tab === 'excluded') {
+      group.items.forEach((t) => this.service.restoreExcludedSignature(this.service.getTransactionSignature(t), t));
       const tagged = group.items.map((t) => ({ ...t, includedFrom: 'excluded' as const }));
       this.previewResult.set({
         ...res,
@@ -4152,6 +4161,9 @@ export class ImportComponent {
         }
       }
 
+      if (toReturnToExcluded.length > 0) {
+        this.service.recordExcludedTransactions(toReturnToExcluded);
+      }
       if (toDelete.length > 0) {
         this.service.recordDeletedTransactions(toDelete);
       }
@@ -4297,6 +4309,7 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res) return;
     const groupItemIds = new Set(group.items.map((t) => t.id));
+    group.items.forEach((t) => this.service.restoreExcludedSignature(this.service.getTransactionSignature(t), t));
     const tagged = group.items.map((t) => ({ ...t, includedFrom: 'excluded' as const }));
     this.previewResult.set({
       ...res,
@@ -4340,6 +4353,7 @@ export class ImportComponent {
     const res = this.previewResult();
     if (!res || res.excluded.length === 0) return;
     const count = res.excluded.length;
+    res.excluded.forEach((t) => this.service.restoreExcludedSignature(this.service.getTransactionSignature(t), t));
     const tagged = res.excluded.map((t) => ({ ...t, includedFrom: 'excluded' as const }));
     this.previewResult.set({
       ...res,
@@ -4433,6 +4447,9 @@ export class ImportComponent {
       deleted: [...(res.deleted || [])],
     };
     this.service.saveStatementSnapshot(snapshot);
+    if (res.excluded && res.excluded.length > 0) {
+      this.service.recordExcludedTransactions(res.excluded);
+    }
 
     if (editBatch) {
       this.service.transactions.update((curr) => [
@@ -4612,6 +4629,17 @@ export class ImportComponent {
 
       const mergedTransactions = parsed.transactions.map(applyUserEdits);
 
+      const snapshot = this.service.getStatementSnapshot(batchFileName);
+      const currentExcluded = [
+        ...(snapshot?.excluded || []),
+        ...(this.previewResult()?.excluded || [])
+      ];
+      const excludedSignaturesSet = new Set<string>();
+      for (const ex of currentExcluded) {
+        excludedSignaturesSet.add(this.service.getTransactionSignature(ex));
+        if (ex.id) excludedSignaturesSet.add(ex.id);
+      }
+
       // Check if any items in duplicates actually belong to this batch being edited
       const realDuplicates: Transaction[] = [];
       for (const d of parsed.duplicates) {
@@ -4624,25 +4652,50 @@ export class ImportComponent {
         }
       }
 
+      const finalExcludedMap = new Map<string, Transaction>();
+      for (const ex of currentExcluded) {
+        const sig = this.service.getTransactionSignature(ex);
+        finalExcludedMap.set(sig, { ...ex, sourceFile: batchFileName });
+      }
+      for (const ex of parsed.excluded) {
+        const sig = this.service.getTransactionSignature(ex);
+        if (!finalExcludedMap.has(sig)) {
+          finalExcludedMap.set(sig, { ...ex, sourceFile: batchFileName });
+        }
+      }
+
+      const cleanMergedTransactions: Transaction[] = [];
+      for (const t of mergedTransactions) {
+        const sig = this.service.getTransactionSignature(t);
+        if (excludedSignaturesSet.has(sig) || (t.id && excludedSignaturesSet.has(t.id)) || this.service.isSignatureExcluded(sig, t)) {
+          if (!finalExcludedMap.has(sig)) {
+            finalExcludedMap.set(sig, { ...t, sourceFile: batchFileName });
+          }
+        } else {
+          cleanMergedTransactions.push(t);
+        }
+      }
+      const finalExcludedList = Array.from(finalExcludedMap.values());
+
       const mergedIncomes = parsed.incomes.map(applyUserEdits);
 
       const rehydratedResult: ParsedStatementResult = {
-        transactions: mergedTransactions,
+        transactions: cleanMergedTransactions,
         incomes: mergedIncomes,
         duplicates: realDuplicates,
-        excluded: parsed.excluded.map((t) => ({ ...t, sourceFile: batchFileName })),
+        excluded: finalExcludedList,
         deleted: parsed.deleted.map((t) => ({ ...t, sourceFile: batchFileName })),
         incomesCount: mergedIncomes.length,
         duplicatesCount: realDuplicates.length,
-        excludedCount: parsed.excluded.length,
+        excludedCount: finalExcludedList.length,
         deletedCount: parsed.deleted.length,
         bankName: bankName,
-        totalParsed: mergedTransactions.length + mergedIncomes.length + realDuplicates.length + parsed.excluded.length + parsed.deleted.length
+        totalParsed: cleanMergedTransactions.length + mergedIncomes.length + realDuplicates.length + finalExcludedList.length + parsed.deleted.length
       };
 
       this.previewResult.set(rehydratedResult);
       this.service.showToast(
-        `Re-hydrated "${batchFileName}" with original file: ${parsed.excluded.length} excluded and ${realDuplicates.length} duplicates restored!`,
+        `Re-hydrated "${batchFileName}" with original file: ${finalExcludedList.length} excluded and ${realDuplicates.length} duplicates restored!`,
         'success'
       );
     } catch (err: any) {

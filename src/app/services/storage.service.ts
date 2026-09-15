@@ -153,6 +153,8 @@ export class StorageService {
             deletedSignatures: metaMap.get('deletedSignatures') || [],
             deletedTransactions: metaMap.get('deletedTransactions') || [],
             statementSnapshots: metaMap.get('statementSnapshots') || [],
+            excludedSignatures: metaMap.get('excludedSignatures') || [],
+            excludedTransactions: metaMap.get('excludedTransactions') || [],
             settings: metaMap.get('settings') || {}
           };
 
@@ -228,6 +230,8 @@ export class StorageService {
           { key: 'deletedSignatures', value: data.deletedSignatures || [] },
           { key: 'deletedTransactions', value: data.deletedTransactions || [] },
           { key: 'statementSnapshots', value: data.statementSnapshots || [] },
+          { key: 'excludedSignatures', value: data.excludedSignatures || [] },
+          { key: 'excludedTransactions', value: data.excludedTransactions || [] },
           { key: 'settings', value: data.settings || {} }
         ];
 
