@@ -249,6 +249,18 @@ export class CategorySplitModalComponent implements OnChanges {
     );
   }
 
+  public trackLine(index: number, line: CategorySplitLine): string {
+    return line.id || String(index);
+  }
+
+  public onAmountChange(): void {
+    this.splitLines.update((lines) => [...lines]);
+  }
+
+  public onNoteChange(): void {
+    this.splitLines.update((lines) => [...lines]);
+  }
+
   public setLineSplitOption(index: number, opt: 'SPLIT_5050' | 'P1' | 'P2'): void {
     this.splitLines.update((lines) =>
       lines.map((line, i) => {

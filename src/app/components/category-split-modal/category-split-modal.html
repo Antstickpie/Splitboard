@@ -54,7 +54,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let line of splitLines(); let idx = index" class="split-row">
+          <tr *ngFor="let line of splitLines(); let idx = index; trackBy: trackLine" class="split-row">
             <!-- Line Index -->
             <td style="text-align: center;">
               <span class="line-badge">#{{ idx + 1 }}</span>
@@ -81,6 +81,7 @@
                     step="0.01"
                     min="0.01"
                     [(ngModel)]="line.amount"
+                    (ngModelChange)="onAmountChange()"
                     class="amount-input"
                     placeholder="0.00" />
                 </div>
@@ -131,6 +132,7 @@
               <input
                 type="text"
                 [(ngModel)]="line.note"
+                (ngModelChange)="onNoteChange()"
                 placeholder="Optional memo/note..."
                 class="note-input" />
             </td>
@@ -183,6 +185,9 @@
         </span>
         <span *ngIf="remainingAmount() < -0.005" style="color: #ef4444;">
           ⚠️ Over-allocated by {{ service.formatCurrency(Math.abs(remainingAmount())) }}
+        </span>
+        <span *ngIf="Math.abs(remainingAmount()) <= 0.005 && !isValid()" style="color: #ef4444;">
+          ⚠️ Each category must have an amount greater than 0
         </span>
       </div>
     </div>
