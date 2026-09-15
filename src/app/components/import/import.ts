@@ -329,12 +329,21 @@ export class ImportComponent {
     return res.transactions.filter((t) => t.categoryItem && t.categoryItem !== 'Uncategorized').length;
   });
 
+  public doneTransactionsCount = computed<number>(() => {
+    const res = this.previewResult();
+    if (!res || !res.transactions) return 0;
+    return res.transactions.filter((t) => t.isDone).length;
+  });
+
   public sortedTransactions = computed(() => {
     const res = this.previewResult();
     if (!res || !res.transactions) return [];
     let list = res.transactions;
     if (this.descExcludeAssigned()) {
       list = list.filter((t) => !t.categoryItem || t.categoryItem === 'Uncategorized');
+    }
+    if (this.descExcludeDone()) {
+      list = list.filter((t) => !t.isDone);
     }
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (q) {
@@ -2243,6 +2252,7 @@ export class ImportComponent {
   public descriptionBatchGroup = signal<string>('');
   public descriptionBatchNote = '';
   public descExcludeAssigned = signal<boolean>(false);
+  public descExcludeDone = signal<boolean>(false);
 
   public excludedOwners = signal<string[]>([]);
   public isOwnerExcludeDropdownOpen = signal<boolean>(false);
@@ -2427,6 +2437,9 @@ export class ImportComponent {
     if (this.descExcludeAssigned()) {
       list = list.filter((m) => !m.selectedItem || m.selectedItem === 'Uncategorized');
     }
+    if (this.descExcludeDone()) {
+      list = list.filter((m) => !this.isCategoryDone(m.rawCategory));
+    }
     const q = (this.descriptionMatchKeyword() || this.categoryMatchKeyword() || this.typeMatchKeyword()).trim().toLowerCase();
     if (!q) return list;
 
@@ -2447,6 +2460,9 @@ export class ImportComponent {
     let list = this.descriptionMappings();
     if (this.descExcludeAssigned()) {
       list = list.filter((d) => !d.isFullyAssigned);
+    }
+    if (this.descExcludeDone()) {
+      list = list.filter((d) => !this.isDescriptionDone(d.description));
     }
     const q = this.descriptionMatchKeyword().trim().toLowerCase();
     if (!q) return list;
@@ -2477,10 +2493,13 @@ export class ImportComponent {
     if (singleDescs.size === 0) return [];
     const res = this.previewResult();
     if (!res || !res.transactions) return [];
-    const list = res.transactions.filter((t) => {
+    let list = res.transactions.filter((t) => {
       const desc = (t.description || t.merchant || 'Unspecified').trim();
       return singleDescs.has(desc);
     });
+    if (this.descExcludeDone()) {
+      list = list.filter((t) => !t.isDone);
+    }
     return this.sortTxList(list);
   });
 
@@ -2669,7 +2688,10 @@ export class ImportComponent {
   }
 
   public getCategoryDisplayedTransactions(rawCategory: string): Transaction[] {
-    const txs = this.getTransactionsForCategory(rawCategory);
+    let txs = this.getTransactionsForCategory(rawCategory);
+    if (this.descExcludeDone()) {
+      txs = txs.filter((t) => !t.isDone);
+    }
     if (this.isCategoryShowingAll(rawCategory)) {
       return txs;
     }
@@ -2677,7 +2699,10 @@ export class ImportComponent {
   }
 
   public getDescriptionDisplayedTransactions(desc: string): Transaction[] {
-    const txs = this.getTransactionsForDescription(desc);
+    let txs = this.getTransactionsForDescription(desc);
+    if (this.descExcludeDone()) {
+      txs = txs.filter((t) => !t.isDone);
+    }
     if (this.isDescriptionShowingAll(desc)) {
       return txs;
     }
@@ -2983,6 +3008,7 @@ export class ImportComponent {
     const q = (keyword || '').trim().toLowerCase();
     if (!q) return 0;
     const excludeAssigned = this.descExcludeAssigned();
+    const excludeDone = this.descExcludeDone();
     const res = this.previewResult();
     if (!res) return 0;
 
@@ -2992,6 +3018,9 @@ export class ImportComponent {
         continue;
       }
       if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+        continue;
+      }
+      if (excludeDone && t.isDone) {
         continue;
       }
       if (
@@ -3268,6 +3297,7 @@ export class ImportComponent {
     if (!res) return;
 
     const excludeAssigned = this.descExcludeAssigned();
+    const excludeDone = this.descExcludeDone();
     const isIncome = chosenGroup.toLowerCase().includes('income');
 
     let matchedCount = 0;
@@ -3284,6 +3314,10 @@ export class ImportComponent {
           continue;
         }
         if (excludeAssigned && t.categoryItem && t.categoryItem !== 'Uncategorized') {
+          skippedCount++;
+          continue;
+        }
+        if (excludeDone && t.isDone) {
           skippedCount++;
           continue;
         }
@@ -3319,6 +3353,7 @@ export class ImportComponent {
     if (!res) return;
 
     const excludeAssigned = this.descExcludeAssigned();
+    const excludeDone = this.descExcludeDone();
     let matchedCount = 0;
     let skippedCount = 0;
 
@@ -3336,13 +3371,17 @@ export class ImportComponent {
           skippedCount++;
           continue;
         }
+        if (excludeDone && t.isDone) {
+          skippedCount++;
+          continue;
+        }
         t.note = noteVal || undefined;
         matchedCount++;
       }
     }
 
     this.previewResult.set({ ...res });
-    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} already assigned skipped)` : '';
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
     this.service.showToast(`Set comment on ${matchedCount} transactions matching "${this.descriptionMatchKeyword().trim()}"!${skippedMsg}`, 'success');
   }
 

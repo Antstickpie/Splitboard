@@ -359,6 +359,23 @@
                 🚫 Exclude already assigned <span *ngIf="assignedTransactionsCount() > 0" style="opacity: 0.75; font-size: 0.7rem;">({{ assignedTransactionsCount() }})</span>
               </span>
             </label>
+
+            <!-- Common Exclude Done Toggle for table in general -->
+            <label
+              class="animate-fade-in"
+              style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.76rem; font-weight: 600; cursor: pointer; user-select: none; padding: 0.22rem 0.55rem; border-radius: 6px; border: 1px solid; transition: all 0.15s ease;"
+              [style.borderColor]="descExcludeDone() ? 'var(--primary)' : 'rgba(255, 255, 255, 0.15)'"
+              [style.background]="descExcludeDone() ? 'rgba(0, 229, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)'"
+              title="Exclude transactions/groups marked as done across the table">
+              <input
+                type="checkbox"
+                [ngModel]="descExcludeDone()"
+                (ngModelChange)="descExcludeDone.set($event)"
+                style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--primary);" />
+              <span [style.color]="descExcludeDone() ? 'var(--primary)' : 'var(--text-main)'">
+                ✓ Exclude done <span *ngIf="doneTransactionsCount() > 0" style="opacity: 0.75; font-size: 0.7rem;">({{ doneTransactionsCount() }})</span>
+              </span>
+            </label>
           </div>
 
           <!-- Group by Description Checkbox on other tabs (incomes, review, duplicates, etc.) -->
