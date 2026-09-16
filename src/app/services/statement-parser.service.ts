@@ -90,12 +90,21 @@ export class StatementParserService {
           const lines: LineGroup[] = [];
 
           for (const item of items) {
-            const line = lines.find((l) => Math.abs(l.avgY - item.y) <= 7.0 || (item.y >= l.minY - 5.0 && item.y <= l.maxY + 5.0));
-            if (line) {
-              line.items.push(item);
-              line.minY = Math.min(line.minY, item.y);
-              line.maxY = Math.max(line.maxY, item.y);
-              line.avgY = (line.avgY * (line.items.length - 1) + item.y) / line.items.length;
+            let bestLine: LineGroup | null = null;
+            let minDist = Infinity;
+            for (const line of lines) {
+              const dist = Math.abs(line.avgY - item.y);
+              if (dist < minDist) {
+                minDist = dist;
+                bestLine = line;
+              }
+            }
+
+            if (bestLine && (minDist <= 10.0 || (item.y >= bestLine.minY - 6.0 && item.y <= bestLine.maxY + 6.0))) {
+              bestLine.items.push(item);
+              bestLine.minY = Math.min(bestLine.minY, item.y);
+              bestLine.maxY = Math.max(bestLine.maxY, item.y);
+              bestLine.avgY = (bestLine.avgY * (bestLine.items.length - 1) + item.y) / bestLine.items.length;
             } else {
               lines.push({ minY: item.y, maxY: item.y, avgY: item.y, items: [item] });
             }
@@ -531,8 +540,8 @@ export class StatementParserService {
 
     const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
 
-    // Date regex: Match DD.MM.YYYY, DD.MM., DD-MM-YYYY, DD-MM-, DD/MM/YYYY, DD/MM/
-    const dateAtStartRegex = /^((?:0[1-9]|[12]\d|3[01]|[1-9])[./\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\-](?:20\\d{2}|\\d{2}))?)[./\-]?(?:\s|$)/i;
+    // Date regex: Match DD.MM.YYYY, DD.MM., DD-MM-YYYY, DD-MM-, DD/MM/YYYY, DD/MM/, YYYY-MM-DD, or DD Month YYYY
+    const dateAtStartRegex = /^(?:((?:0[1-9]|[12]\d|3[01]|[1-9])[./\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\-](?:20\d{2}|\d{2}))?)|(\d{4}[./\-](?:0[1-9]|1[0-2])[./\-](?:0[1-9]|[12]\d|3[01]))|((?:0[1-9]|[12]\d|3[01]|[1-9])\s+(?:jan|feb|mär|mar|apr|mai|may|jun|jul|aug|sep|okt|oct|nov|dez|dec)[a-z]*(?:\s+20\d{2})?))[./\-]?(?:\s|$)/i;
     const amountRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-\u2010-\u2015\u2212SH]?)/g;
 
     // Group lines into row blocks starting with each date line
@@ -558,7 +567,8 @@ export class StatementParserService {
         if (currentBlock && currentBlock.lines.length > 0) {
           blocks.push(currentBlock);
         }
-        currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
+        const matchedDate = (dateMatch[1] || dateMatch[2] || dateMatch[3] || '').trim();
+        currentBlock = { dateStr: matchedDate, lines: [line] };
       } else if (currentBlock) {
         // Check for wrapped year line from date column e.g. "2026 2026 PayPal Europe..."
         const yearWrap = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
@@ -605,9 +615,9 @@ export class StatementParserService {
       }
 
       let amount = this.parseAmount(chosenAmtStr);
-      if (chosenAmtStr.endsWith('S') || /[-\u2010-\u2015\u2212]$/.test(chosenAmtStr)) {
+      if (chosenAmtStr.endsWith('S') || /[-\u2010-\u2015\u2212]$/.test(chosenAmtStr) || /^[-\u2010-\u2015\u2212]/.test(chosenAmtStr)) {
         amount = -Math.abs(amount);
-      } else if (chosenAmtStr.endsWith('H') || chosenAmtStr.endsWith('+')) {
+      } else if (chosenAmtStr.endsWith('H') || chosenAmtStr.endsWith('+') || chosenAmtStr.startsWith('+')) {
         amount = Math.abs(amount);
       }
       if (amount === 0) continue;
@@ -639,9 +649,9 @@ export class StatementParserService {
         );
 
       let isCharge = true;
-      if (/[-\u2010-\u2015\u2212]/.test(chosenAmtStr) || chosenAmtStr.endsWith('S')) {
+      if (chosenAmtStr.includes('-') || chosenAmtStr.includes('–') || chosenAmtStr.includes('—') || chosenAmtStr.endsWith('S') || chosenAmtStr.endsWith('D')) {
         isCharge = true;
-      } else if (chosenAmtStr.includes('+') || chosenAmtStr.endsWith('H')) {
+      } else if (chosenAmtStr.includes('+') || chosenAmtStr.endsWith('H') || chosenAmtStr.endsWith('C')) {
         isCharge = false;
       } else if (isIncomeDesc && !isExpenseDesc) {
         isCharge = false;
