@@ -341,11 +341,7 @@ export class StatementParserService {
         continue;
       }
 
-      if (isIncomeOrPayment) {
-        incomes.push(tx);
-      } else {
-        transactions.push(tx);
-      }
+      transactions.push(tx);
     }
 
     transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -747,11 +743,7 @@ export class StatementParserService {
         continue;
       }
 
-      if (isIncomeOrPayment) {
-        incomes.push(tx);
-      } else {
-        transactions.push(tx);
-      }
+      transactions.push(tx);
     }
 
     // Preserve natural statement reading order from the PDF (top to bottom of pages)
