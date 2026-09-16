@@ -542,6 +542,7 @@ export class StatementParserService {
     if (yearMatch) fallbackYear = yearMatch[1];
 
     // User configured stop markers & max description lines per block
+    const maxLines = bankCfg?.maxDescLines || 10;
     const stopMarkers = bankCfg?.tableEndMarker
       ? bankCfg.tableEndMarker.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
       : ['endsaldo', 'alter kontostand', 'neuer kontostand', 'closing balance', 'statement summary', 'gesamtbetrag', 'neuer saldo'];
@@ -552,7 +553,7 @@ export class StatementParserService {
     // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
     const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
     const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
-    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?![.,/\-]\d)\s*[+\-\u2010-\u2015\u2212SH]?)/g;
+    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-\u2010-\u2015\u2212SH]?)/g;
 
     // Structural table block grouping:
     // A transaction block starts at a Date line and captures all lines until the next Date line or table boundary.
@@ -592,23 +593,17 @@ export class StatementParserService {
         }
         currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
       } else if (currentBlock) {
-        // Guard: monetary amounts, negative signs, and dates are NOT wrapped years
-        const isAmountOrDate = /^[+\-\u2010-\u2015\u2212]?\s*\d+[.,]\d{2}/.test(line) ||
-          /\b20\d{2}\s*(?:EUR|€|USD|\$|GBP|£)\b/i.test(line) ||
-          /^[+\-\u2010-\u2015\u2212]/.test(line) ||
-          startWithDateRegex.test(line);
-
-        // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
-        const yearWrapMatch = !isAmountOrDate && currentBlock.lines.length === 1
-          ? line.match(/^(20\d{2})(?:\s+20\d{2})?(?:\s+([^\d\s.,].*))?$/)
-          : null;
-        if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
-          currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]$/, '') + '-' + yearWrapMatch[1];
-          if (yearWrapMatch[2]) {
-            currentBlock.lines.push(yearWrapMatch[2]);
+        if (currentBlock.lines.length < maxLines) {
+          // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
+          const yearWrapMatch = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
+          if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
+            currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]+$/, '') + '-' + yearWrapMatch[1];
+            if (yearWrapMatch[2]) {
+              currentBlock.lines.push(yearWrapMatch[2]);
+            }
+          } else {
+            currentBlock.lines.push(line);
           }
-        } else {
-          currentBlock.lines.push(line);
         }
       }
     }
@@ -616,38 +611,12 @@ export class StatementParserService {
       blocks.push(currentBlock);
     }
 
-    // Merge blocks that do not have a monetary amount into the preceding transaction block
-    // (captures continuation lines in descriptions that happen to start with dates, like SEPA mandate/due dates)
-    const mergedBlocks: RawBlock[] = [];
     for (const block of blocks) {
-      let fullBlockText = block.lines.join(' ');
-      fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212])\s+(\d)/g, '$1$2');
-      fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212]?\b\d{1,3})\s+(\d{1,3}[.,]\d{2}\b)/g, '$1$2');
-      const textForAmounts = fullBlockText.replace(/\b\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\b/g, ' ');
-      const hasAmount = Array.from(textForAmounts.matchAll(amountTokenRegex)).length > 0;
-      if (!hasAmount && mergedBlocks.length > 0) {
-        mergedBlocks[mergedBlocks.length - 1].lines.push(...block.lines);
-      } else {
-        mergedBlocks.push(block);
-      }
-    }
-
-    for (const block of mergedBlocks) {
       let rawDate = block.dateStr.replace(/[-./]+$/, '').trim();
       if (/^\d{1,2}[./\-]\d{1,2}$/.test(rawDate)) {
-        // Find year in block lines if present, otherwise use fallbackYear
-        const blockYearMatch = block.lines.join(' ').match(/\b(202\d)\b/);
-        const yearToUse = blockYearMatch ? blockYearMatch[1] : fallbackYear;
-        rawDate = rawDate + '-' + yearToUse;
+        rawDate = rawDate + '.' + fallbackYear;
       }
-      let isoDate = this.normalizeDate(rawDate);
-      if (!isoDate) {
-        // Try stripping any leftover non-digit prefix/suffix
-        const cleanDatePart = block.dateStr.replace(/^[^\d]+|[^\d]+$/g, '');
-        if (/^\d{1,2}[./\-]\d{1,2}$/.test(cleanDatePart)) {
-          isoDate = this.normalizeDate(cleanDatePart + '-' + fallbackYear);
-        }
-      }
+      const isoDate = this.normalizeDate(rawDate);
       if (!isoDate) continue;
 
       let fullBlockText = block.lines.join(' ');
@@ -657,8 +626,8 @@ export class StatementParserService {
       // 2. Collapse split thousands or split integers before decimal: e.g. "-1 13.36" -> "-113.36", "1 234.56" -> "1234.56"
       fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212]?\b\d{1,3})\s+(\d{1,3}[.,]\d{2}\b)/g, '$1$2');
 
-      // Strip date patterns from text before searching for amounts so dates (e.g. 26.06.2026) are not extracted as amounts (26.06)
-      const textForAmounts = fullBlockText.replace(/\b\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\b/g, ' ');
+      // Strip full date patterns so date tokens (e.g. 26.06.2026) are not extracted as money amounts (26.06)
+      const textForAmounts = fullBlockText.replace(/\b\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}\b/g, ' ');
 
       // Find amounts in this block
       const amtMatches = Array.from(textForAmounts.matchAll(amountTokenRegex));
