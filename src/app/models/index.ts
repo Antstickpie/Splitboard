@@ -105,7 +105,6 @@ export interface CategoryRule {
   categoryGroup?: string;
   splitType?: SplitType;
   splitPercentage?: number;
-  paidBy?: string;
   bank?: string; // 'All' or specific bank
   incomeNextMonth?: boolean; // If matching transaction is income, shift to fund next month
   defaultNote?: string; // Default comment / note to apply to matching transactions

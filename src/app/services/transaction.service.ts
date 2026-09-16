@@ -1199,7 +1199,14 @@ export class TransactionService {
       this.bankConfigs.set(DEFAULT_BANKS);
     }
     if (data.rules !== undefined) {
-      this.rules.set(data.rules);
+      const sanitizedRules = (data.rules || []).map((r: any) => {
+        if (r && r.paidBy) {
+          const { paidBy, ...rest } = r;
+          return rest;
+        }
+        return r;
+      });
+      this.rules.set(sanitizedRules);
     }
     if (data.excludeRules !== undefined) {
       this.excludeRules.set(data.excludeRules);
@@ -1581,16 +1588,6 @@ export class TransactionService {
         });
       }
 
-      // 3. Paid By Check
-      if (newRule.paidBy && tx.paidBy !== newRule.paidBy) {
-        changes.push({
-          field: 'paidBy',
-          label: 'Paid By',
-          from: tx.paidBy || '(None)',
-          to: newRule.paidBy
-        });
-      }
-
       // 4. Note / Comment Check:
       // "also edit all current transaction that has no commet or matches the exact old comment for the rule"
       const currentNote = (tx.note || '').trim();
@@ -1689,9 +1686,6 @@ export class TransactionService {
             delete updated.splitMode;
           }
         }
-        if (newRule.paidBy) {
-          updated.paidBy = newRule.paidBy;
-        }
 
         const currentNote = (tx.note || '').trim();
         const hasNoComment = !currentNote;
@@ -1735,7 +1729,6 @@ export class TransactionService {
             categoryGroup: matched.categoryGroup || tx.categoryGroup,
             splitType: matched.splitType || tx.splitType,
             splitPercentage: matched.splitPercentage !== undefined ? matched.splitPercentage : tx.splitPercentage,
-            paidBy: matched.paidBy || tx.paidBy,
             note: shouldUpdateNote && matched.defaultNote ? matched.defaultNote : tx.note
           };
         }
@@ -2406,15 +2399,7 @@ export class TransactionService {
         }))
       );
 
-      // 2. Update auto-categorization rules
-      this.rules.update((curr) =>
-        curr.map((r) => ({
-          ...r,
-          paidBy: r.paidBy === oldName ? trimmed : r.paidBy
-        }))
-      );
-
-      // 3. Update category items default owner
+      // 2. Update category items default owner
       this.categoryGroups.update((curr) =>
         curr.map((g) => ({
           ...g,

@@ -80,8 +80,8 @@ export const DEFAULT_RULES: CategoryRule[] = [
   { id: 'r2', keyword: 'edeka', categoryItem: 'Groceries', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
   { id: 'r3', keyword: 'lidl', categoryItem: 'Groceries', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
   { id: 'r4', keyword: 'aldi', categoryItem: 'Groceries', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
-  { id: 'r5', keyword: 'enpal', categoryItem: 'Salary', categoryGroup: 'Income', splitType: 'SELF', paidBy: 'Mac' },
-  { id: 'r6', keyword: 'bosch', categoryItem: 'Salary', categoryGroup: 'Income', splitType: 'SELF', paidBy: 'Cheese' },
+  { id: 'r5', keyword: 'enpal', categoryItem: 'Salary', categoryGroup: 'Income', splitType: 'SELF' },
+  { id: 'r6', keyword: 'bosch', categoryItem: 'Salary', categoryGroup: 'Income', splitType: 'SELF' },
   { id: 'r7', keyword: 'miete', categoryItem: 'Rent and Utilities', categoryGroup: 'Housing', splitType: 'SPLIT', splitPercentage: 50 },
   { id: 'r8', keyword: 'gym', categoryItem: 'Gym', categoryGroup: 'Lifestyle', splitType: 'SELF' }
 ];

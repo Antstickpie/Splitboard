@@ -855,7 +855,6 @@ export class ImportComponent {
         categoryGroup: catGroup,
         splitType: actualSplitType,
         splitPercentage: actualSplitPct,
-        paidBy: this.rulePaidBy || undefined,
         bank: this.ruleBank,
         incomeNextMonth: this.ruleIncomeNextMonth || undefined,
         defaultNote
@@ -916,8 +915,7 @@ export class ImportComponent {
                 splitType: newRule.splitType || t.splitType,
                 splitMode: newRule.splitPercentage !== undefined ? 'PERCENTAGE' : (newRule.splitType === 'SPLIT' ? t.splitMode : undefined),
                 splitPercentage: newRule.splitPercentage,
-                customSplitAmounts: newRule.splitPercentage !== undefined ? undefined : t.customSplitAmounts,
-                paidBy: newRule.paidBy || t.paidBy
+                customSplitAmounts: newRule.splitPercentage !== undefined ? undefined : t.customSplitAmounts
               };
 
               const currentNote = (t.note || '').trim();
@@ -945,7 +943,6 @@ export class ImportComponent {
                 categoryItem: newRule.categoryItem || t.categoryItem,
                 categoryGroup: catGroup || t.categoryGroup,
                 splitType: newRule.splitType || t.splitType,
-                paidBy: newRule.paidBy || t.paidBy,
                 includedFrom: 'excluded'
               };
               restoredFromExcluded.push(updatedTx);
@@ -1480,7 +1477,6 @@ export class ImportComponent {
           t.categoryGroup = matched.categoryGroup || 'Uncategorized';
           t.splitType = matched.splitType || t.splitType;
           t.splitPercentage = matched.splitPercentage !== undefined ? matched.splitPercentage : t.splitPercentage;
-          if (matched.paidBy) t.paidBy = matched.paidBy;
           if (matched.incomeNextMonth && this.isIncomeTx(t)) {
             const curM = (t.date || '').slice(0, 7);
             t.incomeMonth = this.service.getNextMonth(curM);

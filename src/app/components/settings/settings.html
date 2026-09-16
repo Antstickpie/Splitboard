@@ -485,16 +485,8 @@
             <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Split Mode</label>
             <select [(ngModel)]="newRuleSplitType" class="settings-select" style="width: 100%; height: 30px;">
               <option value="SPLIT">Split 50/50</option>
-              <option value="SELF">100% {{ newRuleOwner || service.personOne().name }}</option>
-              <option value="OTHER">100% {{ (newRuleOwner || service.personOne().name) === service.personOne().name ? service.personTwo().name : service.personOne().name }}</option>
-            </select>
-          </div>
-
-          <div style="width: 110px;">
-            <label class="input-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">Default Payer</label>
-            <select [(ngModel)]="newRuleOwner" class="settings-select" style="width: 100%; height: 30px;">
-              <option value="">Any Payer</option>
-              <option *ngFor="let p of service.persons()" [value]="p.name">{{ p.name }}</option>
+              <option value="SELF">100% {{ service.personOne().name }}</option>
+              <option value="OTHER">100% {{ service.personTwo().name }}</option>
             </select>
           </div>
 
@@ -552,13 +544,12 @@
       <!-- Active Rules List (Fixed header, scroll strictly below) -->
       <div style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
         <!-- Fixed Header Row (No scrollbar on header) -->
-        <div style="display: grid; grid-template-columns: 110px 1.4fr 1.2fr 1.2fr 95px 90px 65px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+        <div style="display: grid; grid-template-columns: 110px 1.4fr 1.2fr 1.2fr 95px 65px; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
           <span>Target Bank</span>
           <span>Keyword Contains</span>
           <span>Assigned Category</span>
           <span>Default Comment</span>
           <span>Split Mode</span>
-          <span>Default Payer</span>
           <span style="text-align: center;">Actions</span>
         </div>
 
@@ -568,7 +559,7 @@
             <!-- Normal Row Display -->
             <div
               *ngIf="editingRuleId() !== r.id"
-              style="display: grid; grid-template-columns: 110px 1.4fr 1.2fr 1.2fr 95px 90px 65px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+              style="display: grid; grid-template-columns: 110px 1.4fr 1.2fr 1.2fr 95px 65px; align-items: center; padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
               <div><span class="badge badge-neutral">{{ (!r.bank || r.bank === 'All' || r.bank === 'all') ? 'All Banks' : r.bank }}</span></div>
               <div><code style="color: var(--primary); font-weight: 600;">"{{ r.keyword }}"</code></div>
               <div>
@@ -583,10 +574,6 @@
                 <span *ngIf="!r.defaultNote" style="color: var(--text-muted); font-size: 0.72rem;">—</span>
               </div>
               <div><span class="badge badge-neutral">{{ r.splitType || 'SPLIT' }}</span></div>
-              <div>
-                <span class="badge badge-info" *ngIf="r.paidBy">{{ r.paidBy }}</span>
-                <span *ngIf="!r.paidBy" style="color: var(--text-muted);">—</span>
-              </div>
               <div style="display: flex; justify-content: center; gap: 0.25rem;">
                 <button class="btn-icon-action" style="width: 24px; height: 24px; font-size: 0.75rem; background: rgba(255,255,255,0.06); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" (click)="startEditRule(r)" title="Edit rule">✏️</button>
                 <button class="btn-icon-remove" style="width: 24px; height: 24px; font-size: 0.7rem;" (click)="deleteRule(r.id)" title="Delete rule">✕</button>
@@ -598,7 +585,7 @@
               *ngIf="editingRuleId() === r.id && editRuleModel"
               class="animate-fade-in"
               style="padding: 0.6rem 0.8rem; background: rgba(0, 229, 255, 0.04); border-bottom: 1px solid rgba(0, 229, 255, 0.2);">
-              <div style="display: grid; grid-template-columns: 1.2fr 110px 1.2fr 1.2fr 120px 100px; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <div style="display: grid; grid-template-columns: 1.2fr 110px 1.2fr 1.2fr 120px; gap: 0.5rem; margin-bottom: 0.5rem;">
                 <div>
                   <label class="input-label">Keyword</label>
                   <input type="text" [(ngModel)]="editRuleModel.keyword" class="person-input" style="width: 100%;">
@@ -630,16 +617,8 @@
                   <label class="input-label">Split Mode</label>
                   <select [(ngModel)]="editRuleModel.splitType" class="settings-select" style="width: 100%;">
                     <option value="SPLIT">Split 50/50</option>
-                    <option value="SELF">100% {{ editRuleModel.paidBy || service.personOne().name }}</option>
-                    <option value="OTHER">100% {{ (editRuleModel.paidBy || service.personOne().name) === service.personOne().name ? service.personTwo().name : service.personOne().name }}</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="input-label">Payer</label>
-                  <select [(ngModel)]="editRuleModel.paidBy" class="settings-select" style="width: 100%;">
-                    <option value="">Default</option>
-                    <option [value]="service.personOne().name">{{ service.personOne().name }}</option>
-                    <option [value]="service.personTwo().name">{{ service.personTwo().name }}</option>
+                    <option value="SELF">100% {{ service.personOne().name }}</option>
+                    <option value="OTHER">100% {{ service.personTwo().name }}</option>
                   </select>
                 </div>
               </div>

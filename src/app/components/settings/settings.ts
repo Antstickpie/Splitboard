@@ -353,7 +353,6 @@ export class SettingsComponent {
       categoryItem: this.newRuleCategory,
       categoryGroup: group,
       splitType: this.newRuleSplitType,
-      paidBy: this.newRuleOwner || undefined,
       bank: this.newRuleBank || 'All',
       incomeNextMonth: this.newRuleIncomeNextMonth || undefined,
       defaultNote: this.newRuleNote.trim() || undefined

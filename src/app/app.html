@@ -141,7 +141,6 @@
       <div><span style="color: var(--text-muted);">Target Bank:</span> <strong>{{ (!modal.rule.bank || modal.rule.bank === 'All' || modal.rule.bank === 'all') ? 'All Banks' : modal.rule.bank }}</strong></div>
       <div><span style="color: var(--text-muted);">Category:</span> <span class="badge badge-warning">{{ modal.rule.categoryItem }}</span></div>
       <div *ngIf="modal.rule.splitType"><span style="color: var(--text-muted);">Split:</span> <span class="badge badge-neutral">{{ modal.rule.splitType }}</span></div>
-      <div *ngIf="modal.rule.paidBy"><span style="color: var(--text-muted);">Paid By:</span> <span class="badge badge-info">{{ modal.rule.paidBy }}</span></div>
       <div *ngIf="modal.rule.defaultNote"><span style="color: var(--text-muted);">Default Comment:</span> <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3);">💬 "{{ modal.rule.defaultNote }}"</span></div>
     </div>
 

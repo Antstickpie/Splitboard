@@ -141,7 +141,7 @@ export class StatementParserService {
   public parseText(
     text: string,
     bankName: string,
-    defaultOwner: string,
+    statementOwner: string,
     fileName: string,
     customMappings?: Record<string, number>
   ): ParsedStatementResult {
@@ -246,7 +246,7 @@ export class StatementParserService {
       if (amount === 0) continue;
 
       const cleanDesc = this.service.fixMojibake(desc.replace(/\s+/g, ' ').trim());
-      const { group, item, defaultSplit, defaultOwner, incomeNextMonth, defaultNote } = this.matchCategory(cleanDesc, detectedBank);
+      const { group, item, defaultSplit, incomeNextMonth, defaultNote } = this.matchCategory(cleanDesc, detectedBank);
 
       // Extract statement Currency and convert if different from Base Currency
       let txCurrency = '';
@@ -290,7 +290,7 @@ export class StatementParserService {
         description: cleanDesc,
         bank: effectiveBank,
         account: effectiveBank,
-        paidBy: defaultOwner || this.service.personOne().name,
+        paidBy: statementOwner || this.service.personOne().name,
         categoryGroup: group || 'Uncategorized',
         categoryItem: item || 'Uncategorized',
         splitType: defaultSplit,
@@ -521,7 +521,7 @@ export class StatementParserService {
   private extractTransactionsFromPdfText(
     text: string,
     bankName: string,
-    defaultOwner: string,
+    statementOwner: string,
     fileName: string
   ): ParsedStatementResult {
     const transactions: Transaction[] = [];
@@ -545,7 +545,6 @@ export class StatementParserService {
     const stopMarkers = bankCfg?.tableEndMarker
       ? bankCfg.tableEndMarker.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
       : ['endsaldo', 'alter kontostand', 'neuer kontostand', 'closing balance', 'statement summary', 'gesamtbetrag', 'neuer saldo'];
-    const maxLines = bankCfg?.maxDescLines || 3;
 
     // Line-by-line processing
     const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
@@ -553,7 +552,7 @@ export class StatementParserService {
     // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
     const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
     const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
-    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-\u2010-\u2015\u2212SH]?)/g;
+    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?![.,/\-\d])\s*[+\-\u2010-\u2015\u2212SH]?)/g;
 
     // Structural table block grouping:
     // A transaction block starts at a Date line and captures all lines until the next Date line or table boundary.
@@ -588,42 +587,28 @@ export class StatementParserService {
 
       const dateMatch = line.match(startWithDateRegex);
       if (dateMatch) {
-        // Guard against continuation lines that happen to contain dates:
-        // 1. Line is ONLY a date (e.g. "26.06.2026" on its own line for mandate/due date)
-        // 2. Line contains SEPA / card mandate / timestamp identifiers
-        const isDateOnlyLine = /^\s*\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\.?\s*$/.test(line);
-        const isDetailContinuation = /\b(?:creditor-id|gläubiger-id|mandatsref|end-to-end|kref|eref|mref|svwz|kaufumsatz|kauf\s+am|kartenzahlung|terminal|ta-nr|autorisierung|\d{1,2}:\d{2})\b/i.test(line);
-        const isContinuationLine = currentBlock !== null && (isDateOnlyLine || isDetailContinuation);
-
-        if (!isContinuationLine) {
-          if (currentBlock && currentBlock.lines.length > 0) {
-            blocks.push(currentBlock);
-          }
-          currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
-        } else if (currentBlock) {
-          currentBlock.lines.push(line);
+        if (currentBlock && currentBlock.lines.length > 0) {
+          blocks.push(currentBlock);
         }
+        currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
       } else if (currentBlock) {
-        // Enforce maxDescLines limit on secondary lines captured
-        if (currentBlock.lines.length < maxLines) {
-          // Guard: monetary amounts, negative signs, and dates are NOT wrapped years
-          const isAmountOrDate = /^[+\-\u2010-\u2015\u2212]?\s*\d+[.,]\d{2}/.test(line) ||
-            /\b20\d{2}\s*(?:EUR|€|USD|\$|GBP|£)\b/i.test(line) ||
-            /^[+\-\u2010-\u2015\u2212]/.test(line) ||
-            startWithDateRegex.test(line);
+        // Guard: monetary amounts, negative signs, and dates are NOT wrapped years
+        const isAmountOrDate = /^[+\-\u2010-\u2015\u2212]?\s*\d+[.,]\d{2}/.test(line) ||
+          /\b20\d{2}\s*(?:EUR|€|USD|\$|GBP|£)\b/i.test(line) ||
+          /^[+\-\u2010-\u2015\u2212]/.test(line) ||
+          startWithDateRegex.test(line);
 
-          // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
-          const yearWrapMatch = !isAmountOrDate && currentBlock.lines.length === 1
-            ? line.match(/^(20\d{2})(?:\s+20\d{2})?(?:\s+([^\d\s.,].*))?$/)
-            : null;
-          if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
-            currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]$/, '') + '-' + yearWrapMatch[1];
-            if (yearWrapMatch[2]) {
-              currentBlock.lines.push(yearWrapMatch[2]);
-            }
-          } else {
-            currentBlock.lines.push(line);
+        // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
+        const yearWrapMatch = !isAmountOrDate && currentBlock.lines.length === 1
+          ? line.match(/^(20\d{2})(?:\s+20\d{2})?(?:\s+([^\d\s.,].*))?$/)
+          : null;
+        if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
+          currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]$/, '') + '-' + yearWrapMatch[1];
+          if (yearWrapMatch[2]) {
+            currentBlock.lines.push(yearWrapMatch[2]);
           }
+        } else {
+          currentBlock.lines.push(line);
         }
       }
     }
@@ -631,7 +616,23 @@ export class StatementParserService {
       blocks.push(currentBlock);
     }
 
+    // Merge blocks that do not have a monetary amount into the preceding transaction block
+    // (captures continuation lines in descriptions that happen to start with dates, like SEPA mandate/due dates)
+    const mergedBlocks: RawBlock[] = [];
     for (const block of blocks) {
+      let fullBlockText = block.lines.join(' ');
+      fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212])\s+(\d)/g, '$1$2');
+      fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212]?\b\d{1,3})\s+(\d{1,3}[.,]\d{2}\b)/g, '$1$2');
+      const textForAmounts = fullBlockText.replace(/\b\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\b/g, ' ');
+      const hasAmount = Array.from(textForAmounts.matchAll(amountTokenRegex)).length > 0;
+      if (!hasAmount && mergedBlocks.length > 0) {
+        mergedBlocks[mergedBlocks.length - 1].lines.push(...block.lines);
+      } else {
+        mergedBlocks.push(block);
+      }
+    }
+
+    for (const block of mergedBlocks) {
       let rawDate = block.dateStr;
       if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
         rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
@@ -683,7 +684,7 @@ export class StatementParserService {
         continue;
       }
 
-      const { group, item, defaultSplit, defaultOwner, incomeNextMonth, defaultNote } = this.matchCategory(cleanDesc, detectedBank);
+      const { group, item, defaultSplit, incomeNextMonth, defaultNote } = this.matchCategory(cleanDesc, detectedBank);
 
       // Check for explicit income vs expense keywords in block
       const isIncomeDesc =
@@ -722,7 +723,7 @@ export class StatementParserService {
         description: cleanDesc,
         bank: effectiveBank,
         account: effectiveBank,
-        paidBy: defaultOwner || this.service.personOne().name,
+        paidBy: statementOwner || this.service.personOne().name,
         categoryGroup: group || 'Uncategorized',
         categoryItem: item || 'Uncategorized',
         splitType: defaultSplit,
@@ -1046,7 +1047,7 @@ export class StatementParserService {
   public matchCategory(
     desc: string,
     bank?: string
-  ): { group?: string; item?: string; defaultSplit?: SplitType; defaultOwner?: string; incomeNextMonth?: boolean; defaultNote?: string } {
+  ): { group?: string; item?: string; defaultSplit?: SplitType; incomeNextMonth?: boolean; defaultNote?: string } {
     if (!desc) return {};
     const rawLower = desc.toLowerCase();
     const bankLower = (bank || '').toLowerCase();
@@ -1066,7 +1067,6 @@ export class StatementParserService {
             group: rule.categoryGroup,
             item: rule.categoryItem,
             defaultSplit: rule.splitType || 'SPLIT',
-            defaultOwner: rule.paidBy,
             incomeNextMonth: rule.incomeNextMonth,
             defaultNote: rule.defaultNote
           };

@@ -3332,23 +3332,14 @@
           </div>
 
           <!-- Split Mode & Paid By -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
-            <div>
-              <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Split Mode</label>
-              <select [(ngModel)]="ruleSplitType" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
-                <option value="SPLIT">Split 50/50</option>
-                <option value="SELF">100% {{ rulePaidBy || service.personOne().name }}</option>
-                <option value="OTHER">100% {{ (rulePaidBy || service.personOne().name) === service.personOne().name ? service.personTwo().name : service.personOne().name }}</option>
-                <option value="CUSTOM">Custom Split ({{ ruleSplitPercentage }}% / {{ 100 - ruleSplitPercentage }}%)</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Default Paid By</label>
-              <select [(ngModel)]="rulePaidBy" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
-                <option [value]="service.personOne().name">{{ service.personOne().name }}</option>
-                <option [value]="service.personTwo().name">{{ service.personTwo().name }}</option>
-              </select>
-            </div>
+          <div>
+            <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Split Mode</label>
+            <select [(ngModel)]="ruleSplitType" class="styled-select" style="width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+              <option value="SPLIT">Split 50/50</option>
+              <option value="SELF">100% {{ service.personOne().name }}</option>
+              <option value="OTHER">100% {{ service.personTwo().name }}</option>
+              <option value="CUSTOM">Custom Split ({{ ruleSplitPercentage }}% / {{ 100 - ruleSplitPercentage }}%)</option>
+            </select>
           </div>
 
           <!-- Custom Split Percentage Slider / Presets (When ruleSplitType === 'CUSTOM') -->
