@@ -603,17 +603,15 @@ export class StatementParserService {
         }
         currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
       } else if (currentBlock) {
-        if (currentBlock.lines.length < maxLines) {
-          // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
-          const yearWrapMatch = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
-          if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
-            currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]+$/, '') + '-' + yearWrapMatch[1];
-            if (yearWrapMatch[2]) {
-              currentBlock.lines.push(yearWrapMatch[2]);
-            }
-          } else {
-            currentBlock.lines.push(line);
+        // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
+        const yearWrapMatch = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
+        if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
+          currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]+$/, '') + '-' + yearWrapMatch[1];
+          if (yearWrapMatch[2]) {
+            currentBlock.lines.push(yearWrapMatch[2]);
           }
+        } else {
+          currentBlock.lines.push(line);
         }
       }
     }
