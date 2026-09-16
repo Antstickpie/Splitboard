@@ -70,35 +70,43 @@ export class StatementParserService {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
           
-          // Sort items by Y (top to bottom) with 3.5px line tolerance, then X (left to right)
-          const items = (textContent.items as any[]).map((item) => ({
-            str: item.str || '',
-            x: item.transform ? item.transform[4] : 0,
-            y: item.transform ? item.transform[5] : 0,
-            width: typeof item.width === 'number' && item.width > 0 ? item.width : (item.str ? item.str.length * 5 : 0)
-          }));
+          // Clean line grouping: Sort items strictly top to bottom (descending Y), group into lines within 3.5px tolerance, then sort each line left to right (ascending X)
+          const items = (textContent.items as any[])
+            .filter((item) => item && typeof item.str === 'string' && item.str.trim().length > 0)
+            .map((item) => ({
+              str: item.str,
+              x: item.transform ? item.transform[4] : 0,
+              y: item.transform ? item.transform[5] : 0
+            }));
 
-          items.sort((a, b) => {
-            if (Math.abs(a.y - b.y) <= 3.5) {
-              return a.x - b.x; // same line: left to right
-            }
-            return b.y - a.y; // top to bottom
-          });
+          items.sort((a, b) => b.y - a.y || a.x - b.x);
 
-          let lastY: number | undefined;
-          let pageText = '';
+          interface LineGroup {
+            y: number;
+            items: { str: string; x: number; y: number }[];
+          }
+          const lines: LineGroup[] = [];
 
           for (const item of items) {
-            if (lastY !== undefined && Math.abs(item.y - lastY) > 3.5) {
-              pageText += '\n';
-            } else if (pageText.length > 0 && !pageText.endsWith(' ') && !pageText.endsWith('\n')) {
-              pageText += ' ';
+            const line = lines.find((l) => Math.abs(l.y - item.y) <= 3.5);
+            if (line) {
+              line.items.push(item);
+            } else {
+              lines.push({ y: item.y, items: [item] });
             }
-            pageText += item.str;
-            lastY = item.y;
           }
 
-          fullText += '\n' + pageText;
+          // Sort lines top-to-bottom
+          lines.sort((a, b) => b.y - a.y);
+
+          // For each line, sort items left-to-right and join with space
+          const pageLines: string[] = [];
+          for (const line of lines) {
+            line.items.sort((a, b) => a.x - b.x);
+            pageLines.push(line.items.map((i) => i.str).join(' '));
+          }
+
+          fullText += '\n' + pageLines.join('\n');
         }
       }
     } catch (e) {
@@ -341,7 +349,11 @@ export class StatementParserService {
         continue;
       }
 
-      transactions.push(tx);
+      if (isIncomeOrPayment) {
+        incomes.push(tx);
+      } else {
+        transactions.push(tx);
+      }
     }
 
     transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -743,7 +755,11 @@ export class StatementParserService {
         continue;
       }
 
-      transactions.push(tx);
+      if (isIncomeOrPayment) {
+        incomes.push(tx);
+      } else {
+        transactions.push(tx);
+      }
     }
 
     // Preserve natural statement reading order from the PDF (top to bottom of pages)
