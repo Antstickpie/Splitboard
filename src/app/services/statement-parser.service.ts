@@ -633,11 +633,21 @@ export class StatementParserService {
     }
 
     for (const block of mergedBlocks) {
-      let rawDate = block.dateStr;
-      if (/^\d{1,2}[./\-]\d{1,2}\.?$/.test(rawDate)) {
-        rawDate = rawDate.replace(/\.$/, '') + '.' + fallbackYear;
+      let rawDate = block.dateStr.replace(/[-./]+$/, '').trim();
+      if (/^\d{1,2}[./\-]\d{1,2}$/.test(rawDate)) {
+        // Find year in block lines if present, otherwise use fallbackYear
+        const blockYearMatch = block.lines.join(' ').match(/\b(202\d)\b/);
+        const yearToUse = blockYearMatch ? blockYearMatch[1] : fallbackYear;
+        rawDate = rawDate + '-' + yearToUse;
       }
-      const isoDate = this.normalizeDate(rawDate);
+      let isoDate = this.normalizeDate(rawDate);
+      if (!isoDate) {
+        // Try stripping any leftover non-digit prefix/suffix
+        const cleanDatePart = block.dateStr.replace(/^[^\d]+|[^\d]+$/g, '');
+        if (/^\d{1,2}[./\-]\d{1,2}$/.test(cleanDatePart)) {
+          isoDate = this.normalizeDate(cleanDatePart + '-' + fallbackYear);
+        }
+      }
       if (!isoDate) continue;
 
       let fullBlockText = block.lines.join(' ');
