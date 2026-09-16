@@ -4424,8 +4424,7 @@ export class ImportComponent {
     }
 
     const toAdd = res.transactions.map(({ includedFrom, ...rest }) => rest);
-    const toAddIncomes = (res.incomes || []).map(({ includedFrom, ...rest }) => rest);
-    const allToAdd = [...toAdd, ...toAddIncomes];
+    const unincludedIncomes = (res.incomes || []).map(({ includedFrom, ...rest }) => rest);
 
     const editBatch = this.editingBatchFileName();
     const batchFileName = editBatch || this.uploadedFileName() || res.bankName || 'Imported Statement';
@@ -4437,7 +4436,7 @@ export class ImportComponent {
       bankName: res.bankName || this.selectedBank() || 'Generic Bank',
       owner: this.selectedOwner() || '',
       transactions: [...toAdd],
-      incomes: [...toAddIncomes],
+      incomes: [...unincludedIncomes],
       duplicates: [...(res.duplicates || [])],
       excluded: [...(res.excluded || [])],
       deleted: [...(res.deleted || [])],
@@ -4449,15 +4448,15 @@ export class ImportComponent {
 
     if (editBatch) {
       this.service.transactions.update((curr) => [
-        ...allToAdd,
+        ...toAdd,
         ...curr.filter((t) => t.sourceFile !== editBatch)
       ]);
-      this.service.showToast(`Successfully updated statement "${editBatch}" (${allToAdd.length} transactions)!`, 'success');
+      this.service.showToast(`Successfully updated statement "${editBatch}" (${toAdd.length} transactions)!`, 'success');
       this.editingBatchFileName.set(null);
       this.service.batchToEdit.set(null);
     } else {
-      this.service.addTransactions(allToAdd);
-      this.service.showToast(`Successfully imported ${res.transactions.length} transactions!`, 'success');
+      this.service.addTransactions(toAdd);
+      this.service.showToast(`Successfully imported ${toAdd.length} transactions!`, 'success');
     }
 
     if (res.duplicatesCount > 0 || res.excludedCount > 0) {
