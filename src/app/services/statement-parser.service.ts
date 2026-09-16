@@ -551,9 +551,10 @@ export class StatementParserService {
 
     // User configured stop markers & max description lines per block
     const maxLines = bankCfg?.maxDescLines || 10;
-    const stopMarkers = bankCfg?.tableEndMarker
+    const rawStopMarkers = bankCfg?.tableEndMarker
       ? bankCfg.tableEndMarker.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
-      : ['endsaldo', 'alter kontostand', 'neuer kontostand', 'closing balance', 'statement summary', 'gesamtbetrag', 'neuer saldo'];
+      : ['endsaldo', 'neuer kontostand', 'closing balance', 'statement summary', 'gesamtbetrag', 'neuer saldo', 'rechnungsabschluss'];
+    const stopMarkers = rawStopMarkers.filter((s) => !s.includes('alter') && !s.includes('opening') && s !== 'kontostand');
 
     // Line-by-line processing
     const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
@@ -676,13 +677,13 @@ export class StatementParserService {
 
       // Check for explicit income vs expense keywords in block
       const isIncomeDesc =
-        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|erstattung|rückzahlung)\b/i.test(
+        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|ueberweisung\s+erhalten|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from|erstattung|rückzahlung|rueckzahlung|rückerstattung|rueckerstattung|deposit|inflow)\b/i.test(
           cleanDesc
         ) ||
-        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege)\b/i.test(fullBlockText);
+        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from)\b/i.test(fullBlockText);
 
       const isExpenseDesc =
-        /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverfügung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|gebühr|gebuehr|fee|standing\s+order|dauerauftrag)\b/i.test(
+        /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverfügung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|gebühr|gebuehr|fee|standing\s+order|dauerauftrag|überweisung\s+an|ueberweisung\s+an|transfer\s+to|payment\s+to)\b/i.test(
           fullBlockText
         );
 
