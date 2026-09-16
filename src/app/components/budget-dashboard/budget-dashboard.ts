@@ -186,7 +186,7 @@ export class BudgetDashboardComponent {
   public getItemTransactions(groupId: string, itemName: string): Transaction[] {
     const month = this.selectedMonth();
     const monthTxs = this.service.transactions().filter(
-      (tx) => this.service.isTransactionInMonth(tx, month)
+      (tx) => this.service.isTransactionInMonth(tx, month) && !tx.isCashTransfer && tx.type !== 'TRANSFER'
     );
 
     let baseTxs: Transaction[] = [];
@@ -194,19 +194,22 @@ export class BudgetDashboardComponent {
     if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
       baseTxs = monthTxs.filter((tx) => {
         if (tx.type === 'INCOME') return false;
+        if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return false;
         const cat = (tx.categoryItem || '').trim().toLowerCase();
         return !cat || cat === 'uncategorized';
       });
-    } else {
-      const isIncomeTarget = groupId === 'grp-income' || itemName.toLowerCase().includes('income') || itemName.toLowerCase() === 'salary';
-
+    } else if (groupId === 'grp-income') {
       baseTxs = monthTxs.filter((tx) => {
-        const cat = (tx.categoryItem || '').trim();
-        if (cat.toLowerCase() === itemName.toLowerCase()) return true;
-        if (isIncomeTarget && (tx.type === 'INCOME' || (tx.categoryGroup || '').toLowerCase().includes('income'))) {
-          return true;
-        }
-        return false;
+        if (tx.type !== 'INCOME') return false;
+        const label = (tx.categoryItem || tx.description || 'Income').trim().toLowerCase();
+        return label === itemName.trim().toLowerCase() || (tx.categoryItem || '').trim().toLowerCase() === itemName.trim().toLowerCase();
+      });
+    } else {
+      baseTxs = monthTxs.filter((tx) => {
+        if (tx.type === 'INCOME') return false;
+        if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return false;
+        const cat = (tx.categoryItem || '').trim().toLowerCase();
+        return cat === itemName.trim().toLowerCase();
       });
     }
 
