@@ -584,12 +584,13 @@ export class StatementParserService {
         continue;
       }
 
-      // Skip repeated table column header lines
+      // Skip repeated table column header lines and page markers
       if (
-        /^\s*(?:booking\s+date|value\s+item|debit\s+credit|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement)\b/i.test(
+        /^\s*(?:booking\s+date|value\s+item|debit\s+credit|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement|date|booking|value|item|debit|credit)\s*$/i.test(
           line
         ) ||
-        /\b(?:booking\s+date\s+value\s+item|debit\s+credit)\b/i.test(line)
+        /\b(?:booking\s+date\s+value\s+item|debit\s+credit|booking\s+value\s+item)\b/i.test(line) ||
+        /^\s*(?:page|seite)\s+\d+(?:\s*(?:\/|of)\s*\d+)?\s*$/i.test(line)
       ) {
         continue;
       }
