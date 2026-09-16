@@ -560,8 +560,12 @@ export class LedgerComponent {
         const tx = item.tx;
         if (bank !== 'ALL' && tx.bank !== bank) return false;
         if (owner !== 'ALL' && tx.paidBy !== owner) return false;
-        if (split !== 'ALL' && tx.splitType !== split) return false;
-        if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) return false;
+        if (cat === 'UNCATEGORIZED' || cat === 'Uncategorized') {
+          const isUncat = !tx.categoryItem || tx.categoryItem === 'Uncategorized' || tx.categoryItem === '' || !tx.categoryGroup || tx.categoryGroup === 'Uncategorized' || tx.categoryGroup === '';
+          if (!isUncat) return false;
+        } else if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) {
+          return false;
+        }
         if (q) {
           const matchDesc = (tx.description || '').toLowerCase().includes(q);
           const matchBank = (tx.bank || '').toLowerCase().includes(q);

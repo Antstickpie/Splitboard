@@ -627,6 +627,7 @@
 
       <select [ngModel]="service.filterCategory()" (ngModelChange)="service.filterCategory.set($event)" class="filter-select" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
         <option value="ALL">🏷️ All Categories</option>
+        <option value="UNCATEGORIZED">❓ Uncategorized{{ service.uncategorizedCount() > 0 ? ' (' + service.uncategorizedCount() + ')' : '' }}</option>
         <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
           <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
         </optgroup>
@@ -656,7 +657,7 @@
         </span>
 
         <span *ngIf="service.filterCategory() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--text-main);">
-          🏷️ {{ service.filterCategory() }}
+          🏷️ {{ service.filterCategory() === 'UNCATEGORIZED' ? 'Uncategorized' : service.filterCategory() }}
           <button (click)="service.filterCategory.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
         </span>
 
@@ -1855,6 +1856,7 @@
         class="filter-select"
         style="font-size: 0.75rem; padding: 0.22rem 0.45rem;">
         <option value="ALL">🏷️ All Categories</option>
+        <option value="UNCATEGORIZED">❓ Uncategorized</option>
         <optgroup *ngFor="let grp of service.categoryGroups()" [label]="grp.name">
           <option *ngFor="let itm of grp.items" [value]="itm.name">{{ itm.name }}</option>
         </optgroup>
@@ -1898,7 +1900,7 @@
         <button (click)="monthlyOwesSplitFilter.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
       </span>
       <span *ngIf="monthlyOwesCategoryFilter() !== 'ALL'" class="badge badge-neutral" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.45rem; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--text-main);">
-        🏷️ {{ monthlyOwesCategoryFilter() }}
+        🏷️ {{ monthlyOwesCategoryFilter() === 'UNCATEGORIZED' ? 'Uncategorized' : monthlyOwesCategoryFilter() }}
         <button (click)="monthlyOwesCategoryFilter.set('ALL')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 0.75rem; line-height: 1;">✕</button>
       </span>
     </div>

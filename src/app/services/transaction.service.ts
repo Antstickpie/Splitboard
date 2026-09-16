@@ -570,7 +570,12 @@ export class TransactionService {
       if (bank !== 'ALL' && tx.bank !== bank) return false;
       if (owner !== 'ALL' && tx.paidBy !== owner) return false;
       if (split !== 'ALL' && tx.splitType !== split) return false;
-      if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) return false;
+      if (cat === 'UNCATEGORIZED' || cat === 'Uncategorized') {
+        const isUncat = !tx.categoryItem || tx.categoryItem === 'Uncategorized' || tx.categoryItem === '' || !tx.categoryGroup || tx.categoryGroup === 'Uncategorized' || tx.categoryGroup === '';
+        if (!isUncat) return false;
+      } else if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) {
+        return false;
+      }
       if (status === 'REVIEW' && !tx.isUnderReview) return false;
       if (status === 'PENDING' && tx.isDone) return false;
       if (status === 'DONE' && !tx.isDone) return false;
@@ -587,6 +592,19 @@ export class TransactionService {
       }
       return true;
     }).length;
+  });
+
+  public uncategorizedCount = computed(() => {
+    return this.transactions().filter(
+      (tx) =>
+        this.isTransactionInActiveRange(tx) &&
+        (!tx.categoryItem ||
+          tx.categoryItem === 'Uncategorized' ||
+          tx.categoryItem === '' ||
+          !tx.categoryGroup ||
+          tx.categoryGroup === 'Uncategorized' ||
+          tx.categoryGroup === '')
+    ).length;
   });
 
   public reviewTransactionsForSelectedMonth = computed(() => {
@@ -651,7 +669,12 @@ export class TransactionService {
         if (bank !== 'ALL' && tx.bank !== bank) return false;
         if (owner !== 'ALL' && tx.paidBy !== owner) return false;
         if (split !== 'ALL' && tx.splitType !== split) return false;
-        if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) return false;
+        if (cat === 'UNCATEGORIZED' || cat === 'Uncategorized') {
+          const isUncat = !tx.categoryItem || tx.categoryItem === 'Uncategorized' || tx.categoryItem === '' || !tx.categoryGroup || tx.categoryGroup === 'Uncategorized' || tx.categoryGroup === '';
+          if (!isUncat) return false;
+        } else if (cat !== 'ALL' && tx.categoryItem !== cat && tx.categoryGroup !== cat) {
+          return false;
+        }
         if (status === 'REVIEW' && !tx.isUnderReview) return false;
         if (status === 'PENDING' && tx.isDone) return false;
         if (status === 'DONE' && !tx.isDone) return false;
