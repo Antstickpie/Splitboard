@@ -552,7 +552,7 @@ export class StatementParserService {
     // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
     const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
     const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
-    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?![.,/\-\d])\s*[+\-\u2010-\u2015\u2212SH]?)/g;
+    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?![.,/\-]\d)\s*[+\-\u2010-\u2015\u2212SH]?)/g;
 
     // Structural table block grouping:
     // A transaction block starts at a Date line and captures all lines until the next Date line or table boundary.
