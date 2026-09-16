@@ -48,7 +48,6 @@ export class StatementParserService {
     try {
       let pdfLib = (window as any).pdfjsLib;
       if (!pdfLib) {
-        // Wait briefly or dynamically import if not yet loaded on window
         try {
           pdfLib = await (new Function('return import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs")'))();
           if (pdfLib?.GlobalWorkerOptions && !pdfLib.GlobalWorkerOptions.workerSrc) {
@@ -69,8 +68,7 @@ export class StatementParserService {
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
-          
-          // Clean line grouping: Sort items strictly top to bottom (descending Y), group into lines within 3.5px tolerance, then sort each line left to right (ascending X)
+
           const items = (textContent.items as any[])
             .filter((item) => item && typeof item.str === 'string' && item.str.trim().length > 0)
             .map((item) => ({
@@ -79,27 +77,34 @@ export class StatementParserService {
               y: item.transform ? item.transform[5] : 0
             }));
 
+          // Sort items top-to-bottom (descending Y), then left-to-right (ascending X)
           items.sort((a, b) => b.y - a.y || a.x - b.x);
 
+          // Group items into visual lines
           interface LineGroup {
-            y: number;
+            minY: number;
+            maxY: number;
+            avgY: number;
             items: { str: string; x: number; y: number }[];
           }
           const lines: LineGroup[] = [];
 
           for (const item of items) {
-            const line = lines.find((l) => Math.abs(l.y - item.y) <= 3.5);
+            const line = lines.find((l) => Math.abs(l.avgY - item.y) <= 7.0 || (item.y >= l.minY - 5.0 && item.y <= l.maxY + 5.0));
             if (line) {
               line.items.push(item);
+              line.minY = Math.min(line.minY, item.y);
+              line.maxY = Math.max(line.maxY, item.y);
+              line.avgY = (line.avgY * (line.items.length - 1) + item.y) / line.items.length;
             } else {
-              lines.push({ y: item.y, items: [item] });
+              lines.push({ minY: item.y, maxY: item.y, avgY: item.y, items: [item] });
             }
           }
 
           // Sort lines top-to-bottom
-          lines.sort((a, b) => b.y - a.y);
+          lines.sort((a, b) => b.avgY - a.avgY);
 
-          // For each line, sort items left-to-right and join with space
+          // Sort items in each line left-to-right
           const pageLines: string[] = [];
           for (const line of lines) {
             line.items.sort((a, b) => a.x - b.x);
@@ -110,10 +115,9 @@ export class StatementParserService {
         }
       }
     } catch (e) {
-      console.warn('[StatementParser] pdfjsLib runtime parse failed:', e);
+      console.warn('[StatementParser] pdfjsLib parse failed:', e);
     }
 
-    // Fallback: extract plain text / stream text from raw PDF bytes
     if (!fullText.trim()) {
       fullText = this.extractRawPdfText(new Uint8Array(arrayBuffer));
     }
@@ -126,14 +130,12 @@ export class StatementParserService {
     const raw = decoder.decode(bytes);
     const textPieces: string[] = [];
 
-    // Extract text blocks inside parentheses (text) Tj / TJ
     const tjRegex = /\(([^)]+)\)\s*(?:Tj|'|")/g;
     let match: RegExpExecArray | null;
     while ((match = tjRegex.exec(raw)) !== null) {
       textPieces.push(match[1]);
     }
 
-    // Also look for bracketed array text [(text)-100(more)] TJ
     const arrayRegex = /\[(.*?)\]\s*TJ/g;
     while ((match = arrayRegex.exec(raw)) !== null) {
       const inner = match[1];
@@ -164,14 +166,13 @@ export class StatementParserService {
     const parsedRows = lines.map((line) => this.parseCsvLine(line, delimiter));
 
     const mapping = customMappings || this.detectColumnMapping(parsedRows, detectedBank);
-    
-    // Check if bank has explicit invertAmountSign config or auto-detect credit card inversion
+
     const bankCfg = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
     let invertSigns = bankCfg?.invertAmountSign ?? false;
 
     const startIdx = mapping.hasHeader ? (mapping.headerRowIndex !== undefined ? mapping.headerRowIndex + 1 : 1) : 0;
 
-    // Smart Heuristic: Only for credit cards where charges are positive and repayments negative
+    // Smart credit card sign heuristic
     if (!bankCfg || bankCfg.invertAmountSign === undefined) {
       let paymentInNegativeCount = 0;
       let merchantInPositiveCount = 0;
@@ -186,7 +187,7 @@ export class StatementParserService {
         if (amt === 0) continue;
 
         const rowDesc = ((mapping.descIdx >= 0 ? row[mapping.descIdx] : '') + ' ' + (mapping.descIdx2 !== undefined && mapping.descIdx2 >= 0 ? row[mapping.descIdx2] : '')).toLowerCase();
-        
+
         if (amt < 0) {
           totalNegativeCount++;
           if (rowDesc.includes('zahlung erhalten') || rowDesc.includes('überweisung erhalten') || rowDesc.includes('payment received') || rowDesc.includes('besten dank')) {
@@ -241,7 +242,6 @@ export class StatementParserService {
         amount = this.parseAmount(row[mapping.amountIdx] || '0');
       }
 
-      // If separate Soll/Haben column exists (e.g. S = Soll / Debit, H = Haben / Credit)
       if (mapping.sollHabenIdx !== undefined && mapping.sollHabenIdx >= 0 && row[mapping.sollHabenIdx]) {
         const sh = row[mapping.sollHabenIdx].trim().toLowerCase();
         if (sh === 's' || sh === 'soll' || sh === 'd' || sh === 'debit' || sh === 'belastung' || sh === 'dr') {
@@ -256,7 +256,6 @@ export class StatementParserService {
       const cleanDesc = this.service.fixMojibake(desc.replace(/\s+/g, ' ').trim());
       const { group, item, defaultSplit, incomeNextMonth, defaultNote } = this.matchCategory(cleanDesc, detectedBank);
 
-      // Extract statement Currency and convert if different from Base Currency
       let txCurrency = '';
       if (mapping.currencyIdx !== undefined && mapping.currencyIdx >= 0 && row[mapping.currencyIdx]) {
         txCurrency = row[mapping.currencyIdx].trim().toUpperCase();
@@ -285,7 +284,6 @@ export class StatementParserService {
         finalAmount = this.service.convertAmount(origAmt, txCurrency, baseCurr);
       }
 
-      // If invertSigns is true (+ is charge/expense, - is payment/credit)
       const isCharge = invertSigns ? amount > 0 : amount < 0;
       const isIncomeOrPayment = !isCharge;
 
@@ -313,7 +311,6 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
-      // 1. Check Bank Exclusion Rules (e.g. Daily Interest, Internal Transfers) & Excluded Signatures
       const fullRowText = (cleanDesc + ' ' + (row[0] || '') + ' ' + (row[1] || '')).trim();
       const sig = this.service.getTransactionSignature(tx);
 
@@ -322,11 +319,8 @@ export class StatementParserService {
         continue;
       }
 
-      // 2. Check Duplicates against Database first
-      // If the transaction already exists in the ledger, it is a DUPLICATE, not deleted.
       const matchedDbTx = duplicateTracker.claim(tx);
       if (matchedDbTx) {
-        // If an accidental deleted signature exists for an active ledger transaction, clean it up
         this.service.restoreDeletedSignature(sig, tx);
         this.service.restoreExcludedSignature(sig, tx);
         if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
@@ -343,7 +337,6 @@ export class StatementParserService {
         continue;
       }
 
-      // 3. Check Previously Deleted Transactions (only for rows not in the active database)
       if (this.service.isSignatureDeleted(sig, tx)) {
         deleted.push(tx);
         continue;
@@ -381,7 +374,6 @@ export class StatementParserService {
     if (!raw) return '';
     let clean = raw;
 
-    // 1. Strip user-configured Account # / IBAN / Card # (e.g. *6554, *6925)
     if (bankCfg?.accountNumber) {
       const accNum = bankCfg.accountNumber.replace(/[^a-zA-Z0-9]/g, '');
       if (accNum.length >= 3) {
@@ -390,7 +382,6 @@ export class StatementParserService {
       }
     }
 
-    // 2. Strip user-configured Ignore / Strip headers or keywords (e.g. 'Karte, Punkte')
     if (bankCfg?.ignoreColName) {
       const tokens = bankCfg.ignoreColName.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
       for (const tok of tokens) {
@@ -399,17 +390,12 @@ export class StatementParserService {
       }
     }
 
-    // 3. Strip masked card numbers (e.g. "************6925", "**** **** **** 6925", "Karte: ************6925")
     clean = clean.replace(/\b(?:karte|card|konto|karten-?nr\.?)[:\s]*\*{3,}\d{2,6}\b/gi, ' ');
     clean = clean.replace(/(?:\*{3,}[\s-]*)+\d{2,6}\b/g, ' ');
     clean = clean.replace(/(?:\*{4}[\s-]*){1,3}\d{4}\b/g, ' ');
     clean = clean.replace(/\b\d{4}[ -]\*{4}[ -]\*{4}[ -]\d{4}\b/g, ' ');
     clean = clean.replace(/\b(?:karte|card)[:\s]+(?:\*{3,}|\d{4})\b/gi, ' ');
-
-    // 4. Strip credit card reward points column at end of line (e.g. "+2", "+ 2 Punkte", "+2 pts")
     clean = clean.replace(/(?:^|\s)[+\-]\d+\s*(?:punkte|points|pts)?\s*$/gi, ' ');
-
-    // 5. Clean duplicate dots/slashes, leftover dashes, spaces
     clean = clean.replace(/[./]{2,}/g, ' ');
     clean = clean.replace(/(?:^|\s)[-–—]{1,3}(?=\s|$)/g, ' ');
     clean = clean.replace(/^[–—\-_:.,/\s]+|[–—\-_:.,/\s]+$/g, '');
@@ -499,22 +485,17 @@ export class StatementParserService {
 
     const claim = (tx: Transaction): Transaction | null => {
       const k = getKeys(tx);
-
-      // Tier 1: Exact signature (Date + Amount + Description + Bank)
       let match = popMatched(exactMap, k.exact);
       if (match) return match;
 
-      // Tier 2: Bank-agnostic signature (Date + Amount + Description)
       match = popMatched(noBankMap, k.noBank);
       if (match) return match;
 
-      // Tier 3: Same sourceFile (Re-importing exact same file, matching Date + Amount + Merchant/Desc)
       if (k.sf) {
         match = popMatched(sourceFileMap, k.sf);
         if (match) return match;
       }
 
-      // Tier 4: Normalized merchant signature (Date + Amount + Normalized Merchant)
       if (k.norm) {
         match = popMatched(normMap, k.norm);
         if (match) return match;
@@ -542,73 +523,49 @@ export class StatementParserService {
     const duplicateTracker = this.createDuplicateTracker(fileName);
 
     const bankCfg = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
-    let invertSigns = bankCfg?.invertAmountSign ?? false;
 
-    // Detect statement year from text if dates are DD.MM.
+    // Extract fallback year if statement dates are DD.MM or DD-MM
     let fallbackYear = new Date().getFullYear().toString();
     const yearMatch = text.match(/\b(202\d)\b/);
     if (yearMatch) fallbackYear = yearMatch[1];
 
-    // User configured stop markers & max description lines per block
-    const maxLines = bankCfg?.maxDescLines || 10;
-    const rawStopMarkers = bankCfg?.tableEndMarker
-      ? bankCfg.tableEndMarker.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
-      : ['endsaldo', 'neuer kontostand', 'closing balance', 'statement summary', 'gesamtbetrag', 'neuer saldo', 'rechnungsabschluss'];
-    const stopMarkers = rawStopMarkers.filter((s) => !s.includes('alter') && !s.includes('opening') && s !== 'kontostand');
-
-    // Line-by-line processing
     const rawLines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
 
-    // Strictly bounded date pattern: Day 01-31, Month 01-12, optional Year 2000-2099
-    const strictDatePattern = '(?:0[1-9]|[12]\\d|3[01]|[1-9])[./\\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\\-](?:20\\d{2}|\\d{2}))?';
-    const startWithDateRegex = new RegExp(`^(${strictDatePattern})\\b`, 'i');
-    const amountTokenRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-\u2010-\u2015\u2212SH]?)/g;
+    // Date regex: Match DD.MM.YYYY, DD.MM., DD-MM-YYYY, DD-MM-, DD/MM/YYYY, DD/MM/
+    const dateAtStartRegex = /^((?:0[1-9]|[12]\d|3[01]|[1-9])[./\-](?:0[1-9]|1[0-2]|[1-9])(?:[./\-](?:20\\d{2}|\\d{2}))?)[./\-]?(?:\s|$)/i;
+    const amountRegex = /([+\-\u2010-\u2015\u2212]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*[+\-\u2010-\u2015\u2212SH]?)/g;
 
-    // Structural table block grouping:
-    // A transaction block starts at a Date line and captures all lines until the next Date line or table boundary.
-    interface RawBlock {
+    // Group lines into row blocks starting with each date line
+    interface Block {
       dateStr: string;
       lines: string[];
     }
-    const blocks: RawBlock[] = [];
-    let currentBlock: RawBlock | null = null;
+    const blocks: Block[] = [];
+    let currentBlock: Block | null = null;
 
     for (const line of rawLines) {
-      const lowerLine = line.toLowerCase();
-
-      // Check if line hits a table stop marker (footer, balance summary, or legal terms boundary)
-      if (stopMarkers.some((marker) => lowerLine.includes(marker))) {
-        if (currentBlock && currentBlock.lines.length > 0) {
-          blocks.push(currentBlock);
-          currentBlock = null;
-        }
-        continue;
-      }
-
-      // Skip repeated table column header lines and page markers
+      // Skip pure page headers and column headers
       if (
-        /^\s*(?:booking\s+date|value\s+item|debit\s+credit|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement|date|booking|value|item|debit|credit)\s*$/i.test(
-          line
-        ) ||
-        /\b(?:booking\s+date\s+value\s+item|debit\s+credit|booking\s+value\s+item)\b/i.test(line) ||
+        /^\s*(?:booking\s+date|value\s+item|debit\s+credit|page\s+\d+|seite\s+\d+|kontoauszug|account\s+statement|date\s+details|buchungstag\s+wert)\s*$/i.test(line) ||
+        /\b(?:booking\s+date\s+value\s+item|debit\s+credit)\b/i.test(line) ||
         /^\s*(?:page|seite)\s+\d+(?:\s*(?:\/|of)\s*\d+)?\s*$/i.test(line)
       ) {
         continue;
       }
 
-      const dateMatch = line.match(startWithDateRegex);
+      const dateMatch = line.match(dateAtStartRegex);
       if (dateMatch) {
         if (currentBlock && currentBlock.lines.length > 0) {
           blocks.push(currentBlock);
         }
         currentBlock = { dateStr: dateMatch[1].trim(), lines: [line] };
       } else if (currentBlock) {
-        // Check if this line starts with wrapped year numbers from date column (e.g. "2026 2026 Payment...")
-        const yearWrapMatch = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
-        if (yearWrapMatch && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
-          currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]+$/, '') + '-' + yearWrapMatch[1];
-          if (yearWrapMatch[2]) {
-            currentBlock.lines.push(yearWrapMatch[2]);
+        // Check for wrapped year line from date column e.g. "2026 2026 PayPal Europe..."
+        const yearWrap = line.match(/^(20\d{2})(?:\s+20\d{2})?\s*(.*)$/);
+        if (yearWrap && (/[-./]$/.test(currentBlock.dateStr) || /^\d{1,2}[./\-]\d{1,2}$/.test(currentBlock.dateStr))) {
+          currentBlock.dateStr = currentBlock.dateStr.replace(/[-./]+$/, '') + '-' + yearWrap[1];
+          if (yearWrap[2]) {
+            currentBlock.lines.push(yearWrap[2]);
           }
         } else {
           currentBlock.lines.push(line);
@@ -628,20 +585,16 @@ export class StatementParserService {
       if (!isoDate) continue;
 
       let fullBlockText = block.lines.join(' ');
-      // Heal numbers that got split across text items or contain spaces (e.g. "- 1 13.36" or "- 113.36" or "1 234.56")
-      // 1. Collapse spaces between sign and digits: "- 113.36" -> "-113.36"
+      // Normalize spacing in amounts: "+ 109.99" -> "+109.99", "- 113.36" -> "-113.36"
       fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212])\s+(\d)/g, '$1$2');
-      // 2. Collapse split thousands or split integers before decimal: e.g. "-1 13.36" -> "-113.36", "1 234.56" -> "1234.56"
       fullBlockText = fullBlockText.replace(/([+\-\u2010-\u2015\u2212]?\b\d{1,3})\s+(\d{1,3}[.,]\d{2}\b)/g, '$1$2');
 
-      // Strip full date patterns so date tokens (e.g. 26.06.2026) are not extracted as money amounts (26.06)
+      // Strip full 3-part dates before searching for amounts so dates aren't parsed as amounts
       const textForAmounts = fullBlockText.replace(/\b\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}\b/g, ' ');
-
-      // Find amounts in this block
-      const amtMatches = Array.from(textForAmounts.matchAll(amountTokenRegex));
+      const amtMatches = Array.from(textForAmounts.matchAll(amountRegex));
       if (amtMatches.length === 0) continue;
 
-      // Prefer amount token that has sign (+ / - / S / H) or the last valid amount
+      // Select the amount token: prefer signed token or last money amount
       let chosenAmtStr = amtMatches[amtMatches.length - 1][1].trim();
       for (const m of amtMatches) {
         const token = m[1].trim();
@@ -659,10 +612,10 @@ export class StatementParserService {
       }
       if (amount === 0) continue;
 
-      // Clean description: remove dates, all amount tokens, and currency symbols
+      // Build clean description: take full block and remove dates and amount numbers
       let descCandidate = fullBlockText;
-      descCandidate = descCandidate.replace(amountTokenRegex, ' ');
-      descCandidate = descCandidate.replace(new RegExp(strictDatePattern, 'g'), ' ');
+      descCandidate = descCandidate.replace(amountRegex, ' ');
+      descCandidate = descCandidate.replace(/\b\d{1,2}[./\-]\d{1,2}(?:[./\-]\d{2,4})?\b/g, ' ');
       descCandidate = descCandidate.replace(/\b202\d\b/g, ' ');
       descCandidate = descCandidate.replace(/\b(?:EUR|€|USD|\$|GBP|£)\b/g, ' ');
 
@@ -673,9 +626,9 @@ export class StatementParserService {
 
       const { group, item, defaultSplit, incomeNextMonth, defaultNote } = this.matchCategory(cleanDesc, detectedBank);
 
-      // Check for explicit income vs expense keywords in block
+      // Income detection: positive sign (+, H, credit), income description keywords, or category rule
       const isIncomeDesc =
-        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|ueberweisung\s+erhalten|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from|erstattung|rückzahlung|rueckzahlung|rückerstattung|rueckerstattung|deposit|inflow)\b/i.test(
+        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|ueberweisung\s+erhalten|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from|erstattung|rückzahlung|rueckzahlung|deposit|inflow)\b/i.test(
           cleanDesc
         ) ||
         /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from)\b/i.test(fullBlockText);
@@ -695,7 +648,6 @@ export class StatementParserService {
       } else if (isExpenseDesc) {
         isCharge = true;
       } else {
-        // In bank PDF statements (Debit/Credit columns without negative signs), regular items are charges/expenses
         isCharge = group !== 'Income';
       }
 
@@ -728,11 +680,8 @@ export class StatementParserService {
         continue;
       }
 
-      // Check Duplicates against Database first
-      // If the transaction already exists in the ledger, it is a DUPLICATE, not deleted.
       const matchedDbTx = duplicateTracker.claim(tx);
       if (matchedDbTx) {
-        // If an accidental deleted signature exists for an active ledger transaction, clean it up
         this.service.restoreDeletedSignature(sig, tx);
         this.service.restoreExcludedSignature(sig, tx);
         if (matchedDbTx.categoryGroup) tx.categoryGroup = matchedDbTx.categoryGroup;
@@ -749,7 +698,6 @@ export class StatementParserService {
         continue;
       }
 
-      // Check Previously Deleted Transactions (only for rows not in the active database)
       if (this.service.isSignatureDeleted(sig, tx)) {
         deleted.push(tx);
         continue;
@@ -761,9 +709,6 @@ export class StatementParserService {
         transactions.push(tx);
       }
     }
-
-    // Preserve natural statement reading order from the PDF (top to bottom of pages)
-    // so transactions in the preview table directly match the order on the PDF statement.
 
     return {
       transactions,
@@ -799,7 +744,6 @@ export class StatementParserService {
   } {
     if (rows.length === 0) return { dateIdx: 0, descIdx: 1, amountIdx: 2, hasHeader: true };
 
-    // Find actual header row using scoring across all candidate rows in first 15 lines
     let bestHeaderRowIdx = 0;
     let maxHeaderScore = -1;
 
@@ -830,7 +774,6 @@ export class StatementParserService {
       (h) => h.includes('currency') || h.includes('währung') || h.includes('curr') || h.includes('devise')
     );
 
-    // Look up bank from exported / user-configured BankConfigs
     const bankConfig = this.service.bankConfigs().find(
       (b) => b.name.toLowerCase() === bank.toLowerCase() || bank.toLowerCase().includes(b.name.toLowerCase())
     );
@@ -869,7 +812,6 @@ export class StatementParserService {
       }
     }
 
-    // Detect separate debit and credit columns
     const dCol = header.findIndex(
       (h) =>
         h.includes('withdrawal') ||
@@ -890,7 +832,6 @@ export class StatementParserService {
     );
     if (cCol >= 0) creditIdx = cCol;
 
-    // Smart Fallback if bank config column was not found in header
     if (dateIdx === -1) {
       dateIdx = header.findIndex((h) => h.includes('buchungstag') || h.includes('started date') || h.includes('completed date') || h.includes('transaktion') || h === 'datum' || h === 'date' || h.includes('booking date') || h.includes('txn date') || h.includes('transaction date') || h.includes('value date') || h.includes('value dt') || h.includes('buchung'));
     }
@@ -908,7 +849,6 @@ export class StatementParserService {
       amountIdx = header.findIndex((h) => h.includes('betrag') || h === 'amount' || h.includes('umsatz') || h.includes('summe') || h.includes('soll') || h.includes('haben') || h.includes('wert'));
     }
 
-    // Detect Soll/Haben column if separate
     const shIdx = header.findIndex((h) => h.includes('soll/haben') || h === 's/h' || h === 'sh' || h.includes('haben/soll') || h === 'umsatzart');
     if (shIdx >= 0 && shIdx !== amountIdx) {
       sollHabenIdx = shIdx;
@@ -936,7 +876,6 @@ export class StatementParserService {
     if (!str) return null;
     const clean = str.trim();
 
-    // 1. DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
     const dmyMatch = clean.match(/^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})/);
     if (dmyMatch) {
       const dNum = parseInt(dmyMatch[1], 10);
@@ -952,7 +891,6 @@ export class StatementParserService {
       return null;
     }
 
-    // 2. YYYY-MM-DD or YYYY.MM.DD
     const ymdMatch = clean.match(/^(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})/);
     if (ymdMatch) {
       const yNum = parseInt(ymdMatch[1], 10);
@@ -967,7 +905,6 @@ export class StatementParserService {
       return null;
     }
 
-    // 3. English Month formats: "28 Feb 2026", "28 February 2026", "Feb 28, 2026", "February 28, 2026"
     const engMatch = clean.match(/\b(?:(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})|(\d{1,2})(?:st|nd|rd|th)?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?),?\s+(\d{4}))\b/i);
     if (engMatch) {
       const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -1005,28 +942,17 @@ export class StatementParserService {
     return isNegative ? -Math.abs(val) : val;
   }
 
-  /**
-   * Cleans messy bank description strings to isolate core merchant name/tokens
-   * (e.g. "DM-DROGERIE MARKT D1A4 KORNWESTHEIM DE" -> "dm drogerie markt")
-   */
   public normalizeMerchant(desc: string): string {
     if (!desc) return '';
     let clean = desc.toLowerCase();
 
-    // Strip masked cards, transaction references, dates, and order numbers
     clean = clean.replace(/\*{3,}\d{2,6}/g, ' ');
     clean = clean.replace(/\b\d{2}[./\-]\d{2}(?:[./\-]\d{2,4})?\b/g, ' ');
     clean = clean.replace(/\b(?:de|lu|nl|fr|at|ch|gb|us)\d{6,}\b/g, ' ');
     clean = clean.replace(/\b(?:ref|auftrag|kdnr|mandat|kauf|kartenzahlung|lastschrift|end-to-end)\b[:\s#0-9a-z]*/g, ' ');
-
-    // Strip common company legal forms and location suffixes
     clean = clean.replace(/\b(gmbh|ag|kg|ug|co\.?\s*kg|se|sarl|sa|ltd|inc|bv|plc|e\.?\s*k\.?)\b/g, ' ');
     clean = clean.replace(/\b(deutschland|germany|frankfurt|berlin|muenchen|münchen|hamburg|stuttgart|kornwestheim|ludwigsburg|duesseldorf|düsseldorf|koeln|köln)\b/g, ' ');
-
-    // Strip store codes, terminal numbers (e.g. "337", "D1A4", "0451")
     clean = clean.replace(/\b[a-z]?\d+[a-z]?\b/g, ' ');
-
-    // Replace non-alphanumeric (except spaces) and collapse whitespace
     clean = clean.replace(/[^a-z0-9äöüß\s]/g, ' ').replace(/\s+/g, ' ').trim();
     return clean;
   }
@@ -1040,10 +966,6 @@ export class StatementParserService {
     const bankLower = (bank || '').toLowerCase();
     const normDesc = this.normalizeMerchant(desc);
 
-    // =========================================================================
-    // Explicit User-Configured Rules ONLY
-    // Transactions without matching rules remain Uncategorized
-    // =========================================================================
     for (const rule of this.service.rules()) {
       const ruleBank = (rule.bank || 'All').toLowerCase();
       const matchesBank = ruleBank === 'all' || !bankLower || bankLower.includes(ruleBank) || ruleBank.includes(bankLower);
