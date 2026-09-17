@@ -2741,9 +2741,11 @@ export class TransactionService {
   }
 
   public isEveryDollarTransaction(tx: Transaction): boolean {
+    if (!tx) return false;
     const bank = (tx.bank || '').trim().toLowerCase();
-    if (bank === 'everydollar') return true;
-    if (tx.sourceFile && tx.sourceFile.toLowerCase().startsWith('everydollar')) return true;
+    if (bank === 'everydollar' || bank.includes('everydollar')) return true;
+    if (tx.sourceFile && tx.sourceFile.toLowerCase().includes('everydollar')) return true;
+    if (tx.id && (tx.id.startsWith('ed_') || tx.id.startsWith('ed-'))) return true;
     return false;
   }
 

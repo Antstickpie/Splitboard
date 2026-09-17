@@ -705,7 +705,8 @@ export class BudgetDashboardComponent {
       this.service.isTransactionInMonth(tx, month) && 
       !tx.isCashTransfer && 
       tx.type === 'EXPENSE' && 
-      !isSavingsCategory(tx)
+      !isSavingsCategory(tx) &&
+      (this.service.edIncludeInSplit() || !this.service.isEveryDollarTransaction(tx))
     ).forEach((tx) => {
       if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
       if (tx.paidBy === p1) p1Spend += Number(tx.amount) || 0;
@@ -751,18 +752,7 @@ export class BudgetDashboardComponent {
       if (tx.isCashTransfer || tx.type === 'TRANSFER') return;
 
       if (!this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx)) {
-        if (tx.type === 'INCOME') {
-          if (tx.paidBy === p1) p1IncomeMonth += amt;
-          else if (tx.paidBy === p2) p2IncomeMonth += amt;
-          else {
-            p1IncomeMonth += amt / 2;
-            p2IncomeMonth += amt / 2;
-          }
-        } else if (tx.type === 'EXPENSE' && !isSavingsCategory(tx)) {
-          if (tx.paidBy === p1) p1SpentShareMonth += amt;
-          else p2SpentShareMonth += amt;
-        }
-        return;
+        return; // Exclude EveryDollar transactions from split & personal savings calculations
       }
 
       if (tx.type === 'INCOME') {
@@ -874,6 +864,7 @@ export class BudgetDashboardComponent {
     let p2PriorSavings = 0;
 
     const priorTxs = allTxs.filter((tx) => {
+      if (!this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx)) return false;
       const m = tx.type === 'INCOME' && tx.incomeMonth ? tx.incomeMonth : (tx.date ? tx.date.slice(0, 7) : '');
       return Boolean(m && m < currentMonth);
     });
@@ -883,18 +874,7 @@ export class BudgetDashboardComponent {
       if (tx.type === 'TRANSFER') return;
 
       if (!this.service.edIncludeInSplit() && this.service.isEveryDollarTransaction(tx)) {
-        if (tx.type === 'INCOME') {
-          if (tx.paidBy === p1) p1PriorSavings += amt;
-          else if (tx.paidBy === p2) p2PriorSavings += amt;
-          else {
-            p1PriorSavings += amt / 2;
-            p2PriorSavings += amt / 2;
-          }
-        } else if (tx.type === 'EXPENSE' && !isSavingsCategory(tx)) {
-          if (tx.paidBy === p1) p1PriorSavings -= amt;
-          else p2PriorSavings -= amt;
-        }
-        return;
+        return; // Exclude EveryDollar transactions from prior savings
       }
 
       if (tx.type === 'INCOME') {
