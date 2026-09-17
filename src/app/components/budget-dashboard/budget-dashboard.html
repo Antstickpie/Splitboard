@@ -168,23 +168,32 @@
     </div>
 
     <!-- Quick Results Table for All Matching Transactions in This Month -->
-    <div *ngIf="searchQuery() && showAllMatchingTransactions()" class="animate-fade-in" style="margin-top: 0.75rem; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 0.6rem; overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 0.74rem;">
+    <div *ngIf="searchQuery() && showAllMatchingTransactions()" class="animate-fade-in" style="margin-top: 0.75rem; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 0.6rem; overflow-x: auto; max-width: 100%; box-sizing: border-box; min-width: 0;">
+      <table style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.74rem;">
+        <colgroup>
+          <col style="width: 78px;" />
+          <col />
+          <col style="width: 135px;" />
+          <col style="width: 85px;" />
+          <col style="width: 65px;" />
+          <col style="width: 110px;" />
+          <col style="width: 80px;" />
+        </colgroup>
         <thead>
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-muted); text-align: left;">
-            <th style="padding: 0.35rem 0.45rem;">Date</th>
-            <th style="padding: 0.35rem 0.45rem;">Description / Merchant</th>
-            <th style="padding: 0.35rem 0.45rem;">Category</th>
-            <th style="padding: 0.35rem 0.45rem;">Owner</th>
-            <th style="padding: 0.35rem 0.45rem;">Split</th>
-            <th style="padding: 0.35rem 0.45rem;">Note / Comment</th>
-            <th style="padding: 0.35rem 0.45rem; text-align: right;">Amount</th>
+            <th style="padding: 0.35rem 0.45rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Date</th>
+            <th style="padding: 0.35rem 0.45rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Description / Merchant</th>
+            <th style="padding: 0.35rem 0.45rem; white-space: nowrap;">Category</th>
+            <th style="padding: 0.35rem 0.45rem; white-space: nowrap;">Owner</th>
+            <th style="padding: 0.35rem 0.45rem; white-space: nowrap;">Split</th>
+            <th style="padding: 0.35rem 0.45rem; white-space: nowrap;">Note / Comment</th>
+            <th style="padding: 0.35rem 0.45rem; text-align: right; white-space: nowrap;">Amount</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let tx of matchingMonthTransactions(); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-            <td style="padding: 0.35rem 0.45rem; white-space: nowrap; color: var(--text-muted);">{{ service.formatDate(tx.date) }}</td>
-            <td style="padding: 0.35rem 0.45rem; font-weight: 500; color: var(--text-main);">
+            <td style="padding: 0.35rem 0.45rem; white-space: nowrap; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;">{{ service.formatDate(tx.date) }}</td>
+            <td style="padding: 0.35rem 0.45rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="tx.description + (tx.merchant && tx.merchant !== tx.description ? ' (' + tx.merchant + ')' : '')">
               {{ tx.description }}
               <span *ngIf="tx.merchant && tx.merchant !== tx.description" style="font-size: 0.68rem; color: var(--text-muted); margin-left: 0.25rem;">({{ tx.merchant }})</span>
             </td>
@@ -193,16 +202,16 @@
                 [value]="tx.categoryItem || ''"
                 [group]="tx.categoryGroup || ''"
                 [compact]="true"
-                minWidth="130px"
+                minWidth="100%"
                 (categoryChange)="onInlineCategoryChange(tx, $event.item, $event.group)">
               </app-category-select>
             </td>
-            <td style="padding: 0.35rem 0.45rem;">
+            <td style="padding: 0.35rem 0.45rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               <span class="badge" [class.badge-info]="tx.paidBy === service.personOne().name" [class.badge-warning]="tx.paidBy === service.personTwo().name" style="font-size: 0.65rem;">
                 {{ tx.paidBy }}
               </span>
             </td>
-            <td style="padding: 0.35rem 0.45rem;">
+            <td style="padding: 0.35rem 0.45rem; white-space: nowrap;">
               <span class="badge" [class.badge-success]="tx.splitType === 'SPLIT'" [class.badge-neutral]="tx.splitType === 'SELF'" [class.badge-danger]="tx.splitType === 'OTHER'" style="font-size: 0.65rem;">
                 {{ tx.splitType }}
               </span>
@@ -216,10 +225,10 @@
                 (keydown.enter)="$any($event.target).blur()"
                 placeholder="💬 Add note..."
                 class="inline-note-input"
-                style="width: 100%; min-width: 100px; max-width: 170px; font-size: 0.72rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-main);"
+                style="width: 100%; box-sizing: border-box; font-size: 0.72rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-main);"
                 title="Edit note inline" />
             </td>
-            <td style="padding: 0.35rem 0.45rem; text-align: right; font-family: monospace; font-weight: 600;" [class.text-success]="tx.type === 'INCOME'">
+            <td style="padding: 0.35rem 0.45rem; text-align: right; font-family: monospace; font-weight: 600; white-space: nowrap;" [class.text-success]="tx.type === 'INCOME'">
               {{ tx.type === 'INCOME' ? '+' : '' }}{{ service.formatCurrency(tx.amount) }}
             </td>
           </tr>
@@ -328,7 +337,7 @@
               <div
                 *ngIf="isItemExpanded(grp.id, item.name)"
                 class="animate-fade-in"
-                style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; margin: 0.2rem 0 0.5rem 0; padding: 0.5rem; overflow-x: auto;">
+                style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; margin: 0.2rem 0 0.5rem 0; padding: 0.5rem; overflow-x: auto; max-width: 100%; box-sizing: border-box; min-width: 0;">
                 <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span>Transactions for {{ item.name }} ({{ getExpandedFilteredTransactions(grp.id, item.name).length }} of {{ getItemTransactions(grp.id, item.name).length }})</span>
@@ -415,35 +424,44 @@
                   </div>
                 </div>
 
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.74rem;">
+                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.74rem;">
+                  <colgroup>
+                    <col style="width: 78px;" />
+                    <col />
+                    <col style="width: 135px;" />
+                    <col style="width: 85px;" />
+                    <col style="width: 65px;" />
+                    <col style="width: 110px;" />
+                    <col style="width: 80px;" />
+                  </colgroup>
                   <thead>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-muted); text-align: left; user-select: none;">
-                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('date')" title="Click to sort by date">
+                      <th style="padding: 0.3rem 0.4rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" (click)="toggleExpandedSort('date')" title="Click to sort by date">
                         Date <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'date' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
                       </th>
-                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('description')" title="Click to sort by description">
+                      <th style="padding: 0.3rem 0.4rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" (click)="toggleExpandedSort('description')" title="Click to sort by description">
                         Description <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'description' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
                       </th>
-                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('category')" title="Click to sort by category">
+                      <th style="padding: 0.3rem 0.4rem; cursor: pointer; white-space: nowrap;" (click)="toggleExpandedSort('category')" title="Click to sort by category">
                         Category <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'category' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
                       </th>
-                      <th style="padding: 0.3rem 0.4rem; white-space: nowrap; cursor: pointer;" (click)="toggleExpandedSort('paidBy')" title="Click to sort by owner">
-                        Paid By / Owner <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'paidBy' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
+                      <th style="padding: 0.3rem 0.4rem; white-space: nowrap; cursor: pointer; overflow: hidden; text-overflow: ellipsis;" (click)="toggleExpandedSort('paidBy')" title="Click to sort by owner">
+                        Paid By <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'paidBy' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
                       </th>
-                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('splitType')" title="Click to sort by split">
+                      <th style="padding: 0.3rem 0.4rem; white-space: nowrap; cursor: pointer;" (click)="toggleExpandedSort('splitType')" title="Click to sort by split">
                         Split <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'splitType' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
                       </th>
-                      <th style="padding: 0.3rem 0.4rem; cursor: pointer;" (click)="toggleExpandedSort('note')" title="Click to sort by note">
+                      <th style="padding: 0.3rem 0.4rem; white-space: nowrap; cursor: pointer;" (click)="toggleExpandedSort('note')" title="Click to sort by note">
                         Note <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'note' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
                       </th>
-                      <th style="padding: 0.3rem 0.4rem; text-align: right; cursor: pointer;" (click)="toggleExpandedSort('amount')" title="Click to sort by amount">
+                      <th style="padding: 0.3rem 0.4rem; text-align: right; white-space: nowrap; cursor: pointer;" (click)="toggleExpandedSort('amount')" title="Click to sort by amount">
                         Amount <span style="font-size: 0.65rem;">{{ expandedTableSortField() === 'amount' ? (expandedTableSortAsc() ? '▲' : '▼') : '↕' }}</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr *ngFor="let tx of getExpandedFilteredTransactions(grp.id, item.name); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                      <td style="padding: 0.3rem 0.4rem; white-space: nowrap; color: var(--text-muted);">
+                      <td style="padding: 0.3rem 0.4rem; white-space: nowrap; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;">
                         <div>{{ service.formatDate(tx.date) }}</div>
                         <div *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)">
                           <span class="badge" style="font-size: 0.62rem; padding: 0.1rem 0.3rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" [title]="'Received on ' + service.formatDate(tx.date) + ', funding this month'">
@@ -451,7 +469,7 @@
                           </span>
                         </div>
                       </td>
-                      <td style="padding: 0.3rem 0.4rem; font-weight: 500; color: var(--text-main);">
+                      <td style="padding: 0.3rem 0.4rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="tx.description + (tx.bank ? ' (' + tx.bank + ')' : '')">
                         {{ tx.description }}
                         <span *ngIf="tx.bank" style="font-size: 0.65rem; color: var(--text-muted); margin-left: 0.25rem;">({{ tx.bank }})</span>
                       </td>
@@ -460,11 +478,11 @@
                           [value]="tx.categoryItem || ''"
                           [group]="tx.categoryGroup || ''"
                           [compact]="true"
-                          minWidth="130px"
+                          minWidth="100%"
                           (categoryChange)="onInlineCategoryChange(tx, $event.item, $event.group)">
                         </app-category-select>
                       </td>
-                      <td style="padding: 0.3rem 0.4rem;" (click)="$event.stopPropagation()">
+                      <td style="padding: 0.3rem 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" (click)="$event.stopPropagation()">
                         <span
                           class="badge"
                           [class.badge-info]="tx.paidBy === service.personOne().name"
@@ -475,7 +493,7 @@
                           {{ tx.paidBy }}
                         </span>
                       </td>
-                      <td style="padding: 0.3rem 0.4rem;" (click)="$event.stopPropagation()">
+                      <td style="padding: 0.3rem 0.4rem; white-space: nowrap;" (click)="$event.stopPropagation()">
                         <span
                           class="badge"
                           [class.badge-success]="tx.splitType === 'SPLIT'"
@@ -496,10 +514,10 @@
                           (keydown.enter)="$any($event.target).blur()"
                           placeholder="💬 Add note..."
                           class="inline-note-input"
-                          style="width: 100%; min-width: 95px; max-width: 150px; font-size: 0.72rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-main);"
+                          style="width: 100%; box-sizing: border-box; font-size: 0.72rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-main);"
                           title="Edit note inline" />
                       </td>
-                      <td style="padding: 0.3rem 0.4rem; text-align: right; font-family: monospace; font-weight: 600; color: var(--text-main);">
+                      <td style="padding: 0.3rem 0.4rem; text-align: right; font-family: monospace; font-weight: 600; color: var(--text-main); white-space: nowrap;">
                         {{ service.formatCurrency(tx.amount) }}
                       </td>
                     </tr>

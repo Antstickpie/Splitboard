@@ -191,18 +191,24 @@ export class BudgetDashboardComponent {
 
     let baseTxs: Transaction[] = [];
 
-    if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
+    if (groupId === 'grp-income') {
+      baseTxs = monthTxs.filter((tx) => {
+        if (tx.type !== 'INCOME') return false;
+        const cat = (tx.categoryItem || '').trim().toLowerCase();
+        const desc = (tx.description || '').trim().toLowerCase();
+        const target = itemName.trim().toLowerCase();
+        if (target === 'other income') {
+          return !cat || cat === 'uncategorized' || cat === 'other income' || desc === 'other income';
+        }
+        const label = ((!cat || cat === 'uncategorized') ? (desc || 'other income') : cat).toLowerCase();
+        return label === target || cat === target || desc === target;
+      });
+    } else if (groupId === 'grp-uncategorized' || itemName.toLowerCase() === 'uncategorized') {
       baseTxs = monthTxs.filter((tx) => {
         if (tx.type === 'INCOME') return false;
         if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return false;
         const cat = (tx.categoryItem || '').trim().toLowerCase();
         return !cat || cat === 'uncategorized';
-      });
-    } else if (groupId === 'grp-income') {
-      baseTxs = monthTxs.filter((tx) => {
-        if (tx.type !== 'INCOME') return false;
-        const label = (tx.categoryItem || tx.description || 'Income').trim().toLowerCase();
-        return label === itemName.trim().toLowerCase() || (tx.categoryItem || '').trim().toLowerCase() === itemName.trim().toLowerCase();
       });
     } else {
       baseTxs = monthTxs.filter((tx) => {
@@ -495,7 +501,10 @@ export class BudgetDashboardComponent {
         const amt = Number(tx.amount) || 0;
         if (amt > 0) {
           incomeTotal += amt;
-          const label = tx.categoryItem || tx.description || 'Income';
+          const cat = (tx.categoryItem || '').trim();
+          const label = (!cat || cat.toLowerCase() === 'uncategorized')
+            ? (tx.description && tx.description.toLowerCase() !== 'uncategorized' ? tx.description : 'Other Income')
+            : cat;
           incomeMap[label] = (incomeMap[label] || 0) + amt;
         }
       }

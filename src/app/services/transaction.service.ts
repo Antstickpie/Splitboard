@@ -1182,6 +1182,12 @@ export class TransactionService {
         if (updated.categoryItem === 'Salary / Income') updated.categoryItem = 'Salary';
         if (updated.categoryItem === 'Dining Out and Food Chill') updated.categoryItem = 'Food and Chill';
         if (updated.categoryItem === 'Medical and Pharmacy') updated.categoryItem = 'Medical';
+
+        const isIncomeKeyword = /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|einzahlung|inflow|deposit)\b/i.test(updated.description || '');
+        if (updated.type === 'INCOME' && (updated.categoryGroup || '').toLowerCase() !== 'income' && !isIncomeKeyword) {
+          updated.type = 'EXPENSE';
+        }
+
         return updated;
       });
       this.transactions.set(cleanedTxs);

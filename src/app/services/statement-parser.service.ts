@@ -293,7 +293,49 @@ export class StatementParserService {
         finalAmount = this.service.convertAmount(origAmt, txCurrency, baseCurr);
       }
 
-      const isCharge = invertSigns ? amount > 0 : amount < 0;
+      const fullRowText = (cleanDesc + ' ' + row.join(' ')).trim();
+      const isIncomeDesc =
+        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|ueberweisung\s+erhalten|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from|erstattung|rückzahlung|rueckzahlung|deposit|inflow)\b/i.test(
+          cleanDesc
+        ) ||
+        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from)\b/i.test(fullRowText);
+
+      const isExpenseDesc =
+        /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverfügung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|gebühr|gebuehr|fee|standing\s+order|dauerauftrag|überweisung\s+an|ueberweisung\s+an|transfer\s+to|payment\s+to)\b/i.test(
+          fullRowText
+        );
+
+      const rawAmtStr = mapping.amountIdx >= 0 ? (row[mapping.amountIdx] || '').trim() : '';
+      let isCharge = true;
+      if (rawDebit && this.parseAmount(rawDebit) > 0) {
+        isCharge = true;
+      } else if (rawCredit && this.parseAmount(rawCredit) > 0) {
+        isCharge = false;
+      } else if (mapping.sollHabenIdx !== undefined && mapping.sollHabenIdx >= 0 && row[mapping.sollHabenIdx]) {
+        const sh = row[mapping.sollHabenIdx].trim().toLowerCase();
+        if (sh === 's' || sh === 'soll' || sh === 'd' || sh === 'debit' || sh === 'belastung' || sh === 'dr') {
+          isCharge = true;
+        } else if (sh === 'h' || sh === 'haben' || sh === 'c' || sh === 'credit' || sh === 'gutschrift' || sh === 'cr') {
+          isCharge = false;
+        }
+      } else if (rawAmtStr.includes('-') || rawAmtStr.includes('–') || rawAmtStr.includes('—') || rawAmtStr.endsWith('S') || rawAmtStr.endsWith('D')) {
+        isCharge = !invertSigns;
+      } else if (rawAmtStr.includes('+') || rawAmtStr.endsWith('H') || rawAmtStr.endsWith('C')) {
+        isCharge = invertSigns;
+      } else if (isIncomeDesc && !isExpenseDesc) {
+        isCharge = false;
+      } else if (isExpenseDesc) {
+        isCharge = true;
+      } else if (group === 'Income') {
+        isCharge = false;
+      } else if (invertSigns) {
+        isCharge = true;
+      } else if (amount < 0) {
+        isCharge = true;
+      } else {
+        isCharge = true;
+      }
+
       const isIncomeOrPayment = !isCharge;
 
       const tx: Transaction = {
@@ -320,7 +362,6 @@ export class StatementParserService {
         createdAt: new Date().toISOString()
       };
 
-      const fullRowText = (cleanDesc + ' ' + (row[0] || '') + ' ' + (row[1] || '')).trim();
       const sig = this.service.getTransactionSignature(tx);
 
       if (this.service.isTransactionExcluded(fullRowText, effectiveBank) || this.service.isSignatureExcluded(sig, tx)) {

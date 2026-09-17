@@ -333,14 +333,14 @@
 /* 2-Column Workspace */
 .everydollar-workspace {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: 1.2rem;
   align-items: start;
 }
 
 @media (max-width: 1024px) {
   .everydollar-workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -349,12 +349,17 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .everydollar-group-card {
   display: flex;
   flex-direction: column;
   padding: 0.8rem 1.2rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .group-card-top {
