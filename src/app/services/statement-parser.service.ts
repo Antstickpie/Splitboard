@@ -157,6 +157,54 @@ export class StatementParserService {
     return textPieces.join(' ');
   }
 
+  public isPaymentOrInflowDescription(desc: string, fullText?: string): boolean {
+    if (!desc && !fullText) return false;
+    const d = (desc || '').toLowerCase();
+    const f = (fullText || '').toLowerCase();
+
+    // Payment received / credit card payoffs / refunds / inflows / salaries
+    const inflowPatterns = [
+      /\b(zahlung|ueberweisung|überweisung)\s*(?:\/|\s+)?(?:ueberweisung|überweisung|zahlung)?\s+erhalten\b/i,
+      /\b(zahlung|ueberweisung|überweisung)\s+eingegangen\b/i,
+      /\b(zahlung|ueberweisung|überweisung)\s+gutgeschrieben\b/i,
+      /\bbesten\s+dank\b/i,
+      /\b(?:vielen\s+)?dank\s+f[uü]r\s+ihre\s+(?:zahlung|ueberweisung|überweisung)\b/i,
+      /\bpayment\s+received\b/i,
+      /\bthank\s+you(?:\s+for\s+your\s+payment)?\b/i,
+      /\bcredit\s+card\s+payment\b/i,
+      /\bdirect\s+debit\s+payment\s+-\s+thank\s+you\b/i,
+      /\bautopay\s+payment\b/i,
+      /\bgehalt\b/i,
+      /\bsalary\b/i,
+      /\blohn\b/i,
+      /\bgutschrift\b/i,
+      /\bzinsgutschrift\b/i,
+      /\bbez[uü]ge\b/i,
+      /\bcredit\s+transfer\s+received\b/i,
+      /\b(?:ueberweisung|überweisung)\s+von\b/i,
+      /\btransfer\s+from\b/i,
+      /\breceived\s+from\b/i,
+      /\berstattung\b/i,
+      /\br[uü]ckzahlung\b/i,
+      /\br[uü]ckerstattung\b/i,
+      /\bdeposit\b/i,
+      /\binflow\b/i,
+      /\beinzahlung\b/i,
+      /\bausgleich\s+(?:kreditkarte|abrechnungssaldo)\b/i,
+      /\bkartengutschrift\b/i,
+      /\bcashback\b/i,
+      /\brefund\b/i
+    ];
+
+    return inflowPatterns.some((p) => p.test(d) || p.test(f));
+  }
+
+  public isExplicitExpenseDescription(desc: string, fullText?: string): boolean {
+    if (!desc && !fullText) return false;
+    const f = `${desc || ''} ${fullText || ''}`.toLowerCase();
+    return /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverf[uü]gung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|geb[uü]hr|fee|standing\s+order|dauerauftrag|überweisung\s+an|ueberweisung\s+an|transfer\s+to|payment\s+to)\b/i.test(f);
+  }
+
   public parseText(
     text: string,
     bankName: string,
@@ -199,7 +247,7 @@ export class StatementParserService {
 
         if (amt < 0) {
           totalNegativeCount++;
-          if (rowDesc.includes('zahlung erhalten') || rowDesc.includes('überweisung erhalten') || rowDesc.includes('payment received') || rowDesc.includes('besten dank')) {
+          if (this.isPaymentOrInflowDescription(rowDesc)) {
             paymentInNegativeCount++;
           }
         } else {
@@ -294,16 +342,8 @@ export class StatementParserService {
       }
 
       const fullRowText = (cleanDesc + ' ' + row.join(' ')).trim();
-      const isIncomeDesc =
-        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|ueberweisung\s+erhalten|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from|erstattung|rückzahlung|rueckzahlung|deposit|inflow)\b/i.test(
-          cleanDesc
-        ) ||
-        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from)\b/i.test(fullRowText);
-
-      const isExpenseDesc =
-        /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverfügung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|gebühr|gebuehr|fee|standing\s+order|dauerauftrag|überweisung\s+an|ueberweisung\s+an|transfer\s+to|payment\s+to)\b/i.test(
-          fullRowText
-        );
+      const isPaymentOrInflow = this.isPaymentOrInflowDescription(cleanDesc, fullRowText);
+      const isExplicitExpense = this.isExplicitExpenseDescription(cleanDesc, fullRowText);
 
       const rawAmtStr = mapping.amountIdx >= 0 ? (row[mapping.amountIdx] || '').trim() : '';
       let isCharge = true;
@@ -318,14 +358,14 @@ export class StatementParserService {
         } else if (sh === 'h' || sh === 'haben' || sh === 'c' || sh === 'credit' || sh === 'gutschrift' || sh === 'cr') {
           isCharge = false;
         }
+      } else if (isPaymentOrInflow && !isExplicitExpense) {
+        isCharge = false;
+      } else if (isExplicitExpense && !isPaymentOrInflow) {
+        isCharge = true;
       } else if (rawAmtStr.includes('-') || rawAmtStr.includes('–') || rawAmtStr.includes('—') || rawAmtStr.endsWith('S') || rawAmtStr.endsWith('D')) {
         isCharge = !invertSigns;
       } else if (rawAmtStr.includes('+') || rawAmtStr.endsWith('H') || rawAmtStr.endsWith('C')) {
         isCharge = invertSigns;
-      } else if (isIncomeDesc && !isExpenseDesc) {
-        isCharge = false;
-      } else if (isExpenseDesc) {
-        isCharge = true;
       } else if (group === 'Income') {
         isCharge = false;
       } else if (invertSigns) {
@@ -348,8 +388,8 @@ export class StatementParserService {
         bank: effectiveBank,
         account: effectiveBank,
         paidBy: statementOwner || this.service.personOne().name,
-        categoryGroup: group || 'Uncategorized',
-        categoryItem: item || 'Uncategorized',
+        categoryGroup: group || (isIncomeOrPayment ? 'Income' : 'Uncategorized'),
+        categoryItem: item || (isIncomeOrPayment ? 'Other Income' : 'Uncategorized'),
         splitType: defaultSplit,
         splitPercentage: 50,
         note: defaultNote || undefined,
@@ -573,6 +613,22 @@ export class StatementParserService {
     const duplicateTracker = this.createDuplicateTracker(fileName);
 
     const bankCfg = this.service.bankConfigs().find((b) => b.name.toLowerCase() === detectedBank.toLowerCase());
+    let invertSigns = bankCfg?.invertAmountSign ?? false;
+
+    // Smart credit card sign heuristic for PDF text
+    if (!bankCfg || bankCfg.invertAmountSign === undefined) {
+      const lowerText = text.toLowerCase();
+      if (
+        lowerText.includes('american express') ||
+        lowerText.includes('amex') ||
+        lowerText.includes('zinia') ||
+        lowerText.includes('amazon visa') ||
+        lowerText.includes('barclaycard') ||
+        lowerText.includes('barclays')
+      ) {
+        invertSigns = true;
+      }
+    }
 
     // Extract fallback year if statement dates are DD.MM or DD-MM
     let fallbackYear = new Date().getFullYear().toString();
@@ -677,29 +733,24 @@ export class StatementParserService {
 
       const { group, item, defaultSplit, incomeNextMonth, defaultNote } = this.matchCategory(cleanDesc, detectedBank);
 
-      // Income detection: positive sign (+, H, credit), income description keywords, or category rule
-      const isIncomeDesc =
-        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|credit\s+transfer\s+received|überweisung\s+erhalten|ueberweisung\s+erhalten|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from|erstattung|rückzahlung|rueckzahlung|deposit|inflow)\b/i.test(
-          cleanDesc
-        ) ||
-        /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|überweisung\s+von|ueberweisung\s+von|transfer\s+from|received\s+from)\b/i.test(fullBlockText);
-
-      const isExpenseDesc =
-        /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverfügung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|gebühr|gebuehr|fee|standing\s+order|dauerauftrag|überweisung\s+an|ueberweisung\s+an|transfer\s+to|payment\s+to)\b/i.test(
-          fullBlockText
-        );
+      const isPaymentOrInflow = this.isPaymentOrInflowDescription(cleanDesc, fullBlockText);
+      const isExplicitExpense = this.isExplicitExpenseDescription(cleanDesc, fullBlockText);
 
       let isCharge = true;
-      if (chosenAmtStr.includes('-') || chosenAmtStr.includes('–') || chosenAmtStr.includes('—') || chosenAmtStr.endsWith('S') || chosenAmtStr.endsWith('D')) {
+      if (isPaymentOrInflow && !isExplicitExpense) {
+        isCharge = false;
+      } else if (isExplicitExpense && !isPaymentOrInflow) {
         isCharge = true;
+      } else if (chosenAmtStr.includes('-') || chosenAmtStr.includes('–') || chosenAmtStr.includes('—') || chosenAmtStr.endsWith('S') || chosenAmtStr.endsWith('D')) {
+        isCharge = !invertSigns;
       } else if (chosenAmtStr.includes('+') || chosenAmtStr.endsWith('H') || chosenAmtStr.endsWith('C')) {
+        isCharge = invertSigns;
+      } else if (group === 'Income') {
         isCharge = false;
-      } else if (isIncomeDesc && !isExpenseDesc) {
-        isCharge = false;
-      } else if (isExpenseDesc) {
+      } else if (invertSigns) {
         isCharge = true;
       } else {
-        isCharge = group !== 'Income';
+        isCharge = true;
       }
 
       const isIncomeOrPayment = !isCharge;
@@ -714,8 +765,8 @@ export class StatementParserService {
         bank: effectiveBank,
         account: effectiveBank,
         paidBy: statementOwner || this.service.personOne().name,
-        categoryGroup: group || 'Uncategorized',
-        categoryItem: item || 'Uncategorized',
+        categoryGroup: group || (isIncomeOrPayment ? 'Income' : 'Uncategorized'),
+        categoryItem: item || (isIncomeOrPayment ? 'Other Income' : 'Uncategorized'),
         splitType: defaultSplit,
         splitPercentage: 50,
         note: defaultNote || undefined,
@@ -776,9 +827,55 @@ export class StatementParserService {
     };
   }
 
-  private detectBank(selectedBank: string, fileName: string, text: string): string {
+  public detectBank(selectedBank: string, fileName: string, text: string): string {
     if (selectedBank && selectedBank !== 'Generic Bank' && selectedBank !== 'Auto-Detect') return selectedBank;
-    return '';
+    const lowerFile = (fileName || '').toLowerCase();
+    const lowerText = (text || '').slice(0, 4000).toLowerCase();
+
+    // Check configured banks first
+    for (const b of this.service.bankConfigs()) {
+      const bName = b.name.toLowerCase();
+      if (lowerFile.includes(bName) || lowerText.includes(bName)) {
+        return b.name;
+      }
+    }
+
+    // Common bank aliases
+    if (lowerFile.includes('amex') || lowerFile.includes('american express') || lowerText.includes('american express') || lowerText.includes('americanexpress') || lowerText.includes('amex')) {
+      return 'Amex';
+    }
+    if (lowerFile.includes('zinia') || lowerFile.includes('amazon visa') || lowerText.includes('amazon visa') || lowerText.includes('zinia')) {
+      return 'Amazon Visa (Zinia)';
+    }
+    if (lowerFile.includes('revolut') || lowerText.includes('revolut')) {
+      return 'Revolut';
+    }
+    if (lowerFile.includes('deutsche bank') || lowerFile.includes('deutschebank') || lowerText.includes('deutsche bank') || lowerText.includes('deutschebank')) {
+      return 'Deutsche Bank';
+    }
+    if (lowerFile.includes('commerzbank') || lowerText.includes('commerzbank')) {
+      return 'Commerzbank';
+    }
+    if (lowerFile.includes('hdfc') || lowerText.includes('hdfc')) {
+      return 'HDFC Bank';
+    }
+    if (lowerFile.includes('dkb') || lowerText.includes('dkb')) {
+      return 'DKB';
+    }
+    if (lowerFile.includes('ing') || lowerText.includes('ing-diba') || lowerText.includes('ing diba') || lowerText.includes('ing bank')) {
+      return 'ING';
+    }
+    if (lowerFile.includes('sparkasse') || lowerText.includes('sparkasse')) {
+      return 'Sparkasse';
+    }
+    if (lowerFile.includes('barclays') || lowerFile.includes('barclaycard') || lowerText.includes('barclays') || lowerText.includes('barclaycard')) {
+      return 'Barclays';
+    }
+    if (lowerFile.includes('santander') || lowerText.includes('santander')) {
+      return 'Santander';
+    }
+
+    return selectedBank || 'Generic Bank';
   }
 
   private detectColumnMapping(rows: string[][], bank: string): {

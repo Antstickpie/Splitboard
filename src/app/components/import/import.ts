@@ -1481,7 +1481,7 @@ export class ImportComponent {
             const curM = (t.date || '').slice(0, 7);
             t.incomeMonth = this.service.getNextMonth(curM);
           }
-        } else {
+        } else if (!t.categoryItem || t.categoryItem === 'Uncategorized') {
           t.categoryItem = 'Uncategorized';
           t.categoryGroup = 'Uncategorized';
         }
@@ -4488,9 +4488,22 @@ export class ImportComponent {
     const bankName = cloned[0]?.bank || snapshot?.bankName || 'Generic Bank';
     const payerName = cloned[0]?.paidBy || snapshot?.owner || '';
 
-    // Separate expenses and incomes from active batch
-    const expenses = cloned.filter((t) => t.type !== 'INCOME');
-    const incomes = cloned.filter((t) => t.type === 'INCOME');
+    // Separate expenses and incomes from active batch and snapshot
+    const snapshotIncomeSignatures = new Set(
+      (snapshot?.incomes || []).map((si) => this.service.getTransactionSignature(si))
+    );
+
+    const isPaymentDesc = (t: Transaction) =>
+      /\b(zahlung|ueberweisung|überweisung)\s*(?:\/|\s+)?(?:ueberweisung|überweisung|zahlung)?\s+erhalten\b|\bbesten\s+dank\b|\bpayment\s+received\b|\bthank\s+you(?:\s+for\s+your\s+payment)?\b|\bcredit\s+card\s+payment\b/i.test(
+        t.description || ''
+      );
+
+    const expenses = cloned.filter(
+      (t) => t.type !== 'INCOME' && !snapshotIncomeSignatures.has(this.service.getTransactionSignature(t)) && !isPaymentDesc(t)
+    );
+    const incomes = cloned
+      .filter((t) => t.type === 'INCOME' || snapshotIncomeSignatures.has(this.service.getTransactionSignature(t)) || isPaymentDesc(t))
+      .map((t) => ({ ...t, type: 'INCOME' as const }));
 
     // Combine with any extra incomes preserved in snapshot
     const snapshotIncomes = (snapshot?.incomes || []).filter(
@@ -4541,7 +4554,7 @@ export class ImportComponent {
       excludedCount: finalExcluded.length,
       deletedCount: finalDeleted.length,
       bankName: bankName,
-      totalParsed: cloned.length + allIncomes.length + finalDuplicates.length + finalExcluded.length + finalDeleted.length
+      totalParsed: expenses.length + allIncomes.length + finalDuplicates.length + finalExcluded.length + finalDeleted.length
     });
 
     this.previewTab.set('valid');

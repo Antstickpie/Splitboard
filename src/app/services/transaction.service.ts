@@ -1183,9 +1183,22 @@ export class TransactionService {
         if (updated.categoryItem === 'Dining Out and Food Chill') updated.categoryItem = 'Food and Chill';
         if (updated.categoryItem === 'Medical and Pharmacy') updated.categoryItem = 'Medical';
 
-        const isIncomeKeyword = /\b(gehalt|salary|lohn|gutschrift|zinsgutschrift|bezüge|bezuege|einzahlung|inflow|deposit)\b/i.test(updated.description || '');
-        if (updated.type === 'INCOME' && (updated.categoryGroup || '').toLowerCase() !== 'income' && !isIncomeKeyword) {
-          updated.type = 'EXPENSE';
+        // Auto-heal income/payment classification:
+        const isPaymentOrInflow = /\b(zahlung|ueberweisung|überweisung)\s*(?:\/|\s+)?(?:ueberweisung|überweisung|zahlung)?\s+erhalten\b|\bbesten\s+dank\b|\bpayment\s+received\b|\bthank\s+you(?:\s+for\s+your\s+payment)?\b|\bgehalt\b|\bsalary\b|\blohn\b|\bgutschrift\b|\bzinsgutschrift\b|\bbez[uü]ge\b|\bcredit\s+transfer\s+received\b|\b(?:ueberweisung|überweisung)\s+von\b|\btransfer\s+from\b|\breceived\s+from\b|\berstattung\b|\br[uü]ckzahlung\b|\br[uü]ckerstattung\b|\bdeposit\b|\binflow\b|\beinzahlung\b|\bausgleich\s+(?:kreditkarte|abrechnungssaldo)\b|\bkartengutschrift\b|\bcashback\b|\brefund\b|\bcredit\s+card\s+payment\b/i.test(updated.description || '');
+        const isExplicitExpense = /\b(direct\s+debit|lastschrift|kartenzahlung|kartenverf[uü]gung|kartenabrechnung|card\s+payment|debit\s+card|girocard|auszahlung|bargeld|entgelt|geb[uü]hr|fee|standing\s+order|dauerauftrag|überweisung\s+an|ueberweisung\s+an|transfer\s+to|payment\s+to)\b/i.test(updated.description || '');
+
+        if (
+          (updated.categoryGroup || '').toLowerCase() === 'income' ||
+          (updated.categoryItem || '').toLowerCase() === 'salary' ||
+          (updated.categoryItem || '').toLowerCase() === 'other income'
+        ) {
+          updated.type = 'INCOME';
+        } else if (isPaymentOrInflow && !isExplicitExpense) {
+          updated.type = 'INCOME';
+          if (!updated.categoryGroup || updated.categoryGroup.toLowerCase() === 'uncategorized') {
+            updated.categoryGroup = 'Income';
+            updated.categoryItem = 'Other Income';
+          }
         }
 
         return updated;
