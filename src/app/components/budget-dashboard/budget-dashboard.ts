@@ -987,20 +987,25 @@ export class BudgetDashboardComponent {
     };
   });
 
-  // Category Expense Distribution Analytics
+  // Category Expense & Savings Distribution Analytics
   public categoryBreakdown = computed(() => {
+    const totalIncome = this.budgetTotals().totalIncomeActual;
+    const netRemaining = this.budgetTotals().netRemaining;
+
     const summaries = this.groupSummaries().filter(
-      (g) => g.id !== 'grp-income' && 
+      (g) => g.actualTotal > 0 &&
+             g.id !== 'grp-income' && 
              !g.name.toLowerCase().includes('income') &&
              g.id !== 'grp-savings' && 
              !g.name.toLowerCase().includes('saving')
     );
     const totalSpent = summaries.reduce((sum, g) => sum + g.actualTotal, 0);
 
-    const colors = ['#00e5ff', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#6366f1', '#14b8a6'];
+    const colors = ['#00e5ff', '#8b5cf6', '#f59e0b', '#ec4899', '#3b82f6', '#6366f1', '#14b8a6', '#e11d48', '#84cc16'];
 
-    return summaries.map((g, idx) => {
+    const items = summaries.map((g, idx) => {
       const pct = totalSpent > 0 ? Math.round((g.actualTotal / totalSpent) * 100) : 0;
+      const barPct = totalIncome > 0 ? (g.actualTotal / totalIncome) * 100 : pct;
       const incomePct = this.formatIncomePercentage(g.actualTotal);
       return {
         name: g.name,
@@ -1008,10 +1013,31 @@ export class BudgetDashboardComponent {
         actual: g.actualTotal,
         planned: g.plannedTotal,
         pct,
+        barPct,
         incomePct,
-        color: colors[idx % colors.length]
+        color: colors[idx % colors.length],
+        isSavings: false
       };
-    }).sort((a, b) => b.actual - a.actual);
+    });
+
+    // Add Savings / Remaining as the balance of income if income exists and remaining is positive
+    if (totalIncome > 0 && netRemaining > 0) {
+      const savingsPct = totalSpent > 0 ? Math.round((netRemaining / totalSpent) * 100) : 100;
+      const savingsBarPct = (netRemaining / totalIncome) * 100;
+      items.push({
+        name: 'Savings (Remaining)',
+        icon: '🏦',
+        actual: netRemaining,
+        planned: 0,
+        pct: savingsPct,
+        barPct: savingsBarPct,
+        incomePct: this.formatIncomePercentage(netRemaining),
+        color: '#10b981', // Emerald green
+        isSavings: true
+      });
+    }
+
+    return items.sort((a, b) => b.actual - a.actual);
   });
 
   // 6-Month Historical Spending Trend

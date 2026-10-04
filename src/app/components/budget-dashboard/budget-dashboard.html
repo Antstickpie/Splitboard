@@ -700,21 +700,23 @@
           </div>
         </div>
 
-        <!-- Category Distribution (when spending exists) -->
-        <div class="sidebar-summary-box" style="margin-top: 0.8rem;" *ngIf="budgetTotals().totalExpenseActual > 0">
-          <h4 style="margin: 0 0 0.6rem 0; font-size: 0.85rem;">Category Spending</h4>
+        <!-- Category Distribution (when spending or income exists) -->
+        <div class="sidebar-summary-box" style="margin-top: 0.8rem;" *ngIf="budgetTotals().totalExpenseActual > 0 || budgetTotals().totalIncomeActual > 0">
+          <h4 style="margin: 0 0 0.6rem 0; font-size: 0.85rem;">Category Spending & Savings</h4>
           <div class="cat-dist-list">
             <div class="cat-dist-item" *ngFor="let c of categoryBreakdown()">
               <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.2rem;">
-                <span>{{ c.icon }} {{ c.name }}</span>
+                <span [style.font-weight]="c.isSavings ? '700' : 'normal'" [style.color]="c.isSavings ? '#10b981' : 'inherit'">
+                  {{ c.icon }} {{ c.name }}
+                </span>
                 <span class="font-mono">
-                  <strong>{{ service.formatCurrency(c.actual) }}</strong>
+                  <strong [style.color]="c.isSavings ? '#10b981' : 'inherit'">{{ service.formatCurrency(c.actual) }}</strong>
                   <span *ngIf="budgetTotals().totalIncomeActual > 0" style="color: var(--text-muted); margin-left: 0.25rem;">({{ c.incomePct }} of income)</span>
                   <span *ngIf="budgetTotals().totalIncomeActual <= 0" style="color: var(--text-muted); margin-left: 0.25rem;">({{ c.pct }}%)</span>
                 </span>
               </div>
               <div style="height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
-                <div [style.width.%]="c.pct" [style.background]="c.color" style="height: 100%;"></div>
+                <div [style.width.%]="c.barPct" [style.background]="c.color" style="height: 100%;"></div>
               </div>
             </div>
           </div>
