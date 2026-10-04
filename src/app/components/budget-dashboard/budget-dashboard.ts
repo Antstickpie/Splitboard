@@ -688,6 +688,15 @@ export class BudgetDashboardComponent {
     };
   });
 
+  public formatIncomePercentage(amount: number): string {
+    const totalIncome = this.budgetTotals().totalIncomeActual;
+    if (!totalIncome || totalIncome <= 0 || !amount || amount <= 0) return '0%';
+    const pct = (amount / totalIncome) * 100;
+    if (pct < 0.1) return '<0.1%';
+    if (pct < 10) return `${pct.toFixed(1)}%`;
+    return `${Math.round(pct)}%`;
+  }
+
   public spendByPerson = computed(() => {
     const month = this.selectedMonth();
     const p1 = this.service.personOne().name;
@@ -992,12 +1001,14 @@ export class BudgetDashboardComponent {
 
     return summaries.map((g, idx) => {
       const pct = totalSpent > 0 ? Math.round((g.actualTotal / totalSpent) * 100) : 0;
+      const incomePct = this.formatIncomePercentage(g.actualTotal);
       return {
         name: g.name,
         icon: g.icon,
         actual: g.actualTotal,
         planned: g.plannedTotal,
         pct,
+        incomePct,
         color: colors[idx % colors.length]
       };
     }).sort((a, b) => b.actual - a.actual);

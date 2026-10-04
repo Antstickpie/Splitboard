@@ -290,7 +290,14 @@
               <span class="group-name" [style.color]="grp.id === 'grp-uncategorized' ? '#f59e0b' : (grp.id === 'grp-income' ? '#10b981' : null)">{{ grp.name }}</span>
             </div>
 
-            <div class="group-col-labels font-mono">
+            <div class="group-col-labels font-mono" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span
+                class="item-pct-label"
+                *ngIf="grp.id !== 'grp-income' && budgetTotals().totalIncomeActual > 0 && grp.actualTotal > 0"
+                style="font-size: 0.72rem; padding: 0.15rem 0.45rem;"
+                [title]="formatIncomePercentage(grp.actualTotal) + ' of monthly income (' + service.formatCurrency(grp.actualTotal) + ' / ' + service.formatCurrency(budgetTotals().totalIncomeActual) + ')'">
+                {{ formatIncomePercentage(grp.actualTotal) }} of income
+              </span>
               <span class="grp-total-badge" [class.text-success]="grp.id === 'grp-income'">{{ service.formatCurrency(grp.actualTotal) }}</span>
             </div>
           </div>
@@ -327,8 +334,11 @@
                   <span class="item-actual-val has-spend">
                     {{ service.formatCurrency(item.actual) }}
                   </span>
-                  <span class="item-pct-label" *ngIf="grp.actualTotal > 0 && item.actual > 0">
-                    {{ Math.round((item.actual / grp.actualTotal) * 100) }}%
+                  <span
+                    class="item-pct-label"
+                    *ngIf="item.actual > 0"
+                    [title]="budgetTotals().totalIncomeActual > 0 && grp.id !== 'grp-income' ? (formatIncomePercentage(item.actual) + ' of monthly income (' + service.formatCurrency(item.actual) + ' / ' + service.formatCurrency(budgetTotals().totalIncomeActual) + ') • ' + Math.round((item.actual / grp.actualTotal) * 100) + '% of ' + grp.name) : (Math.round((item.actual / grp.actualTotal) * 100) + '% of ' + grp.name)">
+                    {{ budgetTotals().totalIncomeActual > 0 && grp.id !== 'grp-income' ? formatIncomePercentage(item.actual) : (Math.round((item.actual / grp.actualTotal) * 100) + '%') }}
                   </span>
                 </div>
               </div>
@@ -529,7 +539,14 @@
             <!-- Group Subtotal Row -->
             <div class="group-subtotal-row font-mono" *ngIf="grp.items.length > 1">
               <div class="subtotal-label">Group Total</div>
-              <div class="subtotal-values">
+              <div class="subtotal-values" style="display: flex; align-items: center; gap: 0.5rem;">
+                <span
+                  class="item-pct-label"
+                  *ngIf="grp.id !== 'grp-income' && budgetTotals().totalIncomeActual > 0 && grp.actualTotal > 0"
+                  style="font-size: 0.72rem; padding: 0.15rem 0.45rem;"
+                  [title]="formatIncomePercentage(grp.actualTotal) + ' of monthly income (' + service.formatCurrency(grp.actualTotal) + ' / ' + service.formatCurrency(budgetTotals().totalIncomeActual) + ')'">
+                  {{ formatIncomePercentage(grp.actualTotal) }} of income
+                </span>
                 <span class="subtotal-actual">{{ service.formatCurrency(grp.actualTotal) }}</span>
               </div>
             </div>
@@ -690,7 +707,11 @@
             <div class="cat-dist-item" *ngFor="let c of categoryBreakdown()">
               <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.2rem;">
                 <span>{{ c.icon }} {{ c.name }}</span>
-                <span class="font-mono"><strong>{{ service.formatCurrency(c.actual) }}</strong> ({{ c.pct }}%)</span>
+                <span class="font-mono">
+                  <strong>{{ service.formatCurrency(c.actual) }}</strong>
+                  <span *ngIf="budgetTotals().totalIncomeActual > 0" style="color: var(--text-muted); margin-left: 0.25rem;">({{ c.incomePct }} of income)</span>
+                  <span *ngIf="budgetTotals().totalIncomeActual <= 0" style="color: var(--text-muted); margin-left: 0.25rem;">({{ c.pct }}%)</span>
+                </span>
               </div>
               <div style="height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
                 <div [style.width.%]="c.pct" [style.background]="c.color" style="height: 100%;"></div>
