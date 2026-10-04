@@ -703,3 +703,9 @@
   background: rgba(255, 255, 255, 0.08);
   color: #f1f5f9;
 }
+
+.tx-row-review {
+  background: rgba(245, 158, 11, 0.08) !important;
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+

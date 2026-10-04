@@ -191,11 +191,20 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let tx of matchingMonthTransactions(); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+          <tr *ngFor="let tx of matchingMonthTransactions(); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);" [class.tx-row-review]="tx.isUnderReview">
             <td style="padding: 0.35rem 0.45rem; white-space: nowrap; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;">{{ service.formatDate(tx.date) }}</td>
             <td style="padding: 0.35rem 0.45rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="tx.description + (tx.merchant && tx.merchant !== tx.description ? ' (' + tx.merchant + ')' : '')">
-              {{ tx.description }}
+              <span>{{ tx.description }}</span>
               <span *ngIf="tx.merchant && tx.merchant !== tx.description" style="font-size: 0.68rem; color: var(--text-muted); margin-left: 0.25rem;">({{ tx.merchant }})</span>
+              <button
+                *ngIf="tx.isUnderReview"
+                type="button"
+                class="badge badge-warning"
+                (click)="$event.stopPropagation(); service.toggleTransactionReview(tx.id)"
+                title="Under review (click to resolve)"
+                style="margin-left: 0.35rem; font-size: 0.65rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; padding: 0.1rem 0.35rem; border-radius: 4px;">
+                🔍 In Review
+              </button>
             </td>
             <td style="padding: 0.25rem 0.45rem;" (click)="$event.stopPropagation()">
               <app-category-select
@@ -288,6 +297,9 @@
             <div class="group-title-wrap">
               <span class="group-icon">{{ grp.icon }}</span>
               <span class="group-name" [style.color]="grp.id === 'grp-uncategorized' ? '#f59e0b' : (grp.id === 'grp-income' ? '#10b981' : null)">{{ grp.name }}</span>
+              <span *ngIf="grp.reviewCount && grp.reviewCount > 0" class="badge badge-warning" style="font-size: 0.68rem; font-weight: 600; padding: 0.12rem 0.4rem; display: inline-flex; align-items: center; gap: 0.25rem;" [title]="grp.reviewCount + ' transaction(s) under review in ' + grp.name">
+                🔍 {{ grp.reviewCount }} in review
+              </span>
             </div>
 
             <div class="group-col-labels font-mono" style="display: flex; align-items: center; gap: 0.5rem;">
@@ -314,6 +326,9 @@
                 <div class="item-info-wrap">
                   <div class="item-name-col">
                     <span class="item-name-text">{{ item.name }}</span>
+                    <span *ngIf="item.reviewCount && item.reviewCount > 0" class="badge badge-warning" style="font-size: 0.65rem; font-weight: 600; padding: 0.08rem 0.32rem; display: inline-flex; align-items: center; gap: 0.2rem;" [title]="item.reviewCount + ' transaction(s) under review in ' + item.name">
+                      🔍 {{ item.reviewCount }}
+                    </span>
                     <span style="font-size: 0.65rem; color: var(--text-muted); margin-left: 0.25rem;">
                       {{ isItemExpanded(grp.id, item.name) ? '▲' : '▼' }}
                     </span>
@@ -432,6 +447,25 @@
                       (click)="expandedTableSplitFilter.set('OTHER')"
                       style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">OTHER</button>
                   </div>
+
+                  <!-- Status Filter Pills -->
+                  <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <span style="color: var(--text-muted); font-size: 0.7rem;">Status:</span>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="expandedTableStatusFilter() === 'ALL'"
+                      [class.btn-secondary]="expandedTableStatusFilter() !== 'ALL'"
+                      (click)="expandedTableStatusFilter.set('ALL')"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">All</button>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-warning]="expandedTableStatusFilter() === 'REVIEW'"
+                      [class.btn-secondary]="expandedTableStatusFilter() !== 'REVIEW'"
+                      (click)="expandedTableStatusFilter.set('REVIEW')"
+                      style="padding: 0.15rem 0.45rem; font-size: 0.68rem;">🔍 In Review</button>
+                  </div>
                 </div>
 
                 <table style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.74rem;">
@@ -470,7 +504,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let tx of getExpandedFilteredTransactions(grp.id, item.name); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <tr *ngFor="let tx of getExpandedFilteredTransactions(grp.id, item.name); trackBy: trackTx" style="border-bottom: 1px solid rgba(255,255,255,0.03);" [class.tx-row-review]="tx.isUnderReview">
                       <td style="padding: 0.3rem 0.4rem; white-space: nowrap; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;">
                         <div>{{ service.formatDate(tx.date) }}</div>
                         <div *ngIf="tx.type === 'INCOME' && tx.incomeMonth && tx.incomeMonth !== tx.date?.slice(0, 7)">
@@ -480,8 +514,17 @@
                         </div>
                       </td>
                       <td style="padding: 0.3rem 0.4rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="tx.description + (tx.bank ? ' (' + tx.bank + ')' : '')">
-                        {{ tx.description }}
+                        <span>{{ tx.description }}</span>
                         <span *ngIf="tx.bank" style="font-size: 0.65rem; color: var(--text-muted); margin-left: 0.25rem;">({{ tx.bank }})</span>
+                        <button
+                          *ngIf="tx.isUnderReview"
+                          type="button"
+                          class="badge badge-warning"
+                          (click)="$event.stopPropagation(); service.toggleTransactionReview(tx.id)"
+                          title="Under review (click to resolve)"
+                          style="margin-left: 0.35rem; font-size: 0.65rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; padding: 0.1rem 0.35rem; border-radius: 4px;">
+                          🔍 In Review
+                        </button>
                       </td>
                       <td style="padding: 0.25rem 0.4rem;" (click)="$event.stopPropagation()">
                         <app-category-select

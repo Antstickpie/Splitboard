@@ -17,6 +17,7 @@ interface CategoryItemSummary {
   isFund?: boolean;
   startingBalance?: number;
   totalAvailable?: number;
+  reviewCount?: number;
 }
 
 interface CategoryGroupSummary {
@@ -26,6 +27,7 @@ interface CategoryGroupSummary {
   plannedTotal: number;
   actualTotal: number;
   remainingTotal: number;
+  reviewCount?: number;
   items: CategoryItemSummary[];
 }
 
@@ -116,6 +118,7 @@ export class BudgetDashboardComponent {
   public expandedTableSearch = signal<string>('');
   public expandedTableOwnerFilter = signal<string>('ALL');
   public expandedTableSplitFilter = signal<string>('ALL');
+  public expandedTableStatusFilter = signal<'ALL' | 'REVIEW'>('ALL');
   public expandedTableSortField = signal<'date' | 'description' | 'category' | 'paidBy' | 'splitType' | 'amount' | 'note'>('date');
   public expandedTableSortAsc = signal<boolean>(false);
 
@@ -132,6 +135,7 @@ export class BudgetDashboardComponent {
     this.expandedTableSearch.set('');
     this.expandedTableOwnerFilter.set('ALL');
     this.expandedTableSplitFilter.set('ALL');
+    this.expandedTableStatusFilter.set('ALL');
   }
 
   public getExpandedFilteredTransactions(groupId: string, itemName: string): Transaction[] {
@@ -157,6 +161,11 @@ export class BudgetDashboardComponent {
     const split = this.expandedTableSplitFilter();
     if (split !== 'ALL') {
       txs = txs.filter((t) => t.splitType === split);
+    }
+
+    const status = this.expandedTableStatusFilter();
+    if (status === 'REVIEW') {
+      txs = txs.filter((t) => t.isUnderReview);
     }
 
     const field = this.expandedTableSortField();
@@ -289,6 +298,10 @@ export class BudgetDashboardComponent {
     const nextSplit = splits[(currentIdx + 1) % splits.length];
     this.service.updateTransaction(tx.id, { splitType: nextSplit });
     this.service.showToast(`Split set to ${nextSplit}`, 'info');
+  }
+
+  public toggleTxReview(tx: Transaction): void {
+    this.service.toggleTransactionReview(tx.id);
   }
 
   public onInlineNoteChange(tx: Transaction, note?: string): void {
@@ -464,16 +477,18 @@ export class BudgetDashboardComponent {
       (tx) => this.service.isTransactionInMonth(tx, month)
     );
 
-    // Compute actuals per category (excluding cash transfers and reimbursed expenses)
+    // Compute actuals and review counts per category (excluding cash transfers and reimbursed expenses)
     const actualsMap: Record<string, number> = {};
+    const reviewsMap: Record<string, number> = {};
     let uncategorizedTotal = 0;
+    let uncategorizedReviewCount = 0;
     const knownCategories = new Set<string>();
 
     this.service.categoryGroups().forEach((g) => {
       g.items.forEach((it) => knownCategories.add(it.name));
     });
 
-    const otherCategoriesMap: Record<string, number> = {};
+    const otherCategoriesMap: Record<string, { actual: number; reviewCount: number }> = {};
 
     txsInMonth.forEach((tx) => {
       if (tx.isReimbursable && tx.reimbursementStatus === 'REIMBURSED') return;
@@ -484,38 +499,56 @@ export class BudgetDashboardComponent {
       if (amt <= 0) return;
 
       const cat = (tx.categoryItem || '').trim();
+      const isRev = !!tx.isUnderReview;
+
       if (!cat || cat.toLowerCase() === 'uncategorized') {
         uncategorizedTotal += amt;
+        if (isRev) uncategorizedReviewCount++;
       } else if (knownCategories.has(cat)) {
         actualsMap[cat] = (actualsMap[cat] || 0) + amt;
+        if (isRev) reviewsMap[cat] = (reviewsMap[cat] || 0) + 1;
       } else {
-        otherCategoriesMap[cat] = (otherCategoriesMap[cat] || 0) + amt;
+        if (!otherCategoriesMap[cat]) {
+          otherCategoriesMap[cat] = { actual: 0, reviewCount: 0 };
+        }
+        otherCategoriesMap[cat].actual += amt;
+        if (isRev) otherCategoriesMap[cat].reviewCount++;
       }
     });
 
     // Collect income
-    const incomeMap: Record<string, number> = {};
+    const incomeMap: Record<string, { actual: number; reviewCount: number }> = {};
     let incomeTotal = 0;
+    let incomeReviewCount = 0;
     txsInMonth.forEach((tx) => {
       if (tx.type === 'INCOME') {
         const amt = Number(tx.amount) || 0;
         if (amt > 0) {
           incomeTotal += amt;
+          const isRev = !!tx.isUnderReview;
+          if (isRev) incomeReviewCount++;
           const cat = (tx.categoryItem || '').trim();
           const label = (!cat || cat.toLowerCase() === 'uncategorized')
             ? (tx.description && tx.description.toLowerCase() !== 'uncategorized' ? tx.description : 'Other Income')
             : cat;
-          incomeMap[label] = (incomeMap[label] || 0) + amt;
+          if (!incomeMap[label]) {
+            incomeMap[label] = { actual: 0, reviewCount: 0 };
+          }
+          incomeMap[label].actual += amt;
+          if (isRev) incomeMap[label].reviewCount++;
         }
       }
     });
 
     const summaries: CategoryGroupSummary[] = this.service.categoryGroups().map((grp) => {
       let groupActual = 0;
+      let groupReviewCount = 0;
 
       const items = grp.items.map((item) => {
         const actual = actualsMap[item.name] || 0;
+        const reviewCount = reviewsMap[item.name] || 0;
         groupActual += actual;
+        groupReviewCount += reviewCount;
 
         return {
           id: item.id,
@@ -524,7 +557,8 @@ export class BudgetDashboardComponent {
           actual,
           remaining: 0,
           percentage: 0,
-          defaultOwner: item.defaultOwner
+          defaultOwner: item.defaultOwner,
+          reviewCount
         };
       });
 
@@ -535,6 +569,7 @@ export class BudgetDashboardComponent {
         plannedTotal: 0,
         actualTotal: groupActual,
         remainingTotal: 0,
+        reviewCount: groupReviewCount,
         items
       };
     });
@@ -543,15 +578,18 @@ export class BudgetDashboardComponent {
     const otherEntries = Object.entries(otherCategoriesMap);
     if (otherEntries.length > 0) {
       let otherTotal = 0;
-      const otherItems = otherEntries.map(([name, actual], idx) => {
-        otherTotal += actual;
+      let otherReviewTotal = 0;
+      const otherItems = otherEntries.map(([name, data], idx) => {
+        otherTotal += data.actual;
+        otherReviewTotal += data.reviewCount;
         return {
           id: 'other-cat-' + idx,
           name,
           planned: 0,
-          actual,
+          actual: data.actual,
           remaining: 0,
-          percentage: 0
+          percentage: 0,
+          reviewCount: data.reviewCount
         };
       });
       summaries.push({
@@ -561,6 +599,7 @@ export class BudgetDashboardComponent {
         plannedTotal: 0,
         actualTotal: otherTotal,
         remainingTotal: 0,
+        reviewCount: otherReviewTotal,
         items: otherItems
       });
     }
@@ -574,6 +613,7 @@ export class BudgetDashboardComponent {
         plannedTotal: 0,
         actualTotal: uncategorizedTotal,
         remainingTotal: 0,
+        reviewCount: uncategorizedReviewCount,
         items: [
           {
             id: 'item-uncategorized',
@@ -581,7 +621,8 @@ export class BudgetDashboardComponent {
             planned: 0,
             actual: uncategorizedTotal,
             remaining: 0,
-            percentage: 0
+            percentage: 0,
+            reviewCount: uncategorizedReviewCount
           }
         ]
       });
@@ -589,13 +630,14 @@ export class BudgetDashboardComponent {
 
     // If there are income transactions, prepend Income & Inflows group
     if (incomeTotal > 0) {
-      const incomeItems = Object.entries(incomeMap).map(([name, actual], idx) => ({
+      const incomeItems = Object.entries(incomeMap).map(([name, data], idx) => ({
         id: 'inc-item-' + idx,
         name,
         planned: 0,
-        actual,
+        actual: data.actual,
         remaining: 0,
-        percentage: 0
+        percentage: 0,
+        reviewCount: data.reviewCount
       }));
       summaries.unshift({
         id: 'grp-income',
@@ -604,6 +646,7 @@ export class BudgetDashboardComponent {
         plannedTotal: 0,
         actualTotal: incomeTotal,
         remainingTotal: 0,
+        reviewCount: incomeReviewCount,
         items: incomeItems
       });
     }
@@ -611,44 +654,47 @@ export class BudgetDashboardComponent {
     return summaries;
   });
 
-  public activeGroupSummaries = computed(() => {
+  public activeGroupSummaries = computed<CategoryGroupSummary[]>(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const active = this.groupSummaries().filter((grp) => grp.actualTotal > 0);
 
     if (!q) return active;
 
-    return active
-      .map((grp) => {
-        const groupMatches = grp.name.toLowerCase().includes(q);
+    const result: CategoryGroupSummary[] = [];
+    for (const grp of active) {
+      const groupMatches = grp.name.toLowerCase().includes(q);
 
-        const matchingItems = grp.items.filter((item) => {
-          if (item.actual <= 0) return false;
-          if (groupMatches) return true;
-          if (item.name.toLowerCase().includes(q)) return true;
+      const matchingItems = grp.items.filter((item) => {
+        if (item.actual <= 0) return false;
+        if (groupMatches) return true;
+        if (item.name.toLowerCase().includes(q)) return true;
 
-          const txs = this.getItemTransactions(grp.id, item.name);
-          return txs.some(
-            (tx) =>
-              (tx.description || '').toLowerCase().includes(q) ||
-              (tx.note || '').toLowerCase().includes(q) ||
-              (tx.bank || '').toLowerCase().includes(q) ||
-              (tx.paidBy || '').toLowerCase().includes(q) ||
-              (tx.merchant || '').toLowerCase().includes(q) ||
-              String(tx.amount).includes(q)
-          );
-        });
+        const txs = this.getItemTransactions(grp.id, item.name);
+        return txs.some(
+          (tx) =>
+            (tx.description || '').toLowerCase().includes(q) ||
+            (tx.note || '').toLowerCase().includes(q) ||
+            (tx.bank || '').toLowerCase().includes(q) ||
+            (tx.paidBy || '').toLowerCase().includes(q) ||
+            (tx.merchant || '').toLowerCase().includes(q) ||
+            String(tx.amount).includes(q)
+        );
+      });
 
-        if (matchingItems.length === 0) return null;
-
+      if (matchingItems.length > 0) {
         const groupActual = matchingItems.reduce((sum, it) => sum + it.actual, 0);
+        const groupReviewCount = matchingItems.reduce((sum, it) => sum + (it.reviewCount || 0), 0);
 
-        return {
+        result.push({
           ...grp,
           actualTotal: groupActual,
+          reviewCount: groupReviewCount,
           items: matchingItems
-        };
-      })
-      .filter((grp): grp is CategoryGroupSummary => grp !== null);
+        });
+      }
+    }
+
+    return result;
   });
 
   public budgetTotals = computed(() => {
